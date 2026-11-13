@@ -6012,3 +6012,20 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 #statsPane-master table.master-grid .master-nest > tbody > tr[data-deal="fwd"] { background: #fff4e6; border-left: 5px solid #e08a2c; }
 #statsPane-master table.master-grid .master-nest > tbody > tr[data-deal="other"] { background: #f1f2f4; border-left: 5px solid #9aa5b1; }
 #statsPane-master table.master-grid .master-nest > tbody > tr[data-deal="agent"] { background: #f5effb; border-left: 5px solid #8a5cc2; }
+
+/* 🌳 編集画面の関連案件：メイン／サブ（入れ子ツリー）・位置づけの選択 */
+.sq-links-group { border-top: 1px solid var(--c-e8d8c0); }
+.sq-links-group-title { padding: var(--sp-6) var(--sp-14) var(--sp-2); font-size: var(--fs-12); font-weight: 700; color: var(--accent); }
+.sq-links-group .sq-link-item:first-child { border-top: none; }
+.sq-link-tree { list-style: none; margin: 0; padding: 0; }
+.sq-link-tree .sq-link-tree {
+  margin-left: var(--sp-14); border-left: 2px solid var(--c-e8d8c0);
+}
+.sq-link-tree-node > .sq-link-item { border-top: 1px solid var(--c-e8d8c0); }
+.sq-link-tree--root > .sq-link-tree-node:first-child > .sq-link-item { border-top: none; }
+.sq-link-role {
+  flex-shrink: 0; font-family: inherit; font-size: var(--fs-12); color: var(--c-5a4a30);
+  background: var(--card-bg); border: 1px solid var(--c-d8c8a8); border-radius: var(--r-6); padding: var(--sp-2) var(--sp-3); cursor: pointer;
+}
+.sq-link-roles { display: flex; flex-direction: column; gap: var(--sp-3); font-size: var(--fs-12); color: var(--c-5a4a30); }
+.sq-link-roles label { cursor: pointer; display: flex; align-items: center; gap: var(--sp-5); }

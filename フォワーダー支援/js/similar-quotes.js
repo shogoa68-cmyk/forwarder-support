@@ -136,38 +136,78 @@ async function _sqFetchLinks() {
   _sqLinks = await window.cloudFetchPresetLinks(id);
 }
 
-function _sqLinksHtml() {
-  const loadedId = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
-  if (!loadedId) return '';
-  const items = _sqLinks.map(l => {
-    const pr = l.preset;
-    const badge = _sqStatusBadge(pr.status);
-    const ref = pr.ref ? `<span class="sq-ref">${escHtml(pr.ref)}</span>` : '';
-    const cust = pr.customer ? `<span class="sq-cust">${escHtml(pr.customer)}</span>` : '';
-    const editing = _sqEditNoteFor === l.linkId;
-    const noteBlock = editing
-      ? `<div class="sq-link-note-edit" onclick="event.stopPropagation()">
-           <input id="sqLinkNoteInput" class="sq-search-input" value="${escHtml(l.note || '')}" placeholder="関連付けの理由（例：多レグ分割の相方／代替案）"
-             onkeydown="if(event.key==='Enter'){event.preventDefault();sqSaveLinkNote('${escHtml(l.linkId)}');}">
-           <button type="button" class="sq-links-add-btn" onclick="event.stopPropagation();sqSaveLinkNote('${escHtml(l.linkId)}')">保存</button>
-           <button type="button" class="sq-link-note-cancel" onclick="event.stopPropagation();sqCancelEditNote()">✕</button>
-         </div>`
-      : (l.note
-          ? `<div class="sq-link-note" onclick="event.stopPropagation();sqEditLinkNote('${escHtml(l.linkId)}')" title="クリックで理由を編集">📝 ${escHtml(l.note)}</div>`
-          : `<button type="button" class="sq-link-note-add" onclick="event.stopPropagation();sqEditLinkNote('${escHtml(l.linkId)}')">＋ 理由を追加</button>`);
-    return `<div class="sq-link-item" onclick="sqOpenPreview('${escHtml(pr.id)}')">
+// 位置づけ（基準の案件から見た相手：関連／サブ／メイン）の選択。基準 anchorId は、編集中の案件か、ツリー内の親ノード
+function _sqRoleSelectHtml(linkId, anchorId, cur) {
+  const opt = (v, label) => `<option value="${v}"${cur === v ? ' selected' : ''}>${label}</option>`;
+  return `<select class="sq-link-role" onclick="event.stopPropagation()" title="位置づけを変える（基準の案件から見た相手）" ` +
+    `onchange="sqSetLinkRole('${escHtml(linkId)}','${escHtml(anchorId)}',this.value)">` +
+    opt('none', '🔗 関連') + opt('sub', '🌱 サブ') + opt('main', '👑 メイン') + `</select>`;
+}
+
+// 1 件ぶんのカード（プレビュー・位置づけ・解除・理由）。node＝{linkId, note, preset:{…}} か、ツリーのノード（メタを直接持つ）
+function _sqLinkItemHtml(node, anchorId, curRole) {
+  const pr = node.preset || node;
+  const badge = _sqStatusBadge(pr.status);
+  const ref = pr.ref ? `<span class="sq-ref">${escHtml(pr.ref)}</span>` : '';
+  const cust = pr.customer ? `<span class="sq-cust">${escHtml(pr.customer)}</span>` : '';
+  const editing = _sqEditNoteFor === node.linkId;
+  const noteBlock = editing
+    ? `<div class="sq-link-note-edit" onclick="event.stopPropagation()">
+         <input id="sqLinkNoteInput" class="sq-search-input" value="${escHtml(node.note || '')}" placeholder="関連付けの理由（例：多レグ分割の相方／代替案）"
+           onkeydown="if(event.key==='Enter'){event.preventDefault();sqSaveLinkNote('${escHtml(node.linkId)}');}">
+         <button type="button" class="sq-links-add-btn" onclick="event.stopPropagation();sqSaveLinkNote('${escHtml(node.linkId)}')">保存</button>
+         <button type="button" class="sq-link-note-cancel" onclick="event.stopPropagation();sqCancelEditNote()">✕</button>
+       </div>`
+    : (node.note
+        ? `<div class="sq-link-note" onclick="event.stopPropagation();sqEditLinkNote('${escHtml(node.linkId)}')" title="クリックで理由を編集">📝 ${escHtml(node.note)}</div>`
+        : `<button type="button" class="sq-link-note-add" onclick="event.stopPropagation();sqEditLinkNote('${escHtml(node.linkId)}')">＋ 理由を追加</button>`);
+  return `<div class="sq-link-item" onclick="sqOpenPreview('${escHtml(pr.id)}')">
       <div class="sq-link-item-top">
         <span class="sq-link-name">${escHtml(pr.name || '（無題）')}</span>${badge}
-        <button type="button" class="sq-link-unlink" onclick="event.stopPropagation();sqUnlinkPreset('${escHtml(l.linkId)}')" title="関連付けを解除">✕</button>
+        ${_sqRoleSelectHtml(node.linkId, anchorId, curRole)}
+        <button type="button" class="sq-link-unlink" onclick="event.stopPropagation();sqUnlinkPreset('${escHtml(node.linkId)}')" title="関連付けを解除">✕</button>
       </div>
       <div class="sq-card-sub">${ref}${cust}</div>
       ${noteBlock}
     </div>`;
-  }).join('');
+}
+
+// サブ案件ツリーの 1 ノード（入れ子）。anchorId＝このノードの親（メイン）の案件
+function _sqTreeNodeHtml(node, anchorId) {
+  const kids = (node.kids && node.kids.length)
+    ? `<ul class="sq-link-tree">${node.kids.map(k => _sqTreeNodeHtml(k, node.id)).join('')}</ul>` : '';
+  return `<li class="sq-link-tree-node">${_sqLinkItemHtml(node, anchorId, 'sub')}${kids}</li>`;
+}
+function _sqTreeCount(kids) { return (kids || []).reduce((n, k) => n + 1 + _sqTreeCount(k.kids), 0); }
+
+function _sqLinksHtml() {
+  const loadedId = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
+  if (!loadedId) return '';
+  const parents = _sqLinks.filter(l => l.rel === 'parent');
+  const kids    = _sqLinks.filter(l => l.rel === 'child');
+  const peers   = _sqLinks.filter(l => l.rel !== 'parent' && l.rel !== 'child');
+  const subTotal = kids.reduce((n, l) => n + 1 + _sqTreeCount(l.kids), 0);
+  const hier = parents.length || kids.length;
+  const group = (title, body) => `<div class="sq-links-group"><div class="sq-links-group-title">${title}</div>${body}</div>`;
+  let items = '';
+  if (parents.length) {
+    items += group('👑 この案件のメイン', parents.map(l => _sqLinkItemHtml(l, loadedId, 'main')).join(''));
+  }
+  if (kids.length) {
+    items += group(`🌳 サブ案件（${subTotal}）`,
+      `<ul class="sq-link-tree sq-link-tree--root">${kids.map(l =>
+        `<li class="sq-link-tree-node">${_sqLinkItemHtml(l, loadedId, 'sub')}` +
+        (l.kids && l.kids.length ? `<ul class="sq-link-tree">${l.kids.map(k => _sqTreeNodeHtml(k, l.otherId)).join('')}</ul>` : '') +
+        `</li>`).join('')}</ul>`);
+  }
+  if (peers.length) {
+    const body = peers.map(l => _sqLinkItemHtml(l, loadedId, 'none')).join('');
+    items += hier ? group(`🔗 関連案件（${peers.length}）`, body) : body;
+  }
   return `<div class="sq-links-section">
     <div class="sq-links-head">
       <span class="sq-links-title">🔗 関連付けた案件${_sqLinks.length ? '（' + _sqLinks.length + '）' : ''}</span>
-      <button type="button" class="sq-links-add-btn" onclick="sqToggleLinkSearch()" title="他の案件をこの案件に関連付ける">＋ 関連付け</button>
+      <button type="button" class="sq-links-add-btn" onclick="sqToggleLinkSearch()" title="他の案件をこの案件に関連付ける（メイン／サブにもできます）">＋ 関連付け</button>
     </div>
     <div class="sq-link-search-bar" id="sqLinkSearchBar" ${_sqLinkSearchOpen ? '' : 'hidden'}>
       <input id="sqLinkSearchInput" class="sq-search-input" placeholder="見積名・見積もり番号・顧客名で検索" oninput="sqScheduleLinkSearch()">
@@ -175,6 +215,12 @@ function _sqLinksHtml() {
     </div>
     <div class="sq-links-list">${items || '<div class="sq-links-empty">関連付けた案件はまだありません</div>'}</div>
   </div>`;
+}
+
+// 位置づけ（関連／サブ／メイン）の変更。失敗しても選択肢の見た目を実際の状態に戻すため、描き直す
+async function sqSetLinkRole(linkId, anchorId, role) {
+  if (typeof window.cloudSetLinkRole === 'function') await window.cloudSetLinkRole(linkId, anchorId, role);
+  await _sqFetch();
 }
 
 function sqToggleLinkSearch() {
@@ -245,6 +291,11 @@ function _renderLinkReasonBar() {
   box.innerHTML =
     '<div class="sq-link-reason">' +
       '<div class="sq-link-reason-target">🔗 「' + escHtml(nm) + '」に関連付け</div>' +
+      '<div class="sq-link-roles" role="radiogroup" aria-label="位置づけ">' +
+        '<label><input type="radio" name="sqLinkRole" value="none" checked> 🔗 ただ関連付ける</label>' +
+        '<label><input type="radio" name="sqLinkRole" value="sub"> 🌱 この案件のサブにする</label>' +
+        '<label><input type="radio" name="sqLinkRole" value="main"> 👑 この案件のメインにする</label>' +
+      '</div>' +
       '<input id="sqLinkReasonInput" class="sq-search-input" placeholder="関連付けの理由（任意。例：多レグ分割の相方／代替案）" ' +
         'onkeydown="if(event.key===\'Enter\'){event.preventDefault();sqConfirmPendingLink();}">' +
       '<div class="sq-link-reason-acts">' +
@@ -260,7 +311,10 @@ async function sqConfirmPendingLink() {
   const id = _sqPendingLinkId;
   if (!loadedId || !id || typeof window.cloudLinkPresets !== 'function') return;
   const note = (document.getElementById('sqLinkReasonInput')?.value || '').trim();
-  const res = await window.cloudLinkPresets(loadedId, id, note);
+  const role = (document.querySelector('input[name="sqLinkRole"]:checked') || {}).value || 'none';
+  // サブ＝相手を、いま開いている案件のサブに／メイン＝相手を、いま開いている案件のメインに
+  const parent = role === 'sub' ? loadedId : (role === 'main' ? id : null);
+  const res = await window.cloudLinkPresets(loadedId, id, note, parent ? { parent } : undefined);
   if (res && res.ok) {
     _sqPendingLinkId = null;
     _sqLinkSearchOpen = false;
@@ -574,3 +628,4 @@ window.sqScheduleLinkSearch = sqScheduleLinkSearch;
 window.sqDoLinkSearch     = sqDoLinkSearch;
 window.sqPickLinkResult   = sqPickLinkResult;
 window.sqUnlinkPreset     = sqUnlinkPreset;
+window.sqSetLinkRole      = sqSetLinkRole;

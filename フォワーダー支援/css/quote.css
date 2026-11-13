@@ -12330,3 +12330,34 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make .ci-recv-row input[type="time"] { flex: 0 0 auto; width: 6.5em; }
 #tab-quote-make .ci-resp-hint { margin-top: 4px; font-size: var(--text-xs); color: var(--text-muted, #6b7683); line-height: var(--lh-body, 1.7); }
 #tab-quote-make .ci-resp-hint[hidden] { display: none; }
+
+/* 🌳 メイン／サブ（入れ子ツリー）：ダッシュボードのカード内 */
+#tab-quote-make #qpdListWrap .cloud-card-parentline:empty { display: none; }
+#tab-quote-make #qpdListWrap .cloud-card-parentline {
+  display: flex; align-items: center; gap: var(--sp-6); margin-bottom: var(--sp-6);
+  padding: var(--sp-3) var(--sp-8); background: var(--green-88, #e6f2ea); border-radius: var(--r-6);
+}
+#tab-quote-make #qpdListWrap .cloud-card-parentline .cloud-clink-wrap { flex: 1; min-width: 0; }
+#tab-quote-make #qpdListWrap .clink-parent-lbl { flex-shrink: 0; font-size: var(--fs-11); font-weight: 700; color: var(--accent); white-space: nowrap; }
+#tab-quote-make #qpdListWrap .cloud-card-links-head + .clink-tree--root,
+#tab-quote-make #qpdListWrap .cloud-clink-list + .cloud-clink-more { margin-top: 0; }
+#tab-quote-make #qpdListWrap .cloud-card-links-head:not(:first-child) { margin-top: var(--sp-8); }
+#tab-quote-make #qpdListWrap .clink-tree { list-style: none; margin: var(--sp-4) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+#tab-quote-make #qpdListWrap .clink-tree--root { margin-top: 0; }
+/* 入れ子：左に縦線、各行に横線を伸ばして「ぶら下がり」を見せる */
+#tab-quote-make #qpdListWrap .clink-tree .clink-tree {
+  margin-left: var(--sp-10); padding-left: var(--sp-10); border-left: 2px solid var(--accent-lt);
+}
+#tab-quote-make #qpdListWrap .clink-tree-node { position: relative; min-width: 0; }
+#tab-quote-make #qpdListWrap .clink-tree .clink-tree > .clink-tree-node::before {
+  content: ''; position: absolute; left: calc(-1 * var(--sp-10)); top: 14px; width: var(--sp-8); border-top: 2px solid var(--accent-lt);
+}
+#tab-quote-make #qpdListWrap .clink-role {
+  flex-shrink: 0; font-family: inherit; font-size: var(--fs-11); color: var(--text-muted);
+  background: var(--card-bg); border: 1px solid var(--accent-lt); border-radius: var(--r-6); padding: var(--sp-2) var(--sp-3); cursor: pointer; max-width: 92px;
+}
+#tab-quote-make #qpdListWrap .clink-role:hover { border-color: var(--accent); color: var(--text); }
+#qpDashboard .qpd-link-bar-role {
+  font-family: inherit; font-size: var(--fs-12); padding: var(--sp-6) var(--sp-8);
+  border: 1px solid #a9d3bc; border-radius: var(--r-6); background: var(--surface); color: #234;
+}
