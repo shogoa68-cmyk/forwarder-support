@@ -1201,6 +1201,7 @@
               '<button class="btn-preset-pdf" onclick="cloudPdfPreset(\'' + idAttr + '\')" title="この案件を開いて御見積書PDFを出力">📄 PDF</button>' +
               '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')"><span class="lbl-d">読込</span><span class="lbl-s">開く</span></button>' +
               '<button class="btn-preset-copy" onclick="cloudDuplicatePreset(\'' + idAttr + '\')" title="コピーして新規案件を作成">📋 コピー</button>' +
+              '<button class="btn-preset-copy btn-preset-sub" onclick="cloudCreateSubPreset(\'' + idAttr + '\')" title="この案件をコピーして、サブ案件として関連付けます（この案件がメイン）">🌱 サブ作成</button>' +
               (lockedBy
                 ? '<button class="btn-preset-del is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません">🔒</button>'
                 : '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>') +
@@ -1249,6 +1250,7 @@
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPreviewPreset(\'' + idAttr + '\')">プレビュー</button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPdfPreset(\'' + idAttr + '\')">PDF を出力</button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudDuplicatePreset(\'' + idAttr + '\')">コピーして新規作成</button>' +
+        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudCreateSubPreset(\'' + idAttr + '\')">🌱 サブ案件を作成<small>この案件をコピーして、サブとして関連付けます</small></button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPickPredecessor(\'' + idAttr + '\')">🧬 代替わり元を設定…<small>前の案件を選んで、代替わり（世代）をつなぐ</small></button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();eiOpenStoreForCard(\'' + idAttr + '\')">📝 自由入力を追加<small>この案件に、提示した見積の原文を保管します</small></button>' +
         '<div class="cloud-menu-sep" role="separator"></div>' +
@@ -3533,7 +3535,10 @@
   window.cloudSetLinkRole      = cloudSetLinkRole;
 
   // ---------- コピー ----------
-  async function cloudDuplicatePreset(rawId) {
+  // asSub（「サブ案件を作成」）：コピーした案件を、コピー元のサブとして関連付ける（メイン＝コピー元）。
+  // 代替わり（copiedFrom・前回提示との差分ハイライト）は付けない（サブは「別の関連案件」であって「次の版」ではないため）
+  async function cloudDuplicatePreset(rawId, opts) {
+    const asSub = !!(opts && opts.asSub);
     const c = _getClient();
     if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
     const id = decodeURIComponent(rawId);
@@ -3557,7 +3562,7 @@
     // コピー元の内容を「前回提示分」として記録し、改定中の案件と同じ仕組みで
     // コピー先の追加/変更行をハイライトできるようにする（行の uid はそのままコピー
     // されるため、以降コピー先を編集すればそこから差分が出る）。
-    if (typeof window.buildRevisionSnapshotFromRowsData === 'function') {
+    if (!asSub && typeof window.buildRevisionSnapshotFromRowsData === 'function') {
       const baseline = window.buildRevisionSnapshotFromRowsData(src.data.rows);
       if (baseline.rows.length) newData.fields['qf-revision-baseline'] = JSON.stringify(baseline);
     }
@@ -3566,11 +3571,16 @@
     // root：チェーンの先頭（最初のオリジナル）を常に指す。コピー元自体がコピーで
     // あれば root を引き継ぎ、そうでなければコピー元自身が root になる。
     const srcCf = src.data && src.data.copiedFrom;
-    newData.copiedFrom = {
-      id: src.id, name: src.name, ref: srcRef,
-      gen: (srcCf && srcCf.gen ? srcCf.gen : 1) + 1,
-      root: (srcCf && srcCf.root) || { id: src.id, name: src.name, ref: srcRef },
-    };
+    if (asSub) {
+      delete newData.copiedFrom;   // コピー元自身が代替わりの印を持っていても、サブには引き継がない
+      delete newData.fields['qf-revision-baseline'];
+    } else {
+      newData.copiedFrom = {
+        id: src.id, name: src.name, ref: srcRef,
+        gen: (srcCf && srcCf.gen ? srcCf.gen : 1) + 1,
+        root: (srcCf && srcCf.root) || { id: src.id, name: src.name, ref: srcRef },
+      };
+    }
     // 発番ID取得済みなら新REF#をコピー時点で採番（未取得の場合はコピー元番号を保持）
     const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
     if (newRef) newData.fields['qf-ref'] = newRef;
@@ -3581,7 +3591,7 @@
     delete newData.fields['qf-versions'];   // 提示履歴（版）はコピー元の案件のものなので引き継がない
     delete newData.fields['qf-related-data'];   // 関連番号・メール件名も元の引き合いに固有のため引き継がない
     const existingNames = _cloudRows.map(r => r.name);
-    let baseName = src.name + ' のコピー';
+    let baseName = src.name + (asSub ? ' のサブ' : ' のコピー');
     let copyName = baseName;
     let n = 2;
     while (existingNames.includes(copyName)) copyName = baseName + '_' + (n++);
@@ -3608,17 +3618,40 @@
       const parsed = JSON.parse(f['qf-tags-data'] || '[]');
       if (Array.isArray(parsed)) tags = parsed.map(t => String(t || '').trim()).filter(Boolean);
     } catch(e) {}
-    const { error } = await _withOptionalCols(['ref', 'tags'], excluded => c.from(_table()).insert(Object.assign(
-      { name: copyName, data: newData, subcons, status: CLOUD_STATUS_DEFAULT,
-        customer, person, incoterms, transport_mode, pol, pod, carrier,
-        owner_email: _cloudUser.email, created_by: _cloudUser.email },
-      excluded.has('ref')  ? {} : { ref },
-      excluded.has('tags') ? {} : { tags }
-    )));
-    if (error) { quoteShowToast('⚠️ コピーに失敗：' + error.message, 'warn', 5000); return; }
-    quoteShowToast('📋 「' + src.name + '」をコピーしました → 「' + copyName + '」', 'success', 3500);
+    const { data: ins, error } = await _withOptionalCols(['ref', 'tags'], excluded => {
+      const q = c.from(_table()).insert(Object.assign(
+        { name: copyName, data: newData, subcons, status: CLOUD_STATUS_DEFAULT,
+          customer, person, incoterms, transport_mode, pol, pod, carrier,
+          owner_email: _cloudUser.email, created_by: _cloudUser.email },
+        excluded.has('ref')  ? {} : { ref },
+        excluded.has('tags') ? {} : { tags }
+      ));
+      return asSub ? q.select('id').single() : q;   // サブにするときは、できた案件の id が要る
+    });
+    if (error) { quoteShowToast('⚠️ ' + (asSub ? 'サブ案件の作成' : 'コピー') + 'に失敗：' + error.message, 'warn', 5000); return; }
+    if (!asSub) {
+      quoteShowToast('📋 「' + src.name + '」をコピーしました → 「' + copyName + '」', 'success', 3500);
+      cloudListPresets();
+      return;
+    }
+    // ---- サブ案件：できた案件をコピー元のサブとして関連付ける ----
+    const newId = ins && ins.id;
+    if (!newId) { quoteShowToast('⚠️ サブ案件は作成しましたが、関連付けできませんでした（一覧から関連付けてください）', 'warn', 7000); cloudListPresets(); return; }
+    let lk = await cloudLinkPresets(src.id, newId, '', { silent: true, parent: src.id });
+    if (lk.ok) {
+      quoteShowToast('🌱 「' + src.name + '」のサブ案件を作成しました → 「' + copyName + '」', 'success', 3500);
+    } else {
+      // メイン／サブの列が無い（SQL 未実行）ときなどは、ただの関連として付けておく
+      const plain = await cloudLinkPresets(src.id, newId, '', { silent: true });
+      quoteShowToast(plain.ok
+        ? (_linkHierarchyMissing ? _HIER_SQL_HINT + '（サブ案件は作成し、ただの関連として付けました）'
+                                 : '⚠️ サブ案件は作成しましたが、メイン／サブには設定できず、ただの関連として付けました')
+        : '⚠️ サブ案件は作成しましたが、関連付けに失敗しました（一覧の「関連付けモード」から付けてください）', 'warn', 8000);
+    }
     cloudListPresets();
   }
+  // 「🌱 サブ作成」＝この案件をコピーして、サブ案件として関連付ける
+  function cloudCreateSubPreset(rawId) { return cloudDuplicatePreset(rawId, { asSub: true }); }
 
   // ---------- 🧬 代替わり元（前の案件）をあとから紐づける ----------
   // 代替わりは、新しい案件の data.copiedFrom（コピー元・世代 gen・オリジナル root）で持つ。
@@ -4536,6 +4569,7 @@
   window.cloudDeletePreset    = cloudDeletePreset;
   window.cloudAdminReleaseLock = cloudAdminReleaseLock;
   window.cloudDuplicatePreset = cloudDuplicatePreset;
+  window.cloudCreateSubPreset = cloudCreateSubPreset;
   window.cloudListPresets    = cloudListPresets;
   window.cloudGetAllRows     = () => (_cloudRows || []).slice();
   window.cloudGetClient      = _getClient;

@@ -54,7 +54,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
           insert(o) { st.op = 'insert'; st.payload = o; return api; },
           update(o) { st.op = 'update'; st.payload = o; return api; },
           delete() { st.op = 'delete'; return api; },
-          single() { return api; }, maybeSingle() { return api; },
+          single() { st.single = true; return api; }, maybeSingle() { st.single = true; return api; },
           then(res, rej) {
             const miss = { code: '42703', message: 'column quote_preset_links.parent_id does not exist' };
             const rows = (db[t] = db[t] || []);
@@ -64,7 +64,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
               if (st.op === 'select' && st.__inParent) return Promise.resolve({ data: null, error: miss }).then(res, rej);
             }
             let data = null;
-            if (st.op === 'insert') { [].concat(st.payload).forEach(o => rows.push(Object.assign({ id: 'id' + Math.random().toString(36).slice(2) }, JSON.parse(JSON.stringify(o))))); }
+            if (st.op === 'insert') { const made = [].concat(st.payload).map(o => Object.assign({ id: 'id' + Math.random().toString(36).slice(2) }, JSON.parse(JSON.stringify(o)))); made.forEach(r => rows.push(r)); if (st.cols) data = st.single ? { id: made[0].id } : made.map(r => ({ id: r.id })); }
             else if (st.op === 'delete') { db[t] = rows.filter(r => !st.filters.every(f => f(r))); }
             else if (st.op === 'update') { rows.filter(r => st.filters.every(f => f(r))).forEach(r => Object.assign(r, JSON.parse(JSON.stringify(st.payload)))); }
             else data = rows.filter(r => st.filters.every(f => f(r))).map(r => Object.assign({}, r));
@@ -244,6 +244,47 @@ const http = require('http'), fs = require('fs'), path = require('path');
     });
     await p.waitForTimeout(1000);
     ok('メイン／サブを選ぶと SQL 実行の案内が出る', (await p.evaluate(() => window.__toasts)).some(m => /quote-preset-links-hierarchy\.sql/.test(m)), await p.evaluate(() => window.__toasts));
+    ok('ページエラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== カードの「🌱 サブ作成」（この案件をコピーして、サブとして関連付ける）=====
+  {
+    const { ctx, p, errs } = await open();
+    ok('詳細表示のカードに「🌱 サブ作成」ボタンがある', await p.evaluate(() => document.querySelectorAll('#qpdListWrap .cloud-card .btn-preset-sub').length === 8));
+    ok('「⋯」メニュー（かんたん表示用）にも「サブ案件を作成」がある', await p.evaluate(() => [...document.querySelectorAll('#qpdListWrap .cloud-card .cloud-menu-item')].some(b => b.textContent.includes('サブ案件を作成'))));
+    const before = await p.evaluate(() => window.__db.quote_presets.length);
+    await p.evaluate(() => document.querySelector('#qpdListWrap .cloud-card:has(.cloud-card-links[data-lid="Z"]) .btn-preset-sub').click());
+    await p.waitForTimeout(1800);
+    const r = await p.evaluate(() => {
+      const db = window.__db, made = db.quote_presets.find(x => x.name === '案件Z のサブ');
+      const lk = made && db.quote_preset_links.find(l => [l.preset_a, l.preset_b].includes(made.id) && [l.preset_a, l.preset_b].includes('Z'));
+      return { made: !!made, count: db.quote_presets.length, parent: lk && lk.parent_id, status: made && made.status, hasCopied: !!(made && made.data && made.data.copiedFrom), ref: made && made.data.fields['qf-ref'] };
+    });
+    ok('案件が 1 件増え、名前は「◯◯ のサブ」・状態は下書き中', r.made && r.count === before + 1 && r.status === '下書き中', r);
+    ok('コピー元 Z がメイン（parent_id＝Z）としてサブに関連付く', r.parent === 'Z', r);
+    ok('サブには代替わり（copiedFrom）を付けない', r.hasCopied === false, r);
+    const zc = await card(p, 'Z');
+    ok('ダッシュボード：Z のカードに「🌳 サブ案件（1）」が出る', zc && zc.head.join('|') === '🌳 サブ案件（1）' && zc.treeRoot.join() === '案件Z のサブ', zc);
+    // 同じ案件でもう一度 → 「のサブ_2」で 2 件目
+    await p.evaluate(() => document.querySelector('#qpdListWrap .cloud-card:has(.cloud-card-links[data-lid="Z"]) .btn-preset-sub').click());
+    await p.waitForTimeout(1800);
+    const zc2 = await card(p, 'Z');
+    ok('もう一度作ると、名前が重ならず（_2）サブが 2 件になる', zc2 && zc2.head.join('|') === '🌳 サブ案件（2）' && zc2.treeRoot.sort().join() === '案件Z のサブ,案件Z のサブ_2', zc2);
+    // サブの上でもさらにサブを作れる（孫）
+    ok('ページエラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== SQL 未実行でも「サブ作成」は、ただの関連として付く =====
+  {
+    const { ctx, p, errs } = await open({ noParentCol: true });
+    await p.evaluate(() => { window.__toasts = []; const o = window.quoteShowToast; window.quoteShowToast = function (m) { window.__toasts.push(m); return o && o.apply(this, arguments); }; });
+    await p.evaluate(() => document.querySelector('#qpdListWrap .cloud-card:has(.cloud-card-links[data-lid="Z"]) .btn-preset-sub').click());
+    await p.waitForTimeout(1800);
+    const r = await p.evaluate(() => { const db = window.__db, made = db.quote_presets.find(x => x.name === '案件Z のサブ'); const lk = made && db.quote_preset_links.find(l => [l.preset_a, l.preset_b].includes(made.id)); return { made: !!made, linked: !!lk, toasts: window.__toasts }; });
+    ok('列なしでも案件は作られ、ただの関連として付く', r.made && r.linked, r);
+    ok('SQL 実行の案内が出る', r.toasts.some(m => /quote-preset-links-hierarchy\.sql/.test(m)), r.toasts);
     ok('ページエラーなし', errs.length === 0, errs);
     await ctx.close();
   }
