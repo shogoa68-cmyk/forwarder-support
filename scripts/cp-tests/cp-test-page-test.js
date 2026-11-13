@@ -290,7 +290,10 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   ok((await p.locator('#cptDetail .cpt-step-v.is-nodata').count()) === 6, 'コンテナ：情報が無いコンテナは、6 段すべてが「COLINSに情報がありません」');
   await p.click('[data-act="all"]');
   ok((await p.locator('#cptDetail .cpt-dl dd.is-nodata').count()) >= 15, 'コンテナ：「すべての項目」も情報が無い項目は「COLINSに情報なし」');
-  await p.click('#cptList .cpt-row >> nth=1'); await p.click('[data-act="all"]');
+  ok(await p.locator('#cptDetail .cpt-guide').count() === 1 && /船会社のトラッキングで確認できます/.test(await txt('#cptDetail .cpt-guide')), 'コンテナ：流れが全部「情報なし」なら、船会社のトラッキングへの案内を出す');
+  await p.click('#cptList .cpt-row >> nth=1');
+  ok(await p.locator('#cptDetail .cpt-guide').count() === 0, 'コンテナ：情報が取れているコンテナには、案内を出さない');
+  await p.click('[data-act="all"]');
   const dl = (await txt('#cptDetail')).replace(/\n/g, ' ');
   ok(/デマレージFT\(日\)\s*7/.test(dl) && /東京CY/.test(dl) && /大井返却/.test(dl), 'コンテナ：すべての項目に FT・搬出場所・返却場所（どの項目も削らない）');
   ok(await p.locator('#cptDetail dd.cpt-due-warn').count() >= 1, 'コンテナ：すべての項目でも 48時間以内の期限は黄');
@@ -347,6 +350,58 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   await p.setViewportSize({ width: 1280, height: 1000 });
   const shot = process.argv[2]; if (shot) await p.locator('#tab-cptest').screenshot({ path: shot });
 
+
+  // ===== COLINS に情報が無いとき：船会社のトラッキングへの案内 =====
+  await p.click('.cpt-tab[data-tab="ctn"]');
+  await p.click('.cpt-seg [data-dir="import"]');
+  respond = router({ '/API/v2/ColinsViewers/GetImportContainers': () => okBody('ColinsViewers/Containers', []) });
+  await p.fill('#cptCtn', 'oneytyogf8748400'); await p.click('#cptColinsC');
+  await p.waitForSelector('#cptLive .cpt-guide');
+  const g1 = await p.$$eval('#cptLive .cpt-guide-chip.is-primary', (a) => a.map((x) => x.getAttribute('href')));
+  eq(g1, ['https://ecomm.one-line.com/one-ecom/manage-shipment/cargo-tracking?trakNoParam=ONEYTYOGF8748400'], '案内：B/L の頭文字（ONEY）から ONE を推測し、番号を渡したトラッキングのリンクを作る');
+  ok(await p.locator('#cptLive .cpt-guide-chip.is-primary[target="_blank"][rel*="noopener"]').count() === 1, '案内：新しいタブで開く（noopener）');
+  ok(await p.locator('#cptLive .cpt-guide-more').count() === 1 && await p.locator('#cptLive .cpt-guide-more[open]').count() === 0, '案内：ほかの船会社は、閉じた状態で選べる');
+  ok(await p.locator('#cptLive .cpt-guide-more .cpt-guide-chip').count() >= 10, '案内：ほかの船会社のチップが並ぶ');
+  ok(/COLINS は日本の港のターミナル情報/.test(await txt('#cptLive .cpt-guide')), '案内：COLINS で載らない理由を一言');
+  // 番号をコピーして開く船会社（MSC）
+  await p.fill('#cptCtn', 'MSCU1234567'); await p.click('#cptColinsC');
+  await p.waitForFunction(() => /MSC/.test((document.querySelector('#cptLive .cpt-guide-chip.is-primary') || {}).innerText || ''));
+  const gm = await p.locator('#cptLive .cpt-guide-chip.is-primary').first();
+  ok(/📋/.test(await gm.innerText()) && (await gm.getAttribute('data-cg-copy')) === 'MSCU1234567', '案内：番号を URL で受けない船会社（MSC）は、📋 の印と番号のコピー指定');
+  // 推測できない番号（ブッキング番号など）：すべての船会社から選べる（開いた状態）
+  await p.click('.cpt-seg [data-dir="export"]');
+  respond = router({ '/API/v2/ColinsViewers/GetExportContainers': () => okBody('ColinsViewers/Containers', []) });
+  await p.fill('#cptCtn', 'bk-998877'); await p.click('#cptColinsC');
+  await p.waitForSelector('#cptLive .cpt-guide');
+  ok(/推測できませんでした/.test(await txt('#cptLive .cpt-guide')) && await p.locator('#cptLive .cpt-guide-more[open]').count() === 1 && await p.locator('#cptLive .cpt-guide-chip.is-primary').count() === 0, '案内：推測できない番号は、船会社を選ぶ形（一覧を開いた状態）');
+  ok(await p.locator('#cptLive .cpt-guide-chip[href*="BK-998877"], #cptLive .cpt-guide-chip[href*="998877"]').count() >= 5, '案内：選んだ船会社には、入力した番号を渡す');
+  // 通信エラーのときは、案内を出さない（COLINS に無いのではなく、取得できなかったため）
+  respond = () => ({ status: 502, body: { ok: false, error: 'upstream_auth', message: 'サイバーポートに認証を拒否されました', upstreamStatus: 403 } });
+  await p.fill('#cptCtn', 'ONEYTYOGF1'); await p.click('#cptColinsC');
+  await p.waitForSelector('#cptLive .cpt-msg.is-error');
+  eq(await p.locator('#cptLive .cpt-guide').count(), 0, '案内：エラーのときは出さない（情報が無いのではなく、取れなかった）');
+  // ----- 本船の動静 -----
+  await p.click('.cpt-tab[data-tab="vessel"]'); await p.click('.cpt-seg [data-dir="import"]');
+  respond = router({ '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', []) });
+  await p.fill('#cptVessel', 'sakura maru'); await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-guide');
+  ok(/本船スケジュールで確認できます/.test(await txt('#cptLive .cpt-guide')) && /船会社が分からない/.test(await txt('#cptLive .cpt-guide')), '案内（本船）：0 件のとき、船会社の本船スケジュールへ案内（本船名からは船会社が分からない旨）');
+  ok(await p.locator('#cptLive .cpt-guide-chip[target="_blank"][rel*="noopener"]').count() >= 10 && await p.locator('#cptLive .cpt-guide-chip.is-primary').count() === 0, '案内（本船）：船会社のチップが並ぶ（推測はしない・新しいタブ・noopener）');
+  eq(await p.locator('#cptLive .cpt-guide-chip').first().getAttribute('data-cg-copy'), 'sakura maru', '案内（本船）：本船名を入れていれば、開くときにその名前をコピーする');
+  await p.fill('#cptVessel', ''); await p.waitForFunction(() => !document.getElementById('cptColinsV').disabled); await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-guide');
+  eq(await p.locator('#cptLive .cpt-guide-chip[data-cg-copy]').count(), 0, '案内（本船）：本船名が空なら、コピーの指定は付けない');
+  // 流れが全部「情報なし」の本船：右の詳細にも案内
+  respond = router({ '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', [{ terminalCode: 'XXXXX99C', vessel: { vesselName: 'GHOST ONE', voyageNo: '1' } }]) });
+  await p.waitForFunction(() => !document.getElementById('cptColinsV').disabled); await p.click('#cptColinsV');
+  await p.waitForSelector('#cptList .cpt-row');
+  ok(await p.locator('#cptDetail .cpt-guide').count() === 1 && await p.locator('#cptDetail .cpt-guide-chip[data-cg-copy="GHOST ONE"]').count() >= 10, '案内（本船）：流れが全部「情報なし」の本船は、詳細にも案内（本船名をコピー）');
+  respond = () => ({ status: 502, body: { ok: false, error: 'upstream_auth', message: 'サイバーポートに認証を拒否されました', upstreamStatus: 403 } });
+  await p.waitForFunction(() => !document.getElementById('cptColinsV').disabled); await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-msg.is-error');
+  eq(await p.locator('#cptLive .cpt-guide').count(), 0, '案内（本船）：エラーのときは出さない');
+  // 推測（純粋関数）
+  eq(await p.evaluate(() => ['MAEU1234567', 'ONEU1234567', 'ooluxxxx', 'ABCD123', 'MS', '', null].map((n) => window.CpCarrierGuide.guess(n))), ['Maersk', 'ONE', 'OOCL', null, null, null, null], '案内：頭 4 文字の推測（Maersk／ONE／OOCL・不明は null）');
   // 未ログイン
   await p.evaluate(() => { window.__noSession = true; });
   const before = sent.length;

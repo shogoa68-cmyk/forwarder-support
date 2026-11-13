@@ -167,3 +167,15 @@
 @keyframes cptEvFlash { from { background: #fff4d6; } to { background: transparent; } }
 #tab-cptest .cpt-ev-detail td { white-space: normal; background: var(--cpt-sunken); }
 #tab-cptest .cpt-ev-detail pre { max-height: 320px; overflow: auto; margin: 0 0 6px; padding: 8px; font-size: var(--text-xs, 12px); background: var(--surface); border: 1px solid var(--cpt-line); border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+
+/* ---- COLINS に情報が無いときの、船会社のトラッキングへの案内 ---- */
+#tab-cptest .cpt-guide { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--cpt-line2); border-left: 4px solid var(--accent); border-radius: 8px; background: var(--surface); line-height: 1.7; }
+#tab-cptest .cpt-guide-h { font-weight: 700; font-size: var(--text-sm, 13px); margin-bottom: 4px; }
+#tab-cptest .cpt-guide-p, #tab-cptest .cpt-guide-n { font-size: var(--text-xs, 12px); color: var(--cpt-ink3); }
+#tab-cptest .cpt-guide-n { margin-top: 8px; }
+#tab-cptest .cpt-guide-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+#tab-cptest .cpt-guide-chip { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border: 1px solid var(--cpt-line2); border-radius: 999px; background: var(--surface); color: var(--text); font-size: var(--text-sm, 13px); font-weight: 600; text-decoration: none; }
+#tab-cptest .cpt-guide-chip:hover { background: var(--accent-lt); }
+#tab-cptest .cpt-guide-chip.is-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+#tab-cptest .cpt-guide-chip.is-primary:hover { background: var(--accent-dk); }
+#tab-cptest .cpt-guide-more > summary { cursor: pointer; font-size: var(--text-sm, 13px); color: var(--accent); }

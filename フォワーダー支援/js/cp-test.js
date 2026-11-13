@@ -472,22 +472,30 @@
     }
     if (k.indexOf('vessel:') === 0) {
       var dir = meta.dir, port = meta.port, at = atPort(x, port, dir), term = termCell(names)(x);
-      return { title: vesselTitle(x), sub: (dir === 'export' ? '輸出' : '輸入') + '　' + port + (term ? '　／　' + term : ''), chips: [], flowTitle: '本船の流れ', steps: stepsVessel(x, port, dir, now), dl: colsDl(vesselCols(dir, port, names), NODATA_C_S), kind: 'vessel' };
+      var vSteps = stepsVessel(x, port, dir, now);
+      // 流れの全部が「情報なし」のときは、船会社の本船スケジュールへ案内する
+      var vGuide = vSteps.every(function (p) { return p.st === 'nodata'; }) && window.CpCarrierGuide ? window.CpCarrierGuide.vesselHtml({ name: g(x, 'vessel.vesselName') }) : '';
+      return { title: vesselTitle(x), sub: (dir === 'export' ? '輸出' : '輸入') + '　' + port + (term ? '　／　' + term : ''), chips: [], flowTitle: '本船の流れ', steps: vSteps, dl: colsDl(vesselCols(dir, port, names), NODATA_C_S), kind: 'vessel', extra: vGuide };
     }
     var dirc = k === 'ctn:export' ? 'export' : 'import';
     var size = [g(x, 'container.lengthName'), g(x, 'container.containerTypeName')].filter(Boolean).join(' ');
     var chips = [size, g(x, 'containerStatus.fullOrEmpty'), dirc === 'export' ? '輸出' : ''].filter(Boolean);
     var subBits = [[g(x, 'vessel.vesselName'), g(x, 'vessel.voyageNo')].filter(Boolean).join(' / '), dirc === 'import' ? (g(x, 'billOfLadingDetail.blNo') ? 'B/L ' + g(x, 'billOfLadingDetail.blNo') : '') : '', termCell(names)(x)].filter(Boolean);
-    return { title: g(x, 'container.containerNo') || '（番号なし）', sub: subBits.join('　／　'), chips: chips, flowTitle: dirc === 'export' ? '輸出の流れ' : 'いまの流れ', steps: dirc === 'export' ? stepsExportContainer(x, now) : stepsImportContainer(x, now), dl: colsDl(containerCols(dirc, names), NODATA_C_S), kind: 'ctn' };
+    var cSteps = dirc === 'export' ? stepsExportContainer(x, now) : stepsImportContainer(x, now);
+    // 流れの全部が「情報なし」（COLINS に載っていない）ときは、船会社のトラッキングへ案内する
+    var cGuide = cSteps.every(function (p) { return p.st === 'nodata'; }) ? guideHtml([g(x, 'billOfLadingDetail.blNo'), g(x, 'container.containerNo')]) : '';
+    return { title: g(x, 'container.containerNo') || '（番号なし）', sub: subBits.join('　／　'), chips: chips, flowTitle: dirc === 'export' ? '輸出の流れ' : 'いまの流れ', steps: cSteps, dl: colsDl(containerCols(dirc, names), NODATA_C_S), kind: 'ctn', extra: cGuide };
   }
 
   // ---- 描画 ----
   function dotHtml(lv) { return '<span class="cpt-dot is-' + (lv || 'none') + '" aria-hidden="true"></span>'; }
+  // 船会社のトラッキングへの案内（js/cp-carrier-guide.js）。読み込まれていなければ何も出さない
+  function guideHtml(nums) { return window.CpCarrierGuide ? window.CpCarrierGuide.html({ numbers: nums }) : ''; }
   function msgHtml(m) {
     if (!m) return '';
     var detail = m.detail ? '<div class="cpt-msg-d">詳細（サポート向け）：' + esc(m.detail) + '</div>' : '';
     return '<div class="cpt-msg is-' + esc(m.kind) + '" role="' + (m.kind === 'error' || m.kind === 'invalid' ? 'alert' : 'status') + '"><b>' + esc(m.title || '') + '</b>' +
-      (m.body ? '<div class="cpt-msg-b">' + esc(m.body) + '</div>' : '') + detail + '</div>';
+      (m.body ? '<div class="cpt-msg-b">' + esc(m.body) + '</div>' : '') + detail + '</div>' + (m.html || '');   // m.html：自分で組み立てた安全な HTML（船会社のトラッキングへの案内）
   }
   function setMsg(m, k) { var s = k ? (ST.store[k] || (ST.store[k] = { items: null, sel: 0, filter: 'all', msg: null, meta: {} })) : slot(); s.msg = m; }
 
@@ -558,7 +566,7 @@
       }).join('') + '</dl>' : '';
       det.innerHTML = '<button type="button" class="cpt-btn is-s cpt-back" data-act="back">← 一覧へ戻る</button>' +
         '<div class="cpt-dh"><div class="cpt-dt"><b>' + esc(d.title) + '</b>' + d.chips.map(function (c) { return '<span class="cpt-chip">' + esc(c) + '</span>'; }).join('') + '</div><div class="cpt-ds">' + esc(d.sub) + '</div></div>' +
-        flow + future +
+        flow + (d.extra || '') + future +
         '<button type="button" class="cpt-btn is-g is-s" data-act="all" aria-expanded="' + ST.allOpen + '">' + (ST.allOpen ? '閉じる' : 'すべての項目を見る') + '</button>' + dl;
     }
     $id('cptSplit').setAttribute('data-mv', ST.mv);
@@ -628,7 +636,7 @@
       rawKeep(r.data); ST.devErr = ''; ST.conn = 'ok'; ST.connHost = ST.connHost || '';
       var list = Array.isArray(r.data) ? r.data : (r.data && Array.isArray(r.data.items) ? r.data.items : null);
       if (!list) { s.items = null; s.msg = { kind: 'error', title: '想定と違う形のデータが返りました', body: '下の「開発者向け情報」で、返ってきたデータそのものを確認できます。', detail: '' }; }
-      else if (!list.length) { s.items = []; s.meta = typeof meta.meta === 'function' ? meta.meta() : (meta.meta || {}); var eb = typeof meta.emptyBody === 'function' ? meta.emptyBody() : meta.emptyBody; s.msg = { kind: 'empty', title: '該当するものはありません（0件）', body: eb || '番号を確かめるか、空欄にして直近30日の更新を見てください。' }; }
+      else if (!list.length) { s.items = []; s.meta = typeof meta.meta === 'function' ? meta.meta() : (meta.meta || {}); var eb = typeof meta.emptyBody === 'function' ? meta.emptyBody() : meta.emptyBody; s.msg = { kind: 'empty', title: '該当するものはありません（0件）', body: eb || '番号を確かめるか、空欄にして直近30日の更新を見てください。', html: typeof meta.emptyHtml === 'function' ? meta.emptyHtml() : '' }; }
       else { s.items = list; s.sel = 0; s.filter = 'all'; s.meta = typeof meta.meta === 'function' ? meta.meta() : (meta.meta || {}); s.msg = null; ST.mv = 'list'; ST.allOpen = false; }
     } catch (e) { s.msg = failMsg(e); }
     busy(false); paint();
@@ -684,7 +692,8 @@
     };
     return runSearch(k, 'COLINS の本船の動静（' + (dir === 'export' ? '輸出' : '輸入') + '・' + port + (vn ? '・' + vn : '') + '）', 'vessel',
       async function () { var r = await window.CyberPort.colinsVessels(dir, port, q); r = Object.assign({}, r, { data: sortList(r.data) }); return r; },
-      { emptyBody: function () { return total && !outside ? '' : (total ? port + ' の本船は ' + total + ' 件ありますが、照会の日（' + windowLabel(now0) + '）の前後 ' + VESSEL_WINDOW_DAYS / 7 + ' 週間の範囲に入るものはありません。' : port + ' の本船の動静は見つかりませんでした（COLINS に情報がありません）。'); },
+      { emptyHtml: function () { return window.CpCarrierGuide ? window.CpCarrierGuide.vesselHtml({ name: vn }) : ''; },
+        emptyBody: function () { return total && !outside ? '' : (total ? port + ' の本船は ' + total + ' 件ありますが、照会の日（' + windowLabel(now0) + '）の前後 ' + VESSEL_WINDOW_DAYS / 7 + ' 週間の範囲に入るものはありません。' : port + ' の本船の動静は見つかりませんでした（COLINS に情報がありません）。'); },
         meta: function () { return { dir: dir, port: port, names: names, note: '照会の日の前後 ' + VESSEL_WINDOW_DAYS / 7 + ' 週間（' + windowLabel(now0) + '）の動静を表示' + (outside ? '。範囲外の ' + outside + ' 件は除きました' : '') }; } });
   }
   async function liveColinsContainers() {
@@ -698,7 +707,7 @@
     try { names = await ensureTerminalNames(); } catch (e) { names = {}; }
     busy(false);
     return runSearch(k, 'COLINS のコンテナの状況（' + (dir === 'export' ? '輸出' : '輸入') + '・' + no + '）', 'ctn', function () { return window.CyberPort.colinsContainers(dir, no, {}); },
-      { emptyBody: '「' + no + '」のコンテナは見つかりませんでした（COLINS に情報がありません）。', meta: { dir: dir, names: names } });
+      { emptyBody: '「' + no + '」のコンテナは見つかりませんでした（COLINS に情報がありません）。', emptyHtml: function () { return guideHtml([no]); }, meta: { dir: dir, names: names } });
   }
 
   function render() {
@@ -744,6 +753,7 @@
     r.addEventListener('change', function (e) { if (e.target && e.target.id === 'cptSort') { slot().sort = e.target.value; paint(); } });
     r.addEventListener('click', function (e) {
       var t = e.target.closest ? e.target : null; if (!t) return;
+      if (window.CpCarrierGuide) window.CpCarrierGuide.onClick(e);
       var tab = t.closest('.cpt-tab'); if (tab) { ST.tab = tab.getAttribute('data-tab'); ST.mv = 'list'; ST.allOpen = false; paint(); if (ST.tab === 'vessel') prefetchPorts(); return; }
       var sg = t.closest('.cpt-seg [data-dir]'); if (sg) { ST.dir = sg.getAttribute('data-dir'); ST.mv = 'list'; ST.allOpen = false; paint(); return; }
       var gb = t.closest('.cpt-gb'); if (gb) { var s = slot(); var f = gb.getAttribute('data-f'); s.filter = (f !== 'all' && s.filter === f) ? 'all' : f; paint(); return; }
