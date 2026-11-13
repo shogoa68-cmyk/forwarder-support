@@ -6741,6 +6741,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .cloud-deal--ship  { color: #1f4f82; background: #d9e8f7; border-color: #b7d1ea; }
 #tab-quote-make .cloud-deal--fwd   { color: #8a4b0a; background: #fde3c2; border-color: #f0c48f; }
+#tab-quote-make .cloud-deal--agent { color: #53307f; background: #e6d9f5; border-color: #cdb3e8; }
+#tab-quote-make .cloud-deal--otsu  { color: #1d5f56; background: #d3ece8; border-color: #a8d6cf; }
 #tab-quote-make .cloud-deal--other { color: #4a5561; background: #e1e4e8; border-color: #c9ced4; }
 /* お客様名（マスター登録済み）＝押すとその場で詳細ポップアップ。見た目は文字のまま、点線の下線でリンクと分かるようにする */
 #tab-quote-make .cloud-cust-link {

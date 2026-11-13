@@ -847,6 +847,8 @@
   const _DEAL_CHIPS = {
     '荷主（直接）':                   { k: 'ship',  ico: '🏭', lbl: '荷主' },
     '同業者（フォワーダー・代理店）': { k: 'fwd',   ico: '🤝', lbl: '同業者' },
+    '海外代理店':                     { k: 'agent', ico: '🌏', lbl: '海外代理店' },
+    '乙仲':                           { k: 'otsu',  ico: '🛃', lbl: '乙仲' },
     'その他':                         { k: 'other', ico: '📁', lbl: 'その他' },
   };
   const nameCanonOrSelf = v => (typeof window.nameCanon === 'function' ? window.nameCanon('customer', v) : v) || v;   // 同業者の名前が変わっていても代表名で出す

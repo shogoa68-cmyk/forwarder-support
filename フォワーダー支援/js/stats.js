@@ -600,7 +600,8 @@
       const disp = opt ? opt.label : v;
       const short = disp.length > 14 ? disp.slice(0, 14) + '…' : disp;
       const dk = s.key === 'dealType' ? (_DEAL_DEFS.find(x => x[1] === v) || [])[0] : '';
-      chips.push(`<span class="stats-md-chip${dk ? ' stats-md-deal stats-md-deal-' + dk : ''}" title="${_eav(s.label + '：' + disp)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
+      const isContract = s.key === 'contractType' && v === '業務委託';
+      chips.push(`<span class="stats-md-chip${dk ? ' stats-md-deal stats-md-deal-' + dk : ''}${isContract ? ' stats-md-deal stats-md-contract' : ''}" title="${_eav(s.label + '：' + disp)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
     });
     const otherChip = _bothChip(field, value) + _refChip(field, value);
     if (!chips.length) return otherChip ? `<div class="stats-md-inline">${otherChip}</div>` : '';
@@ -2649,7 +2650,7 @@
   let _masterSort = 'name';
   window.statsMasterSetSort = function (m) { _masterSort = (m === 'tag' || m === 'group' || m === 'area' || m === 'deal') ? m : 'name'; _renderMaster(); };
   // お客様の取引形態（荷主／同業者／その他／未設定）。一覧の行の色・見出しの色・「取引形態ごとにまとめる」に使う
-  const _DEAL_DEFS = [['ship', '荷主（直接）', '🏭'], ['fwd', '同業者（フォワーダー・代理店）', '🤝'], ['agent', '海外代理店', '🌏'], ['other', 'その他', '📁'], ['none', '取引形態 未設定', '❔']];
+  const _DEAL_DEFS = [['ship', '荷主（直接）', '🏭'], ['fwd', '同業者（フォワーダー・代理店）', '🤝'], ['agent', '海外代理店', '🌏'], ['otsu', '乙仲', '🛃'], ['other', 'その他', '📁'], ['none', '取引形態 未設定', '❔']];
   const _dealKeyOf = (field, name) => {
     if (field !== 'customer') return '';
     const d = ((typeof window.mdGet === 'function' && window.mdGet('customer', name)) || { details: {} }).details || {};

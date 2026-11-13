@@ -1691,7 +1691,11 @@
   // 先のお客様を持てる取引形態（同業者・海外代理店）
   window.mdIsDealer = v => v === _DEAL_FWD || v === '海外代理店';
   const _DEAL_FIELD = { key: 'dealType', label: '取引形態', options: [
-    { value: '', label: '（未設定）' }, { value: _DEAL_SHIPPER, label: _DEAL_SHIPPER }, { value: _DEAL_FWD, label: _DEAL_FWD }, { value: '海外代理店', label: '海外代理店' }, { value: 'その他', label: 'その他' },
+    { value: '', label: '（未設定）' }, { value: _DEAL_SHIPPER, label: _DEAL_SHIPPER }, { value: _DEAL_FWD, label: _DEAL_FWD }, { value: '海外代理店', label: '海外代理店' }, { value: '乙仲', label: '乙仲（通関・海貨業者）' }, { value: 'その他', label: 'その他' },
+  ] };
+  // 契約形態（取引の契約のかたち）。同業者を業務委託契約で扱っている、など。取引形態とは別の軸
+  const _CONTRACT_FIELD = { key: 'contractType', label: '契約形態', options: [
+    { value: '', label: '（未設定）' }, { value: '通常取引', label: '通常取引' }, { value: '業務委託', label: '業務委託契約' },
   ] };
   const _VIA_FIELD = { key: 'via', label: '経由する同業者', via: true };
   const _CHILDREN_FIELD = { key: 'viaChildren', label: '先のお客様（この同業者のお客様）', children: true };
@@ -1744,6 +1748,7 @@
       _FURIGANA_FIELD,
       _EN_FIELD,
       _DEAL_FIELD,
+      _CONTRACT_FIELD,
       _VIA_FIELD,
       _CHILDREN_FIELD,
       // 紹介元（誰かから紹介されたお客様）。お客様・サブコンのマスター名が候補に出る（人の名前・マスターに無い会社名もそのまま入力できる）

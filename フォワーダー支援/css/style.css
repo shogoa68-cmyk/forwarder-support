@@ -5783,6 +5783,15 @@ tr.is-open .master-name-toggle::before { content: "▾ "; }
 .stats-md-deal-agent { background: #e6d9f5; border-color: #8a5cc2; }
 #statsPane-master table.master-grid > tbody > tr.mtg-deal[data-deal="agent"] > td { background: #e6d9f5 !important; }
 #statsPane-master table.master-grid > tbody > tr[data-deal="agent"] { background: #f5effb; border-left: 5px solid #8a5cc2; }
+/* 乙仲（青緑）・契約形態「業務委託」の印 */
+#statsPane-master tr[data-deal="otsu"] > td { background: #eaf6f4; }
+#statsPane-master tr[data-deal="otsu"] > td:first-child { box-shadow: inset 4px 0 0 #2f8f83; }
+#statsPane-master tr.mtg-deal[data-deal="otsu"] > td { background: #cfeae6; color: #1d5f56; }
+.stats-md-deal-otsu { background: #cfeae6; border-color: #2f8f83; }
+#statsPane-master table.master-grid > tbody > tr.mtg-deal[data-deal="otsu"] > td { background: #cfeae6 !important; }
+#statsPane-master table.master-grid > tbody > tr[data-deal="otsu"] { background: #eaf6f4; border-left: 5px solid #2f8f83; }
+#statsPane-master table.master-grid .master-nest > tbody > tr[data-deal="otsu"] { background: #eaf6f4; border-left: 5px solid #2f8f83; }
+.stats-md-contract { background: #fff0c9; border-color: #c9962b; }
 .stats-md-both { background: #fff7d6; border-color: #d4a72c; cursor: pointer; font: inherit; font-size: 12px; }
 .stats-md-both:hover { background: #ffefb0; }
 .master-area-label { font-size: 12px; color: #6b7a8c; min-width: 84px; }
