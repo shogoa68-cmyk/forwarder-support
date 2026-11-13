@@ -997,10 +997,9 @@
       btn.title = '要調査（後で記入）中。最新情報を調べたらクリックで解除。';
       // 完了と要調査は排他：要調査にしたら完了マークを外す
       if (tr.dataset.done === '1') {
-        delete tr.dataset.done;
+        delete tr.dataset.done; delete tr.dataset.doneAt; delete tr.dataset.doneBy;
         tr.classList.remove('row-input-done');
-        const db = tr.querySelector('.row-done-btn');
-        if (db) { db.classList.remove('is-on'); db.title = '入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。'; }
+        _syncDoneBtn(tr);
         if (typeof updateDoneCounter === 'function') updateDoneCounter();
       }
     }
@@ -1009,22 +1008,62 @@
   }
   window.toggleRowPending = toggleRowPending;
 
-  // 行を「入力完了」状態に切り替える。作成再開時にどこまで終わったかの目印。
+  // ===== 入力完了の記録（いつ・だれが押したか）=====
+  // 「入力完了」を押した日時とユーザー（ログイン中の Google アカウントのメール）を、行に持つ（data-done-at／data-done-by）。
+  // 保存は行オブジェクトの doneAt／doneBy。ログインしていないときはユーザーなし（日時だけ）。解除すると記録も消える。
+  // 以前は行ごとの「更新日」（lu）を手で付けていたが、廃止し、この記録に置き換えた。
+  const _DONE_TIP_OFF = '入力完了の目印。作成を再開したとき、どこまで終わったか分かります。押すと日時とユーザー名が記録されます（もう一度クリックで解除）。';
+  function _doneMe() {
+    try { const u = typeof window.cloudCurrentUser === 'function' ? window.cloudCurrentUser() : null; return (u && u.email) || ''; } catch (e) { return ''; }
+  }
+  function _doneNameOf(email) {
+    if (!email) return '';
+    if (typeof window.cloudNameFor === 'function') { const n = window.cloudNameFor(email); if (n && n !== '—') return n; }
+    return String(email).split('@')[0];
+  }
+  // 「11/13 14:05」（今年でなければ「2025/11/13 14:05」）
+  function _doneWhen(iso) {
+    const d = iso ? new Date(iso) : null;
+    if (!d || isNaN(d.getTime())) return '';
+    const z = n => String(n).padStart(2, '0');
+    const y = d.getFullYear() !== new Date().getFullYear() ? d.getFullYear() + '/' : '';
+    return y + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
+  }
+  // 行の入力完了の記録：{ at, by, name, when, text }（完了マークが無い行・記録の無い旧データは null）
+  function rowDoneInfo(tr) {
+    if (!tr || tr.dataset.done !== '1') return null;
+    const at = tr.dataset.doneAt || '', by = tr.dataset.doneBy || '';
+    const when = _doneWhen(at), name = _doneNameOf(by);
+    if (!when && !name) return null;
+    return { at, by, name, when, text: [when, name].filter(Boolean).join(' ') };
+  }
+  window.rowDoneInfo = rowDoneInfo;
+  // 完了ボタンの吹き出し（title）を、いまの状態に合わせる
+  function _syncDoneBtn(tr) {
+    const btn = tr && tr.querySelector('.row-done-btn');
+    if (!btn) return;
+    const on = tr.dataset.done === '1';
+    btn.classList.toggle('is-on', on);
+    const info = rowDoneInfo(tr);
+    btn.title = on ? ('入力完了' + (info ? '（' + info.text + '）' : '') + '（クリックで解除）') : _DONE_TIP_OFF;
+  }
+  window.rowSyncDoneBtn = _syncDoneBtn;
+
+  // 行を「入力完了」状態に切り替える。作成再開時にどこまで終わったかの目印。押した日時とユーザーも記録する。
   // 合計・出力には通常どおり含まれる（純粋な作業マーカー）。要調査とは排他。
   function toggleRowDone(btn) {
     const tr = btn?.closest('tr');
     if (!tr) return;
     const on = tr.dataset.done === '1';
     if (on) {
-      delete tr.dataset.done;
+      delete tr.dataset.done; delete tr.dataset.doneAt; delete tr.dataset.doneBy;
       tr.classList.remove('row-input-done');
-      btn.classList.remove('is-on');
-      btn.title = '入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。';
     } else {
       tr.dataset.done = '1';
+      tr.dataset.doneAt = new Date().toISOString();
+      const me = _doneMe();
+      if (me) tr.dataset.doneBy = me; else delete tr.dataset.doneBy;
       tr.classList.add('row-input-done');
-      btn.classList.add('is-on');
-      btn.title = '入力完了（クリックで解除）';
       // 完了と要調査は排他：完了にしたら要調査マークを外す
       if (tr.dataset.pending === '1') {
         delete tr.dataset.pending;
@@ -1034,6 +1073,7 @@
         updatePendingCounter();
       }
     }
+    _syncDoneBtn(tr);
     updateDoneCounter();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
@@ -1097,10 +1137,9 @@
     let count = 0;
     dataRows.forEach(tr => {
       if (tr.dataset.done !== '1') return;
-      delete tr.dataset.done;
+      delete tr.dataset.done; delete tr.dataset.doneAt; delete tr.dataset.doneBy;
       tr.classList.remove('row-input-done');
-      const db = tr.querySelector('.row-done-btn');
-      if (db) { db.classList.remove('is-on'); db.title = '入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。'; }
+      _syncDoneBtn(tr);
       count++;
     });
     updateDoneCounter();
@@ -1605,7 +1644,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -1804,7 +1843,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -1904,8 +1943,6 @@
     // サーチャージ有効期限：開始日を入れたら終了日を月末で自動補完（「通常はひと月」）
     q('vf').onchange   = () => autoFillValidTo(id);
     q('vt').onchange   = () => updateTotals();   // 終了日変更で適用期間の再判定
-    // 最終更新日（lu）：全カテゴリ共通の社内メタ。個別変更で見出しの集約表示を更新
-    { const luEl = q('lu'); if (luEl) luEl.onchange = () => { _syncGroupUpdatedHeaders(); if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); }; }
 
     return frag;
   }
@@ -3181,12 +3218,6 @@
     return _rowPattern(tr) || (tr.dataset.portPair || '').trim();
   }
 
-  // ===== 最終更新日（lu）：見出し⇄行の集約・伝播 =====
-  function _isoToday() {
-    const d = new Date();
-    const z = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
-  }
   // サブコン（svKey）／サブコン×パターン（svKey+ptKey）に属する実データ行を返す
   function _groupMemberRows(svKey, ptKey) {
     return Array.from(document.querySelectorAll('#tableBody tr:not([data-virtual])'))
@@ -3220,27 +3251,6 @@
     });
   }
   window.syncGroupSelectChecks = _syncGroupSelectChecks;
-
-  // グループ配下の lu 集約：全行同値なら {value, mixed:false}、バラつき（空との混在含む）なら {value:'', mixed:true}
-  function _groupUpdatedDate(svKey, ptKey) {
-    const states = new Set();
-    _groupMemberRows(svKey, ptKey).forEach(tr => {
-      const id = tr.id.replace('row-', '');
-      states.add((document.getElementById(`lu-${id}`)?.value || '').trim());
-    });
-    if (states.size <= 1) return { value: states.values().next().value || '', mixed: false };
-    return { value: '', mixed: true };
-  }
-  // 見出しで設定した日付を配下の全行へ反映
-  function _setGroupUpdatedDate(svKey, ptKey, dateStr) {
-    _groupMemberRows(svKey, ptKey).forEach(tr => {
-      const id = tr.id.replace('row-', '');
-      const el = document.getElementById(`lu-${id}`);
-      if (el) el.value = dateStr;
-    });
-    _syncGroupUpdatedHeaders();
-    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
-  }
 
   // パターン名を変更し、配下の全行の「パターン」欄へ一括反映する（親ツリー → 子項目）。
   // 折りたたみ／除外／申し送りメモの状態は新しいパターン名のキーへ引き継ぐ。
@@ -3358,45 +3368,6 @@
   }
   window.duplicatePatternGroup = duplicatePatternGroup;
 
-  // 全グループ見出しの日付表示（入力値・「混在」バッジ）を現在の行から再計算（再描画不要）
-  function _syncGroupUpdatedHeaders() {
-    document.querySelectorAll('#tableBody tr.subcon-group-header, #tableBody tr.subcon-subgroup-header.is-pattern')
-      .forEach(hdr => {
-        const svKey = hdr.dataset.svKey || _UNSET_KEY;
-        const ptKey = hdr.classList.contains('subcon-subgroup-header') ? (hdr.dataset.ptKey || '') : '';
-        const info  = _groupUpdatedDate(svKey, ptKey);
-        const inp   = hdr.querySelector('.grp-updated-input');
-        const badge = hdr.querySelector('.grp-updated-mixed');
-        if (inp)   inp.value = info.mixed ? '' : info.value;
-        if (badge) badge.style.display = info.mixed ? '' : 'none';
-      });
-  }
-  // 見出しに最終更新日コントロールを差し込み、初期値・ハンドラを設定する
-  function _attachGroupUpdatedControl(hdr, svKey, ptKey) {
-    const inp   = hdr.querySelector('.grp-updated-input');
-    const today = hdr.querySelector('.grp-updated-today');
-    const badge = hdr.querySelector('.grp-updated-mixed');
-    if (!inp) return;
-    const info = _groupUpdatedDate(svKey, ptKey);
-    inp.value = info.mixed ? '' : info.value;
-    if (badge) badge.style.display = info.mixed ? '' : 'none';
-    inp.addEventListener('change', () => _setGroupUpdatedDate(svKey, ptKey, inp.value));
-    inp.addEventListener('click', e => e.stopPropagation());   // 折りたたみトグル等への伝播を防ぐ
-    if (today) today.addEventListener('click', e => {
-      e.stopPropagation();
-      inp.value = _isoToday();
-      _setGroupUpdatedDate(svKey, ptKey, inp.value);
-    });
-  }
-  // 見出しセル用の最終更新日コントロール HTML
-  function _groupUpdatedHtml() {
-    return `<span class="grp-updated" title="このグループの最終更新日（社内管理用・客先出力には含まれません）。設定すると配下の全行に反映されます。">` +
-      `<span class="grp-updated-lbl">🕒 更新</span>` +
-      `<input type="date" class="grp-updated-input" />` +
-      `<button type="button" class="grp-updated-today" title="今日に一括設定">今日</button>` +
-      `<span class="grp-updated-mixed" style="display:none">混在</span>` +
-    `</span>`;
-  }
 
   // ===== パターン入力：幹線輸送の航路チップ（POL→via→POD、サブコン=キャリア除く）をサジェスト =====
   function _patternRouteOptions() {
@@ -3986,7 +3957,6 @@
               `data-sv="${_escAttr(key === _UNSET_KEY ? '' : label)}" ` +
               `title="${_escAttr(label)} に行を追加">＋</button>` +
             `<button type="button" class="subcon-group-sort-btn" title="このグループ内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
-            _groupUpdatedHtml() +
             `</div>` +
           `</td>`;
         hdr.querySelector('.subcon-group-toggle').addEventListener('click', () => toggleSubconGroup(key));
@@ -4019,7 +3989,6 @@
           e.stopPropagation();
           sortGroupByCategory(key, '');
         });
-        _attachGroupUpdatedControl(hdr, key, '');
         // 客先表示名・サブコン別リマーク（見出しの行内の入力欄）
         { const aliasInp = hdr.querySelector('.subcon-alias-input');
           const aliasLbl  = hdr.querySelector('.subcon-group-label');
@@ -4245,7 +4214,6 @@
                   (_isUnsetPt ? '' : `<button type="button" class="subcon-subgroup-dup" title="このパターンの明細行をすべて複製（新しいパターンとして「（2）」等が付きます）">📋</button>`) +
                   `<button type="button" class="subcon-subgroup-excl${_ptExcluded ? ' is-excluded' : ''}" title="見積もりへの含める/除外を切り替え">${_ptExcluded ? '含む' : '除外'}</button>` +
                   `<button type="button" class="subcon-group-sort-btn" title="このパターン内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
-                  _groupUpdatedHtml() +
                   _ptNotesHtml +
                   `</div>` +
                 `</td>`;
@@ -4297,7 +4265,6 @@
                 e.stopPropagation();
                 sortGroupByCategory(_svK, key);
               });
-              _attachGroupUpdatedControl(sh, _svK, key);
               initPatternHeaderDrag(sh, _svK, key);
               tbody.insertBefore(sh, tr);
               curKey = key; curKind = kind; runOpen = true;
@@ -4894,7 +4861,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -4914,7 +4881,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });

@@ -2817,35 +2817,82 @@ html.theme-industry {
   border: 1px solid #bbbec1;
   border-radius: 0;
 }
+:where(html.theme-industry) #tab-quote-make .name-cell .w-updated {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
 :where(html.theme-industry) #tab-quote-make .name-cell .w-updated-lbl {
+  font-size: var(--fs-9-5);
+  font-weight: 700;
   color: #4a5e72;
+  flex: none;
+  background: var(--blue-95);
+  border: 1px solid var(--blue-84);
   border-radius: 0;
+  padding: 1px var(--sp-4);
 }
 :where(html.theme-industry) #tab-quote-make .name-cell .w-updated-date {
+  font-size: var(--fs-10-5);
+  color: #46505a;
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--blue-84);
+  background: var(--surface);
   border-radius: 0;
+  padding: 1px var(--sp-3);
 }
 :where(html.theme-industry) #tab-quote-make .name-cell .w-updated-date:focus {
   border-color: #4a5e72;
+  background: var(--surface);
+  outline: none;
+}
+:where(html.theme-industry) #tab-quote-make .grp-updated {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-left: var(--sp-10);
 }
 :where(html.theme-industry) #tab-quote-make .grp-updated-lbl {
+  font-size: var(--fs-10);
+  font-weight: 700;
   color: #4a5e72;
+  background: var(--blue-95);
+  border: 1px solid var(--blue-84);
   border-radius: 0;
+  padding: 1px var(--sp-5);
 }
 :where(html.theme-industry) #tab-quote-make .grp-updated-input {
+  font-size: var(--fs-11);
+  color: #46505a;
+  border: 1px solid var(--blue-84);
+  background: var(--surface);
   border-radius: 0;
+  padding: 1px var(--sp-4);
 }
 :where(html.theme-industry) #tab-quote-make .grp-updated-today {
+  font-size: var(--fs-10);
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
+  cursor: pointer;
   color: #4a5e72;
+  background: var(--surface);
+  border: 1px solid var(--blue-84);
   border-radius: 0;
+  padding: 1px var(--sp-6);
 }
 :where(html.theme-industry) #tab-quote-make .grp-updated-today:hover {
+  background: var(--blue-95);
   border-color: #4a5e72;
 }
 :where(html.theme-industry) #tab-quote-make .grp-updated-mixed {
+  font-size: var(--fs-9-5);
+  font-weight: 700;
   color: #705a2a;
+  background: var(--amber-94);
   border: 1px solid #e5d6bb;
   border-radius: 0;
+  padding: 1px var(--sp-5);
 }
 :where(html.theme-industry) #tab-quote-make tr.subcon-child .catsv-cell::before {
   border-left: 1.5px solid #9a9da2;
@@ -10420,4 +10467,29 @@ html.theme-industry {
 }
 :where(html.theme-industry) #toast-container {
   z-index: 100010;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.row-input-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-sub {
+  height: 20px;
+  line-height: 20px;
+  margin-bottom: 1px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.row-input-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-state {
+  height: 22px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo {
+  margin: 1px 0 0;
+  font-size: 11px;
+  line-height: 12px;
+  text-align: right;
+  color: var(--color-neutral-700, #5d5d60);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo .di-when,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo .di-name {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo .di-name {
+  font-weight: 600;
 }

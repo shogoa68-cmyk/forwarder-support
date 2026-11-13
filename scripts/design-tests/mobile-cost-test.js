@@ -94,7 +94,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // その他
     const moreVis = await p.evaluate(() => getComputedStyle(document.getElementById('mcsMore')).display !== 'none');
     ok('[シート] 「その他」は' + (process.env.MODE === 'simple' ? 'かんたん表示では出ない' : '畳んで出る'), process.env.MODE === 'simple' ? !moreVis : moreVis);
-    if (process.env.MODE !== 'simple') { await p.click('#mcsMore > summary'); ok('[シート] その他：有効期間・更新日・単価のオプション', await vis(p, '#mcs-vf') && await vis(p, '#mcs-lu') && (await p.$$('#mcsModes .mcs-tg')).length >= 5); }
+    if (process.env.MODE !== 'simple') { await p.click('#mcsMore > summary'); ok('[シート] その他：有効期間・単価のオプション（更新日は廃止）', await vis(p, '#mcs-vf') && !(await p.$('#mcs-lu')) && (await p.$$('#mcsModes .mcs-tg')).length >= 5); }
     // 完了で閉じる → 一覧に反映
     await p.click('#mcsDone'); await p.waitForTimeout(400);
     ok('[シート] 「完了」で閉じ、一覧に反映（品名・入力完了の札）', !(await vis(p, '#mcSheet .mcs-box')) && (await p.textContent('#mcList')).includes('海上運賃（改）') && !!(await p.$('#mcList .t-done')));

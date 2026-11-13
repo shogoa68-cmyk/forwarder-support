@@ -315,3 +315,16 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 /* ===== トーストは確認画面・各モーダル（z-index 〜100002）より前に出す =====
    現行は quote.css で 100010。Design の元ファイルは 9999 のため、差分から作る Industry 版が 9999 に戻してしまう。ここで打ち消す。 */
 #toast-container { z-index: 100010; }
+
+/* 入力完了を押した日時とユーザー名（.st-doneinfo）：3 段固定（120px）の行を伸ばさないよう、完了した行だけ 2・3 段目（円換算／状態チップ）を少し詰め、
+   チップの下に「日時」「名前」の 2 行（11px）を置く。列が狭い（108px）ので、はみ出す分は「…」で省略する（全文は title）。 */
+#tab-quote-make #quoteTable > tbody > tr.row-input-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-sub { height: 20px; line-height: 20px; margin-bottom: 1px; }
+#tab-quote-make #quoteTable > tbody > tr.row-input-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-state { height: 22px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo {
+  margin: 1px 0 0; font-size: 11px; line-height: 12px; text-align: right; color: var(--color-neutral-700, #5d5d60);
+}
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo .di-when,
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo .di-name {
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo .di-name { font-weight: 600; }
