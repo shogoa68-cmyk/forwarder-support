@@ -84,11 +84,13 @@
     { label: '幅あり', cls: '', tip: '売単価〜上限の幅で示す行（客先向けの単価・金額は「〜」で表示。合計は売単価で計算）', on: tr => tr.dataset.range === '1' },
     { label: 'MIN 適用', cls: 'is-warn', tip: '最低料金（ミニマム）が「数量 × 単価」を上回るため、最低料金で計算している行', on: tr => tr.dataset.minApplied === '1' },
     { label: '% 計算', cls: '', tip: '仕入単価を「基準額 × %」で計算する行。率と基準額は「その他 ▾」で入力', on: tr => tr.classList.contains('row-pct-mode') },
-    { label: '入力完了', cls: 'is-done', tip: '入力完了の目印', on: tr => tr.classList.contains('row-input-done') },
+    { label: '入力完了', cls: 'is-done', tip: '入力完了の目印', on: tr => tr.classList.contains('row-input-done') },   // 押した日時・ユーザーは chipHtml と .st-doneinfo で出す
   ];
 
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const chipHtml = s => `<span class="state-chip ${s.cls}" title="${esc(s.tip)}">${esc(s.label)}</span>`;
+  // 入力完了のチップは、押した日時・ユーザー（row.js の rowDoneInfo）を吹き出しにも入れる
+  const doneText = tr => { const i = tr && typeof window.rowDoneInfo === 'function' ? window.rowDoneInfo(tr) : null; return i ? i.text : ''; };
+  const chipHtml = (s, tr) => `<span class="state-chip ${s.cls}" title="${esc(s.cls === 'is-done' && doneText(tr) ? s.tip + '：' + doneText(tr) : s.tip)}">${esc(s.label)}</span>`;
 
   function breakdownHtml(tr, st) {
     const rows = [];
@@ -120,10 +122,22 @@
     const st = tr.querySelector('td.subtotal-cell');
     let box = st && st.querySelector('.st-state');
     if (st && !box) { box = document.createElement('div'); box.className = 'st-state'; st.appendChild(box); }
-    const inline = on.length ? chipHtml(on[0]) + (on.length > 1 ? `<span class="state-more" title="${esc(on.slice(1).map(s => s.label).join('・'))}">＋${on.length - 1}</span>` : '') : '';
+    const inline = on.length ? chipHtml(on[0], tr) + (on.length > 1 ? `<span class="state-more" title="${esc(on.slice(1).map(s => s.label).join('・'))}">＋${on.length - 1}</span>` : '') : '';
     if (box && box._rdHtml !== inline) { box.innerHTML = inline; box._rdHtml = inline; }
+    // 入力完了を押した日時とユーザー名（「11/13 14:05」「山田太郎」）。完了していて記録があるときだけ、チップの下に出す
+    {
+      let di = st && st.querySelector('.st-doneinfo');
+      const info = tr.classList.contains('row-input-done') && typeof window.rowDoneInfo === 'function' ? window.rowDoneInfo(tr) : null;
+      const html = info ? (info.when ? `<span class="di-when">${esc(info.when)}</span>` : '') + (info.when && info.name ? ' ' : '') + (info.name ? `<span class="di-name">${esc(info.name)}</span>` : '') : '';
+      if (st && !di && html) { di = document.createElement('div'); di.className = 'st-doneinfo'; st.appendChild(di); }
+      if (di) {
+        if (di._rdHtml !== html) { di.innerHTML = html; di._rdHtml = html; }
+        di.title = info ? '入力完了を押した日時とユーザー：' + info.text : '';
+        di.hidden = !html;
+      }
+    }
     const all = tr.querySelector('.rd-state');
-    const allHtml = on.length ? on.map(chipHtml).join('') : '<span class="state-more">なし</span>';
+    const allHtml = on.length ? on.map(s => chipHtml(s, tr)).join('') : '<span class="state-more">なし</span>';
     if (all && all._rdHtml !== allHtml) { all.innerHTML = allHtml; all._rdHtml = allHtml; }
 
     // 金額の内訳

@@ -3933,7 +3933,6 @@
     '.cargo-ref-chip',          // 貨物欄の参考リンク（他法令・税関・各省庁）
     '.hs-tariff-link',          // HS 欄の「WEBタリフ ↗」（参考リンクにも同じものがある）
     '#presetBtns button',       // リマークの定型文・区切り線（本文欄へ直接入れられる）
-    '[data-field="lu"]',        // 行の更新日（自動で入る社内情報）
   ].join(',');
   // グループのボタン：Tab ではグループに 1 回だけ止まり、グループ内は矢印キーで移る（選ぶのは Enter／Space）
   const ROVING_SEL = '#qf-status-btns, #dirBtns, #seaAirBtns, #hazChips, .cc-cat-tabs';

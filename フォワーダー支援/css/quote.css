@@ -1003,40 +1003,6 @@
   border: 1px solid #e2c79a; background: var(--surface-warm); border-radius: var(--r-3); padding: 1px var(--sp-3);
 }
 #tab-quote-make .name-cell .w-valid-date:focus { border-color: var(--gold); background: var(--surface); outline: none; }
-/* 最終更新日（lu）：全行に表示する社内メタ。有効期限（琥珀）と区別するため青灰系 */
-#tab-quote-make .name-cell .w-updated {
-  display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-3);
-}
-#tab-quote-make .name-cell .w-updated-lbl {
-  font-size: var(--fs-9-5); font-weight: 700; color: #4a6572; flex: none;
-  background: var(--blue-95); border: 1px solid var(--blue-84); border-radius: var(--r-3); padding: 1px var(--sp-4);
-}
-#tab-quote-make .name-cell .w-updated-date {
-  font-size: var(--fs-10-5); color: #46505a; min-width: 0; flex: 1;
-  border: 1px solid var(--blue-84); background: var(--surface); border-radius: var(--r-3); padding: 1px var(--sp-3);
-}
-#tab-quote-make .name-cell .w-updated-date:focus { border-color: #4a6572; background: var(--surface); outline: none; }
-/* グループ見出しの最終更新日コントロール */
-#tab-quote-make .grp-updated {
-  display: inline-flex; align-items: center; gap: var(--sp-4); margin-left: var(--sp-10);
-}
-#tab-quote-make .grp-updated-lbl {
-  font-size: var(--fs-10); font-weight: 700; color: #4a6572;
-  background: var(--blue-95); border: 1px solid var(--blue-84); border-radius: var(--r-3); padding: 1px var(--sp-5);
-}
-#tab-quote-make .grp-updated-input {
-  font-size: var(--fs-11); color: #46505a; border: 1px solid var(--blue-84);
-  background: var(--surface); border-radius: var(--r-3); padding: 1px var(--sp-4);
-}
-#tab-quote-make .grp-updated-today {
-  font-size: var(--fs-10); font-family: inherit; cursor: pointer; color: #4a6572;
-  background: var(--surface); border: 1px solid var(--blue-84); border-radius: var(--r-3); padding: 1px var(--sp-6);
-}
-#tab-quote-make .grp-updated-today:hover { background: var(--blue-95); border-color: #4a6572; }
-#tab-quote-make .grp-updated-mixed {
-  font-size: var(--fs-9-5); font-weight: 700; color: #9a6a00;
-  background: var(--amber-94); border: 1px solid #f0d9b0; border-radius: var(--r-3); padding: 1px var(--sp-5);
-}
 /* サブコン配下行：C1 角丸エルボー（各行に小さな └ だけ。列境の全高トランクは置かない） */
 #tab-quote-make tr.subcon-child .catsv-cell { position: relative; padding-left: 15px; }
 #tab-quote-make tr.subcon-child .catsv-cell::before {
@@ -4630,13 +4596,13 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 /* [hidden] を確実に効かせる（.qpd-login 等の display 指定が UA の [hidden] を上書きするのを防ぐ） */
 #qpDashboard [hidden] { display: none !important; }
 /* 検索＋ツール */
-#qpDashboard .qpd-tools { margin-bottom: var(--sp-12); display: flex; flex-direction: column; gap: var(--sp-8); }
+#qpDashboard .qpd-tools { margin-bottom: var(--sp-16); display: flex; flex-direction: column; gap: var(--sp-12); }
 #qpDashboard .qpd-search-wrap { position: relative; display: flex; align-items: center; }
-#qpDashboard .qpd-search { width: 100%; box-sizing: border-box; font-size: var(--fs-13); padding: var(--sp-9) 36px var(--sp-9) var(--sp-12); border: 1px solid var(--border); border-radius: var(--r-8); }
+#qpDashboard .qpd-search { width: 100%; box-sizing: border-box; font-size: var(--fs-13); padding: var(--sp-12) 36px var(--sp-12) var(--sp-14, 14px); border: 1px solid var(--border); border-radius: var(--r-8); }
 #qpDashboard .qpd-search-clear { position: absolute; right: 8px; background: none; border: none; color: var(--gray-lt); font-size: var(--fs-13); cursor: pointer; padding: var(--sp-4) var(--sp-6); border-radius: var(--r-4); line-height: 1; }
 #qpDashboard .qpd-search-clear:hover { background: var(--accent-lt); color: var(--c-5a4a35); }
 #qpDashboard .qpd-search-clear[hidden] { display: none; }
-#qpDashboard .qpd-tools-row { display: flex; align-items: center; gap: var(--sp-10); flex-wrap: wrap; }
+#qpDashboard .qpd-tools-row { display: flex; align-items: center; gap: var(--sp-12); flex-wrap: wrap; }
 #qpDashboard .qpd-adv-toggle { background: var(--accent-lt); border: 1px solid var(--c-d5c8b0); color: var(--accent); border-radius: var(--r-7); padding: var(--sp-6) var(--sp-12); font-size: var(--fs-12); font-weight: 700; cursor: pointer; }
 #qpDashboard .qpd-adv-toggle:hover { background: var(--c-e8d8c0); }
 #qpDashboard .qpd-sort { font-size: var(--fs-12); color: var(--accent); display: inline-flex; align-items: center; gap: var(--sp-5); margin-left: auto; }
@@ -4707,14 +4673,17 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #qpDashboard .qpd-row-chk { justify-self: center; }
 /* 🏷️ タグ名クイック絞り込み（テキスト入力＋候補） */
-#qpDashboard .qpd-tag-quickfilter { margin-top: var(--sp-8); }
+#qpDashboard .qpd-tag-quickfilter { margin-top: var(--sp-4); }
 #qpDashboard .qpd-tag-quickfilter-input {
   width: 100%; box-sizing: border-box; font-family: inherit; font-size: var(--fs-11-5);
   border: 1px solid var(--border); border-radius: var(--r-8); padding: var(--sp-5) var(--sp-10); background: var(--surface-warm);
 }
 #qpDashboard .qpd-tag-quickfilter-input:focus { outline: none; border-color: #b8985a; }
+/* 検索窓・タグ絞り込み欄の余白：入力共通（#tab-quote-make input[type=text]）の padding に負けないよう id を重ねる */
+#tab-quote-make #qpDashboard .qpd-search { padding: var(--sp-12) 36px var(--sp-12) var(--sp-14); }
+#tab-quote-make #qpDashboard .qpd-tag-quickfilter-input { padding: var(--sp-9) var(--sp-14); }
 /* 🏷️ タグ絞り込みチップ */
-#qpDashboard .qpd-tag-chips { display: flex; flex-wrap: wrap; gap: var(--sp-5); margin-top: var(--sp-8); }
+#qpDashboard .qpd-tag-chips { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-top: var(--sp-4); }
 #qpDashboard .qpd-tag-chips:empty { display: none; margin-top: 0; }
 #qpDashboard .cloud-tag-filter-chip {
   cursor: pointer; font-family: inherit; font-size: var(--fs-11); color: var(--accent);
@@ -11635,6 +11604,14 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make td.subtotal-cell > .st-state,
 #tab-quote-make .cd-flag,
 #tab-quote-make .pr-rate { display: none; }
+/* 入力完了を押した日時とユーザー名（row-layout.js が小計セルに出す。例「11/13 14:05 山田太郎」）。
+   classic は小計の下に小さく（折り返してよい）。Industry は 3 段固定の行を伸ばさないよう、code-overrides で下端に 1 行で置く */
+#tab-quote-make td.subtotal-cell > .st-doneinfo {
+  margin-top: var(--sp-4); font-size: var(--text-xs, 12px); line-height: 1.3; color: var(--text-md, #6f6456);
+  text-align: right; font-variant-numeric: tabular-nums; white-space: normal; overflow-wrap: anywhere;
+}
+#tab-quote-make td.subtotal-cell > .st-doneinfo .di-when, #tab-quote-make td.subtotal-cell > .st-doneinfo .di-name { display: inline-block; max-width: 100%; }
+#tab-quote-make td.subtotal-cell > .st-doneinfo[hidden] { display: none; }
 /* classic の小計・利益：新しい div 構造（.st-main／.st-sub／.pr-main／.pr-sub）でも従来どおり縦に並ぶだけ */
 #tab-quote-make td.subtotal-cell > .st-sub,
 #tab-quote-make td.profit-cell > .pr-sub { line-height: 1.2; }
@@ -12138,6 +12115,8 @@ body.memo-fab-off .qf-memo-fab { display: none !important; }
 .mcs-cd[hidden] { display: none; }
 .mcs-row2, .mcs-row3 { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .mcs-row3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mcs-doneinfo { margin: 2px 2px 0; font-size: 13px; color: #1f5a31; }   /* 入力完了を押した日時・ユーザー */
+.mcs-doneinfo[hidden] { display: none; }
 .mcs-btn, .mcs-tg { min-height: 44px; padding: 6px 8px; border: 1px solid #1d1f20; background: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .mcs-btn.is-danger { color: #a02a2a; border-color: #a02a2a; }
 .mcs-tg.is-on { background: #1d1f20; color: #fff; }

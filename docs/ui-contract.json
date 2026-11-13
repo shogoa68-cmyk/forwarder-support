@@ -411,6 +411,7 @@
   "qpdLinkBarBtn",
   "qpdLinkBarCount",
   "qpdLinkBarNote",
+  "qpdLinkBarRole",
   "qpdLinkModeBtn",
   "qpdListWrap",
   "qpdLocalMigrate",
@@ -898,7 +899,7 @@
    "defined": true
   },
   "closeTbMenus": {
-   "uses": 8,
+   "uses": 9,
    "defined": true
   },
   "closeUserMgr": {
@@ -914,6 +915,10 @@
    "defined": true
   },
   "cloudImportSelectedRows": {
+   "uses": 1,
+   "defined": true
+  },
+  "cloudLinkBarRefresh": {
    "uses": 1,
    "defined": true
   },
@@ -1537,6 +1542,10 @@
    "uses": 2,
    "defined": true
   },
+  "quotePipToggle": {
+   "uses": 2,
+   "defined": true
+  },
   "quoteRedo": {
    "uses": 2,
    "defined": true
@@ -2071,11 +2080,23 @@
    "css": true,
    "html": true
   },
+  "cc-f-resolved": {
+   "css": false,
+   "html": false
+  },
+  "cc-f-title": {
+   "css": false,
+   "html": false
+  },
   "cc-info": {
    "css": true,
    "html": false
   },
   "cc-info-wrap": {
+   "css": true,
+   "html": false
+  },
+  "cc-item": {
    "css": true,
    "html": false
   },
@@ -2090,6 +2111,10 @@
   "cc-seg-btn": {
    "css": true,
    "html": true
+  },
+  "cc-st-open": {
+   "css": true,
+   "html": false
   },
   "cc-sub-tab": {
    "css": true,
@@ -2196,6 +2221,10 @@
    "html": false
   },
   "cloud-card-name": {
+   "css": true,
+   "html": false
+  },
+  "cloud-card-parentline": {
    "css": true,
    "html": false
   },
@@ -2423,6 +2452,10 @@
    "css": true,
    "html": false
   },
+  "drift-sec": {
+   "css": true,
+   "html": false
+  },
   "ei-chk": {
    "css": false,
    "html": false
@@ -2490,6 +2523,10 @@
   "est-btn": {
    "css": true,
    "html": true
+  },
+  "fb-hint-pulse": {
+   "css": true,
+   "html": false
   },
   "fb-list-item": {
    "css": true,
@@ -2575,18 +2612,6 @@
    "css": true,
    "html": false
   },
-  "grp-updated-input": {
-   "css": true,
-   "html": false
-  },
-  "grp-updated-mixed": {
-   "css": true,
-   "html": false
-  },
-  "grp-updated-today": {
-   "css": true,
-   "html": false
-  },
   "has-alias": {
    "css": false,
    "html": false
@@ -2616,6 +2641,10 @@
    "html": false
   },
   "has-memo": {
+   "css": true,
+   "html": false
+  },
+  "has-miss": {
    "css": true,
    "html": false
   },
@@ -2771,6 +2800,10 @@
    "css": true,
    "html": false
   },
+  "is-hide": {
+   "css": false,
+   "html": false
+  },
   "is-idea": {
    "css": true,
    "html": false
@@ -2815,6 +2848,10 @@
    "css": true,
    "html": false
   },
+  "is-pend": {
+   "css": false,
+   "html": false
+  },
   "is-pending": {
    "css": true,
    "html": false
@@ -2857,6 +2894,18 @@
   },
   "is-warn": {
    "css": true,
+   "html": false
+  },
+  "je-en": {
+   "css": false,
+   "html": false
+  },
+  "je-new-en": {
+   "css": false,
+   "html": false
+  },
+  "je-new-ja": {
+   "css": false,
    "html": false
   },
   "jpy-conv-hint": {
@@ -2975,6 +3024,18 @@
    "css": true,
    "html": true
   },
+  "master-filter-chips": {
+   "css": true,
+   "html": false
+  },
+  "master-grid": {
+   "css": true,
+   "html": false
+  },
+  "master-nest-cell": {
+   "css": true,
+   "html": false
+  },
   "master-ops-menu": {
    "css": true,
    "html": false
@@ -2983,7 +3044,19 @@
    "css": true,
    "html": true
   },
-  "master-register": {
+  "master-sort-chips": {
+   "css": true,
+   "html": false
+  },
+  "master-tag-group-row": {
+   "css": true,
+   "html": false
+  },
+  "master-type-chips": {
+   "css": true,
+   "html": false
+  },
+  "master-type-chips-label": {
    "css": true,
    "html": false
   },
@@ -3043,6 +3116,10 @@
    "css": true,
    "html": false
   },
+  "md-fold-chip": {
+   "css": true,
+   "html": false
+  },
   "md-modal-body": {
    "css": true,
    "html": false
@@ -3076,6 +3153,62 @@
    "html": true
   },
   "mk-disabled": {
+   "css": true,
+   "html": false
+  },
+  "mm-fbtn": {
+   "css": true,
+   "html": false
+  },
+  "mm-hide": {
+   "css": true,
+   "html": false
+  },
+  "mm-nest-open": {
+   "css": true,
+   "html": false
+  },
+  "mm-on": {
+   "css": true,
+   "html": false
+  },
+  "mm-other": {
+   "css": true,
+   "html": false
+  },
+  "mm-toast": {
+   "css": true,
+   "html": false
+  },
+  "mm-view-": {
+   "css": false,
+   "html": false
+  },
+  "mm-wtab-drift": {
+   "css": true,
+   "html": false
+  },
+  "mn-f-body": {
+   "css": false,
+   "html": false
+  },
+  "mn-f-date": {
+   "css": false,
+   "html": false
+  },
+  "mn-f-kind": {
+   "css": false,
+   "html": false
+  },
+  "mn-f-title": {
+   "css": false,
+   "html": false
+  },
+  "mn-f-url": {
+   "css": false,
+   "html": false
+  },
+  "mn-item": {
    "css": true,
    "html": false
   },
@@ -3551,6 +3684,10 @@
    "css": true,
    "html": false
   },
+  "row": {
+   "css": false,
+   "html": false
+  },
   "row-act-ico": {
    "css": true,
    "html": true
@@ -3811,6 +3948,66 @@
    "css": true,
    "html": true
   },
+  "sm-ct": {
+   "css": true,
+   "html": false
+  },
+  "sm-empty": {
+   "css": true,
+   "html": false
+  },
+  "sm-f-fluct": {
+   "css": true,
+   "html": false
+  },
+  "sm-f-unorg": {
+   "css": true,
+   "html": false
+  },
+  "sm-fbar": {
+   "css": true,
+   "html": false
+  },
+  "sm-hid": {
+   "css": true,
+   "html": false
+  },
+  "sm-on": {
+   "css": true,
+   "html": false
+  },
+  "sm-open": {
+   "css": true,
+   "html": false
+  },
+  "sm-sheet-bg": {
+   "css": true,
+   "html": false
+  },
+  "sm-sheet-open": {
+   "css": true,
+   "html": false
+  },
+  "sm-view-home": {
+   "css": true,
+   "html": false
+  },
+  "sm-view-pane": {
+   "css": true,
+   "html": false
+  },
+  "sm-wchips": {
+   "css": true,
+   "html": false
+  },
+  "sm-wide": {
+   "css": true,
+   "html": false
+  },
+  "sm-wtiles": {
+   "css": true,
+   "html": false
+  },
   "sq-card": {
    "css": true,
    "html": false
@@ -3840,6 +4037,10 @@
    "html": false
   },
   "sq-status-chip": {
+   "css": true,
+   "html": false
+  },
+  "st-doneinfo": {
    "css": true,
    "html": false
   },
@@ -3883,9 +4084,25 @@
    "css": true,
    "html": false
   },
+  "stats-syn-row": {
+   "css": true,
+   "html": false
+  },
   "stats-tab-btn": {
    "css": true,
    "html": true
+  },
+  "stats-tabs": {
+   "css": true,
+   "html": true
+  },
+  "stats-toolbar": {
+   "css": true,
+   "html": true
+  },
+  "stats-val": {
+   "css": true,
+   "html": false
   },
   "stk": {
    "css": true,
@@ -4409,6 +4626,10 @@
    "html": false,
    "js": true
   },
+  "bm-car": {
+   "html": false,
+   "js": true
+  },
   "bm-carrier": {
    "html": false,
    "js": true
@@ -4418,6 +4639,14 @@
    "js": true
   },
   "bm-contact-carrier": {
+   "html": false,
+   "js": true
+  },
+  "bm-fn": {
+   "html": false,
+   "js": true
+  },
+  "bm-name": {
    "html": false,
    "js": true
   },
@@ -4442,6 +4671,14 @@
    "js": true
   },
   "c": {
+   "html": false,
+   "js": true
+  },
+  "calc": {
+   "html": false,
+   "js": true
+  },
+  "cancel": {
    "html": false,
    "js": true
   },
@@ -4482,6 +4719,10 @@
    "js": true
   },
   "cf-init": {
+   "html": false,
+   "js": true
+  },
+  "cg-copy": {
    "html": false,
    "js": true
   },
@@ -4541,6 +4782,14 @@
    "html": false,
    "js": true
   },
+  "done-at": {
+   "html": false,
+   "js": true
+  },
+  "done-by": {
+   "html": false,
+   "js": true
+  },
   "drag-bound": {
    "html": false,
    "js": true
@@ -4577,6 +4826,10 @@
    "html": false,
    "js": true
   },
+  "f": {
+   "html": false,
+   "js": true
+  },
   "field": {
    "html": true,
    "js": true
@@ -4586,6 +4839,10 @@
    "js": true
   },
   "filled": {
+   "html": false,
+   "js": true
+  },
+  "flag": {
    "html": false,
    "js": true
   },
@@ -4621,11 +4878,19 @@
    "html": false,
    "js": true
   },
+  "go": {
+   "html": false,
+   "js": true
+  },
   "group": {
    "html": false,
    "js": true
   },
   "grp": {
+   "html": false,
+   "js": true
+  },
+  "h": {
    "html": false,
    "js": true
   },
@@ -4678,6 +4943,18 @@
    "js": true
   },
   "issuer": {
+   "html": false,
+   "js": true
+  },
+  "ja": {
+   "html": false,
+   "js": true
+  },
+  "je": {
+   "html": false,
+   "js": true
+  },
+  "k": {
    "html": false,
    "js": true
   },
@@ -4757,6 +5034,14 @@
    "html": false,
    "js": true
   },
+  "mm-done": {
+   "html": false,
+   "js": true
+  },
+  "mn": {
+   "html": false,
+   "js": true
+  },
   "mod": {
    "html": false,
    "js": true
@@ -4770,6 +5055,10 @@
    "js": true
   },
   "mt-done": {
+   "html": false,
+   "js": true
+  },
+  "mt-field": {
    "html": false,
    "js": true
   },
@@ -4797,11 +5086,19 @@
    "html": false,
    "js": true
   },
+  "nt-inherit": {
+   "html": false,
+   "js": true
+  },
   "off": {
    "html": false,
    "js": true
   },
   "og-row": {
+   "html": false,
+   "js": true
+  },
+  "ok": {
    "html": false,
    "js": true
   },
@@ -4818,6 +5115,10 @@
    "js": true
   },
   "out-reason": {
+   "html": false,
+   "js": true
+  },
+  "pane": {
    "html": false,
    "js": true
   },
@@ -4838,6 +5139,14 @@
    "js": true
   },
   "pid": {
+   "html": false,
+   "js": true
+  },
+  "pip-btn": {
+   "html": false,
+   "js": true
+  },
+  "pip-label": {
    "html": false,
    "js": true
   },
@@ -4909,6 +5218,10 @@
    "html": false,
    "js": true
   },
+  "r": {
+   "html": false,
+   "js": true
+  },
   "range": {
    "html": false,
    "js": true
@@ -4930,6 +5243,10 @@
    "js": true
   },
   "ref-info": {
+   "html": false,
+   "js": true
+  },
+  "rej": {
    "html": false,
    "js": true
   },
@@ -4975,6 +5292,14 @@
   },
   "sitab": {
    "html": true,
+   "js": true
+  },
+  "sm-c": {
+   "html": false,
+   "js": true
+  },
+  "sm-s": {
+   "html": false,
    "js": true
   },
   "sort": {
@@ -5105,6 +5430,10 @@
    "html": false,
    "js": true
   },
+  "un-inherit": {
+   "html": false,
+   "js": true
+  },
   "url": {
    "html": false,
    "js": true
@@ -5142,6 +5471,10 @@
    "js": true
   },
   "w": {
+   "html": false,
+   "js": true
+  },
+  "wt": {
    "html": false,
    "js": true
   },
@@ -5186,6 +5519,7 @@
   "js/quote/conditions.js",
   "js/quote/save.js",
   "js/quote/ui.js",
+  "js/quote/ja-en-dict.js",
   "js/quote/quote-pdf.js",
   "js/quote/quote-email.js",
   "js/quote/select-mode.js",
@@ -5211,6 +5545,7 @@
   "js/quote/remark-tabs.js",
   "js/quote/mobile-cost.js",
   "js/quote/mobile-sheet.js",
+  "js/quote/pip-compact.js",
   "js/quote/layout-cols.js",
   "js/quote/remark-sheet.js",
   "js/quote/packing-import.js",
@@ -5236,13 +5571,20 @@
   "js/integrations/cyberport.js",
   "js/integrations/cp-events.js",
   "js/cp-notify.js",
+  "js/cp-carrier-guide.js",
   "js/cp-test.js",
   "js/cat-more.js",
   "js/stats.js",
   "js/alias-rules.js",
+  "js/stats-mobile.js",
+  "js/master-mobile.js",
+  "js/drift-engine.js",
+  "js/drift-check.js",
   "js/port-country.js",
   "js/zone-subcon.js",
   "js/customer-rules.js",
+  "js/master-news.js",
+  "js/customer-cases.js",
   "js/master-tabs.js",
   "js/carrier-migration.js",
   "js/local-charges.js",

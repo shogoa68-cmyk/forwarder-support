@@ -266,6 +266,8 @@
   // cn（表示条件：JSON {k,o,a,b}。空＝常に表示）は 33 番目。
   // 末尾の vf/vt（サーチャージ有効期限：開始/終了）は後方追加。既存保存データには無いが
   // _applyCells が undefined セルをスキップするため互換。順序は末尾以外変更しないこと。
+  // 注意：'lu'（行ごとの最終更新日）は 2026-11 に廃止（入力完了の「日時・ユーザー名」に置き換え）。保存データの cells は位置で持つため、
+  //       枠（'lu'）は外さない（外すと後ろの項目がずれる）。画面に入力欄はなく、読み込んでも無視される（_applyCells は欄が無ければ飛ばす）。
   const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin','ic','cn','bphi'];
 
   function _applyCells(tr, cells) {
@@ -542,9 +544,11 @@
       // 入力完了マークを復元
       if (row.done) {
         tr.dataset.done = '1';
+        if (row.doneAt) tr.dataset.doneAt = row.doneAt;     // 入力完了を押した日時・ユーザー（旧データには無い）
+        if (row.doneBy) tr.dataset.doneBy = row.doneBy;
         tr.classList.add('row-input-done');
-        const db = tr.querySelector('.row-done-btn');
-        if (db) { db.classList.add('is-on'); db.title = '入力完了（クリックで解除）'; }
+        if (typeof window.rowSyncDoneBtn === 'function') window.rowSyncDoneBtn(tr);
+        else { const db = tr.querySelector('.row-done-btn'); if (db) { db.classList.add('is-on'); db.title = '入力完了（クリックで解除）'; } }
       }
       // 港ペア（子グループキー）を復元
       // 旧データの港ペアはパターンへ統合（パターン未設定時のみ移行）
@@ -1244,7 +1248,11 @@
       if (tr.dataset.hideQuote === '1') rowObj.hideQuote = true;
       if (tr.dataset.mergedInto) rowObj.mergedInto = tr.dataset.mergedInto;   // 統合先行の uid
       if (tr.dataset.pending === '1') rowObj.pending = true;          // 要調査（後で記入）
-      if (tr.dataset.done === '1') rowObj.done = true;                // 入力完了マーク
+      if (tr.dataset.done === '1') {                                  // 入力完了マーク（押した日時・ユーザーつき）
+        rowObj.done = true;
+        if (tr.dataset.doneAt) rowObj.doneAt = tr.dataset.doneAt;
+        if (tr.dataset.doneBy) rowObj.doneBy = tr.dataset.doneBy;
+      }
       if (tr.dataset.portPair) rowObj.portPair = tr.dataset.portPair; // 港ペア（子グループ）
       rows.push(rowObj);
     });

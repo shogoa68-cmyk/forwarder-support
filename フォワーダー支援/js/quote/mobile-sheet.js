@@ -37,10 +37,9 @@
       '<div class="mcs-cd" id="mcs-cd" hidden>仕入と売値の通貨が違います。CD（通貨差調整値）は「その他」で確認できます。</div>' +
       '<label class="mcs-f">備考 <small>任意</small><input type="text" id="mcs-nt" data-bind="nt" autocomplete="off"></label>' +
       '<div class="mcs-row2"><button type="button" class="mcs-btn" data-act="rem">💬 備考行を下に挿入</button><button type="button" class="mcs-btn" data-act="int">🔒 社内メモを下に挿入</button></div>' +
-      '<div class="mcs-sect">状態</div><div class="mcs-row3" id="mcsState"></div>' +
+      '<div class="mcs-sect">状態</div><div class="mcs-row3" id="mcsState"></div><div class="mcs-doneinfo" id="mcsDoneInfo" hidden></div>' +
       '<details class="mcs-more" id="mcsMore"><summary>その他</summary>' +
       '<div class="mcs-grid"><label class="mcs-f">有効期間（開始）<input type="date" id="mcs-vf" data-bind="vf"></label><label class="mcs-f">有効期間（終了）<input type="date" id="mcs-vt" data-bind="vt"></label></div>' +
-      '<label class="mcs-f">最終更新日<input type="date" id="mcs-lu" data-bind="lu"></label>' +
       '<div class="mcs-sect">単価のオプション</div><div class="mcs-chips" id="mcsModes"></div>' +
       '<div class="mcs-sect">表で設定する項目</div><div class="mcs-chips" id="mcsTableModes"></div>' +
       '</details>' +
@@ -94,6 +93,8 @@
   }
   function renderStates(tr) {
     $('mcsState').innerHTML = STATE.map(([k, label, sel, on]) => '<button type="button" class="mcs-tg' + (on(tr) ? ' is-on' : '') + '" data-state="' + k + '" aria-pressed="' + (on(tr) ? 'true' : 'false') + '">' + esc(label) + '</button>').join('');
+    { const di = $('mcsDoneInfo'), inf = tr.dataset.done === '1' && typeof window.rowDoneInfo === 'function' ? window.rowDoneInfo(tr) : null;   // 入力完了を押した日時・ユーザー
+      if (di) { di.textContent = inf ? '✓ 入力完了：' + inf.text : ''; di.hidden = !inf; } }
     $('mcsModes').innerHTML = MODES.map(([sel, label]) => { const b = tr.querySelector(sel); return b ? '<button type="button" class="mcs-tg' + (isOn(b) ? ' is-on' : '') + '" data-mode="' + esc(sel) + '" aria-pressed="' + (isOn(b) ? 'true' : 'false') + '">' + esc(label) + '</button>' : ''; }).join('');
     $('mcsTableModes').innerHTML = TABLE_MODES.map(([sel, label]) => { const b = tr.querySelector(sel); return b ? '<button type="button" class="mcs-tg' + (isOn(b) ? ' is-on' : '') + '" data-tmode="' + esc(sel) + '">' + esc(label) + (isOn(b) ? '（設定中）' : '') + '</button>' : ''; }).join('');
     $('mcsState').querySelectorAll('[data-state]').forEach(b => b.addEventListener('click', () => { const d = STATE.find(s => s[0] === b.dataset.state); tr.querySelector(d[2])?.click(); setTimeout(() => renderStates(tr), 30); }));

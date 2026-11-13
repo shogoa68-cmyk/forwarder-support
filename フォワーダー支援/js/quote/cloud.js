@@ -3549,7 +3549,7 @@
     const newData = JSON.parse(JSON.stringify(src.data));
     if (!newData.fields) newData.fields = {};
     // 新規案件としてのコピーのため、コピー元の「入力完了」マークは引き継がない
-    if (Array.isArray(newData.rows)) newData.rows.forEach(r => { if (r) delete r.done; });
+    if (Array.isArray(newData.rows)) newData.rows.forEach(r => { if (r) { delete r.done; delete r.doneAt; delete r.doneBy; } });
     // ステータスもコピー元を引き継がず「下書き中」に戻す（下の insert の status 列と揃える）。
     // ここを揃えないと、コピー直後にこの案件を開いた際 data.fields の古いステータスで
     // 復元されてしまう（cloudSetStatus と同じ理由の食い違い）。

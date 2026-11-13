@@ -2485,6 +2485,9 @@
           <button type="button" class="tb-menu-item tb-mi-simple" id="btnQuoteRedoMenu" onclick="quoteRedo(); closeTbMenus()" disabled>
             <span class="tb-mi-icon">↷</span><span class="tb-mi-body"><span class="tb-mi-title">やり直す</span><span class="tb-mi-sub">Ctrl+Y / Ctrl+Shift+Z</span></span>
           </button>
+          <button type="button" class="tb-menu-item tb-mi-simple" data-pip-btn onclick="quotePipToggle(); closeTbMenus()">
+            <span class="tb-mi-icon">🪟</span><span class="tb-mi-body"><span class="tb-mi-title" data-pip-label>常に前面</span><span class="tb-mi-sub">明細だけの小窓を他のアプリの上に出す（Chrome／Edge）</span></span>
+          </button>
           <button type="button" class="tb-menu-item tb-mi-simple" onclick="toggleMemoFloat(); closeTbMenus()">
             <span class="tb-mi-icon">📝</span><span class="tb-mi-body"><span class="tb-mi-title">社内メモ（付箋）を開く／閉じる</span><span class="tb-mi-sub">案件名欄の「📝 社内メモ」と同じ</span></span>
           </button>
@@ -3948,6 +3951,7 @@
               <button data-tier="adv" class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加（出力にも含まれます。費用行・リマーク・社内メモの追加は各明細行の ➕📋🗑️💬🔒 アイコンから）">＝</button>
               <button class="btn-bulk-pattern cmdbar-pattern-btn" onclick="openRowPatternMgr()" title="行パターン：チェックした行を保存／保存パターンを挿入">🗂️ 行パターン</button>
               <button class="cmdbar-lc-btn" onclick="lcOpenPicker()" title="諸チャージマスターから行を追加">📦 チャージ</button>
+              <button type="button" class="cmdbar-pip-btn" data-pip-btn onclick="quotePipToggle()" title="明細だけの小窓を、他のアプリ・ブラウザの上に常に前面で表示します（船会社の料金表を見ながら入力できます。Chrome／Edge）">🪟 <span data-pip-label>常に前面</span></button>
               <span class="btn-group-label" data-tier="adv">挿入位置</span>
               <select id="rowInsertPos" data-tier="adv" class="row-insert-pos" title="追加ボタンの挿入位置">
                 <option value="end">末尾に追加</option>
@@ -4575,7 +4579,7 @@
         <div class="row-acts">
           <button class="row-hidequote-btn" onclick="window.toggleRowHideQuote?.(this)" title="この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない" tabindex="-1"><span class="row-act-ico">👁</span><span class="row-act-label">見積書に出さない</span></button>
           <button class="row-pending-btn" onclick="window.toggleRowPending?.(this)" title="後で調べて記入（要調査マーク）。サーチャージ等、最新情報を調べてから埋める項目に。" tabindex="-1"><span class="row-act-ico">🔍</span><span class="row-act-label">要調査</span></button>
-          <button class="row-done-btn" onclick="window.toggleRowDone?.(this)" title="入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。" tabindex="-1"><span class="row-act-ico">✓</span><span class="row-act-label">入力完了</span></button>
+          <button class="row-done-btn" onclick="window.toggleRowDone?.(this)" title="入力完了の目印。作成を再開したとき、どこまで終わったか分かります。押すと日時とユーザー名が記録されます（もう一度クリックで解除）。" tabindex="-1"><span class="row-act-ico">✓</span><span class="row-act-label">入力完了</span></button>
           <button class="row-add-btn" onclick="window.rowAddBelow?.(this)" title="この行の直下に新しい行を追加" tabindex="-1"><span class="row-act-ico">➕</span><span class="row-act-label">直下に追加</span></button>
           <button class="row-dup-btn" onclick="window.rowDuplicate?.(this)" title="この行を複製して直下に挿入" tabindex="-1"><span class="row-act-ico">📋</span><span class="row-act-label">複製</span></button>
           <button class="row-del-btn" onclick="window.rowDelete?.(this)" title="この行を削除" tabindex="-1"><span class="row-act-ico">🗑️</span><span class="row-act-label">削除</span></button>
@@ -4600,10 +4604,6 @@
           <input type="date" data-field="vf" class="w-valid-date" title="適用開始日（終了日なしでも保存・表示されます）" />
           <span class="w-valid-sep">〜</span>
           <input type="date" data-field="vt" class="w-valid-date" title="適用終了日（省略可）" />
-        </div>
-        <div class="w-updated" title="この行の最終更新日（社内管理用・客先出力には含まれません）。サブコン／パターン見出しからまとめて設定もできます。">
-          <span class="w-updated-lbl">🕒 更新</span>
-          <input type="date" data-field="lu" class="w-updated-date" />
         </div>
         <!-- マスター関連の操作（明細の種類を示すフラグとは性格が違うため、品名の下に置く） -->
         <div class="master-actions">
@@ -5060,6 +5060,7 @@
 <script src="js/quote/remark-tabs.js"></script>
 <script src="js/quote/mobile-cost.js"></script>
 <script src="js/quote/mobile-sheet.js"></script>
+<script src="js/quote/pip-compact.js"></script>
 <script src="js/quote/layout-cols.js"></script>
 <script src="js/quote/remark-sheet.js"></script>
 <script src="js/quote/packing-import.js"></script>
