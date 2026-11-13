@@ -276,6 +276,77 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== 通常のコピーと関連付け（サブ＝同じメインの兄弟として／メイン＝サブも一緒に）=====
+  {
+    const { ctx, p, errs } = await open();
+    const lk = (name) => p.evaluate((name) => {
+      const db = window.__db, made = db.quote_presets.find(x => x.name === name);
+      if (!made) return null;
+      const mine = db.quote_preset_links.filter(x => [x.preset_a, x.preset_b].includes(made.id));
+      const up = mine.find(x => x.parent_id && x.parent_id !== made.id);   // 自分が「サブ」側の関連（自分がメインの関連は数えない）
+      const nm = id => (db.quote_presets.find(x => x.id === id) || {}).name;
+      return { parent: up ? nm(up.parent_id) : null, linked: mine.length > 0 };
+    }, name);
+    const clickCopy = (id) => p.evaluate(id => document.querySelector('#qpdListWrap .cloud-card:has(.cloud-card-links[data-lid="' + id + '"]) .btn-preset-copy:not(.btn-preset-sub)').click(), id);
+    const dialog = () => p.evaluate(() => { const d = document.querySelector('.confirm-dialog'); return d ? { title: d.querySelector('.confirm-title').textContent, boxes: [...d.querySelectorAll('.dup-subs input')].map(x => ({ nm: x.nextSibling.textContent, on: x.checked, dis: x.disabled })) } : null; });
+
+    // 1) ただのコピー（関連なし）：確認なし・単独
+    const n0 = await p.evaluate(() => window.__db.quote_presets.length);
+    await clickCopy('Z'); await p.waitForTimeout(1500);
+    ok('関連のない案件のコピー：確認は出ず、単独のコピーができる', !(await dialog()) && (await p.evaluate(() => window.__db.quote_presets.length)) === n0 + 1 && (await lk('案件Z のコピー')).linked === false, await lk('案件Z のコピー'));
+
+    // 2) サブ（S3＝P1 のサブ・サブなし）をコピー → 同じメイン P1 のサブ（兄弟）
+    await clickCopy('S3'); await p.waitForTimeout(1800);
+    ok('サブのコピー：確認は出ず、コピーも同じメイン（P1）のサブとして付く', !(await dialog()) && (await lk('案件S3 のコピー')).parent === '案件P1', await lk('案件S3 のコピー'));
+    const c1 = await card(p, 'P1');
+    ok('メインのカードのサブが 1 件増える（S1・S3・S3のコピー＋孫 S2）', c1 && c1.head[0] === '🌳 サブ案件（4）', c1 && c1.head);
+
+    // 3) メイン P1 をコピー → 確認画面（サブのツリー）。S3 のチェックを外し、S1 を残して OK
+    await clickCopy('P1'); await p.waitForTimeout(600);
+    const dg = await dialog();
+    ok('メインのコピー：サブ選択の確認画面が出る（S1・S2・S3・S3のコピーが並び、既定はすべてチェック）', dg && dg.title.includes('サブ案件も一緒に') && dg.boxes.length === 4 && dg.boxes.every(b => b.on), dg);
+    // S1 のチェックを外す → 孫 S2 は自動で外れて選べなくなる
+    await p.evaluate(() => { const b = [...document.querySelectorAll('.dup-subs input')].find(x => x.nextSibling.textContent === '案件S1'); b.click(); });
+    const dg2 = await dialog();
+    ok('サブのチェックを外すと、その下（孫 S2）も外れて選べなくなる', dg2.boxes.find(b => b.nm === '案件S2').on === false && dg2.boxes.find(b => b.nm === '案件S2').dis === true, dg2);
+    await p.evaluate(() => { const b = [...document.querySelectorAll('.dup-subs input')].find(x => x.nextSibling.textContent === '案件S1'); b.click(); });   // S1 を戻す（S2 も戻る）
+    await p.evaluate(() => { const b = [...document.querySelectorAll('.dup-subs input')].find(x => x.nextSibling.textContent === '案件S3'); b.click(); });   // S3 を外す
+    await p.evaluate(() => document.querySelector('.confirm-dialog .btn-primary').click()); await p.waitForTimeout(2500);
+    const m = await lk('案件P1 のコピー'), s1c = await lk('案件S1 のコピー'), s2c = await lk('案件S2 のコピー'), s3c = await lk('案件S3 のコピー_2');
+    ok('メインのコピー：コピーしたメインは単独（親なし）', m && m.parent === null, m);
+    const tree = await card(p, 'P1');   // 元のメインは変わらない
+    ok('選んだサブ（S1）がコピーされ、コピーしたメインのサブとして付く', s1c && s1c.parent === '案件P1 のコピー', s1c);
+    ok('孫（S2）もコピーされ、S1 のコピーのサブとして付く（ツリーごと）', s2c && s2c.parent === '案件S1 のコピー', s2c);
+    ok('チェックを外したサブ（S3）はコピーされない', !(await p.evaluate(() => window.__db.quote_presets.some(x => x.name === '案件S3 のコピー_2'))), s3c);
+    ok('元のメイン P1 のサブは変わらない', tree && tree.treeRoot.includes('案件S1') && tree.treeRoot.includes('案件S3'), tree);
+
+    // 4) やめる → 何も作られない
+    const n1 = await p.evaluate(() => window.__db.quote_presets.length);
+    await clickCopy('P1'); await p.waitForTimeout(500);
+    await p.evaluate(() => document.querySelector('.confirm-dialog .btn-cancel').click()); await p.waitForTimeout(500);
+    ok('確認画面で「やめる」：何もコピーされない', (await p.evaluate(() => window.__db.quote_presets.length)) === n1);
+
+    // 5) すべて外してコピー → メインだけ
+    await clickCopy('P1'); await p.waitForTimeout(500);
+    await p.evaluate(() => { [...document.querySelectorAll('.dup-subs > li > label input')].forEach(x => { if (x.checked) x.click(); }); document.querySelector('.confirm-dialog .btn-primary').click(); }); await p.waitForTimeout(2000);
+    ok('すべてのチェックを外すと、メインだけがコピーされる（+1 件）', (await p.evaluate(() => window.__db.quote_presets.length)) === n1 + 1, await p.evaluate(() => window.__db.quote_presets.length));
+
+    // 6) サブでもあり、サブを持つ案件（S1）：確認画面（S2）が出て、コピーは P1 の兄弟＋S2 のコピーがその下
+    await clickCopy('S1'); await p.waitForTimeout(600);
+    const dg3 = await dialog();
+    ok('サブを持つサブ（S1）のコピー：サブ（S2）の選択が出る', dg3 && dg3.boxes.map(b => b.nm).join() === '案件S2', dg3);
+    await p.evaluate(() => document.querySelector('.confirm-dialog .btn-primary').click()); await p.waitForTimeout(2500);
+    const sib = await p.evaluate(() => {
+      const db = window.__db, byName = n => db.quote_presets.find(x => x.name === n);
+      const parentOf = n => { const q = byName(n); const l = q && db.quote_preset_links.find(x => [x.preset_a, x.preset_b].includes(q.id) && x.parent_id && x.parent_id !== q.id); return l && (db.quote_presets.find(x => x.id === l.parent_id) || {}).name; };
+      return { s1: parentOf('案件S1 のコピー_2'), s2: parentOf('案件S2 のコピー_2') };
+    });
+    ok('S1 のコピーは P1 の兄弟として付く', sib.s1 === '案件P1', sib);
+    ok('S2 のコピーは、その S1 のコピーの下に付く（ツリーごと）', sib.s2 === '案件S1 のコピー_2', sib);
+    ok('ページエラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== SQL 未実行でも「サブ作成」は、ただの関連として付く =====
   {
     const { ctx, p, errs } = await open({ noParentCol: true });
