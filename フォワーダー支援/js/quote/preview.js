@@ -965,6 +965,7 @@
         ];
     const condFields = [
       ...routeFields,
+      { lbl: 'ICD（インランドデポ）', val: cond.icd },
       { lbl: dirFirstLeg(cond.direction) === 'export' ? '集荷地' : '発地', val: cond.origin },
       { lbl: '仕向地',          val: cond.dest },
       ...(dirIsRound(cond.direction) && cond.incotermsRet && cond.incotermsRet !== cond.incoterms
@@ -1909,6 +1910,7 @@
       : [['POL（積み地）', cExcel.pol], ['POD（揚げ地）', cExcel.pod]];
     const condPairs = [
       ...routePairs,
+      ['ICD（インランドデポ）', cExcel.icd],
       ...(dirIsRound(cExcel.direction) && cExcel.incotermsRet && cExcel.incotermsRet !== cExcel.incoterms
         ? [[`インコタームズ 往路（${dirLegName(cExcel.direction, 'out')}）`, cExcel.incoterms], [`インコタームズ 復路（${dirLegName(cExcel.direction, 'ret')}）`, cExcel.incotermsRet]]
         : [['インコタームズ', cExcel.incoterms]]),

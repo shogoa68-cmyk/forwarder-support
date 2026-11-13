@@ -83,6 +83,7 @@
     subtotal:       ['小計', 'Subtotal'],
     incoterms:      ['建値（INCOTERMS）', 'Incoterms'],
     handling:       ['荷役条件', 'Handling Terms'],
+    icd:            ['ICD（インランドデポ）', 'ICD (Inland Container Depot)'],
     route:          ['航路', 'Route'],
     pol:            ['積み地（POL）', 'Port of Loading (POL)'],
     pod:            ['揚げ地（POD）', 'Port of Discharge (POD)'],
@@ -414,6 +415,8 @@
       push(t('pol'), _masterEn('port', cond.pol));
       push(t('pod'), _masterEn('port', cond.pod));
     }
+    // ICD（インランドデポ）：POD の国がインドのとき入力する内陸の引き渡し・通関地（js/icd.js）。航路・POD の直後に出す
+    push(t('icd'), cond.icd);
     // 出発地側ラベル：輸出は「集荷地」（原産地＝customs の原産地と混同しないため）。輸入・未設定は中立的に「発地」
     push(dirFirstLeg(cond.direction) === 'export' ? t('originPickup') : t('origin'), cond.origin);
     push(t('dest'), cond.dest);
