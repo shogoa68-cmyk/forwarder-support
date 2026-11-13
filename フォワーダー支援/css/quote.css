@@ -4502,7 +4502,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard .qpd-stat { flex: 1 1 110px; min-width: 100px; display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); background: var(--surface); border: 1px solid var(--c-e0d4bc); border-radius: var(--r-10); padding: var(--sp-11) var(--sp-14); cursor: pointer; transition: border-color .12s, box-shadow .12s; }
 #qpDashboard .qpd-stat:hover { border-color: #c7b486; }
 #qpDashboard .qpd-stat.is-active { border-color: var(--blue-32); box-shadow: 0 0 0 2px #1a5c8a33 inset; }
-#qpDashboard .qpd-stat-n { font-size: 22px; font-weight: 800; color: var(--accent-dk); line-height: 1; }
+#qpDashboard .qpd-stat-n { font-size: var(--text-xl); font-weight: 800; color: var(--accent-dk); line-height: 1; }
 #qpDashboard .qpd-stat-l { font-size: var(--fs-11); font-weight: 700; color: var(--text-muted); }
 #qpDashboard .qpd-stat--won  .qpd-stat-n { color: var(--green-ok); }
 #qpDashboard .qpd-stat--lost .qpd-stat-n { color: var(--red); }
@@ -6685,7 +6685,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cloud-kv dt { font-size: var(--fs-10-5); color: #94a3ad; font-weight: 600; padding-top: 1px; }
 #tab-quote-make .cloud-kv dd { font-size: var(--fs-11-5); color: #2c3e4a; margin: 0; }
 /* お客様／担当は視認性重視で約2倍に拡大（11.5px → 23px） */
-#tab-quote-make .cloud-kv dd.cloud-kv-cust { font-size: 23px; font-weight: 700; color: #1f2d36; line-height: 1.25; }
+#tab-quote-make .cloud-kv dd.cloud-kv-cust { font-size: var(--text-xl); font-weight: 700; color: #1f2d36; line-height: 1.25; }
 
 /* === ダッシュボードのカードの文字を大きく（従来は大半が最小の 12px。ここだけ一段〜二段上げる） ===
    値（ルート・条件・サブコン名）＝16px／ラベル・補助＝13px／タグ類＝14px／REF#・更新日時＝16px・14px。
@@ -6695,8 +6695,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make #qpdListWrap .cloud-kv dt { font-size: var(--text-sm); padding-top: 3px; white-space: nowrap; }
 #tab-quote-make #qpdListWrap .cloud-kv dd { font-size: var(--text-lg); line-height: 1.4; }
 #tab-quote-make #qpdListWrap .cloud-kv dd { min-width: 0; overflow-wrap: anywhere; }   /* 空白の無い長い名前で行幅が押し広げられない */
-#tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-cust { font-size: 23px; line-height: 1.25; }
-#tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-who { font-size: var(--text-base); }
+#tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-cust { font-size: var(--text-xl); line-height: 1.25; }
+#tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-who { font-size: var(--text-sm); }
 #tab-quote-make #qpdListWrap .cloud-kv-tags { gap: var(--sp-6); }
 #tab-quote-make #qpdListWrap .cloud-tag { font-size: var(--text-base); padding: var(--sp-2) var(--sp-8); }
 #tab-quote-make #qpdListWrap .cloud-kv-sub { gap: var(--sp-6) var(--sp-12); }
@@ -6704,7 +6704,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make #qpdListWrap .cloud-sc-name { font-size: var(--text-lg); }
 #tab-quote-make #qpdListWrap .cloud-sc-more { font-size: var(--text-sm); }
 #tab-quote-make #qpdListWrap .cloud-kv .route-via { font-size: var(--text-sm); }
-#tab-quote-make #qpdListWrap .cloud-card-who { font-size: var(--text-base); }
+#tab-quote-make #qpdListWrap .cloud-card-who { font-size: var(--text-sm); }
 #tab-quote-make #qpdListWrap .cloud-card-edn { font-size: var(--text-xs); }
 
 /* お客様種別（マスターの取引形態：荷主／同業者／その他）。配色はマスター管理の取引形態の色分けと同じ（青／橙／灰）。
