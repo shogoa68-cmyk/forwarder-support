@@ -69,6 +69,45 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   await pop.click('.row:nth-child(3) [data-act="del"]'); await pop.waitForTimeout(900);
   ok('行の「🗑」で削除される（確認のあと 2 行）', (await rowIds()).length === 2 && await q(() => document.querySelectorAll('.row').length === 2));
 
+  // ---- 入力の範囲（サブコン別／サブコン→パターン別）----
+  {
+    const ids = await rowIds();
+    await set(ids[0], 'nm', 'THC'); await set(ids[0], 'sv', 'WAN HAI'); await set(ids[0], 'pt', 'FCL案'); await set(ids[0], 'pp', '100');
+    await set(ids[1], 'nm', 'DOC'); await set(ids[1], 'sv', 'WAN HAI'); await set(ids[1], 'pt', 'LCL案'); await set(ids[1], 'pp', '200');
+    await pop.click('#pcAdd'); await pop.waitForTimeout(600);
+    const ids3 = await rowIds(); const id3 = ids3.find(i => !ids.includes(i));
+    await set(id3, 'nm', 'CFS'); await set(id3, 'sv', 'KMTC'); await set(id3, 'pp', '300');
+    await p.waitForTimeout(1800);
+    const names = () => q(() => [...document.querySelectorAll('.row [data-bind="nm"]')].map(x => x.value));
+    ok('範囲の選択欄に、すべて＋サブコン（WAN HAI・KMTC）が並ぶ', await q(() => { const o = [...document.querySelectorAll('#pcSv option')].map(x => x.textContent); return o[0] === 'すべてのサブコン' && o.includes('WAN HAI') && o.includes('KMTC'); }));
+    ok('初期は「すべて」で全 3 行', (await names()).length === 3);
+    // ① サブコン別
+    await pop.selectOption('#pcSv', { label: 'WAN HAI' }); await pop.waitForTimeout(400);
+    ok('① サブコン WAN HAI を選ぶと、その 2 行だけになる', JSON.stringify(await names()) === JSON.stringify(['THC', 'DOC']), await names());
+    ok('範囲を選ぶと、サブコン欄は行から外れ、パターン欄が出る', await q(() => !document.querySelector('.row [data-bind="sv"]') && !!document.querySelector('.row [data-bind="pt"]') && !document.getElementById('pcPt').hidden));
+    ok('パターンの選択肢は、そのサブコンのパターン（FCL案・LCL案）', await q(() => { const o = [...document.querySelectorAll('#pcPt option')].map(x => x.textContent); return o.includes('FCL案') && o.includes('LCL案') && !o.includes('KMTC'); }));
+    ok('範囲の売合計が出る', await q(() => /この範囲の売合計/.test(document.getElementById('pcScopeSum').textContent)));
+    await pop.screenshot({ path: path.join(process.env.OUT || '/tmp', 'pip-scope.png') }).catch(() => {});
+    await pop.click('#pcAdd'); await pop.waitForTimeout(700);
+    const nid = (await rowIds()).find(i => !ids3.includes(i));
+    ok('① 範囲を選んで「＋ 行を追加」すると、そのサブコンの行として追加される', await p.evaluate(i => document.querySelector(`#tableBody tr#row-${i} [data-field="sv"]`).value === 'WAN HAI', nid) && (await names()).length === 3);
+    // ② サブコン→パターン別
+    await pop.selectOption('#pcPt', { label: 'FCL案' }); await pop.waitForTimeout(400);
+    const n2 = await names();
+    ok('② パターン FCL案 を選ぶと、そのパターンの行だけになる（THC と追加した行がパターンを引き継ぐ場合を含む）', n2.includes('THC') && !n2.includes('DOC') && !n2.includes('CFS'), n2);
+    ok('パターンまで選ぶと、行にパターン欄は出ない', await q(() => !document.querySelector('.row [data-bind="pt"]')));
+    const cntBefore = (await names()).length;
+    await pop.click('#pcAdd'); await pop.waitForTimeout(700);
+    const nid2 = (await rowIds()).find(i => ![...ids3, nid].includes(i));
+    ok('② 範囲を選んで追加すると、サブコンとパターンの両方がその範囲になる', await p.evaluate(i => { const g = k => document.querySelector(`#tableBody tr#row-${i} [data-field="${k}"]`).value; return g('sv') === 'WAN HAI' && g('pt') === 'FCL案'; }, nid2) && (await names()).length === cntBefore + 1);
+    // 戻す
+    await pop.selectOption('#pcPt', { label: 'すべてのパターン' }); await pop.waitForTimeout(300);
+    ok('パターンを「すべて」に戻すと、そのサブコンの行が全部出る', (await names()).includes('DOC'));
+    await pop.selectOption('#pcSv', { label: 'KMTC' }); await pop.waitForTimeout(300);
+    ok('別のサブコン（KMTC）に切り替えると、パターンの選択は「すべて」に戻り、KMTC の行だけ', JSON.stringify(await names()) === JSON.stringify(['CFS']), await names());
+    await pop.selectOption('#pcSv', { label: 'すべてのサブコン' }); await pop.waitForTimeout(300);
+    ok('「すべてのサブコン」に戻すと全行が出て、パターン欄も戻る', (await names()).length >= 5 && await q(() => !!document.querySelector('.row [data-bind="sv"]') && document.getElementById('pcPt').hidden));
+  }
   // 閉じる
   await pop.click('#pcClose').catch(() => {}); await p.waitForTimeout(600);
   ok('閉じると、ボタンは元の表示に戻る', await p.evaluate(() => !/表示中/.test(document.querySelector('.cmdbar-pip-btn').textContent)));
