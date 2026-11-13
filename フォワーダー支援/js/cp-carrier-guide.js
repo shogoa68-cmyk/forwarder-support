@@ -76,6 +76,28 @@
     return '<div class="cpt-guide">' + head + body + more + note + '</div>';
   }
 
+  // 本船の動静（COLINS に本船が載っていないとき）：本船名からは船会社を推測できないので、船会社の「本船の動き」のページを一覧から選んでもらう。
+  // 本船名を入れていれば、開くときに名前をコピーする（ページの入力欄に貼り付ける）。
+  function vesselHtml(opts) {
+    opts = opts || {};
+    var name = String(opts.name == null ? '' : opts.name).trim().replace(/\s+/g, ' ');
+    var all = carriers();
+    var keys = Object.keys(all).filter(function (k) { return typeof all[k].vessel === 'function'; });
+    if (!keys.length) return '';
+    var chips = keys.map(function (k) {
+      var c = all[k], url = '';
+      try { url = String(c.vessel(encodeURIComponent(name))); } catch (e) { url = ''; }
+      if (!url) return '';
+      var copy = name ? ' data-cg-copy="' + esc(name) + '"' : '';
+      return '<a class="cpt-guide-chip" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"' + copy + '>' + (c.icon ? esc(c.icon) + ' ' : '') + esc(k) + (name ? ' 📋' : '') + ' ↗</a>';
+    }).join('');
+    if (!chips) return '';
+    return '<div class="cpt-guide"><div class="cpt-guide-h">🔎 COLINS に本船の情報が無いときは、船会社の本船スケジュールで確認できます</div>' +
+      '<div class="cpt-guide-p">本船名からは船会社が分からないため、船会社を選んでください' + (name ? '（本船名「' + esc(name) + '」は、開くときにコピーします。ページの検索欄に貼り付けてください）' : '') + '。</div>' +
+      '<div class="cpt-guide-chips">' + chips + '</div>' +
+      '<div class="cpt-guide-n">※ COLINS は日本の港のターミナル情報です。入港前や、ターミナルの更新前の本船は載らないことがあります。船会社のページは新しいタブで開き、アプリには何も送りません。</div></div>';
+  }
+
   // リンクを押したときの処理：番号をコピーする船会社なら、番号をクリップボードへ（失敗しても、ページは開く）
   function onClick(e) {
     var a = e.target && e.target.closest ? e.target.closest('a[data-cg-copy]') : null;
@@ -87,5 +109,5 @@
   }
   function toast(msg) { try { if (window.SharedUI && window.SharedUI.showToast) window.SharedUI.showToast(msg); } catch (e) { /* 何もしない */ } }
 
-  window.CpCarrierGuide = { guess: guess, urlFor: urlFor, html: html, onClick: onClick, PREFIX: PREFIX };
+  window.CpCarrierGuide = { guess: guess, urlFor: urlFor, html: html, vesselHtml: vesselHtml, onClick: onClick, PREFIX: PREFIX };
 })();

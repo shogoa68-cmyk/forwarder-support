@@ -472,7 +472,10 @@
     }
     if (k.indexOf('vessel:') === 0) {
       var dir = meta.dir, port = meta.port, at = atPort(x, port, dir), term = termCell(names)(x);
-      return { title: vesselTitle(x), sub: (dir === 'export' ? '輸出' : '輸入') + '　' + port + (term ? '　／　' + term : ''), chips: [], flowTitle: '本船の流れ', steps: stepsVessel(x, port, dir, now), dl: colsDl(vesselCols(dir, port, names), NODATA_C_S), kind: 'vessel' };
+      var vSteps = stepsVessel(x, port, dir, now);
+      // 流れの全部が「情報なし」のときは、船会社の本船スケジュールへ案内する
+      var vGuide = vSteps.every(function (p) { return p.st === 'nodata'; }) && window.CpCarrierGuide ? window.CpCarrierGuide.vesselHtml({ name: g(x, 'vessel.vesselName') }) : '';
+      return { title: vesselTitle(x), sub: (dir === 'export' ? '輸出' : '輸入') + '　' + port + (term ? '　／　' + term : ''), chips: [], flowTitle: '本船の流れ', steps: vSteps, dl: colsDl(vesselCols(dir, port, names), NODATA_C_S), kind: 'vessel', extra: vGuide };
     }
     var dirc = k === 'ctn:export' ? 'export' : 'import';
     var size = [g(x, 'container.lengthName'), g(x, 'container.containerTypeName')].filter(Boolean).join(' ');
@@ -689,7 +692,8 @@
     };
     return runSearch(k, 'COLINS の本船の動静（' + (dir === 'export' ? '輸出' : '輸入') + '・' + port + (vn ? '・' + vn : '') + '）', 'vessel',
       async function () { var r = await window.CyberPort.colinsVessels(dir, port, q); r = Object.assign({}, r, { data: sortList(r.data) }); return r; },
-      { emptyBody: function () { return total && !outside ? '' : (total ? port + ' の本船は ' + total + ' 件ありますが、照会の日（' + windowLabel(now0) + '）の前後 ' + VESSEL_WINDOW_DAYS / 7 + ' 週間の範囲に入るものはありません。' : port + ' の本船の動静は見つかりませんでした（COLINS に情報がありません）。'); },
+      { emptyHtml: function () { return window.CpCarrierGuide ? window.CpCarrierGuide.vesselHtml({ name: vn }) : ''; },
+        emptyBody: function () { return total && !outside ? '' : (total ? port + ' の本船は ' + total + ' 件ありますが、照会の日（' + windowLabel(now0) + '）の前後 ' + VESSEL_WINDOW_DAYS / 7 + ' 週間の範囲に入るものはありません。' : port + ' の本船の動静は見つかりませんでした（COLINS に情報がありません）。'); },
         meta: function () { return { dir: dir, port: port, names: names, note: '照会の日の前後 ' + VESSEL_WINDOW_DAYS / 7 + ' 週間（' + windowLabel(now0) + '）の動静を表示' + (outside ? '。範囲外の ' + outside + ' 件は除きました' : '') }; } });
   }
   async function liveColinsContainers() {

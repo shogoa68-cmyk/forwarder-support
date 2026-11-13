@@ -380,6 +380,26 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   await p.fill('#cptCtn', 'ONEYTYOGF1'); await p.click('#cptColinsC');
   await p.waitForSelector('#cptLive .cpt-msg.is-error');
   eq(await p.locator('#cptLive .cpt-guide').count(), 0, '案内：エラーのときは出さない（情報が無いのではなく、取れなかった）');
+  // ----- 本船の動静 -----
+  await p.click('.cpt-tab[data-tab="vessel"]'); await p.click('.cpt-seg [data-dir="import"]');
+  respond = router({ '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', []) });
+  await p.fill('#cptVessel', 'sakura maru'); await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-guide');
+  ok(/本船スケジュールで確認できます/.test(await txt('#cptLive .cpt-guide')) && /船会社が分からない/.test(await txt('#cptLive .cpt-guide')), '案内（本船）：0 件のとき、船会社の本船スケジュールへ案内（本船名からは船会社が分からない旨）');
+  ok(await p.locator('#cptLive .cpt-guide-chip[target="_blank"][rel*="noopener"]').count() >= 10 && await p.locator('#cptLive .cpt-guide-chip.is-primary').count() === 0, '案内（本船）：船会社のチップが並ぶ（推測はしない・新しいタブ・noopener）');
+  eq(await p.locator('#cptLive .cpt-guide-chip').first().getAttribute('data-cg-copy'), 'sakura maru', '案内（本船）：本船名を入れていれば、開くときにその名前をコピーする');
+  await p.fill('#cptVessel', ''); await p.waitForFunction(() => !document.getElementById('cptColinsV').disabled); await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-guide');
+  eq(await p.locator('#cptLive .cpt-guide-chip[data-cg-copy]').count(), 0, '案内（本船）：本船名が空なら、コピーの指定は付けない');
+  // 流れが全部「情報なし」の本船：右の詳細にも案内
+  respond = router({ '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', [{ terminalCode: 'XXXXX99C', vessel: { vesselName: 'GHOST ONE', voyageNo: '1' } }]) });
+  await p.waitForFunction(() => !document.getElementById('cptColinsV').disabled); await p.click('#cptColinsV');
+  await p.waitForSelector('#cptList .cpt-row');
+  ok(await p.locator('#cptDetail .cpt-guide').count() === 1 && await p.locator('#cptDetail .cpt-guide-chip[data-cg-copy="GHOST ONE"]').count() >= 10, '案内（本船）：流れが全部「情報なし」の本船は、詳細にも案内（本船名をコピー）');
+  respond = () => ({ status: 502, body: { ok: false, error: 'upstream_auth', message: 'サイバーポートに認証を拒否されました', upstreamStatus: 403 } });
+  await p.waitForFunction(() => !document.getElementById('cptColinsV').disabled); await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-msg.is-error');
+  eq(await p.locator('#cptLive .cpt-guide').count(), 0, '案内（本船）：エラーのときは出さない');
   // 推測（純粋関数）
   eq(await p.evaluate(() => ['MAEU1234567', 'ONEU1234567', 'ooluxxxx', 'ABCD123', 'MS', '', null].map((n) => window.CpCarrierGuide.guess(n))), ['Maersk', 'ONE', 'OOCL', null, null, null, null], '案内：頭 4 文字の推測（Maersk／ONE／OOCL・不明は null）');
   // 未ログイン
