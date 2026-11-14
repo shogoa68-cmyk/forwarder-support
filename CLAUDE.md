@@ -304,6 +304,15 @@ IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案�
 
 **類似案件から行をインポートすると「引用元の入力完了」の日時・ユーザーが付く（2026-11）**：行の「入力完了」（`doneAt`／`doneBy`）は、これまで類似案件の「✅ 選択した行を追加」（`cloudImportSelectedRows` → `appendQuoteRows`）で失われていた。**引用元で入力完了が押されていた行は、日時・ユーザー・引用元の案件名を「引用元の入力完了」として持たせる**（行の保存配列に `srcDoneAt`／`srcDoneBy`／`srcFrom`・画面では `tr.dataset.srcDoneAt／srcDoneBy／srcFrom`＋クラス `row-src-done`・SQL 不要）。**入力完了マーク自体は付けない**（この案件では未確認の情報＝インポートした人が「いつ確認された情報か」を判断するための目安）。①**プレビュー**：明細の品名の右に「✓ 日時 ユーザー名」（`.cp-done-tag`・緑）、引用元の記録だけを持つ明細は「📥 …」（青灰・`.is-src`）。②**インポート後の行**：小計セルの `.st-doneinfo` に「📥 10/5 05:30 山田太郎」（青灰・斜体・`.is-src`・吹き出しに案件名と「この案件ではまだ確認していません」）。Industry の 3 段固定（120px）の行は、完了した行と同じ詰め方（`tr.row-src-done` を `code-overrides-industry.css` に追加）で高さが変わらない。スマホ幅は一覧の札「📥 引用元の完了 …」（`mobile-cost.js`）と編集シートの `#mcsDoneInfo`（`mobile-sheet.js`）。③**自分で「入力完了」を押すと**（`toggleRowDone`）、引用元の記録は消えて自分の記録（日時・ユーザー）に置き換わる（解除しても引用元の記録は戻らない）。④**引用の引用**は元の記録を引き継ぐ（`srcDoneAt` があれば `srcDoneBy`／`srcFrom` も）。⑤保存・読込（`conditions.js`）で復元・「コピーして新規作成」では全部消す（`cloud.js`）。行の複製・並べ替えは従来どおり（複製には付かない）。「📥 内容を引用」（`cloudQuoteFromPreview`）は従来どおり入力完了マークごと復元する（変更なし）。ヘルパーは `row.js` の `rowDoneFormat`／`rowSrcDoneInfo`／`rowClearSrcDone`。テストは `scripts/design-tests/done-src-test.js`（現行／Industry とも 17 項目）。
 
+## 📉 Supabase の通信量（egress）を抑える仕組み（2026-11・`js/quote/cloud.js`／`js/quote/subcon-insert.js`）
+
+Free プランの転送量（月 5GB）を 2026-11 に超過した（7.48GB・3 人の利用で 1 日 1〜1.8GB・内訳は**表の読み取り**。Storage は平均 20MB・Realtime は 0・Edge Function は 69 回）。原因は「**全案件の本体（`quote_presets.data`）を、件数の制限なしで、何度も取り直していた**」こと。次の 3 点で減らした。**ここを元に戻さない／全件取得を増やさない**こと。
+- **ログイン状態の通知は「同じ人のまま」なら何も読み直さない**（`cloud.js` の `_authUid`）。supabase-js は別のタブから戻ったとき・トークン更新のたびにも `SIGNED_IN` を出すため、以前はそのたびに案件一覧・マスター全件・組織・お知らせを取り直していた。人が変わったとき（ログイン・ログアウト・別の人）だけ読み込む。`USER_UPDATED` は表示だけ更新。
+- **案件一覧（`cloudListPresets`）は「本体以外の列」を毎回・本体（`data`）は変わった案件の分だけ取る**（`_attachBodies`・`_bodyCache`）。目印＝`updated_at` ＋ `editors`（`docs/sql/quote-preset-editors.sql` のトリガーが、データ・ステータスの変更で**必ず**更新する。ロックの更新・取得・解放では変わらない＝ロックのハートビート（30 秒）は `updated_at` も `editors` も変えない）。`updated_at` を変えない書き込み（`cloudToggleHoldReminder`・`_writeFollow`・世代の更新）は `editors` で拾い、さらに書いた直後に `_bodyCacheDrop(id)` する。ロック状態・ステータス・削除は毎回の軽い一覧で最新になる。本体の取得に失敗したら従来どおり本体つきの全件にもどる。**`editors` の列が無い環境では 5 分たった本体は取り直す**。**案件の本体を書き換える処理を足すときは、`updated_at` か `editors` が変わること（＝トリガーが入っていること）を確認する**（変わらないと他の人の一覧が古いままになる）。
+- **「サブコン別行挿入」の全件取得（`_fetchAllPresets`）は 5 分使い回す**（他の人が直前に保存した案件は最大 5 分遅れて出る）。
+- 確認：`scripts/design-tests/egress-sync-test.js`（偽の Supabase がリクエストを記録・現行／`THEME=1` の Industry とも）。**修正前のコードに当てると 8 件失敗する**（同じ人の通知で全件を読む・一覧が本体を毎回取る・サブコンの全件取得の繰り返しなど）。本番での効果は Supabase の Usage → Egress per day で見る（目標：1 日 0.18GB 以下）。
+- **未実施（必要なら）**：ページを開くたびの最初の 1 回は全案件の本体を取る（本体を IndexedDB に保存して次回は差分だけにする案）／統計・マスターの全件読み込み（`statsLoadMasterCache`）の使い回し／ダッシュボードの一覧を本体なしで描く案。
+
 ## 🔖 チームブックマーク（全面クラウド移行・編集履歴）
 
 船会社／サブコンのリンクを `bookmarks` テーブルで一元管理（`js/bookmarks.js`・`#tab-bookmark`）。見積タブ右カラムの「🔖 ブックマーク」タブ（`renderQuoteBookmarkRail` / `#bmRailPanel`）に案件連動で表示。
