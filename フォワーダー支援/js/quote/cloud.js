@@ -287,6 +287,51 @@
     return lines.join('\n');
   }
 
+  // ---------- 案件の本体（data）の使い回し（通信量の削減） ----------
+  // 以前は一覧を開き直すたびに全案件の本体を丸ごと取っていた（保存・ダッシュボードに戻る・他の人の編集開始・ログイン状態の通知など）。
+  // いまは、本体は「目印が変わった案件」だけ取り直す。
+  //   目印 = updated_at ＋ editors（データ・ステータスが変わると DB のトリガーが editors を必ず更新する。
+  //          ロックの更新・取得・解放では変わらない。updated_at を変えない書き込みもこれで拾える）
+  //   editors の列が無い環境では目印が弱いので、5 分たった本体は取り直す。
+  // 一覧の他の列（ロック状態・ステータスなど）は毎回最新を取るので、削除・ロックの反映も従来どおり。
+  const _BODY_CHUNK = 40;                       // 1 回に取る本体の件数（URL が長くなりすぎないように）
+  const _BODY_NOEDITORS_TTL = 5 * 60 * 1000;
+  let _bodyCache = new Map();                   // id -> { sig, at, data }
+  function _bodySig(r) {
+    return String(r.updated_at || '') + '|' + (r.editors === undefined ? '-' : JSON.stringify(r.editors));
+  }
+  function _bodyCacheDrop(id) { _bodyCache.delete(id); }
+  async function _attachBodies(c, rows) {
+    const now = Date.now();
+    const need = [];
+    const next = new Map();
+    for (const r of rows) {
+      const hit = _bodyCache.get(r.id);
+      const sig = _bodySig(r);
+      if (hit && hit.sig === sig && (r.editors !== undefined || now - hit.at < _BODY_NOEDITORS_TTL)) {
+        r.data = hit.data;
+        next.set(r.id, hit);
+      } else {
+        need.push(r);
+      }
+    }
+    const gone = new Set();
+    for (let i = 0; i < need.length; i += _BODY_CHUNK) {
+      const part = need.slice(i, i + _BODY_CHUNK);
+      const { data: got, error } = await c.from(_table()).select('id,data').in('id', part.map(r => r.id));
+      if (error) throw error;
+      const m = new Map((got || []).map(g => [g.id, g.data]));
+      for (const r of part) {
+        if (!m.has(r.id)) { gone.add(r.id); continue; }      // 取得の合間に削除された案件
+        r.data = m.get(r.id);
+        next.set(r.id, { sig: _bodySig(r), at: now, data: r.data });
+      }
+    }
+    _bodyCache = next;
+    // 元の並び順（更新が新しい順）を保つ
+    return rows.filter(r => !gone.has(r.id));
+  }
+
   // ---------- 一覧 ----------
   async function cloudListPresets(silent) {
     const c = _getClient();
@@ -301,40 +346,42 @@
     ]);
     // editors（更新者履歴）・locked_by/locked_at（編集ロック）・ref（見積もり番号）・
     // tags（案件タグ）も取得。列が未マイグレーションでも動くよう、段階的にフォールバックする。
-    const BASE_COLS = 'id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data';
-    let { data, error } = await c
-      .from(_table())
-      .select(BASE_COLS + ',ref,tags,locked_by,locked_at,editors')
-      .order('updated_at', { ascending: false });
-    if (error) {
+    // 一覧は「本体（data）以外の列」だけを毎回取り、本体は変わった案件の分だけ取り直す（通信量の削減。_attachBodies）。
+    const META_COLS = 'id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier';
+    const EXTRA_COLS = [
+      ',ref,tags,locked_by,locked_at,editors',
+      ',ref,locked_by,locked_at,editors',
+      ',locked_by,locked_at,editors',
+      ',locked_by,locked_at',
+      '',
+    ];
+    let data, error, usedExtra = '';
+    for (const ex of EXTRA_COLS) {
       ({ data, error } = await c
         .from(_table())
-        .select(BASE_COLS + ',ref,locked_by,locked_at,editors')
+        .select(META_COLS + ex)
         .order('updated_at', { ascending: false }));
-    }
-    if (error) {
-      ({ data, error } = await c
-        .from(_table())
-        .select(BASE_COLS + ',locked_by,locked_at,editors')
-        .order('updated_at', { ascending: false }));
-    }
-    if (error) {
-      ({ data, error } = await c
-        .from(_table())
-        .select(BASE_COLS + ',locked_by,locked_at')
-        .order('updated_at', { ascending: false }));
-    }
-    if (error) {
-      ({ data, error } = await c
-        .from(_table())
-        .select(BASE_COLS)
-        .order('updated_at', { ascending: false }));
+      if (!error) { usedExtra = ex; break; }
     }
     if (error) {
       if (wrap) wrap.innerHTML =
         '<div class="preset-empty">⚠️ 取得に失敗：' + escHtml(error.message) +
         '<br><small>許可リスト（allowed_emails）に登録されていない可能性があります</small></div>';
       return;
+    }
+    try {
+      data = await _attachBodies(c, data || []);
+    } catch (e) {
+      // 本体の取得に失敗したら、従来どおり本体つきで全件を取り直す（確実さを優先）
+      _bodyCache = new Map();
+      ({ data, error } = await c
+        .from(_table())
+        .select(META_COLS + ',data' + usedExtra)
+        .order('updated_at', { ascending: false }));
+      if (error) {
+        if (wrap) wrap.innerHTML = '<div class="preset-empty">⚠️ 取得に失敗：' + escHtml(error.message) + '</div>';
+        return;
+      }
     }
     _cloudRows = data || [];
     await _checkStaleHolds();
@@ -2421,6 +2468,7 @@
       quoteShowToast('⚠️ 更新に失敗：' + error.message, 'warn', 5000);
       return;
     }
+    _bodyCacheDrop(id);
     row.data = newData;
     _applyCloudFilter();
     quoteShowToast(off ? '🔕 この案件の保留リマインドを停止しました' : '🔔 この案件の保留リマインドを再開しました', 'success', 3000, {
@@ -2447,6 +2495,7 @@
     if (pf) newData.priceFollow = pf; else delete newData.priceFollow;
     const { error } = await c.from(_table()).update({ data: newData }).eq('id', id);
     if (error) { quoteShowToast('⚠️ 更新に失敗：' + error.message, 'warn', 5000); return false; }
+    _bodyCacheDrop(id);
     row.data = newData;
     _followEditId = null;
     _applyCloudFilter();
@@ -3971,7 +4020,7 @@
         nd.copiedFrom = Object.assign({}, nd.copiedFrom, { gen: p.gen + 1, root: p.root });
         const { data: u, error } = await c.from(_table()).update({ data: nd }).eq('id', k.id).select('id');   // 最終更新者・日時は変えない（世代の数え直しだけ）
         if (error || !u || !u.length) { failed++; continue; }
-        k.data = nd; n++;
+        k.data = nd; n++; _bodyCacheDrop(k.id);
         queue.push({ id: k.id, gen: p.gen + 1, root: p.root });
       }
     }
@@ -4073,9 +4122,17 @@
     const c = _getClient();
     if (!c) { _renderCloudAuth(); return; }
 
+    // 「いま画面に反映済みのログインの人」。同じ人のままの通知では何も読み直さない（通信量の削減）。
+    // supabase-js は、別のタブから戻ったとき・トークン更新のたびにも「ログインした」通知を出すため、
+    // 以前はそのたびに案件一覧・マスターの全件を取り直していた（Free プランの転送量が超過した原因）。
+    let _authUid = null;
+
     // 既存セッション復元（OAuth リダイレクト直後もここで拾える）
     c.auth.getSession().then(({ data }) => {
-      _cloudUser = (data && data.session && data.session.user) || null;
+      const u = (data && data.session && data.session.user) || null;
+      if (u && _authUid === u.id) return;          // 通知側（INITIAL_SESSION）が先に処理済み
+      _cloudUser = u;
+      _authUid = u ? u.id : null;
       _renderCloudAuth();
       if (_cloudUser) {
         _loadProfiles().then(_renderCloudAuth); _initPresence();
@@ -4086,7 +4143,15 @@
 
     // ログイン状態変化を監視
     c.auth.onAuthStateChange((_event, session) => {
-      _cloudUser = (session && session.user) || null;
+      const u = (session && session.user) || null;
+      const same = !!u && _authUid === u.id;
+      _cloudUser = u;   // トークンなど最新のユーザー情報には差し替える
+      _authUid = u ? u.id : null;
+      if (same) {
+        // 同じ人のまま（タブに戻った・トークン更新）：表示名などを変えたとき以外は何も読み直さない
+        if (_event === 'USER_UPDATED') _renderCloudAuth();
+        return;
+      }
       _renderCloudAuth();
       if (_cloudUser) {
         _loadProfiles().then(_renderCloudAuth);   // 自分のアバター/名前を反映
