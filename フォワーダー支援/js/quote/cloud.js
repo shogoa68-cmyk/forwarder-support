@@ -1015,9 +1015,9 @@
   // ブラウザ保存（ui.js renderPresetList）からも共通利用する
   window.quoteExtractSubcons = _extractSubcons;
 
-  // 新しい見積を始める入口（かんたん表示）：案件の先頭の点線カード／0 件のときの案内。どちらも qpNewQuote() を呼ぶだけ
+  // 新しい見積を始める入口（かんたん表示）：案件の先頭の点線カード／0 件のときの案内。どちらも qpNewQuoteChoose()（新規見積の入口＝js/quote/new-quote-chooser.js）を呼ぶだけ
   function _newCaseCardHtml() {
-    return '<button type="button" class="qpd-newcard" onclick="qpNewQuote()">'
+    return '<button type="button" class="qpd-newcard" onclick="qpNewQuoteChoose()">'
       + '<span class="qpd-newcard-plus" aria-hidden="true">＋</span>'
       + '<span class="qpd-newcard-text"><b>新しい見積を作る</b><small>お客様名とご担当者を入れるところから始めます</small></span></button>';
   }
@@ -1027,7 +1027,7 @@
       + '<h3>最初の見積を作ってみましょう</h3>'
       + '<p>お客様の名前と担当者を入れるところから始まります。あとからいつでも直せるので、まずは1件作ってみてください。</p>'
       + '<div class="qpd-welcome-steps">' + steps + '</div>'
-      + '<button type="button" class="qpd-welcome-btn" onclick="qpNewQuote()"><span aria-hidden="true">＋</span>新しい見積を作る</button>'
+      + '<button type="button" class="qpd-welcome-btn" onclick="qpNewQuoteChoose()"><span aria-hidden="true">＋</span>新しい見積を作る</button>'
       + '<small>メールの文面を貼って始めたい場合は、右上の「自由入力で保管」から。</small>'
       + '</div>';
   }

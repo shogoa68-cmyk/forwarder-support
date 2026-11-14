@@ -2223,7 +2223,7 @@
             <button type="button" data-uim="simple" onclick="setUiMode('simple')">かんたん表示</button>
             <button type="button" data-uim="detail" onclick="setUiMode('detail')">詳細表示</button>
           </div>
-          <button type="button" class="qpd-new" onclick="qpNewQuote()"><span class="lbl-d">🆕 新規見積を作成</span><span class="lbl-s">＋ 新しい見積を作る</span></button>
+          <button type="button" class="qpd-new" onclick="qpNewQuoteChoose()"><span class="lbl-d">🆕 新規見積を作成</span><span class="lbl-s">＋ 新しい見積を作る</span></button>
           <button type="button" class="qpd-store" onclick="eiOpenStoreFromDashboard()" title="自由入力で提示した見積の原文をそのまま案件として保管し、あとで時間のあるときにメール取込で表に落とします">📝 自由入力で保管</button>
           <button type="button" class="qpd-resume" onclick="qpShowEditor()" title="編集中の見積画面に戻る">▶ <span class="lbl-d">編集画面へ</span><span class="lbl-s">作業中の見積に戻る</span></button>
         </div>
@@ -5058,6 +5058,7 @@
 <script src="js/quote/subcon-request-mail.js"></script>
 <script src="js/quote/memo-title.js"></script>
 <script src="js/quote/case-info.js"></script>
+<script src="js/quote/new-quote-chooser.js"></script>
 <script src="js/quote/diagnosis.js"></script>
 <script src="js/quote/sources.js"></script>
 <script src="js/quote/cond-flow.js"></script>
