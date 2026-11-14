@@ -4422,6 +4422,9 @@ html.theme-industry {
 :where(html.theme-industry) #qpDashboard .qpd-stat:hover {
   border-color: #a3a6aa;
 }
+:where(html.theme-industry) #qpDashboard .qpd-stat-n {
+  font-size: 22px;
+}
 :where(html.theme-industry) #qpDashboard .qpd-stat--sent .qpd-stat-n {
   color: #426180;
 }
@@ -5456,6 +5459,7 @@ html.theme-industry {
   color: #2c3b4a;
 }
 :where(html.theme-industry) #tab-quote-make .cloud-kv dd.cloud-kv-cust {
+  font-size: 23px;
   color: #1f2b36;
 }
 :where(html.theme-industry) #tab-quote-make .cloud-kv-arrow {
@@ -10539,4 +10543,26 @@ html.theme-industry {
 :where(html.theme-industry) #qpDashboard .qpd-tag-chips {
   gap: var(--sp-6);
   margin-top: var(--sp-4);
+}
+:where(html.theme-industry) #qpDashboard {
+  --fs-9: var(--text-xs);
+  --fs-9-5: var(--text-xs);
+  --fs-10: var(--text-xs);
+  --fs-10-5: var(--text-xs);
+  --fs-11: var(--text-xs);
+  --fs-11-5: var(--text-xs);
+  --fs-12: var(--text-xs);
+  --fs-12-5: var(--text-xs);
+  --fs-13: var(--text-sm);
+  --fs-13-5: var(--text-sm);
+  --fs-14: var(--text-base);
+  --fs-15: var(--text-base);
+  --fs-16: var(--text-lg);
+  --fs-18: var(--text-xl);
+}
+:where(html.theme-industry) #tab-quote-make #qpDashboard .qpd-stat-n {
+  font-size: var(--text-xl);
+}
+:where(html.theme-industry) #tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-cust {
+  font-size: var(--text-xl);
 }
