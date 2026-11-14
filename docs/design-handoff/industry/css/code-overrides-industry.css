@@ -320,6 +320,9 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
    チップの下に「日時」「名前」の 2 行（11px）を置く。列が狭い（108px）ので、はみ出す分は「…」で省略する（全文は title）。 */
 #tab-quote-make #quoteTable > tbody > tr.row-input-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-sub { height: 20px; line-height: 20px; margin-bottom: 1px; }
 #tab-quote-make #quoteTable > tbody > tr.row-input-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-state { height: 22px; }
+#tab-quote-make #quoteTable > tbody > tr.row-src-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-sub { height: 20px; line-height: 20px; margin-bottom: 1px; }
+#tab-quote-make #quoteTable > tbody > tr.row-src-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-state { height: 22px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo.is-src { color: #3a5f86; font-style: italic; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo {
   margin: 1px 0 0; font-size: 11px; line-height: 12px; text-align: right; color: var(--color-neutral-700, #5d5d60);
 }

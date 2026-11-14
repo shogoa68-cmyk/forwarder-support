@@ -1038,6 +1038,29 @@
     return { at, by, name, when, text: [when, name].filter(Boolean).join(' ') };
   }
   window.rowDoneInfo = rowDoneInfo;
+  // 日時とユーザー（メール）を「11/13 14:05」「山田太郎」の形にする（類似案件のプレビューでも使う）
+  window.rowDoneFormat = function (at, by) {
+    const when = _doneWhen(at), name = _doneNameOf(by);
+    return { when, name, text: [when, name].filter(Boolean).join(' ') };
+  };
+  // 類似案件から行をインポートしたとき、引用元で「入力完了」が押されていた日時・ユーザー・案件名を、
+  // この行に「引用元の入力完了」として持つ（data-src-done-at／-by／-from）。この案件ではまだ確認していない行なので、
+  // 入力完了マーク自体は付けない。インポートした人が内容の鮮度（いつ確認された情報か）を判断するための情報。
+  // 自分で「入力完了」を押す（＝この案件で確認した）と、この記録は自分の記録に置き換わって消える。
+  function rowSrcDoneInfo(tr) {
+    if (!tr || !tr.dataset.srcDoneAt) return null;
+    const f = window.rowDoneFormat(tr.dataset.srcDoneAt, tr.dataset.srcDoneBy || '');
+    if (!f.when && !f.name) return null;
+    const from = tr.dataset.srcFrom || '';
+    return { at: tr.dataset.srcDoneAt, by: tr.dataset.srcDoneBy || '', from, when: f.when, name: f.name, text: f.text,
+             tip: '引用元の入力完了：' + f.text + (from ? '（案件「' + from + '」）' : '') + '\nこの案件ではまだ確認していません。内容を確かめて「入力完了」を押すと、この記録は自分の記録に置き換わります。' };
+  }
+  window.rowSrcDoneInfo = rowSrcDoneInfo;
+  function _clearSrcDone(tr) {
+    delete tr.dataset.srcDoneAt; delete tr.dataset.srcDoneBy; delete tr.dataset.srcFrom;
+    tr.classList.remove('row-src-done');
+  }
+  window.rowClearSrcDone = _clearSrcDone;
   // 完了ボタンの吹き出し（title）を、いまの状態に合わせる
   function _syncDoneBtn(tr) {
     const btn = tr && tr.querySelector('.row-done-btn');
@@ -1059,6 +1082,7 @@
       delete tr.dataset.done; delete tr.dataset.doneAt; delete tr.dataset.doneBy;
       tr.classList.remove('row-input-done');
     } else {
+      _clearSrcDone(tr);
       tr.dataset.done = '1';
       tr.dataset.doneAt = new Date().toISOString();
       const me = _doneMe();
