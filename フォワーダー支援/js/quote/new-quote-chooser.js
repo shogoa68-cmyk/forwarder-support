@@ -67,6 +67,17 @@
     const cls = /受注/.test(t) ? 'won' : /失注/.test(t) ? 'lost' : /提示|提出/.test(t) ? 'sent' : 'draft';
     return '<span class="nq-st nq-st--' + cls + '">' + esc(t) + '</span>';
   }
+  // 明細に出てくるサブコン（案件カードと同じ抽出＝quoteExtractSubcons）。多いときは先頭 6 社＋「他 N 社」
+  const SUB_SHOWN = 6;
+  function subconsHtml(r) {
+    let list = [];
+    try { list = (typeof window.quoteExtractSubcons === 'function' ? window.quoteExtractSubcons(r.data) : []) || []; } catch (e) {}
+    if (!list.length) return '';
+    const chips = list.slice(0, SUB_SHOWN).map(s => '<span class="nq-sub" title="' + esc(s.role ? s.name + '（' + s.role + '）' : s.name) + '">'
+      + (s.role ? '<i>' + esc(s.role) + '</i>' : '') + esc(s.name) + '</span>').join('');
+    const more = list.length > SUB_SHOWN ? '<span class="nq-sub nq-sub-more">他 ' + (list.length - SUB_SHOWN) + ' 社</span>' : '';
+    return '<div class="nq-item-subs"><span class="nq-subs-lbl">サブコン</span>' + chips + more + '</div>';
+  }
   function rowCount(r) { const rows = r && r.data && r.data.rows; return Array.isArray(rows) ? rows.filter(x => x && !x.virtual).length : 0; }
 
   function chooseHtml(n) {
@@ -121,6 +132,7 @@
       return '<li class="nq-item"><div class="nq-item-main">'
         + '<div class="nq-item-top">' + (r.ref ? '<code class="nq-ref">' + esc(r.ref) + '</code>' : '') + '<span class="nq-name">' + esc(r.name || '（無題）') + '</span>' + statusBadge(r.status) + '</div>'
         + '<div class="nq-item-meta">' + (meta || '<span class="nq-dim">条件の入力なし</span>') + '</div>'
+        + subconsHtml(r)
         + '<div class="nq-item-sub">' + (n ? '明細 ' + n + ' 行' : '明細なし') + '・更新 ' + esc(fmtDate(r.updated_at)) + '</div>'
         + '</div>'
         + '<button type="button" class="nq-copy" data-nq="copy" data-id="' + esc(r.id) + '">この案件をコピーして作成</button></li>';

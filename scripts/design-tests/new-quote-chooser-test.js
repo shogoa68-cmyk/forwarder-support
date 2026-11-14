@@ -103,6 +103,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   // ===== 似ている案件：絞り込み =====
   await openSimilar();
   ok('一覧に全 5 件（条件なし）', (await items()).length === 5 && /5 件/.test(await txt('#nqCount')), await items());
+  ok('サブコン名を表示する（A は明細の「A社」・明細の無い B は出さない）', await p.evaluate(() => { const li = [...document.querySelectorAll('#nqList .nq-item')]; const t = n => { const e = li.find(x => x.querySelector('.nq-name').textContent === n); return e ? [...e.querySelectorAll('.nq-sub')].map(x => x.textContent) : null; }; return JSON.stringify(t('案件A')) === JSON.stringify(['その他A社']) && t('案件B').length === 0; }), await p.evaluate(() => [...document.querySelectorAll('#nqList .nq-item-subs')].map(x => x.textContent)));
   await setv('nqCust', 'サンプル商事');
   ok('お客様で絞り込み（部分一致）→ A・B', (await items()).sort().join() === '案件A,案件B', await items());
   await setv('nqPol', 'tokyo');
