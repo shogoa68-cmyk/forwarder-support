@@ -124,10 +124,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
       };
     });
     ok('案件の範囲の上に余白（統計から20px以上）', sp.scopeTop >= 20, sp);
-    ok('案件の範囲と検索窓の間が14px以上', sp.scopeToSearch >= 14, sp);
+    // （案件の範囲のチップ・見出し・タグ欄の余白の確認は、ダッシュボード上部の組み替え（dash-top）で範囲が選択式になり、元のチップが隠れたため廃止。新しい配置は dash-top-test.js）
     ok('検索窓の高さが36px以上', sp.searchH >= 36, sp);
-    ok('検索窓とツール行・ツール行とタグ欄の間が10px以上', sp.searchToRow >= 10 && sp.rowToTag >= 10, sp);
-    ok('「案件の範囲」の見出しとチップの間が10px以上', sp.lblGap >= 10, sp);
     ok('ページエラーなし', errs.length === 0, errs);
     await p.screenshot({ path: path.join(process.env.OUT || '/tmp', 'org-scope.png'), clip: { x: 0, y: 100, width: 1400, height: 420 } }).catch(() => {});
     await ctx.close();
