@@ -65,7 +65,9 @@
     if (qm === 'simple' || qm === 'detail') { mode = qm; localStorage.setItem('fwd.uiMode', qm); }
   } catch (e) {}
   if (mode !== 'simple' && mode !== 'detail') mode = UI_MODE_DEFAULT;
-  h.classList.toggle('mode-simple', mode === 'simple');
+  /* スマホ幅（〜600px）は常に詳細表示（かんたん表示は使わない）。保存値は変えない */
+  var phone = false; try { phone = window.matchMedia('(max-width: 600px)').matches; } catch (e) {}
+  h.classList.toggle('mode-simple', mode === 'simple' && !phone);
   h.setAttribute('data-ui-mode-default', UI_MODE_DEFAULT);
   [].forEach.call(document.querySelectorAll('link[data-theme-css]'), function (l) {
     l.media = on[l.getAttribute('data-theme-css')] ? 'all' : 'not all';
