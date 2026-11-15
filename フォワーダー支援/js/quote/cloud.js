@@ -1339,6 +1339,7 @@
         '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + (_cloudLinkMode ? ' cloud-card--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') +
           (simpleDash ? _hierCls(r) : '') + '"' + (simpleDash ? _hierStyle(r) : '') + '>' +
           '<div class="cloud-card-main">' +
+          '<div class="cc3-title' + (memoLine ? '' : ' is-empty') + '" title="' + escHtml(memoLine || '（案件名なし）') + '">' + escHtml(memoLine || '（案件名なし）') + '</div>' +
           _cc3Left(customer, personH) +
           '<div class="cloud-card-row1">' +
             linkChk +
