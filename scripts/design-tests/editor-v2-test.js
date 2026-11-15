@@ -78,6 +78,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('明細：空のサブコン・パターン・有効期間は行を触るまで隠れる', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual])'); const hid = sel => { const e = tr.querySelector(sel); return !e || getComputedStyle(e).display === 'none'; }; return hid('.w-subcon') && hid('.w-pattern') && hid('.w-valid'); }));
   ok('明細：未設定のカテゴリ・課税は隠れる', await p.evaluate(() => { const r = document.querySelector('#tableBody tr:not([data-virtual])'); const c = r.querySelector('select.w-cat'), x = r.querySelector('.tax-cell input'); return getComputedStyle(c).display === 'none' && getComputedStyle(x).visibility === 'hidden'; }));
   await p.hover('#tableBody tr:not([data-virtual]) .w-name'); await p.waitForTimeout(250);
+  ok('サブコン見出しに仕入・粗利％の欄がある（新画面で表示可）', await p.evaluate(() => !document.querySelector('#tableBody .subcon-group-header') || !!document.querySelector('#tableBody .subcon-group-header .subcon-group-cm')));
   ok('行に乗せると出る', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual])'); return getComputedStyle(tr.querySelector('.w-subcon')).display !== 'none'; }));
   if (out) await p.screenshot({ path: path.join(out, 'e2-step4.png') });
   await p.click('#e2Total [data-e2d="ref"]'); await p.waitForTimeout(400);

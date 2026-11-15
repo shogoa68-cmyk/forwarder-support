@@ -78,3 +78,6 @@ html.editor-v2 #tab-quote-make .quote-cmdbar .btn-group-label { display: none !i
 html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) td select.w-cat[data-e2empty="1"] { display: none !important; }
 html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) td.tax-cell input[type="checkbox"]:not(:checked) { visibility: hidden; }
 html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) td .drag-handle, html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) td .row-grip { visibility: hidden; }
+/* ④費用：サブコン見出しに仕入・粗利％も出す（Design 28 §3・新画面のみ。小計行の売値の隣） */
+.subcon-group-cm { display: none; }
+html.editor-v2 #tab-quote-make #quoteTable .subcon-group-header .subcon-group-cm:not(:empty) { display: inline-block; margin-left: 10px; font-size: var(--text-sm, 13px); opacity: .85; white-space: nowrap; }
