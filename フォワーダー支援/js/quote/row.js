@@ -3999,6 +3999,7 @@
               `</span>` +
             `</span>` +
             `<span class="subcon-group-sum"></span>` +
+            `<span class="subcon-group-cm"></span>` +
             `<button type="button" class="subcon-group-excl${excluded ? ' is-excluded' : ''}" ` +
               `title="見積もりへの含める/除外を切り替え">${excluded ? '含む' : '除外'}</button>` +
             `<button type="button" class="subcon-group-add-btn" ` +
@@ -4662,6 +4663,7 @@
     const flushSc = () => {
       const ttl = scMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
       if (scSumEl) { const s = Math.round(scSell); scSumEl.textContent = s ? rgYen(scSell, scSell + scHi, scMixed ? '※' : '') : ''; _wbrRange(scSumEl); scSumEl.title = ttl; }
+      if (scSumEl) { const cm = scSumEl.parentNode && scSumEl.parentNode.querySelector('.subcon-group-cm'); if (cm) { const sl = Math.round(scSell), t = sl ? '仕入 ¥' + fmt(Math.round(scCost)) + '・粗利 ' + ((scSell - scCost) / scSell * 100).toFixed(1) + '%' + (scMixed ? '※' : '') : ''; if (cm.textContent !== t) cm.textContent = t; } }
       if (scSubRow) writeSub(scSubRow, scSell, scCost, scMixed, scHi);
     };
     const resetPt = () => { ptSell = 0; ptCost = 0; ptMixed = false; ptHi = 0; };

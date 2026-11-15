@@ -26,7 +26,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const vis = s => p.evaluate(s => { const e = document.querySelector(s); if (!e) return false; const r = e.getBoundingClientRect(); const c = getComputedStyle(e); return r.width > 0 && r.height > 0 && c.display !== 'none' && c.visibility !== 'hidden'; }, s);
     const L = loggedIn ? '[ログイン中] ' : '[未ログイン] ';
     ok(L + '☰ が見える', await vis('#hdrMenuBtn'));
-    ok(L + '元の 4 ボタンは外には出ていない（パネルの中）', await p.evaluate(() => !document.querySelector('.header > a.hdr-roadmap') && document.querySelectorAll('#hdrMenuPanel a.hdr-roadmap').length === 4));
+    ok(L + '元の 4 ボタンは外には出ていない（パネルの中）', await p.evaluate(() => !document.querySelector('.header > a.hdr-roadmap') && document.querySelectorAll('#hdrMenuPanel a.hdr-roadmap:not(#hdrEditorV2Btn)').length === 4));
     ok(L + 'パネルは閉じている', !(await vis('#hdrMenuPanel')));
     await p.click('#hdrMenuBtn'); await p.waitForTimeout(150);
     ok(L + '☰ を押すと 4 つの項目が出る', await vis('#hdrMenuPanel') && await p.$$eval('#hdrMenuPanel a.hdr-roadmap', els => els.every(e => e.getBoundingClientRect().height >= 40)));
