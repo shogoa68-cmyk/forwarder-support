@@ -80,22 +80,22 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const txt = (sel) => p.evaluate(s => (document.querySelector(s) || {}).textContent || '', sel);
   const items = () => p.evaluate(() => [...document.querySelectorAll('#nqList .nq-item')].map(li => li.querySelector('.nq-name').textContent));
   const setv = async (id, v) => { await p.fill('#' + id, v); await p.waitForTimeout(120); };
-  const openSimilar = async () => { await p.click('.qpd-new'); await p.waitForTimeout(200); await p.click('.nq-card[data-nq="similar"]'); await p.waitForTimeout(200); };
+  const openSimilar = async () => { await p.click('.qpd-newcard'); await p.waitForTimeout(200); await p.click('.nq-card[data-nq="similar"]'); await p.waitForTimeout(200); };
   const dbCount = () => p.evaluate(() => window.__db.quote_presets.length);
 
   // ===== 入口 =====
-  await p.click('.qpd-new'); await p.waitForTimeout(250);
+  await p.click('.qpd-newcard'); await p.waitForTimeout(250);
   ok('「新規見積を作成」でモーダルが開く（すぐには編集画面へ行かない）', await q('#nqOverlay') && await q('#qpDashboard') && !(await p.evaluate(() => document.getElementById('qpEditor') && !document.getElementById('qpEditor').hidden && getComputedStyle(document.getElementById('qpEditor')).display !== 'none')), null);
   ok('2 つの選択肢（一から作成／似ている案件を参考に作成）', (await p.evaluate(() => [...document.querySelectorAll('#nqOverlay .nq-card b')].map(b => b.textContent))).join() === '一から作成,似ている案件を参考に作成', null);
   ok('案件があるので「似ている案件」は押せる', await p.evaluate(() => !document.querySelector('.nq-card[data-nq="similar"]').disabled), null);
   await p.keyboard.press('Escape'); await p.waitForTimeout(150);
   ok('Esc で閉じる', !(await q('#nqOverlay')), null);
-  await p.click('.qpd-new'); await p.waitForTimeout(200);
+  await p.click('.qpd-newcard'); await p.waitForTimeout(200);
   await p.mouse.click(5, 5); await p.waitForTimeout(150);
   ok('背景を押すと閉じる', !(await q('#nqOverlay')), null);
 
   // ===== 一から作成 =====
-  await p.click('.qpd-new'); await p.waitForTimeout(200);
+  await p.click('.qpd-newcard'); await p.waitForTimeout(200);
   await p.click('.nq-card[data-nq="blank"]'); await p.waitForTimeout(600);
   ok('「一から作成」でモーダルが閉じ、空の編集画面になる', !(await q('#nqOverlay')) && (await p.inputValue('#qf-customer')) === '', null);
   await p.evaluate(() => window.qpShowDashboard()); await p.waitForTimeout(800);
