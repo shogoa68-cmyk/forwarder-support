@@ -3096,7 +3096,7 @@
 
   function restoreLayoutScale() {
     // 旧 quoteFontSize（px 数値）は破棄してデフォルト md にフォールバック
-    const saved = localStorage.getItem(LAYOUT_SCALE_KEY) || 'md';
+    const saved = 'md';   // 表示サイズ（大／中／小）の切替は廃止（2026-11）。以前に選んだ値が残っていても標準（中）で表示する
     applyLayoutScale(saved);
   }
 

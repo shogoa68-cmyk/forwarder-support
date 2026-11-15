@@ -1,0 +1,5 @@
+/* 廃止した画面部品（2026-11）：DOM・id・保存データは残し、見える入口だけ消す */
+/* ① 表示サイズ 大／中／小（常に標準の「中」） */
+#tab-quote-make .tb-scale-label, #tab-quote-make .tb-segrow-inline, #tab-quote-make .tb-mi-scale { display: none !important; }
+/* ② 👤 作成者を指定して保存（管理者の一時機能） */
+#adminCreatorNew { display: none !important; }
