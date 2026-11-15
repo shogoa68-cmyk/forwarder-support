@@ -59,7 +59,7 @@
   }
 
   function sync() {
-    if (h.classList.contains('theme-quiet')) { toQuiet(); stripHeadingEmoji(); } else fromQuiet();
+    if (h.classList.contains('theme-quiet')) stripHeadingEmoji();   // ヘッダーの 2 アイコン化は js/header-menu.js（全テーマ共通）に移した
   }
   function init() {
     sync();

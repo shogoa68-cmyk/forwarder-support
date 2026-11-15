@@ -1,0 +1,46 @@
+/* ヘッダーの「☰ メニュー」と「アカウント」アイコン（js/header-menu.js・全テーマ共通） */
+.header .hdr-menu { position: relative; flex: 0 0 auto; display: block; }
+.header .hdr-icon-btn {
+  width: 40px; height: 40px; padding: 0; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; border: 1px solid rgba(245,237,224,.38); background: rgba(245,237,224,.14); color: var(--accent-lt, #f5ede0);
+  font: inherit; font-size: 18px; line-height: 1; cursor: pointer; position: relative;
+}
+.header .hdr-icon-btn:hover, .header .hdr-icon-btn[aria-expanded="true"] { background: rgba(245,237,224,.28); border-color: rgba(245,237,224,.65); }
+.header .hdr-icon-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+/* アバターのボタンは丸いアバターそのもの */
+.header .hdr-icon-btn.is-acct { background: transparent; border-color: transparent; }
+.header .hdr-icon-btn.is-acct .hdr-cloud-avatar { width: 34px; height: 34px; font-size: 14px; }
+.header .hdr-icon-btn.is-acct:hover .hdr-cloud-avatar, .header .hdr-icon-btn.is-acct[aria-expanded="true"] .hdr-cloud-avatar { border-color: #fff; }
+/* 確認待ちの質問が来ているときの赤い点（バッジは不具合報告のリンクに付く） */
+.header .hdr-menu:has(.hdr-fb-badge) > .hdr-icon-btn::after { content: ''; position: absolute; top: 4px; right: 4px; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; border: 1.5px solid #1f2d3d; }
+.header .hdr-cloud-user { position: relative; }
+
+.header .hdr-panel {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 1300; min-width: 240px; max-width: min(92vw, 320px);
+  background: var(--surface, #fff); color: var(--text, #222); border: 1px solid var(--border, #d9dee5); border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .28); padding: 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.header .hdr-panel[hidden] { display: none; }
+.header .hdr-panel-label { margin: 6px 12px 2px; font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
+/* パネルの中の項目（元のリンク・ボタンを要素ごと移したもの）を、明るいメニュー行に見せる */
+.header .hdr-panel a.hdr-roadmap,
+.header .hdr-panel .hdr-cloud-mgr,
+.header .hdr-panel .hdr-cloud-logout,
+.header .hdr-panel .hdr-acct-who {
+  display: flex !important; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; min-height: 44px; padding: 8px 12px !important;
+  background: transparent !important; color: var(--text, #222) !important; border: 0 !important; border-radius: 6px !important;
+  font: inherit !important; font-size: var(--text-base, 14px) !important; font-weight: 400 !important; text-align: left; text-decoration: none;
+  white-space: nowrap; cursor: pointer;
+}
+.header .hdr-panel a.hdr-roadmap::before { content: none !important; }
+.header .hdr-panel a.hdr-roadmap:hover, .header .hdr-panel .hdr-cloud-mgr:hover, .header .hdr-panel .hdr-cloud-logout:hover, .header .hdr-panel .hdr-acct-who:hover {
+  background: var(--accent-lt, #eef3f8) !important; }
+.header .hdr-panel .hdr-cloud-mgr[hidden] { display: none !important; }
+.header .hdr-panel .hdr-acct-who { border-bottom: 1px solid var(--border, #e2e6ec) !important; border-radius: 6px 6px 0 0 !important; margin-bottom: 4px; }
+.header .hdr-panel .hdr-cloud-name { color: var(--text, #222) !important; font-weight: 700; font-size: var(--text-base, 14px); max-width: 240px; }
+.header .hdr-panel .hdr-fb-badge { position: static; margin-left: 8px; }
+@media (max-width: 600px) {
+  .header .hdr-icon-btn { width: 44px; height: 44px; }
+  .header .hdr-panel { position: fixed; top: auto; right: 8px; left: 8px; max-width: none; margin-top: 8px; }
+  .header .hdr-menu { position: static; }
+}
