@@ -148,3 +148,7 @@
   #qpDashboard.dt-on .dt-rank-in { display: flex; width: 100%; justify-content: center; margin: 6px 0; }
   #qpDashboard.dt-on .dt-scope-seg { width: 100%; } #qpDashboard.dt-on .dt-scope-seg button { flex: 1; }
 }
+
+/* 絞り込みパネル：ラベルは 44px の対象から外す（ラベルと入力欄の隙間を詰める）。入力欄側の「〜：すべて」はそのまま */
+#qpDashboard.dt-on .dt-pop .qpd-adv > .dt-flbl { min-height: 0; width: auto; margin: 10px 2px 4px; }
+#qpDashboard.dt-on .dt-pop .qpd-adv > .dt-flbl:first-child { margin-top: 0; }
