@@ -893,7 +893,7 @@
   }
   // タグパネル（js/quote/dash-top.js）が読む状態
   function cloudTagState() {
-    return { tags: _cloudFilterTags.slice(), mode: _cloudTagMode, list: _tagCounts(), recent: _recentTags(), shown: (_dashFilteredRows || []).length };
+    return { customer: _cloudFilterCustomer ? ((_qpdCustomerRanking().find(x => x.key === _cloudFilterCustomer) || {}).label || _cloudFilterCustomer) : '', tags: _cloudFilterTags.slice(), mode: _cloudTagMode, list: _tagCounts(), recent: _recentTags(), shown: (_dashFilteredRows || []).length };
   }
 
   // 旧値「提示済み」→「提出済み」に正規化（DB 移行前の既存データ対応）
@@ -984,6 +984,41 @@
       def.ico + ' ' + def.lbl + '</span>';
   }
   window.quoteCustomerDealChip = _custDealChip;
+  // 案件カード（詳細表示）の左ブロック：お客様・取引形態の札・担当者・経由する同業者（Design 21「C-3」）。色は取引形態ごと（data-deal）
+  function _cc3Left(customer, personH) {
+    const name = String(customer == null ? '' : customer).trim();
+    const rec = name && typeof window.mdGetCanon === 'function' ? window.mdGetCanon('customer', name) : null;
+    const d = rec && rec.details;
+    const def = d && _DEAL_CHIPS[d.dealType];
+    const via = d && d.via ? nameCanonOrSelf(d.via) : '';
+    return '<div class="cc3-left"' + (def ? ' data-deal="' + def.k + '"' : '') + '>' +
+      '<span class="cc3-lbl">お客様' + (def ? '<span class="cc3-kind" title="取引形態：' + escHtml(d.dealType) + '">' + escHtml(def.lbl) + '</span>' : '') + '</span>' +
+      (name ? (rec
+        ? '<b class="cc3-cust is-link" role="button" tabindex="0" title="' + escHtml(name) + '（クリックでお客様の詳細）" onclick="event.stopPropagation();dashShowCustomerDetail(\'' + encodeURIComponent(name).replace(/'/g, '%27') + '\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.click();}">' + escHtml(name) + '</b>'
+        : '<b class="cc3-cust" title="' + escHtml(name) + '">' + escHtml(name) + '</b>')
+        : '<b class="cc3-cust is-empty">（お客様未入力）</b>') +
+      (personH ? '<span class="cc3-person" title="' + escHtml(personH) + '">' + escHtml(personH) + '</span>' : '') +
+      (via ? '<span class="cc3-via" title="経由する同業者：' + escHtml(via) + '">↳ 経由：' + escHtml(via) + '</span>' : '') +
+    '</div>';
+  }
+  // 作業者の 1 行：作成者と更新した人（editors＝新しい順・最大 20 名）を全員並べる。丸いアイコン＋名前＋作成／更新（自分は「あなた」）
+  function _cc3Who(r) {
+    const me = (_cloudUser && _cloudUser.email) || '';
+    const people = [], idx = {};
+    const add = (email, role) => {
+      if (!email) return;
+      if (!(email in idx)) { idx[email] = people.length; people.push({ email, roles: [] }); }
+      if (!people[idx[email]].roles.includes(role)) people[idx[email]].roles.push(role);
+    };
+    add(r.created_by, '作成');
+    _editorsOf(r).forEach(e => add(e.email, '更新'));
+    if (!people.length) return '';
+    return '<div class="cc3-who"><span class="cc3-who-l">作業者</span>' + people.map(p => {
+      const nm = _nameFor(p.email) || p.email, a = _avatarFor(p.email, nm);
+      return '<span class="cc3-p" title="' + escHtml(p.email) + '"><span class="cc3-av" style="background:' + a.color + '">' + escHtml(a.label || '?') + '</span>' +
+        '<b>' + escHtml(nm) + '</b><small>' + escHtml(p.roles.join('・')) + (p.email === me ? '・あなた' : '') + '</small></span>';
+    }).join('') + '</div>';
+  }
   // お客様名。マスターに登録済みなら押せるボタンにし、押すとその場でお客様詳細（担当者・連絡先・取引形態・添付など）を
   // 読み取り専用のポップアップで開く（見積タブの「詳細」ボタンと同じ mdShowDetailPopup）。未登録は従来どおり文字のまま。
   function _custNameHtml(customer) {
@@ -1242,14 +1277,14 @@
       const _chatLoaded = _chatC && Array.isArray(_chatC.rows);
       const _chatListHtml = _chatLoaded ? _cardThreadHtml(_chatC.rows) : '<span class="cp-chat-loading">読み込み中…</span>';
       const chatFooter =
-        '<div class="cloud-card-chat' + (sd ? '' : ' ccc-open') + (_chatC && _chatC.count ? ' ccc-has' : '') + '" data-cid="' + escHtml(r.id) + '"' + (_chatLoaded ? ' data-loaded="1"' : '') + '>' +
+        '<div class="cloud-card-chat' + (_chatC && _chatC.count ? ' ccc-has' : '') + '" data-cid="' + escHtml(r.id) + '"' + (_chatLoaded ? ' data-loaded="1"' : '') + '>' +
           '<button type="button" class="ccc-toggle" onclick="dashToggleCardChat(this)">' +
             '<span class="ccc-ico">💬</span>' +
             '<span class="ccc-count">' + (_chatC && _chatC.count ? '申し送り ' + _chatC.count : '申し送り') + '</span>' +
             '<span class="ccc-preview">' + (_chatC ? escHtml(_chatC.count ? _truncateChat(_chatC.body, 28) : '（まだありません）') : '') + '</span>' +
             '<span class="ccc-caret">▾</span>' +
           '</button>' +
-          '<div class="ccc-panel"' + (sd ? ' hidden' : '') + '>' +
+          '<div class="ccc-panel" hidden>' +
             '<div class="ccc-panelbar"><button type="button" class="ccc-expand" onclick="event.stopPropagation();dashExpandCardChat(this)" title="申し送りを大きく表示">⤢ 拡大</button></div>' +
             '<div class="ccc-list">' + _chatListHtml + '</div>' +
             '<div class="ccc-compose">' +
@@ -1288,6 +1323,7 @@
         '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + (_cloudLinkMode ? ' cloud-card--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') +
           (simpleDash ? _hierCls(r) : '') + '"' + (simpleDash ? _hierStyle(r) : '') + '>' +
           '<div class="cloud-card-main">' +
+          _cc3Left(customer, personH) +
           '<div class="cloud-card-row1">' +
             linkChk +
             statusBadge +
@@ -1315,6 +1351,7 @@
           tagsRowHtml +
           copiedFromHtml +
           linksSection +
+          _cc3Who(r) +
           '<div class="cloud-card-foot">' +
             '<span class="cloud-card-who" title="' + escHtml(_whoTitle(r)) + '">🕒 ' + ts + '</span>' +
             '<div class="cloud-card-acts">' +
@@ -1326,7 +1363,7 @@
               (lockedBy
                 ? '<button class="btn-preset-del is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません">🔒</button>'
                 : '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>') +
-              _cardMenuHtml(idAttr, lockedBy) +
+              _cardMenuHtml(idAttr, lockedBy, { hold: holdToggle ? { off: holdOff } : null }) +
             '</div>' +
           '</div>' +
           '</div>' +
@@ -1367,10 +1404,18 @@
   }
 
   // 「⋯」メニュー（かんたん表示のみ表示。項目は従来のボタンと同じ処理を呼ぶ）。開閉は js/ui-mode.js
-  function _cardMenuHtml(idAttr, lockedBy) {
+  function _cardMenuHtml(idAttr, lockedBy, opt) {
+    opt = opt || {};
+    const extra =
+      '<button type="button" role="menuitem" class="cloud-menu-item cc3-mi" onclick="uiCloseMenus();cloudAddTag(\'' + idAttr + '\')">🏷 タグを追加</button>' +
+      '<button type="button" role="menuitem" class="cloud-menu-item cc3-mi" onclick="uiCloseMenus();dashOpenCardChat(\'' + idAttr + '\')">💬 申し送り</button>' +
+      (opt.hold ? '<button type="button" role="menuitem" class="cloud-menu-item cc3-mi" onclick="uiCloseMenus();cloudToggleHoldReminder(\'' + idAttr + '\',' + (!opt.hold.off) + ')">' + (opt.hold.off ? '🔔 リマインドを再開' : '🔕 リマインド止める') + '</button>' : '') +
+      (lockedBy ? '' : '<button type="button" role="menuitem" class="cloud-menu-item cc3-mi" onclick="uiCloseMenus();cloudEditFollow(\'' + idAttr + '\')">🔔 料金フォロー</button>') +
+      '<div class="cloud-menu-sep cc3-mi" role="separator"></div>';
     return '<span class="cloud-menu">' +
       '<button type="button" class="cloud-menu-btn" aria-label="その他の操作" aria-haspopup="menu" aria-expanded="false" onclick="event.stopPropagation();uiToggleMenu(this)">⋯</button>' +
       '<div class="cloud-menu-panel" role="menu" hidden onclick="event.stopPropagation()">' +
+        extra +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPreviewPreset(\'' + idAttr + '\')">プレビュー</button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPdfPreset(\'' + idAttr + '\')">PDF を出力</button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudDuplicatePreset(\'' + idAttr + '\')">コピーして新規作成</button>' +
@@ -2646,6 +2691,13 @@
 
   window.cloudFilterTag  = cloudFilterTag;
   window.cloudTagChipsToggleExpand = cloudTagChipsToggleExpand;
+  window.dashOpenCardChat = function (idAttr) {
+    const id = decodeURIComponent(idAttr), c = [...document.querySelectorAll('#qpdListWrap .cloud-card-chat')].find(x => x.dataset.cid === id);
+    if (!c) return;
+    if (!c.classList.contains('ccc-open')) { const t = c.querySelector('.ccc-toggle'); if (t) t.click(); }
+    c.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const i = c.querySelector('.ccc-input'); if (i) setTimeout(() => i.focus(), 150);
+  };
   window.cloudTagToggle = cloudTagToggle; window.cloudTagClear = cloudTagClear; window.cloudTagSetMode = cloudTagSetMode; window.cloudTagState = cloudTagState;
   window.qpdTagQuickFilterInput  = qpdTagQuickFilterInput;
   window.qpdTagQuickFilterCommit = qpdTagQuickFilterCommit;

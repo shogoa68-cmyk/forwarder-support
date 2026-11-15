@@ -46,6 +46,7 @@
         '<div class="dt-pop dt-sheet" id="dtTagPop" role="dialog" aria-label="タグで絞り込み" hidden></div></div>' +
       '<div class="dt-pop-wrap"><button type="button" class="dt-btn" id="dtFilterBtn" aria-haspopup="true" aria-expanded="false">🔎 絞り込み <span class="dt-n" id="dtFilterN" hidden></span></button>' +
         '<div class="dt-pop dt-sheet" id="dtFilterPop" role="dialog" aria-label="絞り込み" hidden><div class="dt-sheet-head"><b>🔎 絞り込み</b><button type="button" class="dt-x" data-dt-close aria-label="閉じる">✕</button></div><div id="dtFilterSlot"></div></div></div>' +
+ '<button type="button" class="dt-btn" id="dtRankBtn" aria-expanded="false" aria-controls="qpdSide">🏆 ランキング</button>' +
       '<div class="dt-pop-wrap"><button type="button" class="dt-btn" id="dtViewBtn" aria-haspopup="true" aria-expanded="false">表示 ▾</button>' +
         '<div class="dt-pop dt-sheet" id="dtViewPop" role="dialog" aria-label="表示" hidden><div class="dt-sheet-head"><b>表示</b><button type="button" class="dt-x" data-dt-close aria-label="閉じる">✕</button></div><div id="dtViewSlot"></div></div></div>';
     tools.prepend(bar);
@@ -102,6 +103,11 @@
       const c = e.target.closest('[data-dt-tile]'); if (!c) return;
       const t = document.querySelector('#qpdStats .qpd-stat--' + c.dataset.dtTile); if (t) t.click();
     });
+    $('dtRankBtn').addEventListener('click', e => { e.stopPropagation(); toggleRank(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && root().classList.contains('dt-rank-open')) toggleRank(false); });
+    document.addEventListener('click', e => { if (root().classList.contains('dt-rank-open') && !e.target.closest('#qpdSide, #dtRankBtn')) toggleRank(false); });
+    const sideClose = document.createElement('button'); sideClose.type = 'button'; sideClose.className = 'dt-x dt-side-x'; sideClose.setAttribute('aria-label', '閉じる'); sideClose.textContent = '✕';
+    sideClose.addEventListener('click', () => toggleRank(false)); const side = $('qpdSide'); if (side) side.prepend(sideClose);
     $('dtScope').addEventListener('change', e => { if (typeof window.cloudFilterScope === 'function') window.cloudFilterScope(e.target.value); });
     // タグのパネル
     $('dtTagPop').addEventListener('click', onTagClick);
@@ -119,6 +125,12 @@
     $('dtFilterPop').addEventListener('input', schedule);
     $('dtFilterPop').addEventListener('change', schedule);
   }
+  function toggleRank(force) {
+    const d = root(), on = force === undefined ? !d.classList.contains('dt-rank-open') : !!force;
+    d.classList.toggle('dt-rank-open', on);
+    const b = $('dtRankBtn'); if (b) { b.setAttribute('aria-expanded', on ? 'true' : 'false'); b.classList.toggle('is-open', on); }
+    document.body.classList.toggle('dt-rank-body', on && window.matchMedia('(max-width:600px)').matches);
+  }
   function tileOf(val) {
     const tiles = [...document.querySelectorAll('#qpdStats .qpd-stat')];
     return tiles.find(t => (t.getAttribute('onclick') || '').indexOf("cloudFilterStatus('" + val + "')") >= 0);
@@ -126,8 +138,9 @@
 
   // ---- タグ ----
   function onTagClick(e) {
-    const t = e.target.closest('[data-dt-tag],[data-dt-tagx],[data-dt-mode],[data-dt-tagclear],[data-dt-tagall]'); if (!t) return;
+    const t = e.target.closest('[data-dt-tag],[data-dt-tagx],[data-dt-mode],[data-dt-tagclear],[data-dt-tagall],[data-dt-custx]'); if (!t) return;
     e.stopPropagation();
+    if (t.dataset.dtCustx != null) { if (typeof window.qpdFilterCustomer === 'function') window.qpdFilterCustomer(''); return; }
     if (t.dataset.dtTag != null) window.cloudTagToggle(t.dataset.dtTag);
     else if (t.dataset.dtTagx != null) window.cloudTagToggle(t.dataset.dtTagx);
     else if (t.dataset.dtMode) window.cloudTagSetMode(t.dataset.dtMode);
@@ -136,10 +149,11 @@
   }
   function renderSelTags() {
     const st = window.cloudTagState(), box = $('dtSelTags'); if (!box) return;
-    box.hidden = !st.tags.length;
-    box.innerHTML = st.tags.length ? '<span class="dt-seltags-l">タグ</span>' + st.tags.map(t => '<button type="button" class="dt-tagchip is-on" data-dt-tagx="' + esc(t) + '" title="外す">🏷 ' + esc(t) + ' ✕</button>').join('') +
+    box.hidden = !st.tags.length && !st.customer;
+    const custChip = st.customer ? '<span class="dt-seltags-l">絞り込み中</span><button type="button" class="dt-tagchip is-on" data-dt-custx title="外す">お客様：' + esc(st.customer) + ' ✕</button>' : '';
+    box.innerHTML = custChip + (st.tags.length ? '<span class="dt-seltags-l">タグ</span>' + st.tags.map(t => '<button type="button" class="dt-tagchip is-on" data-dt-tagx="' + esc(t) + '" title="外す">🏷 ' + esc(t) + ' ✕</button>').join('') +
       (st.tags.length > 1 ? '<span class="dt-seltags-m">' + (st.mode === 'or' ? 'どれか含む' : 'すべて含む') + '</span>' : '') +
-      '<button type="button" class="dt-link" data-dt-tagclear>すべて外す</button>' : '';
+      '<button type="button" class="dt-link" data-dt-tagclear>すべて外す</button>' : '');
     const n = $('dtTagN'); if (n) { n.hidden = !st.tags.length; n.textContent = st.tags.length; }
   }
   function renderTagPop(keepFocus) {
