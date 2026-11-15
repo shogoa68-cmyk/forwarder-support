@@ -91,9 +91,16 @@
     built = true;
   }
 
+  // 明細行：空の「有効期間」は行にマウスを乗せる／入力するまで隠す（値があれば常に見せる）
+  function tagRows() {
+    document.querySelectorAll('#tableBody .w-valid').forEach(v => {
+      const empty = [].every.call(v.querySelectorAll('input'), i => !String(i.value || '').trim());
+      if ((v.dataset.e2empty === '1') !== empty) v.dataset.e2empty = empty ? '1' : '0';
+    });
+  }
   function refresh() {
     if (!isOn() || !built) return;
-    refreshBasics(); refreshTitle();
+    refreshBasics(); refreshTitle(); tagRows();
     const s = summaries(), box = $('e2Steps'); if (!box) return;
     const html = [1, 2, 3, 4, 5].map(n => '<button type="button" data-e2s="' + n + '" class="' + (n === step ? 'is-on' : '') + (s[n].ok ? ' is-ok' : '') + '"><i>' + (s[n].ok ? '✓' : n) + '</i><b>' + NAMES[n] + '</b><small>' + s[n].s.replace(/</g, '&lt;') + '</small></button>').join('');
     if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }

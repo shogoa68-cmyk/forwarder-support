@@ -55,3 +55,8 @@ html.editor-v2 #e2CostBar { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 
 html.editor-v2 #e2CostBar button { min-height: 36px; padding: 0 14px; border: 1px solid var(--border, #c8cfd9); border-radius: 8px; background: var(--surface, #fff); font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; }
 html.editor-v2 #tableWrap > .section-desc, html.editor-v2 #tableWrap > span[style*="font-size"] { display: none; }
 html.editor-v2 #tableBody .master-reg-btn { display: none; }
+
+/* 明細 1 行の最小形：普段使わない欄は、空のあいだ行にマウスを乗せる／入力するまで隠す（値があれば出したまま） */
+html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) td :is(.w-subcon, .w-pattern):placeholder-shown { display: none !important; }
+html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) td .w-valid[data-e2empty="1"] { display: none !important; }
+html.editor-v2 #tableBody tr:not(:hover):not(:focus-within) :is(.btn-row-rem, .btn-row-int) { visibility: hidden; }
