@@ -1,0 +1,108 @@
+/* 見積ダッシュボード上部の整理（js/quote/dash-top.js・Design 20「案D＋タグ T2」）。全テーマ共通（色は既存トークン）。 */
+#qpDashboard.dt-on [hidden] { display: none !important; }
+#qpDashboard.dt-on .dt-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- 元の部品を隠す（DOM は残す）---- */
+#qpDashboard.dt-on #qpdStats,
+#qpDashboard.dt-on #qpdScope .qpd-scope-lbl,
+#qpDashboard.dt-on #qpdScope .qpd-scope-chip,
+#qpDashboard.dt-on .qpd-tools-row > #qpdMoreToggle,
+#qpDashboard.dt-on .qpd-tools-row > #qpdAdvToggle,
+#qpDashboard.dt-on .qpd-tag-quickfilter,
+#qpDashboard.dt-on #qpdTagChips { display: none !important; }
+#qpDashboard.dt-on .qpd-tools-row:not(:has(#qpdResetAll:not([hidden]))) { display: none; }
+#qpDashboard.dt-on #qpdScope:not(:has(.qpd-scope-sel)) { display: none; }
+#qpDashboard.dt-on #qpdScope { margin: 0 0 8px; }
+
+/* ---- 見出し行 ---- */
+#qpDashboard.dt-on .qpd-head { gap: 8px 12px; }
+#qpDashboard.dt-on .dt-badges { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-right: auto; }
+#qpDashboard.dt-on .qpd-head-actions { align-items: center; }
+#qpDashboard.dt-on .dt-badge { min-height: 32px; padding: 0 12px; border: 1px solid #d9b25f; border-radius: 16px; background: #fff4dc; color: #7a5a14; font: inherit; font-size: var(--text-sm, 13px); font-weight: 700; cursor: pointer; }
+#qpDashboard.dt-on .dt-badge.is-on { background: #f3d98f; border-color: #b8860b; }
+#qpDashboard.dt-on .qpd-resume { min-height: 48px; }
+#qpDashboard.dt-on .dt-icon-btn { width: 44px; height: 44px; border: 1px solid var(--border, #d9dee5); border-radius: 8px; background: var(--surface, #fff); color: var(--text, #222); font-size: var(--text-xl, 18px); line-height: 1; cursor: pointer; }
+#qpDashboard.dt-on .dt-icon-btn[aria-expanded="true"] { background: var(--accent-lt, #eef3f8); }
+
+/* ---- ステータスのチップ ---- */
+#qpDashboard.dt-on .dt-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; align-items: center; }
+#qpDashboard.dt-on .dt-chip { min-height: 40px; padding: 0 14px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border, #d9dee5); border-radius: 20px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-base, 14px); font-weight: 700; cursor: pointer; white-space: nowrap; }
+#qpDashboard.dt-on .dt-chip.is-on { background: var(--accent-dk, #2c455d); border-color: var(--accent-dk, #2c455d); color: #fff; }
+#qpDashboard.dt-on .dt-chip-n { font-weight: 600; font-size: var(--text-sm, 13px); opacity: .8; }
+#qpDashboard.dt-on .dt-chip-more { font-weight: 600; }
+
+/* ---- 道具の 1 行 ---- */
+#qpDashboard.dt-on .dt-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#qpDashboard.dt-on .dt-scope select { min-height: 44px; padding: 0 10px; border: 1px solid var(--border, #d9dee5); border-radius: 8px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-base, 14px); }
+#qpDashboard.dt-on .dt-search-slot { flex: 1 1 280px; min-width: 200px; }
+#qpDashboard.dt-on .dt-search-slot .qpd-search { min-height: 44px; }
+#qpDashboard.dt-on .dt-btn { min-height: 44px; padding: 0 14px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border, #d9dee5); border-radius: 8px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-base, 14px); font-weight: 600; cursor: pointer; white-space: nowrap; }
+#qpDashboard.dt-on .dt-btn[aria-expanded="true"] { background: var(--accent-lt, #eef3f8); border-color: var(--accent, #416180); }
+#qpDashboard.dt-on .dt-btn.dt-primary { background: var(--accent-dk, #2c455d); border-color: var(--accent-dk, #2c455d); color: #fff; justify-content: center; width: 100%; }
+#qpDashboard.dt-on .dt-n { min-width: 20px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 10px; background: var(--accent-dk, #2c455d); color: #fff; font-size: var(--text-xs, 12px); line-height: 20px; text-align: center; }
+
+/* ---- ポップアップ（PC：道具の下に重ねる／スマホ：下から出るシート）---- */
+#qpDashboard.dt-on .dt-pop-wrap { position: relative; }
+#qpDashboard.dt-on .dt-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 1100; min-width: 260px; max-width: min(92vw, 440px); max-height: 70vh; overflow-y: auto; box-sizing: border-box; padding: 10px; background: var(--surface, #fff); color: var(--text, #222); border: 1px solid var(--border, #d9dee5); border-radius: 10px; box-shadow: 0 10px 28px rgba(0, 0, 0, .22); }
+#qpDashboard.dt-on .dt-pop.dt-pop-right { left: auto; right: 0; }
+#qpDashboard.dt-on #dtTagPop { width: 420px; }
+#qpDashboard.dt-on #dtFilterPop { width: 460px; }
+#qpDashboard.dt-on .dt-pop-lbl { margin: 10px 2px 6px; font-size: var(--text-xs, 12px); color: var(--text-muted, #667); font-weight: 700; }
+#qpDashboard.dt-on .dt-pop hr { border: 0; border-top: 1px solid var(--border, #e2e6ec); margin: 8px 0; }
+#qpDashboard.dt-on .dt-sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+#qpDashboard.dt-on .dt-x { width: 44px; height: 44px; border: 0; background: none; font-size: var(--text-xl, 18px); color: var(--text-muted, #667); cursor: pointer; }
+#qpDashboard.dt-on .dt-pop-foot { margin-top: 12px; }
+#qpDashboard.dt-on .dt-menu { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 44px; padding: 0 12px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; font-size: var(--text-base, 14px); cursor: pointer; text-align: left; }
+#qpDashboard.dt-on .dt-menu:hover, #qpDashboard.dt-on .dt-menu.is-on { background: var(--accent-lt, #eef3f8); }
+#qpDashboard.dt-on .dt-chipmore { min-width: 200px; }
+#qpDashboard.dt-on .dt-pop .qpd-sort { margin: 0 0 10px; display: flex; justify-content: space-between; gap: 8px; }
+#qpDashboard.dt-on .dt-pop .qpd-sort select { min-height: 44px; flex: 1; }
+#qpDashboard.dt-on .dt-pop .qpd-view-seg { display: flex; width: 100%; margin-bottom: 10px; }
+#qpDashboard.dt-on .dt-pop .qpd-view-seg button { flex: 1; min-height: 44px; }
+#qpDashboard.dt-on .dt-pop #qpdLinkModeBtn { display: block !important; width: 100%; min-height: 44px; }
+#qpDashboard.dt-on .dt-pop .qpd-adv { display: flex !important; flex-direction: column; border: 0; padding: 0; background: none; }
+#qpDashboard.dt-on .dt-pop .qpd-adv > * { min-height: 44px; flex: none; width: 100%; box-sizing: border-box; }
+#qpDashboard.dt-on #dtMorePop .uim-switch { display: flex; width: 100%; }
+#qpDashboard.dt-on #dtMorePop .uim-switch button { flex: 1; min-height: 44px; }
+#qpDashboard.dt-on #dtMorePop .qpd-store { display: block; width: 100%; min-height: 44px; text-align: left; border: 0; background: none; }
+
+/* ---- タグのパネル ---- */
+#qpDashboard.dt-on .dt-tagsearch { width: 100%; box-sizing: border-box; min-height: 44px; padding: 0 12px; border: 1px solid var(--border, #d9dee5); border-radius: 8px; font: inherit; font-size: var(--text-base, 14px); }
+#qpDashboard.dt-on .dt-tagwrap { display: flex; flex-wrap: wrap; gap: 6px; }
+#qpDashboard.dt-on .dt-tagchip { min-height: 36px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border, #d9dee5); border-radius: 18px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; }
+#qpDashboard.dt-on .dt-tagchip.is-on { background: var(--accent-lt, #eef3f8); border-color: var(--accent-dk, #2c455d); color: var(--accent-dk, #2c455d); font-weight: 700; }
+#qpDashboard.dt-on .dt-tagn { font-size: var(--text-xs, 12px); opacity: .7; }
+#qpDashboard.dt-on .dt-seg { display: flex; margin-top: 8px; border: 1px solid var(--border, #d9dee5); border-radius: 8px; overflow: hidden; }
+#qpDashboard.dt-on .dt-seg button { flex: 1; min-height: 40px; border: 0; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; }
+#qpDashboard.dt-on .dt-seg button + button { border-left: 1px solid var(--border, #d9dee5); }
+#qpDashboard.dt-on .dt-seg button.is-on { background: var(--accent-dk, #2c455d); color: #fff; font-weight: 700; }
+#qpDashboard.dt-on .dt-link { min-height: 44px; padding: 0 6px; border: 0; background: none; color: var(--accent, #416180); font: inherit; font-size: var(--text-sm, 13px); font-weight: 700; cursor: pointer; }
+#qpDashboard.dt-on .dt-allbtn { display: block; margin-top: 8px; }
+#qpDashboard.dt-on .dt-muted { font-size: var(--text-sm, 13px); color: var(--text-muted, #667); }
+#qpDashboard.dt-on .dt-seltags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0 0; }
+#qpDashboard.dt-on .dt-seltags-l, #qpDashboard.dt-on .dt-seltags-m { font-size: var(--text-sm, 13px); color: var(--text-muted, #667); }
+
+/* ---- スマホ（〜600px）---- */
+@media (max-width: 600px) {
+  #qpDashboard.dt-on .qpd-head { flex-direction: column; align-items: stretch; }
+  #qpDashboard.dt-on .qpd-title { margin-bottom: 2px; }
+  #qpDashboard.dt-on .dt-badges { margin-right: 0; }
+  #qpDashboard.dt-on .qpd-head-actions { display: flex; flex-wrap: wrap; }
+  #qpDashboard.dt-on .qpd-new { flex: 1 1 100%; order: -2; min-height: 48px; }
+  #qpDashboard.dt-on .qpd-resume { flex: 1 1 0; order: -1; }
+  #qpDashboard.dt-on .dt-chips { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  #qpDashboard.dt-on .dt-chips .dt-pop-wrap { position: static; }
+  #qpDashboard.dt-on .dt-bar { display: grid; grid-template-columns: 1fr 1fr; }
+  #qpDashboard.dt-on .dt-search-slot { grid-column: 1 / -1; order: -1; min-width: 0; }
+  #qpDashboard.dt-on .dt-bar > .dt-pop-wrap { position: static; }
+  #qpDashboard.dt-on .dt-bar > .dt-pop-wrap > .dt-btn, #qpDashboard.dt-on .dt-scope { width: 100%; justify-content: center; }
+  #qpDashboard.dt-on .dt-scope select { width: 100%; }
+  /* 下から出るシート */
+  #qpDashboard.dt-on .dt-sheet { position: fixed; left: 0; right: 0; bottom: 0; top: auto; width: auto !important; max-width: none; max-height: 82vh; border-radius: 16px 16px 0 0; padding: 12px 14px calc(72px + env(safe-area-inset-bottom)); z-index: 1250; }
+  #qpDashboard.dt-on #dtMorePop { position: fixed; left: 8px; right: 8px; top: auto; bottom: 8px; max-width: none; z-index: 1250; }
+  body.dt-sheet-open::after { content: ''; position: fixed; inset: 0; background: rgba(16, 24, 40, .45); z-index: 1200; }
+  body.dt-sheet-open { overflow: hidden; }
+  #qpDashboard.dt-on #dtTagPop .dt-tagsearch { position: sticky; top: 0; z-index: 1; }
+  #qpDashboard.dt-on .dt-pop-foot { position: sticky; bottom: -60px; background: var(--surface, #fff); padding-top: 8px; }
+  #qpDashboard.dt-on { padding-bottom: 72px; }
+}

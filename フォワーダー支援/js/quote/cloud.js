@@ -40,7 +40,15 @@
   let _cloudFilterPod     = '';
   let _cloudFilterCarrier = '';
   let _cloudFilterCustomer = '';  // お客様別ランキングからの絞り込み（正規化キー）
-  let _cloudFilterTag     = '';   // タグ絞り込み（'' = すべて）
+  let _cloudFilterTags    = [];   // タグ絞り込み（複数選択・空＝すべて）
+  let _cloudTagMode       = 'and'; // 複数タグの組み合わせ：'and'＝すべて含む／'or'＝どれか含む
+  const _RECENT_TAGS_KEY  = 'qpdRecentTags_v1';   // 「最近使ったタグ」（このブラウザに保存）
+  function _recentTags() { try { const a = JSON.parse(localStorage.getItem(_RECENT_TAGS_KEY) || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; } catch (e) { return []; } }
+  function _pushRecentTag(t) { try { const a = [t].concat(_recentTags().filter(x => x !== t)).slice(0, 10); localStorage.setItem(_RECENT_TAGS_KEY, JSON.stringify(a)); } catch (e) { /* 保存できなくても動く */ } }
+  function _tagMatch(r) {
+    const have = Array.isArray(r.tags) ? r.tags : [];
+    return _cloudTagMode === 'or' ? _cloudFilterTags.some(t => have.includes(t)) : _cloudFilterTags.every(t => have.includes(t));
+  }
   let _cloudFollowFilter  = false; // 🔔 料金更新フォロー（要フォロー）だけに絞り込む
   // 案件の範囲：全体／組織／チーム／自分（作成者の所属で絞る。見える範囲は変えない＝全員が全案件を見られる）。
   //   _cloudScopeSel＝組織・チームの id（空＝自分の所属）。選択は端末に覚える（qpdScope_v1）。組織とチームの所属は js/org-teams.js
@@ -516,7 +524,7 @@
     if (pol && !(r.pol     || '').toLowerCase().includes(pol)) return false;
     if (pod && !(r.pod     || '').toLowerCase().includes(pod)) return false;
     if (car && !(r.carrier || '').toLowerCase().includes(car)) return false;
-    if (!skipTag && _cloudFilterTag && !(Array.isArray(r.tags) && r.tags.includes(_cloudFilterTag))) return false;
+    if (!skipTag && _cloudFilterTags.length && !_tagMatch(r)) return false;
     if (!skipCustomer && _cloudFilterCustomer && _custKey(r.customer) !== _cloudFilterCustomer) return false;
     if (!terms.length) return true;
     const hay = _searchHayFor(r);
@@ -580,13 +588,14 @@
     _ensureLinkParents();
     // 絞り込み・並び替えが変わったときだけ先頭ページに戻す（ステータス変更や Presence 等の
     // 付随的な再描画では表示件数を保つ＝スクロール位置・展開状態を崩さない）
-    const sig = JSON.stringify([_cloudSearch, _cloudStatusFilter, _cloudFilterCustomer, _cloudFilterTag,
+    const sig = JSON.stringify([_cloudSearch, _cloudStatusFilter, _cloudFilterCustomer, _cloudFilterTags.join('\u0001'), _cloudTagMode,
       _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView, _cloudFollowFilter, _cloudPendingFilter, _cloudScope, _cloudScopeSel]);
     if (sig !== _dashFilterSig) { _dashFilterSig = sig; _dashLimit = DASH_PAGE; }
     _renderCloudList(rows);
     _renderTagChips();        // タグチップは現在の絞り込み（ステータス等）に連動して件数・顔ぶれを更新
     _renderActiveQpdRank();   // タブで隠れている側は再計算しない（切替時に改めて描画する）
     _syncResetAllBtn();
+    if (typeof window.dtRefresh === 'function') window.dtRefresh();   // ダッシュボード上部の組み替え（js/quote/dash-top.js）
   }
 
   // 「さらに読み込む」：ダッシュボードの表示上限を DASH_PAGE 件ぶん増やして再描画
@@ -597,7 +606,7 @@
 
   // 何らかの絞り込みが効いているか（「すべて解除」ボタンの出し分けに使う）
   function _anyFilterActive() {
-    return !!(_cloudScope !== 'all' || _cloudSearch.trim() || _cloudStatusFilter || _cloudFilterCustomer || _cloudFilterTag ||
+    return !!(_cloudScope !== 'all' || _cloudSearch.trim() || _cloudStatusFilter || _cloudFilterCustomer || _cloudFilterTags.length ||
               _cloudFilterMode || _cloudFilterInco || _cloudFollowFilter || _cloudPendingFilter ||
               _cloudFilterPol.trim() || _cloudFilterPod.trim() || _cloudFilterCarrier.trim());
   }
@@ -613,7 +622,7 @@
     _cloudSearch = '';
     _cloudStatusFilter = '';
     _cloudFilterCustomer = '';
-    _cloudFilterTag = '';
+    _cloudFilterTags = [];
     _cloudFollowFilter = false;
     _cloudPendingFilter = false;
     _cloudScope = 'all'; _cloudScopeSel = ''; _saveScope();
@@ -761,6 +770,7 @@
     }
     box.innerHTML = html;
     box.hidden = false;
+    if (typeof window.dtRefresh === 'function') window.dtRefresh();
   }
   function cloudFilterScope(scope) {
     _cloudScope = scope; _cloudScopeSel = ''; _saveScope();
@@ -819,7 +829,7 @@
     const shown = _cloudTagChipsExpanded ? list : list.slice(0, QPD_TAG_CHIP_TOP_N);
     const remaining = list.length - shown.length;
     box.innerHTML = shown.map((c, i) =>
-      '<button type="button" class="cloud-tag-filter-chip' + (_cloudFilterTag === c.tag ? ' is-active' : '') + '" ' +
+      '<button type="button" class="cloud-tag-filter-chip' + (_cloudFilterTags.includes(c.tag) ? ' is-active' : '') + '" ' +
       'onclick="cloudFilterTag(' + i + ')" title="このタグで絞り込み">🏷️ ' + escHtml(c.tag) +
       '<span class="cloud-chip-n">' + c.count + '</span></button>'
     ).join('')
@@ -828,7 +838,7 @@
         : (_cloudTagChipsExpanded && list.length > QPD_TAG_CHIP_TOP_N
             ? '<button type="button" class="cloud-tag-filter-more" onclick="cloudTagChipsToggleExpand()">▲ 折りたたむ</button>'
             : ''))
-    + (_cloudFilterTag
+    + (_cloudFilterTags.length
       ? '<button type="button" class="cloud-tag-filter-clear" onclick="cloudFilterTag(-1)">✕ 解除</button>'
       : '');
   }
@@ -844,18 +854,23 @@
     if (!dl) return;
     dl.innerHTML = _cloudTagChipList.map(c => '<option value="' + escHtml(c.tag) + '">').join('');
   }
+  // タグの選択を 1 つ足す／外す（複数選択）。足したタグは「最近使った」に記録する
+  function _tagSet(tag, on) {
+    const has = _cloudFilterTags.includes(tag);
+    if (on && !has) { _cloudFilterTags = _cloudFilterTags.concat(tag); _pushRecentTag(tag); }
+    else if (!on && has) _cloudFilterTags = _cloudFilterTags.filter(t => t !== tag);
+    else return;
+    _renderTagChips(); _applyCloudFilter();
+  }
+  function cloudTagToggle(tag) { _tagSet(tag, !_cloudFilterTags.includes(tag)); }
+  function cloudTagClear() { if (!_cloudFilterTags.length) return; _cloudFilterTags = []; _renderTagChips(); _applyCloudFilter(); }
+  function cloudTagSetMode(m) { _cloudTagMode = m === 'or' ? 'or' : 'and'; _renderTagChips(); _applyCloudFilter(); }
+  // 旧入力欄（#qpdTagQuickFilter・新しい画面では隠している）の互換：完全一致で足す／Enter で前方・部分一致で足す
   function qpdTagQuickFilterInput(val) {
     const v = (val || '').trim();
-    if (!v) {
-      if (_cloudFilterTag) { _cloudFilterTag = ''; _renderTagChips(); _applyCloudFilter(); }
-      return;
-    }
+    if (!v) return;
     const hit = _cloudTagChipList.find(c => c.tag === v);
-    if (hit && _cloudFilterTag !== hit.tag) {
-      _cloudFilterTag = hit.tag;
-      _renderTagChips();
-      _applyCloudFilter();
-    }
+    if (hit) _tagSet(hit.tag, true);
   }
   function qpdTagQuickFilterCommit(val) {
     const v = (val || '').trim();
@@ -866,22 +881,19 @@
       if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 該当するタグが見つかりません', 'warn', 2000);
       return;
     }
-    _cloudFilterTag = hit.tag;
     const inp = document.getElementById('qpdTagQuickFilter');
-    if (inp) inp.value = hit.tag;
-    _renderTagChips();
-    _applyCloudFilter();
+    if (inp) inp.value = '';
+    _tagSet(hit.tag, true);
   }
   function cloudFilterTag(idx) {
-    if (idx < 0) {
-      _cloudFilterTag = '';
-    } else {
-      const c = _cloudTagChipList[idx];
-      if (!c) return;
-      _cloudFilterTag = (_cloudFilterTag === c.tag) ? '' : c.tag;   // 同じものを再クリックで解除
-    }
-    _renderTagChips();
-    _applyCloudFilter();
+    if (idx < 0) { cloudTagClear(); return; }
+    const c = _cloudTagChipList[idx];
+    if (!c) return;
+    cloudTagToggle(c.tag);   // 同じものを再クリックで外す
+  }
+  // タグパネル（js/quote/dash-top.js）が読む状態
+  function cloudTagState() {
+    return { tags: _cloudFilterTags.slice(), mode: _cloudTagMode, list: _tagCounts(), recent: _recentTags(), shown: (_dashFilteredRows || []).length };
   }
 
   // 旧値「提示済み」→「提出済み」に正規化（DB 移行前の既存データ対応）
@@ -1486,6 +1498,7 @@
         '<span class="qpd-stat-n">📩 ' + pends.length + '</span><span class="qpd-stat-l">未取込</span></button>';
     }
     box.innerHTML = html;
+    if (typeof window.dtRefresh === 'function') window.dtRefresh();
   }
 
   // ---------- ダッシュボード右カラム：ランキングカードのタブ切替 ----------
@@ -1634,14 +1647,14 @@
     const max = list[0].total || 1;
     const shown = _qpdTagRankExpanded ? list : list.slice(0, QPD_RANK_TOP);
     let h = '';
-    if (_cloudFilterTag) {
+    if (_cloudFilterTags.length) {
       h += '<div class="qpd-rank-active">' +
-        '<span class="qpd-rank-active-l">絞り込み中：<b>🏷️ ' + escHtml(_cloudFilterTag) + '</b></span>' +
+        '<span class="qpd-rank-active-l">絞り込み中：<b>🏷️ ' + escHtml(_cloudFilterTags.join(_cloudTagMode === 'or' ? ' または ' : ' ＋ ')) + '</b></span>' +
         '<button type="button" class="qpd-rank-clear" onclick="qpdFilterTagRank(\'\')">✕ 解除</button>' +
       '</div>';
     }
     h += shown.map((e, i) => {
-      const on = _cloudFilterTag === e.key;
+      const on = _cloudFilterTags.includes(e.key);
       return '<button type="button" class="qpd-rank-item' + (on ? ' is-active' : '') + '" ' +
           'onclick="qpdFilterTagRank(\'' + encodeURIComponent(e.key) + '\')" ' +
           'title="🏷️ ' + escHtml(e.label) + ' の案件だけに絞り込む（もう一度押すと解除）">' +
@@ -1662,13 +1675,11 @@
   }
 
   // ランキングのタグをクリック → 一覧をそのタグだけに絞る（再クリックで解除）。
-  // 上部のタグ絞り込みチップ（_cloudFilterTag）と状態を共有するため、チップ側の
+  // 上部のタグ絞り込みチップ（_cloudFilterTags）と状態を共有するため、チップ側の
   // 表示も同期させる。引数は onclick 属性に埋める都合で encodeURIComponent 済み。
   function qpdFilterTagRank(rawKey) {
     const key = rawKey ? decodeURIComponent(rawKey) : '';
-    _cloudFilterTag = (key && key !== _cloudFilterTag) ? key : '';
-    _renderTagChips();
-    _applyCloudFilter();
+    if (!key) cloudTagClear(); else cloudTagToggle(key);   // 複数選択：押すと足す／外す
   }
   function qpdTagRankToggleAll() {
     _qpdTagRankExpanded = !_qpdTagRankExpanded;
@@ -2038,9 +2049,12 @@
     document.getElementById('tab-quote-make')?.classList.add('qp-dash');
     document.body.classList.add('qp-dash-active');
     _renderQpdAuth();
+    if (typeof window.dtRefresh === 'function') window.dtRefresh();
     if (_cloudUser) cloudListPresets(true);   // 一覧・統計を最新化（silent）
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
+  // 作業中の見積があるか（保存済みの案件を開いている／未保存の入力がある）。ダッシュボードの「作業中の見積に戻る」の出し分け
+  window.qpHasWorkingQuote = function () { return !!_loadedCloudId || !!_quoteDirty; };
   function qpShowEditor() {
     document.getElementById('tab-quote-make')?.classList.remove('qp-dash');
     document.body.classList.remove('qp-dash-active');
@@ -2632,6 +2646,7 @@
 
   window.cloudFilterTag  = cloudFilterTag;
   window.cloudTagChipsToggleExpand = cloudTagChipsToggleExpand;
+  window.cloudTagToggle = cloudTagToggle; window.cloudTagClear = cloudTagClear; window.cloudTagSetMode = cloudTagSetMode; window.cloudTagState = cloudTagState;
   window.qpdTagQuickFilterInput  = qpdTagQuickFilterInput;
   window.qpdTagQuickFilterCommit = qpdTagQuickFilterCommit;
   window.cloudAddTag     = cloudAddTag;

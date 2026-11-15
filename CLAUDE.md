@@ -322,6 +322,16 @@ Free プランの転送量（月 5GB）を 2026-11 に超過した（7.48GB・3 
 - 確認：`scripts/design-tests/egress-sync-test.js`（偽の Supabase がリクエストを記録・現行／`THEME=1` の Industry とも）。**修正前のコードに当てると 8 件失敗する**（同じ人の通知で全件を読む・一覧が本体を毎回取る・サブコンの全件取得の繰り返しなど）。本番での効果は Supabase の Usage → Egress per day で見る（目標：1 日 0.18GB 以下）。
 - **未実施（必要なら）**：ページを開くたびの最初の 1 回は全案件の本体を取る（本体を IndexedDB に保存して次回は差分だけにする案）／統計・マスターの全件読み込み（`statsLoadMasterCache`）の使い回し／ダッシュボードの一覧を本体なしで描く案。
 
+## 🧭 ダッシュボード上部の整理（Design 20「案D＋タグ T2」・2026-11・`js/quote/dash-top.js`／`css/dash-top.css`）
+
+見積ダッシュボード（`#qpDashboard`）の上部を、**既存の DOM を残したまま表示だけ組み替える**薄い層（`#qpDashboard.dt-on`）。統計タイル（`#qpdStats`）・範囲チップ・検索・並び替え・カード／リスト・詳細検索（`#qpdAdv`）・旧タグ欄は残し、隠す／新しい場所へ「要素ごと」移す（id・onclick・状態は不変）。`cloud.js` の `_renderQpdStats`／`_renderScopeBar`／`_applyCloudFilter`／`qpShowDashboard` が `window.dtRefresh()` を呼んで追従。
+- **見出し行**：札「🔔 要フォロー N」「📩 未取込 N」（**0 件は出さない**＝タイルが無い）・［新規見積を作成］（主ボタン）・［▶ 作業中の見積に戻る］（**作業中のときだけ**＝`cloud.js` の `window.qpHasWorkingQuote()`＝保存済みの案件を開いている `_loadedCloudId` か未保存の入力 `_quoteDirty`。新規作成して何も入れなければ出ない）・［⋯］（かんたん／詳細表示の切替 `.uim-switch` と「📝 自由入力で保管」`.qpd-store` を要素ごと移した）。
+- **ステータスのチップ 1 行**（`#dtChips`）：全体・作業中（＝下書き中・改定中・情報待ちの合算）・提示済み・受注＋「その他 ▾」（ヨコヨコ提示・失注・辞退・保留。選ぶと「その他」が選んだ名前に変わる）。押すと**隠したタイルの `click()` を呼ぶ**（既存の `cloudFilterStatus` がそのまま動く）。
+- **道具の 1 行**（`#dtBar`）：範囲（select・元のチップを読んで `cloudFilterScope`／組織・チームの選択リストは従来どおり）・検索・🏷 タグ ▾（選択数のバッジ）・🔎 絞り込み（詳細検索の 5 項目＝`#qpdAdv` を移した・入力数のバッジ）・表示 ▾（並び替え `#qpdSort`・カード／リスト・関連付けモード `#qpdLinkModeBtn`）。スマホ（〜600px）は検索を 1 行、4 つを 2×2、パネルは下から出るシート。
+- **タグは複数選択（AND／OR）に拡張**（`cloud.js`）：`_cloudFilterTag`（単一）を `_cloudFilterTags`（配列）＋`_cloudTagMode`（`'and'`＝すべて含む／`'or'`＝どれか含む）に置き換え。`cloudTagToggle`／`cloudTagClear`／`cloudTagSetMode`／`cloudTagState()`（`{tags, mode, list, recent, shown}`）。旧チップ・右レールの「タグ別」ランキング・旧入力欄（`qpdTagQuickFilterInput`／`Commit`＝完全一致・Enter で**足す**）も同じ配列を使う。**足したタグは「最近使った」に記録**（localStorage `qpdRecentTags_v1`・このブラウザ・最大 10）。タグのパネル（`#dtTagPop`）：検索（入力中は候補だけ）／選択中（✕で外す）＋すべて含む／どれか含む（2 つ以上のとき）／よく使う（上位 10・件数つき）／最近使った（最大 3）／すべてのタグを見る（▲折りたたむ）／［N 件を見る］。選んだタグは道具の下に 1 行（`#dtSelTags`・「すべて外す」）。
+- 元の「すべて解除」ボタン（`#qpdResetAll`）は絞り込み中だけ出る（従来どおり）。**かんたん表示の「詳しく絞り込む」（`#qpdMoreToggle`）は新しい画面では隠している**（絞り込みは［🔎 絞り込み］に集約）。
+- テストは `scripts/design-tests/dash-top-test.js`（偽の Supabase・現行／`THEME=1`／`W=390`・約 45 項目）。`org-teams-test.js` の余白の 3 項目は、範囲のチップを隠したため廃止。
+
 ## 🔖 チームブックマーク（全面クラウド移行・編集履歴）
 
 船会社／サブコンのリンクを `bookmarks` テーブルで一元管理（`js/bookmarks.js`・`#tab-bookmark`）。見積タブ右カラムの「🔖 ブックマーク」タブ（`renderQuoteBookmarkRail` / `#bmRailPanel`）に案件連動で表示。
