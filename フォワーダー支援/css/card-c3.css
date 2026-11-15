@@ -168,3 +168,14 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-memo { display: non
   html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-prio,
   html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-who { grid-row: auto; }
 }
+
+/* ===== 進捗はインジケーター（文字をやめて色の帯 5 つ）。名前・状況は title／aria に残す ===== */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-steps { gap: 4px; align-items: center; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-step { flex: none; width: 22px; height: 10px; min-height: 0; padding: 0; border-radius: 3px; font-size: 0; line-height: 0; overflow: hidden; background: #e4e7ec; border: 0; color: transparent; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-step.qp-done { background: #3f9a5a; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-step.qp-part { background: linear-gradient(90deg, #e0a33a 50%, #e4e7ec 50%); }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-sub-label,
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-sub-cells { display: none; }
+@media (max-width: 600px) {
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-step { min-height: 0; display: block; width: 28px; height: 12px; }
+}

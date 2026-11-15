@@ -1887,7 +1887,7 @@
     }).join('');
     var more = pu.names.length - shown.length;
     var allDone = pu.filled === pu.total;
-    return '<span class="qp-step qp-step--sub' + (allDone ? ' qp-done' : '') +
+    return '<span class="qp-step qp-step--sub' + (allDone ? ' qp-done' : (pu.filled > 0 ? ' qp-part' : '')) +
         '" title="仕入：' + pu.filled + '/' + pu.total + ' 社入力済み（サブコン数が多いほど工数大）">' +
       '<span class="qp-sub-label">仕入 ' + pu.filled + '/' + pu.total + '</span>' +
       '<span class="qp-sub-cells">' + cells + (more > 0 ? '<span class="qp-sub-more">+' + more + '</span>' : '') + '</span>' +
