@@ -122,10 +122,11 @@
     const main = ws.querySelector('.quote-main'); (main || ws).appendChild(foot);
     const tot = document.createElement('div'); tot.id = 'e2Total';
     tot.innerHTML = '<div class="e2t-amts"><span><i>売</i><b id="e2tSell">—</b></span><span><i>仕入</i><b id="e2tCost">—</b></span><span><i>粗利</i><b id="e2tProfit">—</b></span></div>' +
-      '<div class="e2t-btns"><button type="button" data-e2d="digest">費用の内訳 ▸</button><button type="button" data-e2d="ref">参考 ▸</button></div>';
+      '<div class="e2t-btns"><button type="button" data-e2r="1">全体の確認</button><button type="button" data-e2d="digest">費用の内訳 ▸</button><button type="button" data-e2d="ref">参考 ▸</button></div>';
     document.getElementById('tab-quote-make').appendChild(tot);
     steps.addEventListener('click', e => { const b = e.target.closest('[data-e2s]'); if (b) go(+b.dataset.e2s); });
     foot.addEventListener('click', e => { if (e.target.id === 'e2Prev') go(step - 1); if (e.target.id === 'e2Next') go(step + 1); });
+    tot.addEventListener('click', e => { if (e.target.closest('[data-e2r]')) openReview(); });
     tot.addEventListener('click', e => { const b = e.target.closest('[data-e2d]'); if (!b) return; const on = !document.body.classList.contains('e2-drawer') || document.body.dataset.e2d !== b.dataset.e2d; document.body.classList.toggle('e2-drawer', on); document.body.dataset.e2d = b.dataset.e2d; if (on && typeof window.qspSetTab === 'function') { try { window.qspSetTab(b.dataset.e2d === 'digest' ? 'digest' : 'fin'); } catch (x) {} } });
     built = true;
   }
@@ -150,6 +151,17 @@
     t('tot-subtotal', 'e2tSell'); t('tot-cost', 'e2tCost'); t('tot-profit', 'e2tProfit');
   }
 
+  // 全体の確認シート：各ステップの✓／未入力を一覧し、押すとそのステップへ（下から出る・Esc／背景／✕で閉じる）
+  function closeReview() { const o = $('e2Review'); if (o) o.remove(); }
+  function openReview() {
+    closeReview();
+    const s = summaries(), o = document.createElement('div'); o.id = 'e2Review';
+    o.innerHTML = '<div class="e2r-card" role="dialog" aria-label="全体の確認"><div class="e2r-head"><b>全体の確認</b><button type="button" class="e2r-x" aria-label="閉じる">✕</button></div>' +
+      [1, 2, 3, 4, 5].map(n => '<button type="button" class="e2r-row' + (s[n].ok ? ' is-ok' : '') + '" data-e2g="' + n + '"><i>' + (s[n].ok ? '✓' : n) + '</i><span><b>' + NAMES[n] + '</b><small>' + s[n].s.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</small></span><em>' + (s[n].ok ? '入力済み' : '未入力') + '</em></button>').join('') + '</div>';
+    o.addEventListener('click', e => { const g = e.target.closest('[data-e2g]'); if (g) { closeReview(); go(+g.dataset.e2g); return; } if (e.target === o || e.target.closest('.e2r-x')) closeReview(); });
+    document.body.appendChild(o);
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('e2Review')) closeReview(); });
   function go(n, quiet) {
     if (n < 1 || n > 5) return;
     step = n;
@@ -173,6 +185,7 @@
   function apply(on) {
     root.classList.toggle('editor-v2', on);
     ls.set(KEY, on ? '1' : '0');
+    if (!on) closeReview();
     if (on) { build(); moveDock(true); go(step, true); } else { moveDock(false); document.body.classList.remove('e2-drawer'); const tab = $('tab-quote-make'); if (tab) delete tab.dataset.e2; try { window.rmsClose && 0; } catch (e) {} }
     syncBtn();
   }
