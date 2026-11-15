@@ -152,3 +152,19 @@
 /* 絞り込みパネル：ラベルは 44px の対象から外す（ラベルと入力欄の隙間を詰める）。入力欄側の「〜：すべて」はそのまま */
 #qpDashboard.dt-on .dt-pop .qpd-adv > .dt-flbl { min-height: 0; width: auto; margin: 10px 2px 4px; }
 #qpDashboard.dt-on .dt-pop .qpd-adv > .dt-flbl:first-child { margin-top: 0; }
+
+/* ===== Design 25：絞り込みパネル F3（よく使う項目だけ先に）===== */
+#qpDashboard.dt-on .dt-fgrp { margin: 0 0 12px; display: block; }
+#qpDashboard.dt-on .dt-pop .qpd-adv > .dt-fgrp, #qpDashboard.dt-on .dt-pop .qpd-adv > .dt-fmore { min-height: 0; }
+#qpDashboard.dt-on .dt-fgrp .dt-flbl { margin: 0 2px 4px; }
+#qpDashboard.dt-on .dt-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+#qpDashboard.dt-on .dt-fchip { min-height: 44px; padding: 0 14px; border: 1px solid var(--border, #d9dee5); border-radius: 999px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-base, 14px); cursor: pointer; }
+#qpDashboard.dt-on .dt-fchip[aria-pressed="true"] { background: var(--accent-dk, #2c455d); border-color: var(--accent-dk, #2c455d); color: #fff; font-weight: 700; }
+#qpDashboard.dt-on .dt-route { display: flex; align-items: center; gap: 6px; }
+#qpDashboard.dt-on .dt-route > input { flex: 1 1 0; min-width: 0; width: auto; }
+#qpDashboard.dt-on .dt-arrow { color: var(--text-muted, #667); }
+#qpDashboard.dt-on .dt-morebtn { width: 100%; display: flex; justify-content: space-between; align-items: center; min-height: 44px; margin: 0 0 12px; background: var(--bg, #f6f7f9); }
+#qpDashboard.dt-on .dt-morebtn b { font-weight: 700; margin-left: 4px; }
+#qpDashboard.dt-on .dt-fmore[hidden] { display: none; }
+#qpDashboard.dt-on .dt-incosel { display: none; margin-top: 6px; }
+#qpDashboard.dt-on .dt-incosel.dt-open { display: block; }

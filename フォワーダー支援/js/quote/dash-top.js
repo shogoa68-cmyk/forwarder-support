@@ -62,17 +62,60 @@
     const link = $('qpdLinkModeBtn'); if (link) $('dtViewSlot').appendChild(link);
     $('dtViewSlot').insertAdjacentHTML('beforeend', '<button type="button" class="dt-btn dt-rank-in" id="dtRankBtn2">🏆 ランキング</button>');
     $('dtViewSlot').insertAdjacentHTML('beforeend', '<div class="dt-pop-foot"><button type="button" class="dt-btn dt-primary" data-dt-close>閉じる</button></div>');
-    // 項目は縦に並べ、ラベルは上（元の入力欄は移すだけ）。下に固定バー［リセット］［N 件を見る］
-    ['qpdFilterMode', 'qpdFilterInco', 'qpdFilterPol', 'qpdFilterPod', 'qpdFilterCarrier'].forEach(id => {
-      const el = $(id); if (!el || el.previousElementSibling && el.previousElementSibling.classList.contains('dt-flbl')) return;
-      const txt = el.tagName === 'SELECT' ? (el.options[0] ? el.options[0].text.replace(/[：:].*$/, '') : '') : (el.getAttribute('placeholder') || '');
-      el.insertAdjacentHTML('beforebegin', '<span class="dt-flbl">' + esc(txt) + '</span>');
-    });
+    // 絞り込み（F3）：最初は「輸送モード」と「ルート（積み地→揚げ地）」だけ。インコタームズ・船会社は［さらに条件］の中。
+    // 元の select／入力欄は移すだけ（値・onchange・id はそのまま）。チップは見た目だけで、同じ select に値を入れる
+    const mkGrp = (cls, label, ...els) => { const g = document.createElement('div'); g.className = 'dt-fgrp ' + cls; g.insertAdjacentHTML('beforeend', '<span class="dt-flbl">' + esc(label) + '</span>'); els.forEach(e => e && g.appendChild(e)); return g; };
+    const selMode = $('qpdFilterMode'), selInco = $('qpdFilterInco'), inPol = $('qpdFilterPol'), inPod = $('qpdFilterPod'), inCar = $('qpdFilterCarrier');
+    if (selMode && selInco && inPol && inPod && inCar && !$('dtModeChips')) {
+      const chipsMode = document.createElement('div'); chipsMode.className = 'dt-chips'; chipsMode.id = 'dtModeChips';
+      const gMode = mkGrp('dt-g-mode', '輸送モード', chipsMode); gMode.appendChild(selMode); selMode.classList.add('dt-hide');
+      const rowRoute = document.createElement('div'); rowRoute.className = 'dt-route';
+      inPol.setAttribute('placeholder', '積み地'); inPod.setAttribute('placeholder', '揚げ地');
+      rowRoute.appendChild(inPol); rowRoute.insertAdjacentHTML('beforeend', '<span class="dt-arrow">→</span>'); rowRoute.appendChild(inPod);
+      const gRoute = mkGrp('dt-g-route', 'ルート', rowRoute);
+      const chipsInco = document.createElement('div'); chipsInco.className = 'dt-chips'; chipsInco.id = 'dtIncoChips';
+      const gInco = mkGrp('dt-g-inco', 'インコタームズ', chipsInco); gInco.appendChild(selInco); selInco.classList.add('dt-incosel');
+      const gCar = mkGrp('dt-g-car', '船会社・NVOCC・航空会社', inCar);
+      const more = document.createElement('div'); more.id = 'dtFilterMore'; more.className = 'dt-fmore'; more.hidden = true; more.append(gInco, gCar);
+      const moreBtn = document.createElement('button'); moreBtn.type = 'button'; moreBtn.id = 'dtFilterMoreBtn'; moreBtn.className = 'dt-btn dt-morebtn';
+      moreBtn.innerHTML = '<span>さらに条件<b id="dtFilterMoreN"></b></span><span id="dtFilterMoreArw">▾</span>';
+      moreBtn.addEventListener('click', e => { e.stopPropagation(); setMore(more.hidden); });
+      adv.prepend(gMode, gRoute, moreBtn, more);
+    }
     const advClr = $('dtFilterSlot').querySelector('.qpd-adv-clear'); if (advClr) advClr.classList.add('dt-hide');
     $('dtFilterSlot').insertAdjacentHTML('beforeend', '<div class="dt-pop-foot dt-bar2"><button type="button" class="dt-btn" id="dtFilterReset">リセット</button><button type="button" class="dt-btn dt-primary" id="dtFilterSee" data-dt-close>件を見る</button></div>');
 
     wire();
     refresh();
+  }
+
+  // ---- 絞り込み（F3）：チップは元の select と同じ値を入れるだけ ----
+  function setMore(open) { const m = $('dtFilterMore'); if (!m) return; m.hidden = !open; const a = $('dtFilterMoreArw'); if (a) a.textContent = open ? '▴' : '▾'; }
+  function chipsHtml(items, cur, kind) {
+    return items.map(it => '<button type="button" class="dt-fchip" data-dt-fchip="' + kind + '" data-v="' + esc(it.v) + '" aria-pressed="' + (cur === it.v) + '">' + esc(it.t) + '</button>').join('');
+  }
+  function syncFilterChips() {
+    const selMode = $('qpdFilterMode'), selInco = $('qpdFilterInco'); if (!selMode || !selInco) return;
+    const opts = sel => [...sel.options].map(o => o.value).filter(Boolean);
+    const cm = $('dtModeChips'); if (cm) cm.innerHTML = chipsHtml([{ v: '', t: 'すべて' }].concat(opts(selMode).map(v => ({ v, t: v }))), selMode.value, 'mode');
+    const top = ['EXW', 'FOB', 'CIF', 'DAP'], all = opts(selInco);
+    const shown = top.filter(v => all.includes(v)), others = all.filter(v => !top.includes(v));
+    const ci = $('dtIncoChips');
+    if (ci) ci.innerHTML = chipsHtml([{ v: '', t: 'すべて' }].concat(shown.map(v => ({ v, t: v }))), selInco.value, 'inco') +
+      (others.length ? '<button type="button" class="dt-fchip" data-dt-fother="1" aria-pressed="' + (!!selInco.value && !top.includes(selInco.value)) + '">その他</button>' : '');
+    selInco.classList.toggle('dt-open', !!selInco.value && !top.includes(selInco.value) || selInco.classList.contains('dt-open') && others.length > 0);
+    // さらに条件の数（インコタームズ・船会社）。使っているときは自動で開く
+    const n = ['qpdFilterInco', 'qpdFilterCarrier'].filter(id => { const e = $(id); return e && String(e.value || '').trim(); }).length;
+    const nb = $('dtFilterMoreN'); if (nb) nb.textContent = n ? '（' + n + '）' : '';
+    if (n && $('dtFilterMore') && $('dtFilterMore').hidden && !$('dtFilterMore').dataset.userClosed) setMore(true);
+  }
+  function onFilterChipClick(e) {
+    const t = e.target.closest('[data-dt-fchip],[data-dt-fother]'); if (!t) return false;
+    e.stopPropagation();
+    if (t.dataset.dtFother) { const s = $('qpdFilterInco'); s.classList.toggle('dt-open'); return true; }
+    const sel = $(t.dataset.dtFchip === 'mode' ? 'qpdFilterMode' : 'qpdFilterInco'); if (!sel) return true;
+    sel.value = t.dataset.v; if (t.dataset.dtFchip === 'inco') sel.classList.remove('dt-open');
+    sel.dispatchEvent(new Event('change', { bubbles: true })); syncFilterChips(); return true;
   }
 
   // ---- 開閉 ----
@@ -134,6 +177,7 @@
     $('dtSelTags').addEventListener('click', onTagClick);
     // 絞り込み欄は入力のたびに件数バッジを更新
     $('dtFilterReset').addEventListener('click', e => { e.stopPropagation(); if (typeof window.qpdClearAdv === 'function') window.qpdClearAdv(); schedule(); });
+    $('dtFilterPop').addEventListener('click', onFilterChipClick, true);
     $('dtFilterPop').addEventListener('input', schedule);
     $('dtFilterPop').addEventListener('change', schedule);
   }
@@ -250,6 +294,7 @@
     const adv = ['qpdFilterMode', 'qpdFilterInco', 'qpdFilterPol', 'qpdFilterPod', 'qpdFilterCarrier'].filter(id => { const e = $(id); return e && String(e.value || '').trim(); }).length;
     const fn = $('dtFilterN'); if (fn) { fn.hidden = !adv; fn.textContent = adv; }
     const see = $('dtFilterSee'); if (see) see.textContent = window.cloudTagState().shown + ' 件を見る';
+    syncFilterChips();
     const rs2 = $('dtFilterReset'); if (rs2) rs2.disabled = !adv;
   }
 

@@ -102,7 +102,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
 
   // ---- 絞り込み・表示 ----
   await p.click('#dtFilterBtn'); await p.waitForTimeout(200);
-  ok('絞り込みの中に詳細検索の項目', await vis('#dtFilterPop #qpdFilterPol') && await vis('#dtFilterPop #qpdFilterMode'));
+  ok('絞り込み（F3）：輸送モードのチップとルートが先に見える', await vis('#dtFilterPop #dtModeChips') && await vis('#dtFilterPop #qpdFilterPol') && await vis('#dtFilterPop #qpdFilterPod'));
+  ok('インコタームズ・船会社は［さらに条件］の中（最初は閉じている）', !(await vis('#dtFilterPop #dtIncoChips')) && !(await vis('#dtFilterPop #qpdFilterCarrier')));
+  await p.click('#dtFilterMoreBtn'); await p.waitForTimeout(150);
+  ok('［さらに条件］を押すと開く', await vis('#dtFilterPop #dtIncoChips') && await vis('#dtFilterPop #qpdFilterCarrier'));
+  await p.fill('#qpdFilterCarrier', 'ONE'); await p.waitForTimeout(400);
+  ok('船会社を入れるとバッジに数（1）', (await p.textContent('#dtFilterMoreN')) === '（1）', await p.textContent('#dtFilterMoreN'));
+  await p.fill('#qpdFilterCarrier', ''); await p.waitForTimeout(300);
   await p.fill('#qpdFilterPol', 'TOKYO'); await p.waitForTimeout(500);
   ok('積み地で絞ると 1 件・件数バッジ', (await cardsN()) === 1 && await p.evaluate(() => document.getElementById('dtFilterN').textContent === '1'), await cardsN());
   await shot('filter');
