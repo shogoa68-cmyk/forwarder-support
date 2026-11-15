@@ -1,0 +1,39 @@
+/* 見積入力画面の新デザイン（Design 28・PC 案B）。<html class="editor-v2"> のときだけ効く。外せば旧画面へ戻る */
+#e2Steps, #e2Nav, #e2Total { display: none; }
+html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Steps { display: flex; gap: 8px; position: sticky; top: 52px; z-index: 30; padding: 10px 4px; margin: 0 0 12px; background: var(--bg, #f6f7f9); border-bottom: 1px solid var(--border, #e2e6ec); overflow-x: auto; }
+html.editor-v2 #e2Steps button { flex: 1 1 0; min-width: 150px; min-height: 56px; display: grid; grid-template-columns: 28px 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; text-align: left; padding: 6px 12px; border: 1px solid var(--border, #d9dee5); border-radius: 10px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; cursor: pointer; }
+html.editor-v2 #e2Steps button i { grid-row: 1 / span 2; width: 26px; height: 26px; line-height: 26px; text-align: center; border-radius: 50%; background: var(--border, #e2e6ec); font-style: normal; font-weight: 700; font-size: var(--text-sm, 13px); }
+html.editor-v2 #e2Steps button b { font-size: var(--text-base, 14px); }
+html.editor-v2 #e2Steps button small { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+html.editor-v2 #e2Steps button.is-ok i { background: #3f9a5a; color: #fff; }
+html.editor-v2 #e2Steps button.is-on { border-color: var(--accent-dk, #2c455d); box-shadow: 0 0 0 2px var(--accent-dk, #2c455d) inset; }
+html.editor-v2 #e2Steps button.is-on i { background: var(--accent-dk, #2c455d); color: #fff; }
+/* 選んだステップのセクションだけ表示 */
+html.editor-v2 #tab-quote-make:not(.qp-dash) .condition-section { display: none; }
+html.editor-v2 #tab-quote-make:not(.qp-dash) .condition-section.e2-show { display: block; }
+/* 左ナビ・手順の道しるべ・かんたん表示の部品は新画面では使わない（ステップに統合） */
+html.editor-v2 #qSecNav, html.editor-v2 #qpGuide, html.editor-v2 #qpHint, html.editor-v2 #uimAdvBar { display: none !important; }
+/* 右パネル（費用の縮小表示・参考）は下の合計バーから開く引き出しに */
+html.editor-v2 .quote-right-col { position: fixed; top: 110px; right: 0; bottom: 56px; width: 380px; max-width: 92vw; z-index: 90; overflow: auto; background: var(--surface, #fff); border-left: 1px solid var(--border, #d9dee5); box-shadow: -6px 0 18px rgba(16, 24, 40, .14); transform: translateX(105%); transition: transform .18s; }
+html.editor-v2 body.e2-drawer .quote-right-col, body.e2-drawer html.editor-v2 .quote-right-col { transform: none; }
+html.editor-v2 .quote-main { margin-right: 0 !important; max-width: none; }
+/* 右下の固定ボタンは上部ツールバーへ */
+html.editor-v2 #quoteActionDock.e2-in-toolbar { position: static; display: inline-flex; gap: 8px; margin-left: auto; padding: 0; bottom: auto; right: auto; box-shadow: none; background: none; transform: none; }
+html.editor-v2 #quoteActionDock.e2-in-toolbar .qad-btn { min-height: 36px; padding: 0 14px; }
+/* 下の合計バー（常時） */
+html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Total { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1002; min-height: 52px; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 20px; background: var(--accent-dk, #1d2b3a); color: #fff; }
+html.editor-v2 #e2Total .e2t-amts { display: flex; gap: 24px; }
+html.editor-v2 #e2Total .e2t-amts i { font-style: normal; opacity: .75; margin-right: 6px; font-size: var(--text-sm, 13px); }
+html.editor-v2 #e2Total .e2t-amts b { font-size: var(--text-lg, 16px); font-variant-numeric: tabular-nums; }
+html.editor-v2 #e2Total .e2t-btns { display: flex; gap: 8px; }
+html.editor-v2 #e2Total .e2t-btns button { min-height: 36px; padding: 0 14px; border: 1px solid rgba(255,255,255,.5); border-radius: 8px; background: transparent; color: #fff; font: inherit; cursor: pointer; }
+html.editor-v2 #totFloat { display: none !important; }   /* 既存の浮かぶ合計バーは下の合計バーに置き換え */
+html.editor-v2 #rmSheet { bottom: 52px !important; }
+/* ステップの［戻る］［次へ］ */
+html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Nav { display: flex; justify-content: space-between; margin: 20px 0 80px; }
+html.editor-v2 #e2Nav button { min-height: 44px; padding: 0 22px; border-radius: 10px; border: 1px solid var(--border, #c8cfd9); background: var(--surface, #fff); font: inherit; font-size: var(--text-base, 14px); cursor: pointer; }
+html.editor-v2 #e2Nav #e2Next:not(:disabled) { background: var(--accent-dk, #2c455d); border-color: var(--accent-dk, #2c455d); color: #fff; }
+html.editor-v2 #e2Nav button:disabled { opacity: .4; cursor: default; }
+@media (max-width: 600px) { html.editor-v2 #e2Steps, html.editor-v2 #e2Nav, html.editor-v2 #e2Total { display: none !important; } }   /* スマホ M2 は未着手：旧画面のまま */
+/* 全体リマークの引き出しは⑤リマーク・出力のときだけ */
+html.editor-v2 #tab-quote-make:not([data-e2="5"]) ~ #rmSheet, html.editor-v2 body:has(#tab-quote-make:not([data-e2="5"])) #rmSheet { display: none; }

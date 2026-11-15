@@ -1,0 +1,107 @@
+// ===== 見積入力画面の新デザイン（Design 28・PC 案B：ステップ式）— 旧画面と切替式（2026-11） =====
+//  ・<html class="editor-v2"> のときだけ効く。外せば旧画面にそのまま戻る（保存 localStorage fwd.editorV2＝'1'）。
+//    入口：ヘッダー ☰ →「見積入力の画面（新／旧）」、または ?editor=v2|v1。
+//  ・既存の DOM・id・onclick は変えず、表示の出し分けだけ（左のステップ・下の合計バー・右パネルの引き出し・右下ボタンの上部への統合）。
+//  ・第 1 段：ステップ（①基本 ②ルート ③貨物・物量 ④費用 ⑤リマーク・出力）の切替・上部へのボタン統合・下の合計バー・引き出し。
+//    未着手：④費用のサブコン別ツリーの再構成・明細 1 行の最小形・スマホ M2。
+(function () {
+  'use strict';
+  const KEY = 'fwd.editorV2', root = document.documentElement;
+  const $ = id => document.getElementById(id);
+  const SECS = { 1: ['section-ref', 'section-scope'], 2: ['section-cond'], 3: ['section-cargo', 'section-volume'], 4: ['section-table'], 5: [] };
+  const NAMES = { 1: '基本', 2: 'ルート', 3: '貨物・物量', 4: '費用', 5: 'リマーク・出力' };
+  let step = 1, built = false, dockHome = null;
+
+  const isOn = () => root.classList.contains('editor-v2');
+  const val = id => { const e = $(id); return e ? String(e.value || '').trim() : ''; };
+  const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+  function summaries() {
+    const cust = val('qf-customer'), name = val('qf-case-name'), pol = val('z2Pol'), pod = val('z2Pod'), cargo = val('cond-cargo-name') || val('cargo-name') || val('cond-cargo');
+    const rows = document.querySelectorAll('#tableBody tr:not([data-virtual]):not(.tr-sub):not(.tr-remark)').length;
+    const sell = ($('tot-subtotal') && $('tot-subtotal').textContent || '').replace(/\s+/g, ' ').trim();
+    return {
+      1: { s: [cust, name].filter(Boolean).join(' / ') || '未入力', ok: !!(cust && val('qf-person')) },
+      2: { s: (pol || pod) ? (pol || '?') + '→' + (pod || '?') : '未入力', ok: !!(pol && pod) },
+      3: { s: cargo || '未入力', ok: !!cargo },
+      4: { s: rows ? rows + '行' + (sell ? ' / 売 ' + sell : '') : '未入力', ok: rows > 0 },
+      5: { s: (val('remarkTextarea') ? 'リマークあり' : '出力へ'), ok: false },
+    };
+  }
+
+  function build() {
+    if (built) return;
+    const ws = document.querySelector('#tab-quote-make .quote-workspace'); if (!ws) return;
+    const steps = document.createElement('nav'); steps.id = 'e2Steps'; steps.setAttribute('aria-label', '見積入力のステップ');
+    ws.parentNode.insertBefore(steps, ws);
+    const foot = document.createElement('div'); foot.id = 'e2Nav';
+    foot.innerHTML = '<button type="button" id="e2Prev">← 戻る</button><button type="button" id="e2Next">次へ →</button>';
+    const main = ws.querySelector('.quote-main'); (main || ws).appendChild(foot);
+    const tot = document.createElement('div'); tot.id = 'e2Total';
+    tot.innerHTML = '<div class="e2t-amts"><span><i>売</i><b id="e2tSell">—</b></span><span><i>仕入</i><b id="e2tCost">—</b></span><span><i>粗利</i><b id="e2tProfit">—</b></span></div>' +
+      '<div class="e2t-btns"><button type="button" data-e2d="digest">費用の内訳 ▸</button><button type="button" data-e2d="ref">参考 ▸</button></div>';
+    document.getElementById('tab-quote-make').appendChild(tot);
+    steps.addEventListener('click', e => { const b = e.target.closest('[data-e2s]'); if (b) go(+b.dataset.e2s); });
+    foot.addEventListener('click', e => { if (e.target.id === 'e2Prev') go(step - 1); if (e.target.id === 'e2Next') go(step + 1); });
+    tot.addEventListener('click', e => { const b = e.target.closest('[data-e2d]'); if (!b) return; const on = !document.body.classList.contains('e2-drawer') || document.body.dataset.e2d !== b.dataset.e2d; document.body.classList.toggle('e2-drawer', on); document.body.dataset.e2d = b.dataset.e2d; if (on && typeof window.qspSetTab === 'function') { try { window.qspSetTab(b.dataset.e2d === 'digest' ? 'digest' : 'fin'); } catch (x) {} } });
+    built = true;
+  }
+
+  function refresh() {
+    if (!isOn() || !built) return;
+    const s = summaries(), box = $('e2Steps'); if (!box) return;
+    const html = [1, 2, 3, 4, 5].map(n => '<button type="button" data-e2s="' + n + '" class="' + (n === step ? 'is-on' : '') + (s[n].ok ? ' is-ok' : '') + '"><i>' + (s[n].ok ? '✓' : n) + '</i><b>' + NAMES[n] + '</b><small>' + s[n].s.replace(/</g, '&lt;') + '</small></button>').join('');
+    if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
+    $('e2Prev').disabled = step <= 1; $('e2Next').disabled = step >= 5;
+    const nx = $('e2Next'), nt = step < 5 ? '次へ：' + NAMES[step + 1] + ' →' : '次へ'; if (nx.textContent !== nt) nx.textContent = nt;
+    const t = (id, to) => { const a = $(id), b = $(to); if (!a || !b) return; const v = a.textContent.replace(/\s+/g, ' ').replace(/^粗利\s*/, '').trim() || '—'; if (b.textContent !== v) b.textContent = v; };
+    t('tot-subtotal', 'e2tSell'); t('tot-cost', 'e2tCost'); t('tot-profit', 'e2tProfit');
+  }
+
+  function go(n, quiet) {
+    if (n < 1 || n > 5) return;
+    step = n;
+    const tab = $('tab-quote-make'); if (tab) tab.dataset.e2 = String(n);
+    [].concat.apply([], Object.values(SECS)).forEach(id => { const s = $(id); if (s) s.classList.remove('e2-show'); });
+    SECS[n].forEach(id => { const s = $(id); if (!s) return; s.classList.add('e2-show'); if (s.classList.contains('collapsed') && typeof window.toggleQuoteSection === 'function') { try { window.toggleQuoteSection(id); } catch (e) {} } });
+    if (typeof window.rmsOpen === 'function' && typeof window.rmsClose === 'function') { try { n === 5 ? window.rmsOpen() : window.rmsClose(); } catch (e) {} }
+    refresh();
+    if (!quiet) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // 右下の固定ボタン（PDF／プレビュー／保存）を上部ツールバーへ。切り戻すときは元の場所へ
+  function moveDock(on) {
+    const dock = $('quoteActionDock'), tb = $('saveToolbar'); if (!dock || !tb) return;
+    if (on) { if (!dockHome) dockHome = { p: dock.parentNode, n: dock.nextSibling }; tb.appendChild(dock); dock.classList.add('e2-in-toolbar'); }
+    else if (dockHome) { dock.classList.remove('e2-in-toolbar'); dockHome.p.insertBefore(dock, dockHome.n); dockHome = null; }
+  }
+
+  function apply(on) {
+    root.classList.toggle('editor-v2', on);
+    ls.set(KEY, on ? '1' : '0');
+    if (on) { build(); moveDock(true); go(step, true); } else { moveDock(false); document.body.classList.remove('e2-drawer'); const tab = $('tab-quote-make'); if (tab) delete tab.dataset.e2; try { window.rmsClose && 0; } catch (e) {} }
+    syncBtn();
+  }
+  window.editorV2Set = apply;
+  window.editorV2Toggle = () => apply(!isOn());
+  window.editorV2Go = go;
+
+  function syncBtn() { const b = $('hdrEditorV2Btn'); if (b) b.textContent = isOn() ? '🧭 見積入力：新しい画面（旧に戻す）' : '🧭 見積入力：旧い画面（新しい画面を試す）'; }
+  function addMenuBtn() {
+    const panel = $('hdrMenuPanel'); if (!panel) return false;
+    if ($('hdrEditorV2Btn')) return true;
+    const ref = $('hdrDesignBtn'), b = document.createElement('a');
+    b.id = 'hdrEditorV2Btn'; b.href = '#'; b.className = ref ? ref.className : ''; b.setAttribute('role', 'button');
+    b.addEventListener('click', e => { e.preventDefault(); window.editorV2Toggle(); });
+    panel.appendChild(b); syncBtn(); return true;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    let tries = 0; const t = setInterval(() => { if (addMenuBtn() || ++tries > 20) clearInterval(t); }, 300);
+    if (isOn()) { build(); moveDock(true); go(1, true); }
+    // 入力のたびに要約・合計を更新（軽く間引く）
+    let raf = 0; const kick = () => { if (!isOn()) return; cancelAnimationFrame(raf); raf = requestAnimationFrame(refresh); };
+    document.addEventListener('input', kick, true); document.addEventListener('change', kick, true);
+    new MutationObserver(ms => { if (ms.some(m => !(m.target.closest && m.target.closest('#e2Steps, #e2Total, #e2Nav')))) kick(); }).observe(document.getElementById('tab-quote-make') || document.body, { childList: true, subtree: true, characterData: true });
+  });
+})();
