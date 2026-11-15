@@ -153,7 +153,16 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 ## 🎨 Quiet テーマ（Design 案 v5・3つ目のデザイン・既定オフ・2026-11・段階 1〜2）
 
-Design 提案 `16-Quietテーマ提案`（白地・薄い 1px 線・色は意味があるときだけ）。`<html class="theme-quiet" data-theme="quiet">` のときだけ `css/design-tokens-quiet.css`（`--q-*` トークン・Design 提供のまま）と `css/theme-quiet.css`（手書き）が効く。切替＝ヘッダー「🎨 デザイン」の Tweaks に「デザイン（Quiet）」、または `?theme=quiet`（`classic` で戻る）。**Industry とは同時に使わない**（どちらかを入れると他方が切れる）。Quiet 中は Tweaks のアクセント／基調は無効。実装は既存の色トークン（`--bg`／`--text`／`--accent` 等）を Quiet の値へ付け替え、ヘッダー・カテゴリ・入力欄・カードの角／影／枠を当てた段階段階 3a／3b＝見積入力画面（貿易条件・ゾーン・貨物・リマーク・見積テーブルの色の塗りを白／薄いグレー＋細い枠へ。見出し・ツールバー・下のドック＝保存は黒／プレビューは青／PDF は白・補助ボタンは白＋細い枠・内側の枠をなくす）まで。段階 3c＝マスター管理・ダッシュボードの KPI タイル／新規登録／通知帯／表／小タブ／「見積もりに戻る」の色を整理（マスター管理のテストは `QUIET=1 OUT=<dir> node scripts/design-tests/master-cloud-test.js` で Quiet の画面を撮れる）。段階 4＝`js/theme-quiet.js`（Quiet のときだけ。外すと元へ戻す）：①ヘッダーの 📣改修予定・🐞不具合報告・💡アイデア・🎨デザイン を「ヘルプ・フィードバック ▾」（`#hdrHelp`／`#hdrHelpPanel`）へ要素ごと移す（id・onclick 不変。🐞の確認待ちバッジは赤い点でまとめたボタンにも出る）②見出し（h1〜h3・`.section-toggle-title`）の先頭の絵文字を `.q-emoji` で包み Quiet では隠す（文字は残る）③文字サイズのトークン `--fs-9〜15` を 12／13／14／16／18 の段へ寄せる④スマホ幅は下の固定ボタンを「合計・プレビュー・保存」に絞り、PDF 出力は「⋯」メニュー（`.tb-mi-quiet-only`・Quiet のスマホ幅だけ表示）へ。**未着手・今後**：行の中の細かい部品・統計タブの細部・文字サイズの直書き（px）の統一。客先向け出力（御見積書・メール）は対象外。
+Design 提案 `16-Quietテーマ提案`（白地・薄い 1px 線・色は意味があるときだけ）。`<html class="theme-quiet" data-theme="quiet">` のときだけ `css/design-tokens-quiet.css`（`--q-*` トークン・Design 提供のまま）と `css/theme-quiet.css`（手書き）が効く。切替＝ヘッダー「🎨 デザイン」の Tweaks に「デザイン（Quiet）」、または `?theme=quiet`（`classic` で戻る）。**Industry とは同時に使わない**（どちらかを入れると他方が切れる）。Quiet 中は Tweaks のアクセント／基調は無効。実装は既存の色トークン（`--bg`／`--text`／`--accent` 等）を Quiet の値へ付け替え、ヘッダー・カテゴリ・入力欄・カードの角／影／枠を当てた段階段階 3a／3b＝見積入力画面（貿易条件・ゾーン・貨物・リマーク・見積テーブルの色の塗りを白／薄いグレー＋細い枠へ。見出し・ツールバー・下のドック＝保存は黒／プレビューは青／PDF は白・補助ボタンは白＋細い枠・内側の枠をなくす）まで。段階 3c＝マスター管理・ダッシュボードの KPI タイル／新規登録／通知帯／表／小タブ／「見積もりに戻る」の色を整理（マスター管理のテストは `QUIET=1 OUT=<dir> node scripts/design-tests/master-cloud-test.js` で Quiet の画面を撮れる）。段階 4＝`js/theme-quiet.js`（Quiet のときだけ。外すと元へ戻す）：①（2026-11 に廃止：ヘッダーの整理は全テーマ共通の `js/header-menu.js` へ移した。下記「ヘッダーは 2 つのアイコン」）②見出し（h1〜h3・`.section-toggle-title`）の先頭の絵文字を `.q-emoji` で包み Quiet では隠す（文字は残る）③文字サイズのトークン `--fs-9〜15` を 12／13／14／16／18 の段へ寄せる④スマホ幅は下の固定ボタンを「合計・プレビュー・保存」に絞り、PDF 出力は「⋯」メニュー（`.tb-mi-quiet-only`・Quiet のスマホ幅だけ表示）へ。**未着手・今後**：行の中の細かい部品・統計タブの細部・文字サイズの直書き（px）の統一。客先向け出力（御見積書・メール）は対象外。
+
+## 🧭 ヘッダーは 2 つのアイコン（☰ メニュー／アカウント・2026-11・`js/header-menu.js`／`css/header-menu.css`）
+
+ヘッダー右の 📣改修予定・🐞不具合報告・💡アイデア・🎨デザイン と、ユーザー名・チーム管理・ログアウトを、**全テーマ共通**で 2 つのアイコンにまとめた。**要素ごと移すだけ**（id・onclick・機能は不変。`cloud.js`／`users.js`／`feedback.js` は id のまま操作する）。
+- **☰（`#hdrMenuBtn`／`#hdrMenuPanel`）**：「ご意見・ご要望」＝🐞不具合報告／💡アイデア／📣改修予定・アイデア、「表示」＝🎨デザイン。確認待ちの質問が来ているときは ☰ に赤い点（`.hdr-fb-badge` を持つとき・CSS の `:has`）。
+- **アカウント（`#hdrAcctBtn`＝丸いアバター／`#hdrAcctPanel`）**：名前（押すとプロフィール編集）／チーム管理（管理者のみ・`users.js` が `hidden` を制御）／ログアウト。ログインしていない間は、従来どおり「Google でログイン」ボタンを出す（`#hdrCloudLogin`・`#hdrCloudUser` の中身だけを組み替える）。
+- 同時に開くのは 1 つ・外側クリック／Esc／項目を押すと閉じる。スマホ幅（〜600px）は下の余白に広がるシート。アイコンには `title`／`aria-label`。
+- Quiet の「ヘルプ・フィードバック ▾」（`theme-quiet.js buildHelp`）は廃止（旧 CSS `.hdr-help*` は残置）。
+- テストは `scripts/design-tests/header-menu-test.js`（偽の Supabase・未ログイン／ログイン中・`THEME=classic|quiet`・`W=390`・各 23／9 項目）。
 
 ## 🔠 文字サイズは 5 段に統一（2026-11・`css/tokens.css`）
 
