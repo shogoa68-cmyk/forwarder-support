@@ -424,3 +424,7 @@ Free プランの転送量（月 5GB）を 2026-11 に超過した（7.48GB・3 
 ## 📨 サイバーポートの Webhook 受信（2026-11）
 
 サイバーポートからの通知を受ける口：Edge Function `supabase/functions/cp-webhook`（貼り付け用 `supabase/cp-webhook-single/index.ts`・Verify JWT オフ・`x-cyberport-signature-256` の HMAC-SHA256 で検証・秘密は Secrets `CP_WEBHOOK_SECRET`）→ 表 `cp_events`（`docs/sql/cp-events.sql`・RLS＝チームメンバーのみ読み取り・同じ通知は 1 件にまとめる）。画面は 🚢 サイバーポートの「📨 受信した通知」（`js/cp-notify.js`・`js/integrations/cp-events.js`・新着はリアルタイム）と「通知してもらえる操作の一覧」（cp-proxy の `Master/NotifiableOperations/GetList`）。**読み取り専用の方針は維持**。手順は `docs/サイバーポート連携-Webhook.md`、引き継ぎは `docs/引き継ぎ-サイバーポート連携-2026-11-11.md`。試験：`cp-webhook-test.mjs`・`cp-notify-test.js`・`scripts/sql-tests/cp-events-sql-test.sh`。cp-webhook の貼り付け用は `node scripts/cp-tests/build-edge-single.mjs cp-webhook`（cp-proxy は `build-cp-proxy-single.mjs`）。ONE の EDIFACT 受信が Webhook の対象かは未確認（なければ ParseEdifacts の取得 API で読む）。
+
+## 🧭 ダッシュボード上部・案件カードの調整（Design 23・2026-11）
+
+Design 23 の回答を反映：カードは 2 行に圧縮（緊急は 1 行目の札・左の線は 1 本・作業者の行は丸アイコン＋作成／更新・申し送りは右端の開閉）、上部は範囲のセグメント／セレクト・絞り込みパネルに見出しラベルと［リセット］［N 件を見る］、スマホ幅は［新規］［⋯］を同じ行・4 つの道具を 1 行・ランキングは「表示」の中（`#dtRankBtn2`）。複数の航路は主航路＋「+N ルート」のポップアップまで（航路データ `z2-routes-data` に区間ごとのモード・ETD・集荷／配送・採用案の概念が無いため、区間ごとのキャリア表示・案の切替は未実装）。テストは `dash-top-test.js`（スマホ幅はランキングを `#dtViewBtn`→`#dtRankBtn2` で開く）。

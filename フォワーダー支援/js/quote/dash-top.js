@@ -41,6 +41,7 @@
     const bar = document.createElement('div'); bar.id = 'dtBar'; bar.className = 'dt-bar';
     bar.innerHTML =
       '<label class="dt-scope" id="dtScopeWrap"><span class="dt-sr">案件の範囲</span><select id="dtScope" aria-label="案件の範囲"></select></label>' +
+      '<div class="dt-scope-seg" id="dtScopeSeg" role="group" aria-label="案件の範囲" hidden></div>' +
       '<div class="dt-search-slot" id="dtSearchSlot"></div>' +
       '<div class="dt-pop-wrap"><button type="button" class="dt-btn" id="dtTagBtn" aria-haspopup="true" aria-expanded="false">🏷 タグ <span class="dt-n" id="dtTagN" hidden></span> ▾</button>' +
         '<div class="dt-pop dt-sheet" id="dtTagPop" role="dialog" aria-label="タグで絞り込み" hidden></div></div>' +
@@ -59,8 +60,16 @@
     const sort = tools.querySelector('.qpd-sort'); if (sort) $('dtViewSlot').appendChild(sort);
     const seg = tools.querySelector('.qpd-view-seg'); if (seg) $('dtViewSlot').appendChild(seg);
     const link = $('qpdLinkModeBtn'); if (link) $('dtViewSlot').appendChild(link);
+    $('dtViewSlot').insertAdjacentHTML('beforeend', '<button type="button" class="dt-btn dt-rank-in" id="dtRankBtn2">🏆 ランキング</button>');
     $('dtViewSlot').insertAdjacentHTML('beforeend', '<div class="dt-pop-foot"><button type="button" class="dt-btn dt-primary" data-dt-close>閉じる</button></div>');
-    $('dtFilterSlot').insertAdjacentHTML('beforeend', '<div class="dt-pop-foot"><button type="button" class="dt-btn dt-primary" data-dt-close>この条件で見る</button></div>');
+    // 項目は縦に並べ、ラベルは上（元の入力欄は移すだけ）。下に固定バー［リセット］［N 件を見る］
+    ['qpdFilterMode', 'qpdFilterInco', 'qpdFilterPol', 'qpdFilterPod', 'qpdFilterCarrier'].forEach(id => {
+      const el = $(id); if (!el || el.previousElementSibling && el.previousElementSibling.classList.contains('dt-flbl')) return;
+      const txt = el.tagName === 'SELECT' ? (el.options[0] ? el.options[0].text.replace(/[：:].*$/, '') : '') : (el.getAttribute('placeholder') || '');
+      el.insertAdjacentHTML('beforebegin', '<span class="dt-flbl">' + esc(txt) + '</span>');
+    });
+    const advClr = $('dtFilterSlot').querySelector('.qpd-adv-clear'); if (advClr) advClr.classList.add('dt-hide');
+    $('dtFilterSlot').insertAdjacentHTML('beforeend', '<div class="dt-pop-foot dt-bar2"><button type="button" class="dt-btn" id="dtFilterReset">リセット</button><button type="button" class="dt-btn dt-primary" id="dtFilterSee" data-dt-close>件を見る</button></div>');
 
     wire();
     refresh();
@@ -104,10 +113,12 @@
       const t = document.querySelector('#qpdStats .qpd-stat--' + c.dataset.dtTile); if (t) t.click();
     });
     $('dtRankBtn').addEventListener('click', e => { e.stopPropagation(); toggleRank(); });
+    $('dtRankBtn2').addEventListener('click', e => { e.stopPropagation(); closeAll(null); toggleRank(true); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && root().classList.contains('dt-rank-open')) toggleRank(false); });
     document.addEventListener('click', e => { if (root().classList.contains('dt-rank-open') && !e.target.closest('#qpdSide, #dtRankBtn')) toggleRank(false); });
     const sideClose = document.createElement('button'); sideClose.type = 'button'; sideClose.className = 'dt-x dt-side-x'; sideClose.setAttribute('aria-label', '閉じる'); sideClose.textContent = '✕';
     sideClose.addEventListener('click', () => toggleRank(false)); const side = $('qpdSide'); if (side) side.prepend(sideClose);
+    $('dtScopeSeg').addEventListener('click', e => { const b = e.target.closest('[data-dt-scope]'); if (b && typeof window.cloudFilterScope === 'function') window.cloudFilterScope(b.dataset.dtScope); });
     $('dtScope').addEventListener('change', e => { if (typeof window.cloudFilterScope === 'function') window.cloudFilterScope(e.target.value); });
     // タグのパネル
     $('dtTagPop').addEventListener('click', onTagClick);
@@ -122,6 +133,7 @@
     });
     $('dtSelTags').addEventListener('click', onTagClick);
     // 絞り込み欄は入力のたびに件数バッジを更新
+    $('dtFilterReset').addEventListener('click', e => { e.stopPropagation(); if (typeof window.qpdClearAdv === 'function') window.qpdClearAdv(); schedule(); });
     $('dtFilterPop').addEventListener('input', schedule);
     $('dtFilterPop').addEventListener('change', schedule);
   }
@@ -220,20 +232,25 @@
     $('dtBadges').innerHTML = bd.join('');
     // 範囲（select）
     const chipsS = [...document.querySelectorAll('#qpdScope .qpd-scope-chip')];
-    const sc = $('dtScope'), wrap = $('dtScopeWrap');
-    if (sc && wrap) {
-      wrap.hidden = !chipsS.length;
-      sc.innerHTML = chipsS.map(c => {
+    const sc = $('dtScope'), wrap = $('dtScopeWrap'), seg = $('dtScopeSeg');
+    if (sc && wrap && seg) {
+      const opts = chipsS.map(c => {
         const m = /cloudFilterScope\('([^']*)'\)/.exec(c.getAttribute('onclick') || ''); const v = m ? m[1] : '';
         const lab = (c.firstChild ? c.firstChild.textContent : '').trim(), n = (c.querySelector('.cloud-chip-n') || {}).textContent || '';
-        return '<option value="' + esc(v) + '"' + (c.classList.contains('is-active') ? ' selected' : '') + '>' + esc(lab + ' ' + n) + '</option>';
-      }).join('');
+        return { v, lab, n, on: c.classList.contains('is-active') };
+      });
+      // 選択肢が 1 つなら出さない／2 つなら小さな切替／3 つ以上は select
+      wrap.hidden = opts.length < 3; seg.hidden = opts.length !== 2;
+      sc.innerHTML = opts.map(o => '<option value="' + esc(o.v) + '"' + (o.on ? ' selected' : '') + '>' + esc(o.lab + ' ' + o.n) + '</option>').join('');
+      seg.innerHTML = opts.length === 2 ? opts.map(o => '<button type="button" class="' + (o.on ? 'is-on' : '') + '" data-dt-scope="' + esc(o.v) + '">' + esc(o.lab) + '<span class="dt-n2">' + esc(o.n) + '</span></button>').join('') : '';
     }
     // タグ・絞り込みのバッジ
     renderSelTags();
     if ($('dtTagPop') && !$('dtTagPop').hidden) renderTagPop(document.activeElement && document.activeElement.id === 'dtTagSearch');
     const adv = ['qpdFilterMode', 'qpdFilterInco', 'qpdFilterPol', 'qpdFilterPod', 'qpdFilterCarrier'].filter(id => { const e = $(id); return e && String(e.value || '').trim(); }).length;
     const fn = $('dtFilterN'); if (fn) { fn.hidden = !adv; fn.textContent = adv; }
+    const see = $('dtFilterSee'); if (see) see.textContent = window.cloudTagState().shown + ' 件を見る';
+    const rs2 = $('dtFilterReset'); if (rs2) rs2.disabled = !adv;
   }
 
   window.dtRefresh = schedule;

@@ -997,7 +997,7 @@
         ? '<b class="cc3-cust is-link" role="button" tabindex="0" title="' + escHtml(name) + '（クリックでお客様の詳細）" onclick="event.stopPropagation();dashShowCustomerDetail(\'' + encodeURIComponent(name).replace(/'/g, '%27') + '\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.click();}">' + escHtml(name) + '</b>'
         : '<b class="cc3-cust" title="' + escHtml(name) + '">' + escHtml(name) + '</b>')
         : '<b class="cc3-cust is-empty">（お客様未入力）</b>') +
-      (personH ? '<span class="cc3-person" title="' + escHtml(personH) + '">' + escHtml(personH) + '</span>' : '') +
+      (personH ? '<span class="cc3-person" title="' + escHtml(personH) + '">' + escHtml(personH) + '</span>' : '<span class="cc3-person is-empty">（担当者なし）</span>') +
       (via ? '<span class="cc3-via" title="経由する同業者：' + escHtml(via) + '">↳ 経由：' + escHtml(via) + '</span>' : '') +
     '</div>';
   }
@@ -1011,12 +1011,12 @@
       if (!people[idx[email]].roles.includes(role)) people[idx[email]].roles.push(role);
     };
     add(r.created_by, '作成');
-    _editorsOf(r).forEach(e => add(e.email, '更新'));
+    _editorsOf(r).forEach(e => { if (e.email !== r.created_by) add(e.email, '更新'); });   // 名前ごとにラベルは 1 つだけ（作成者が更新もしていれば「作成」のみ）
     if (!people.length) return '';
     return '<div class="cc3-who"><span class="cc3-who-l">作業者</span>' + people.map(p => {
       const nm = _nameFor(p.email) || p.email, a = _avatarFor(p.email, nm);
-      return '<span class="cc3-p" title="' + escHtml(p.email) + '"><span class="cc3-av" style="background:' + a.color + '">' + escHtml(a.label || '?') + '</span>' +
-        '<b>' + escHtml(nm) + '</b><small>' + escHtml(p.roles.join('・')) + (p.email === me ? '・あなた' : '') + '</small></span>';
+      return '<span class="cc3-p' + (p.email === me ? ' is-me' : '') + '" title="' + escHtml(p.email + (p.email === me ? '（あなた）' : '')) + '"><span class="cc3-av" style="background:' + a.color + '">' + escHtml(a.label || '?') + '</span>' +
+        '<b>' + escHtml(nm) + '</b><small>' + escHtml(p.roles[0]) + '</small></span>';
     }).join('') + '</div>';
   }
   // お客様名。マスターに登録済みなら押せるボタンにし、押すとその場でお客様詳細（担当者・連絡先・取引形態・添付など）を
@@ -1184,7 +1184,7 @@
         : ((pol || pod) ? [pol, pod].filter(Boolean).map(escHtml).join(' <span class="cloud-kv-arrow">→</span> ') : '');
       const condHtml =
         ((inco && inco !== '設定なし') ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(String(inco).split('（')[0]) + '</span>' : '') +
-        (mode ? '<span class="cloud-tag cloud-tag-mode">' + escHtml(mode) + '</span>' : '');
+        (mode ? '<span class="cloud-tag cloud-tag-mode" data-m="' + (/航空|AIR/i.test(mode) ? 'air' : /陸|トラック|TRUCK/i.test(mode) ? 'land' : 'sea') + '">' + escHtml(mode) + '</span>' : '');
       const personH = person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(person) : person);
       const custDd = _custDealChip(customer) + [customer && _custNameHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
       const titleText = (m && m.ref) ? m.ref : r.name;   // 見出しは仮REF#のみ（顧客/担当は下に別掲）
@@ -1308,12 +1308,28 @@
       const tagsRowHtml =
         '<div class="cloud-preset-tags">' +
           rowTags.map((t, ti) =>
-            '<span class="cloud-tag-chip' + (_isUrgentTag(t) ? ' is-urgent' : '') + '">' + (_isUrgentTag(t) ? '🚨 ' : '🏷️ ') + escHtml(t) +
+            '<span class="cloud-tag-chip' + (_isUrgentTag(t) ? ' is-urgent' : '') + (!_isUrgentTag(t) && rowTags.filter(x => !_isUrgentTag(x)).indexOf(t) >= 3 ? ' cc3-tag-x' : '') + '">' + (_isUrgentTag(t) ? '🚨 ' : '🏷️ ') + escHtml(t) +
               '<button type="button" onclick="event.stopPropagation();cloudRemoveTag(\'' + idAttr + '\',' + ti + ')" title="このタグを外す">×</button>' +
             '</span>'
           ).join('') +
+          (rowTags.filter(x => !_isUrgentTag(x)).length > 3 ? '<button type="button" class="cc3-tag-more" onclick="event.stopPropagation();cc3ToggleTags(this)" data-n="' + (rowTags.filter(x => !_isUrgentTag(x)).length - 3) + '">+' + (rowTags.filter(x => !_isUrgentTag(x)).length - 3) + '</button>' : '') +
           '<button type="button" class="cloud-tag-add-btn" onclick="event.stopPropagation();cloudAddTag(\'' + idAttr + '\')" title="タグを追加">＋ タグ</button>' +
         '</div>';
+      // 🚨 緊急は 1 行目の札に出す（外す操作はここ 1 か所）
+      const _urgIdx = rowTags.findIndex(_isUrgentTag);
+      const urgentPill = _urgIdx >= 0
+        ? '<button type="button" class="cc3-urgent" onclick="event.stopPropagation();cc3RemoveUrgent(\'' + idAttr + '\',' + _urgIdx + ')" title="緊急の印を外す">🚨 ' + escHtml(String(rowTags[_urgIdx]).replace(/^🚨\s*/, '')) + ' ✕</button>' : '';
+      // 主ルート 1 本（3 地点まで全部／4 地点以上は中間を省略）＋「＋N」（複数の航路があるとき）
+      const _rts = (routeMeta.routes || []).filter(x => x.pol || x.pod);
+      let route2 = '';
+      if (_rts.length) {
+        const m0 = _rts[0], via = String(m0.via || '').split(/[,、／\/→>]+/).map(x => x.trim()).filter(Boolean);
+        const pts = [m0.pol].concat(via, [m0.pod]).filter(Boolean);
+        const shown = pts.length <= 3 ? pts : [pts[0], '…（経由 ' + (pts.length - 2) + '）', pts[pts.length - 1]];
+        route2 = '<dd data-kv="route2" class="cc3-route2"><b>' + shown.map(escHtml).join(' <span class="cloud-kv-arrow">→</span> ') + '</b>' +
+          (m0.carrier ? ' <span class="cc3-rt-car">🚢 ' + escHtml(m0.carrier) + '</span>' : '') +
+          (_rts.length > 1 ? ' <button type="button" class="cc3-rt-more" onclick="event.stopPropagation();cc3ShowRoutes(\'' + idAttr + '\',this)" title="ほかの航路を見る">＋' + (_rts.length - 1) + ' ルート</button>' : '') + '</dd>';
+      }
 
       const linkChk = _cloudLinkMode
         ? '<input type="checkbox" class="cloud-link-chk" onclick="event.stopPropagation();cloudToggleLinkSel(\'' + idAttr + '\')"' +
@@ -1329,6 +1345,7 @@
             statusBadge +
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + selfGenBadge + '</span>' +
             '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
+            urgentPill +
           '</div>' +
           parentLine +
           relRowHtml +
@@ -1340,8 +1357,10 @@
           (memoLine ? '<div class="cloud-card-memo" title="' + escHtml(memoLine) + '">' + escHtml(memoLine) + '</div>' : '') +
           editBadge +
           progressHtml +
+          '<div class="cc3-row2">' +
           '<dl class="cloud-kv">' +
             (route    ? '<dt data-kv="route">ルート</dt><dd data-kv="route">' + route + '</dd>' : '') +
+            route2 +
             (condHtml ? '<dt data-kv="cond">条件</dt><dd data-kv="cond" class="cloud-kv-tags">' + condHtml + '</dd>' : '') +
             (carrier  ? '<dt data-kv="carrier">幹線</dt><dd data-kv="carrier">🚢 ' + escHtml(carrier) + '</dd>' : '') +
             (subHtml  ? '<dt data-kv="sub">サブコン</dt><dd data-kv="sub" class="cloud-kv-sub">' + subHtml + '</dd>' : '') +
@@ -1349,9 +1368,11 @@
             '<dt data-kv="who">作成 / 更新</dt><dd data-kv="who" class="cloud-kv-who">' + whoDd + '</dd>' +
           '</dl>' +
           tagsRowHtml +
+          '</div>' +
           copiedFromHtml +
           linksSection +
           _cc3Who(r) +
+          (sd ? '' : chatFooter) +
           '<div class="cloud-card-foot">' +
             '<span class="cloud-card-who" title="' + escHtml(_whoTitle(r)) + '">🕒 ' + ts + '</span>' +
             '<div class="cloud-card-acts">' +
@@ -1367,7 +1388,7 @@
             '</div>' +
           '</div>' +
           '</div>' +
-          chatFooter +
+          (sd ? chatFooter : '') +
         '</div>';
     }
     // モーダル一覧：開いているときだけ全件ビルド（閉じている間の無駄な全件描画を避ける。
@@ -1406,32 +1427,56 @@
   // 「⋯」メニュー（かんたん表示のみ表示。項目は従来のボタンと同じ処理を呼ぶ）。開閉は js/ui-mode.js
   function _cardMenuHtml(idAttr, lockedBy, opt) {
     opt = opt || {};
-    const extra =
-      '<button type="button" role="menuitem" class="cloud-menu-item cc3-mi" onclick="uiCloseMenus();cloudAddTag(\'' + idAttr + '\')">🏷 タグを追加</button>' +
-      '<button type="button" role="menuitem" class="cloud-menu-item cc3-mi" onclick="uiCloseMenus();dashOpenCardChat(\'' + idAttr + '\')">💬 申し送り</button>' +
-      (opt.hold ? '<button type="button" role="menuitem" class="cloud-menu-item cc3-mi" onclick="uiCloseMenus();cloudToggleHoldReminder(\'' + idAttr + '\',' + (!opt.hold.off) + ')">' + (opt.hold.off ? '🔔 リマインドを再開' : '🔕 リマインド止める') + '</button>' : '') +
-      (lockedBy ? '' : '<button type="button" role="menuitem" class="cloud-menu-item cc3-mi" onclick="uiCloseMenus();cloudEditFollow(\'' + idAttr + '\')">🔔 料金フォロー</button>') +
-      '<div class="cloud-menu-sep cc3-mi" role="separator"></div>';
+    const mi = (js, label, cls, small) => '<button type="button" role="menuitem" class="cloud-menu-item' + (cls ? ' ' + cls : '') + '" onclick="uiCloseMenus();' + js + '">' + label + (small ? '<small>' + small + '</small>' : '') + '</button>';
+    const sep = '<div class="cloud-menu-sep" role="separator"></div>';
     return '<span class="cloud-menu">' +
       '<button type="button" class="cloud-menu-btn" aria-label="その他の操作" aria-haspopup="menu" aria-expanded="false" onclick="event.stopPropagation();uiToggleMenu(this)">⋯</button>' +
       '<div class="cloud-menu-panel" role="menu" hidden onclick="event.stopPropagation()">' +
-        extra +
-        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPreviewPreset(\'' + idAttr + '\')">プレビュー</button>' +
-        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPdfPreset(\'' + idAttr + '\')">PDF を出力</button>' +
-        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudDuplicatePreset(\'' + idAttr + '\')">コピーして新規作成</button>' +
-        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudCreateSubPreset(\'' + idAttr + '\')">🌱 サブ案件を作成<small>この案件をコピーして、サブとして関連付けます</small></button>' +
-        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPickPredecessor(\'' + idAttr + '\')">🧬 代替わり元を設定…<small>前の案件を選んで、代替わり（世代）をつなぐ</small></button>' +
-        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();eiOpenStoreForCard(\'' + idAttr + '\')">📝 自由入力を追加<small>この案件に、提示した見積の原文を保管します</small></button>' +
-        '<div class="cloud-menu-sep" role="separator"></div>' +
+        mi("cloudPreviewPreset(\'" + idAttr + "\')", 'プレビュー') +
+        mi("cloudPdfPreset(\'" + idAttr + "\')", 'PDF を出力') +
+        mi("cloudDuplicatePreset(\'" + idAttr + "\')", 'コピーして新規作成') +
+        mi("cloudCreateSubPreset(\'" + idAttr + "\')", '🌱 サブ案件を作成', '', 'この案件をコピーして、サブ案件として関連付ける') +
+        sep +
+        mi("cloudAddTag(\'" + idAttr + "\')", '🏷 タグを追加', 'cc3-mi') +
+        (opt.hold ? mi("cloudToggleHoldReminder(\'" + idAttr + "\'," + (!opt.hold.off) + ")", opt.hold.off ? '🔔 リマインドを再開' : '🔕 リマインド止める', 'cc3-mi') : '') +
+        (lockedBy ? '' : mi("cloudEditFollow(\'" + idAttr + "\')", '🔔 料金フォロー', 'cc3-mi')) +
+        mi("dashOpenCardChat(\'" + idAttr + "\')", '💬 申し送りを開く', 'cc3-mi') +
+        mi("cloudPickPredecessor(\'" + idAttr + "\')", '🧬 代替わり元を設定…', '', '前の案件を選ぶ') +
+        mi("eiOpenStoreForCard(\'" + idAttr + "\')", '📝 自由入力を追加', '', 'この案件に、提示した見積の原文を足す') +
+        (lockedBy && window._myRole === 'admin' ? sep + mi("cloudAdminReleaseLock(\'" + idAttr + "\')", '🔓 強制解放（管理者）', 'cloud-menu-admin') : '') +
+        sep +
         (lockedBy
-          ? '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-danger is-locked" disabled>削除…<small>' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません</small></button>' +
-            (window._myRole === 'admin'
-              ? '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-admin" onclick="uiCloseMenus();cloudAdminReleaseLock(\'' + idAttr + '\')">🔓 強制解放（管理者）<small>' + escHtml(_nameFor(lockedBy)) + ' さんの作業中を解除します</small></button>'
-              : '')
-          : '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-danger" onclick="uiCloseMenus();cloudDeletePreset(\'' + idAttr + '\')">削除…</button>') +
+          ? '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-danger is-locked" disabled>削除…<small>' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません</small></button>'
+          : mi("cloudDeletePreset(\'" + idAttr + "\')", '削除…', 'cloud-menu-danger')) +
       '</div>' +
     '</span>';
   }
+  window.cc3ToggleTags = function (btn) {
+    const box = btn.closest('.cloud-preset-tags'); if (!box) return;
+    const open = box.classList.toggle('is-open');
+    btn.textContent = open ? '▲ 閉じる' : '+' + btn.dataset.n;
+  };
+  window.cc3RemoveUrgent = async function (idAttr, idx) {
+    const ok = typeof window.uiConfirm === 'function' ? await window.uiConfirm({ title: '緊急の印を外しますか？', lines: ['この案件の「緊急」のタグを外します。'], okLabel: '外す' }) : true;
+    if (ok) cloudRemoveTag(idAttr, idx);
+  };
+  window.cc3ShowRoutes = function (idAttr, btn) {
+    const id = decodeURIComponent(idAttr), r = _cloudRows.find(x => x.id === id); if (!r) return;
+    const m = window.quotePresetMeta && r.data ? window.quotePresetMeta({ data: r.data }) : null;
+    const list = ((m && m.routes) || []).filter(x => x.pol || x.pod);
+    document.querySelectorAll('.cc3-rt-pop').forEach(e => e.remove());
+    const pop = document.createElement('div'); pop.className = 'cc3-rt-pop'; pop.setAttribute('role', 'dialog');
+    pop.innerHTML = '<div class="cc3-rt-pop-h"><b>航路（' + list.length + '）</b><button type="button" aria-label="閉じる">✕</button></div>' + list.map((x, i) =>
+      '<div class="cc3-rt-row' + (i === 0 ? ' is-main' : '') + '">' + (i === 0 ? '<span class="cc3-rt-tag">表示中</span>' : '') +
+      '<b>' + [x.pol].concat(String(x.via || '').split(/[,、／\/→>]+/).map(y => y.trim()).filter(Boolean), [x.pod]).filter(Boolean).map(escHtml).join(' → ') + '</b>' +
+      (x.carrier ? '<span>🚢 ' + escHtml(x.carrier) + '</span>' : '') + '</div>').join('');
+    document.body.appendChild(pop);
+    const rc = btn.getBoundingClientRect();
+    pop.style.top = Math.max(8, Math.min(innerHeight - pop.offsetHeight - 8, rc.bottom + 6)) + 'px'; pop.style.left = Math.max(8, Math.min(innerWidth - pop.offsetWidth - 8, rc.left)) + 'px';
+    const close = () => { pop.remove(); document.removeEventListener('click', away, true); };
+    const away = e => { if (!pop.contains(e.target)) close(); };
+    pop.querySelector('button').onclick = close; setTimeout(() => document.addEventListener('click', away, true), 0);
+  };
 
   // ダッシュボード：リスト（行）表示の1行
   // 🌳 メイン／サブの印（カード・リスト共通）。深さ＝サブなら 1 以上
