@@ -1,0 +1,90 @@
+/* 案件カード（詳細表示）の整理（Design 21「C-3＋取引形態 案2」・2026-11）。ダッシュボードの #qpdListWrap の詳細表示だけ。
+   カードの DOM は変えず、左のお客様ブロック（.cc3-left）と作業者の行（.cc3-who）を足して、CSS のグリッドで並べ替える。 */
+.cc3-left, .cc3-who { display: none; }
+
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card { display: block; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card > .cloud-card-chat { margin: 0; padding: 4px 16px 8px; border: 0; border-top: 1px solid var(--border, #e2e6ec); border-radius: 0; flex: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card.cloud-card-labeled { padding: 0; overflow: hidden; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card > .cloud-card-main { padding: 0; }
+
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-main {
+  display: grid; grid-template-columns: 230px minmax(0, 1fr) auto auto; column-gap: 0; align-items: center;
+}
+/* 左：お客様ブロック（取引形態の色）*/
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left {
+  display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; box-sizing: border-box;
+  grid-column: 1; grid-row: 1 / span 4; align-self: stretch; padding: 12px 16px;
+  border-left: 4px solid var(--border-md, #c8cfd9); background: var(--bg, #f6f7f9); border-right: 1px solid var(--border, #e2e6ec);
+}
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-lbl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: var(--text-xs, 12px); color: var(--text-muted, #667); font-weight: 600; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-kind { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; font-size: var(--text-xs, 12px); font-weight: 700; color: #fff; background: #667085; white-space: nowrap; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-cust { font-size: var(--text-xl, 18px); line-height: 1.35; display: -webkit-box !important; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-cust.is-empty { font-size: var(--text-sm, 13px); color: var(--text-muted, #667); font-weight: 500; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-cust.is-link { cursor: pointer; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-cust.is-link:hover { text-decoration: underline; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-person { font-size: var(--text-base, 14px); color: var(--text-md, #475467); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-via { font-size: var(--text-xs, 12px); color: #9a4d0a; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 取引形態の色（マスター管理の一覧と同じ）：左端の太い線＋薄い背景、札は濃い色・白文字。乙仲はマスター管理と同じ青緑 */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="ship"] { background: #e3edfb; border-left-color: #2f5fb3; } html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="ship"] .cc3-kind { background: #2f5fb3; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="fwd"] { background: #fdebd8; border-left-color: #d9822b; } html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="fwd"] .cc3-kind { background: #d9822b; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="agent"] { background: #eee6fb; border-left-color: #7c52d1; } html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="agent"] .cc3-kind { background: #7c52d1; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="otsu"] { background: #eaf6f4; border-left-color: #2f8f83; } html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="otsu"] .cc3-kind { background: #2f8f83; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="other"] .cc3-kind { background: #667085; }
+
+/* 右・1 行目：ステータス・案件番号・コピー・案件名 …｜進捗の帯｜読込・⋯ */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-row1 { grid-column: 2; grid-row: 1; padding: 12px 8px 4px 16px; min-width: 0; flex-wrap: wrap; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-row1 .cloud-card-name { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress { grid-column: 3; grid-row: 1; padding: 12px 8px 4px; margin: 0; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-bar { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-steps { display: flex; gap: 4px; flex-wrap: nowrap; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-step { font-size: var(--text-xs, 12px); padding: 4px 8px; min-height: 28px; box-sizing: border-box; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-foot { display: contents; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts { grid-column: 4; grid-row: 1; display: flex; gap: 6px; align-items: center; padding: 12px 16px 4px 4px; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts > :not(.btn-preset-load):not(.cloud-menu) { display: none !important; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .cloud-menu { display: inline-block; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .cloud-menu-btn { min-width: 44px; min-height: 36px; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .btn-preset-load .lbl-s { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .btn-preset-load .lbl-d { display: inline; }
+/* 右・2 行目：条件・モード・ルート・幹線 … 更新日時 */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv { grid-column: 2; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 4px 8px 4px 16px; margin: 0; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dt { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd { margin: 0; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="cond"] { order: 1; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="route"] { order: 2; font-weight: 600; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="carrier"] { order: 3; font-size: var(--text-sm, 13px); color: var(--text-md, #475467); }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="sub"] { order: 4; flex-basis: 100%; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="cust"],
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="who"] { display: none; }   /* 左のお客様ブロックと下の作業者の行へ移した */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-who { grid-column: 3 / span 2; grid-row: 2; justify-self: end; padding: 4px 16px 4px 0; font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
+/* 札（締切・受信から N 日・未取込など）。リマインド止める・料金フォロー（未設定）は「⋯」の中へ */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-prio { grid-column: 2 / span 3; grid-row: 3; padding: 4px 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-prio .cloud-hold-toggle,
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-prio .cloud-follow-set { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-preset-tags { grid-column: 2 / span 3; grid-row: 4; padding: 4px 16px 8px; margin: 0; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-memo { grid-column: 2 / span 3; padding: 0 16px 6px; }
+/* その下：関連・コピー元・同時編集などは全幅 */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-main > :is(.cloud-card-parentline, .cloud-ref-tree, .cloud-card-editing, .cloud-copied-from, .cloud-card-links, .qv-card-badge) { grid-column: 1 / -1; margin-left: 16px; margin-right: 16px; }
+/* 下：作業者の 1 行 */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-who {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; grid-column: 1 / -1; padding: 8px 16px; box-sizing: border-box;
+  background: var(--bg, #f6f7f9); border-top: 1px dashed var(--border-md, #c8cfd9);
+}
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-who-l { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); font-weight: 600; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-p { flex: none; width: max-content; max-width: none; overflow: visible; display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 12px 0 4px; border-radius: 999px; background: var(--surface, #fff); border: 1px solid var(--border-md, #c8cfd9); white-space: nowrap; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-av { width: 26px; height: 26px; border-radius: 50%; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-sm, 13px); font-weight: 700; flex: none; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-p b { font-size: var(--text-sm, 13px); } #tab-quote-make #qpDashboard #qpdListWrap .cc3-p small { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
+
+/* ---- スマホ（〜600px）：左ブロックを上段、次に 1 行目…、進捗の帯は 1 行、読込・⋯ は右下 ---- */
+@media (max-width: 600px) {
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-main { grid-template-columns: minmax(0, 1fr) auto; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left { grid-column: 1 / -1; grid-row: auto; border-right: 0; border-bottom: 1px solid var(--border, #e2e6ec); }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-row1 { grid-column: 1 / -1; grid-row: auto; padding-left: 16px; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv { grid-column: 1 / -1; grid-row: auto; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-prio,
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-preset-tags { grid-column: 1 / -1; grid-row: auto; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress { grid-column: 1; grid-row: auto; padding: 8px 8px 8px 16px; overflow-x: auto; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-step { min-height: 44px; display: inline-flex; align-items: center; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts { grid-column: 2; grid-row: auto; padding: 8px 12px 8px 0; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .btn-preset-load, html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .cloud-menu-btn { min-height: 44px; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-who { grid-column: 1 / -1; grid-row: auto; justify-self: start; padding: 0 16px 8px; }
+}

@@ -106,3 +106,19 @@
   #qpDashboard.dt-on .dt-pop-foot { position: sticky; bottom: -60px; background: var(--surface, #fff); padding-top: 8px; }
   #qpDashboard.dt-on { padding-bottom: 72px; }
 }
+
+/* ---- ランキング：右から出るパネル（Design 21）。一覧は横いっぱいに使う ---- */
+#qpDashboard.dt-on .qpd-body { display: block; }
+#qpDashboard.dt-on .qpd-side {
+  display: none !important; position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 94vw); max-height: none; z-index: 1260; box-sizing: border-box;
+  padding: 12px 14px 80px; overflow-y: auto; background: var(--surface, #fff); box-shadow: -10px 0 28px rgba(0, 0, 0, .22);
+}
+#qpDashboard.dt-on.dt-rank-open .qpd-side { display: flex !important; flex-direction: column; }
+#qpDashboard.dt-on .dt-side-x { align-self: flex-end; flex: none; }
+#qpDashboard.dt-on .dt-btn.is-open { background: var(--accent-lt, #eef3f8); border-color: var(--accent, #416180); }
+#qpDashboard.dt-on .qpd-rank-name { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 600px) {
+  #qpDashboard.dt-on .qpd-side { top: auto; left: 0; width: auto; max-height: 82vh; border-radius: 16px 16px 0 0; }
+  body.dt-rank-body::after { content: ''; position: fixed; inset: 0; background: rgba(16, 24, 40, .45); z-index: 1200; }
+  #qpDashboard.dt-on .dt-bar { grid-template-columns: 1fr 1fr; }
+}

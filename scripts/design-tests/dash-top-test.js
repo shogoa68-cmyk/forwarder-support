@@ -13,7 +13,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const ctx = await b.newContext({ viewport: { width: W, height: 900 }, locale: 'ja-JP', hasTouch: mobile, isMobile: mobile });
   await ctx.addInitScript(({ th }) => {
     try { localStorage.setItem('fwd.uiMode', 'detail'); localStorage.setItem('forwarderTheme_v1', JSON.stringify(th === 'classic' ? { site: false, doc: false } : { site: true, doc: true })); } catch (e) {}
-    const mk = (id, st, tags, extra) => Object.assign({ id, name: '案件' + id, status: st, customer: 'X社', created_by: 'me@x.com', owner_email: 'me@x.com', updated_at: '2026-11-10T00:00:00Z', ref: 'R-' + id, tags, data: { rows: [], fields: { 'qf-status': st } } }, extra || {});
+    const mk = (id, st, tags, extra) => Object.assign({ id, name: '案件' + id, status: st, customer: id === '2' ? '丸山物流 株式会社 とても長い名前のお客様ですよ' : 'X社', person: '山田', editors: [{ email: 'me@x.com', at: '2026-11-10T00:00:00Z', count: 2 }, { email: 'sub@x.com', at: '2026-11-09T00:00:00Z', count: 1 }], created_by: 'me@x.com', owner_email: 'me@x.com', updated_at: '2026-11-10T00:00:00Z', ref: 'R-' + id, tags, data: { rows: [], fields: { 'qf-status': st, 'qf-customer': id === '2' ? '丸山物流 株式会社 とても長い名前のお客様ですよ' : 'X社', 'qf-person': '山田' } } }, extra || {});
     const T = n => Array.from({ length: n }, (_, i) => 'タグ' + String.fromCharCode(65 + i));
     const rows = [
       mk('1', '下書き中', ['インド', '緊急']), mk('2', '改定中', ['インド']), mk('3', '情報待ち', ['緊急']), mk('4', '提出済み', ['インド', '緊急', '大口']),
@@ -21,7 +21,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
       mk('10', '下書き中', T(12)), mk('11', '辞退', [], { pol: 'TOKYO' }),
       mk('12', '下書き中', [], { data: { rows: [], fields: { 'qf-status': '下書き中', 'qf-free-entries': JSON.stringify([{ id: 'e1', text: 'メモ', status: 'pending', at: '2026-11-01', by: 'me@x.com' }]) } } }),
     ];
-    const db = { quote_presets: rows, quote_preset_links: [], allowed_emails: [{ email: 'me@x.com', role: 'admin', member_no: 1 }], user_profiles: [], quote_comments: [], master_votes: [], synonym_groups: [], master_details: [], alias_rules: [], organizations: [], teams: [], org_members: [], team_members: [] };
+    const db = { master_votes: [{ field: 'customer', value: 'X社', voter_email: 'me@x.com' }], master_details: [{ field: 'customer', value: 'X社', details: { dealType: '荷主（直接）' } }, { field: 'customer', value: '丸山物流 株式会社 とても長い名前のお客様ですよ', details: { dealType: '乙仲', via: '同業ABC' } }], quote_presets: rows, quote_preset_links: [], allowed_emails: [{ email: 'me@x.com', role: 'admin', member_no: 1 }], user_profiles: [], quote_comments: [], synonym_groups: [], alias_rules: [], organizations: [], teams: [], org_members: [], team_members: [] };
     const qb = t => { const st = { op: 'select', f: [] }; const api = { select() { return api; }, order() { return api; }, limit() { return api; }, not() { return api; }, is() { return api; }, ilike() { return api; }, gte() { return api; }, lte() { return api; }, neq() { return api; }, contains() { return api; }, range() { return api; }, or() { return api; },
       eq(k, v) { st.f.push(r => r[k] === v); return api; }, in(k, vs) { st.f.push(r => vs.includes(r[k])); return api; }, upsert() { return api; }, insert() { return api; }, update() { return api; }, delete() { return api; }, single() { return api; }, maybeSingle() { return api; },
       then(res, rej) { const data = (db[t] || []).filter(r => st.f.every(f => f(r))).map(r => Object.assign({}, r)); return Promise.resolve({ data, error: null }).then(res, rej); } }; return api; };
@@ -34,6 +34,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(800);
   await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1500);
   await p.evaluate(() => window.qpShowDashboard && window.qpShowDashboard()); await p.waitForTimeout(1800);
+  await p.evaluate(async () => { if (window.statsLoadMasterCache) await window.statsLoadMasterCache(); if (window.cloudRerenderDash) window.cloudRerenderDash(); }); await p.waitForTimeout(600);
   const vis = s => p.evaluate(s => { const e = document.querySelector(s); if (!e) return false; const r = e.getBoundingClientRect(), c = getComputedStyle(e); return r.width > 0 && r.height > 0 && c.display !== 'none' && c.visibility !== 'hidden'; }, s);
   const shot = async n => { if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'dt-' + (th || 'industry') + (mobile ? '-sp' : '') + '-' + n + '.png') }); };
   const cardsN = () => p.evaluate(() => window.cloudTagState().shown);   // 絞り込み後の全件数（画面は 10 件ずつ表示のため）
@@ -113,6 +114,30 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.click('#qpdViewCard'); await p.click('#dtViewPop .dt-primary'); await p.waitForTimeout(200);
   ok('Esc で閉じる', await (async () => { await p.click('#dtMoreBtn'); await p.keyboard.press('Escape'); await p.waitForTimeout(100); return !(await vis('#dtMorePop')); })());
 
+  // ---- 案件カード（C-3）----
+  await p.evaluate(() => window.qpResetAllFiltersForTest && 0);
+  ok('カード：左にお客様ブロック（取引形態の札つき）', await p.evaluate(() => { const l = document.querySelector('#qpdListWrap .cloud-card .cc3-left'); const w = l && l.getBoundingClientRect().width; return !!l && getComputedStyle(l).display !== 'none' && (innerWidth <= 600 ? w > innerWidth * 0.8 : (w >= 220 && w <= 240)); }));
+  ok('カード：お客様名・担当者が左ブロックに', await p.evaluate(() => { const l = document.querySelector('#qpdListWrap .cloud-card .cc3-left'); return /X社|丸山/.test(l.textContent) && /山田/.test(l.textContent); }));
+  ok('カード：荷主は青の札・左ブロックが色づく', await p.evaluate(() => { const c = [...document.querySelectorAll('#qpdListWrap .cc3-left[data-deal="ship"]')][0]; return !!c && getComputedStyle(c).borderLeftColor === 'rgb(47, 95, 179)' && /荷主/.test(c.querySelector('.cc3-kind').textContent); }));
+  ok('カード：乙仲はマスター管理と同じ青緑・経由する同業者を出す', await p.evaluate(() => { const c = document.querySelector('#qpdListWrap .cc3-left[data-deal="otsu"]'); return !!c && getComputedStyle(c).borderLeftColor === 'rgb(47, 143, 131)' && /経由：同業ABC/.test(c.textContent); }));
+  ok('カード：長いお客様名は 2 行まで', await p.evaluate(() => { const b = document.querySelector('#qpdListWrap .cc3-left[data-deal="otsu"] .cc3-cust'); const h = b.getBoundingClientRect().height, lh = parseFloat(getComputedStyle(b).lineHeight) || 24; return h <= lh * 2 + 2 && b.textContent.length > 20; }));
+  ok('カード：作業者の行に全員（作成・更新）', await p.evaluate(() => { const w = document.querySelector('#qpdListWrap .cloud-card .cc3-who'); return !!w && w.querySelectorAll('.cc3-p').length >= 2 && /あなた/.test(w.textContent) && getComputedStyle(w).display !== 'none'; }));
+  ok('カード：右の 1 行目に読込と「⋯」だけ（プレビュー等は隠れる）', await p.evaluate(() => { const a = document.querySelector('#qpdListWrap .cloud-card .cloud-card-acts'); const vis = [...a.children].filter(e => getComputedStyle(e).display !== 'none'); return vis.length === 2 && vis.some(e => e.classList.contains('btn-preset-load')) && vis.some(e => e.classList.contains('cloud-menu')); }));
+  ok('カード：コピーボタン（案件番号の隣）は残る', await vis('#qpdListWrap .cloud-card .btn-ref-copy'));
+  ok('カード：「⋯」にタグ・申し送り・料金フォロー・プレビュー・削除', await p.evaluate(() => { const m = document.querySelector('#qpdListWrap .cloud-card .cloud-menu-panel'); const t = m.textContent; return /タグを追加/.test(t) && /申し送り/.test(t) && /料金フォロー/.test(t) && /プレビュー/.test(t) && /削除/.test(t); }));
+  ok('カード：申し送りは畳んで置かれる', await p.evaluate(() => { const c = document.querySelector('#qpdListWrap .cloud-card .cloud-card-chat'); return !!c && c.querySelector('.ccc-panel').hasAttribute('hidden'); }));
+  ok('カード：右の列は無く、カードは横いっぱい', await p.evaluate(() => { const w = document.getElementById('qpdListWrap').getBoundingClientRect(), s = document.getElementById('qpdSide'); return getComputedStyle(s).display === 'none' && w.width > innerWidth * 0.75; }));
+  await shot('card');
+  // ---- ランキングのパネル ----
+  await p.click('#dtRankBtn'); await p.waitForTimeout(250);
+  ok('ランキング：ボタンで右から出る（お客様別・タグ別）', await vis('#qpdSide') && await vis('#qpdRankCard .qpd-rank-tab'));
+  await shot('rank');
+  const first = await p.$('#qpdRankList .qpd-rank-item'); await first.click(); await p.waitForTimeout(400);
+  ok('ランキング：お客様を押すと絞り込まれ、道具の下に「絞り込み中」', await vis('#dtSelTags') && await p.evaluate(() => /絞り込み中/.test(document.getElementById('dtSelTags').textContent)));
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  ok('ランキング：Esc で閉じる', !(await vis('#qpdSide')));
+  await p.click('#dtSelTags [data-dt-custx]'); await p.waitForTimeout(300);
+  ok('「絞り込み中」の✕で外れる', !(await vis('#dtSelTags')));
   // ---- 作業中の見積に戻る ----
   await p.evaluate(() => window.qpNewQuote()); await p.waitForTimeout(300);
   await p.evaluate(() => { const i = document.getElementById('qf-customer'); if (i) { i.value = 'テスト社'; i.dispatchEvent(new Event('input', { bubbles: true })); } });
