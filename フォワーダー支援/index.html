@@ -5030,7 +5030,8 @@
 <script src="data/countries.js"></script>
 <script src="data/port-presets.js"></script>
 <script src="data/incoterms.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- three.js はバンニング計算（3D 表示）でだけ使い、vanning3d.js は使う時点で window.THREE の有無を見る。起動時にページの読み込みを止めないよう defer -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
 <script src="js/vanning3d.js"></script>
 <script src="js/calculator.js"></script>
 <script src="js/app.js"></script>

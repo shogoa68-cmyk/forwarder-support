@@ -303,6 +303,7 @@
   //   editors の列が無い環境では目印が弱いので、5 分たった本体は取り直す。
   // 一覧の他の列（ロック状態・ステータスなど）は毎回最新を取るので、削除・ロックの反映も従来どおり。
   const _BODY_CHUNK = 40;                       // 1 回に取る本体の件数（URL が長くなりすぎないように）
+  const _BODY_PARALLEL = 6;                     // 本体の取得を同時に走らせる本数
   const _BODY_NOEDITORS_TTL = 5 * 60 * 1000;
   let _bodyCache = new Map();                   // id -> { sig, at, data }
   function _bodySig(r) {
@@ -324,17 +325,25 @@
       }
     }
     const gone = new Set();
-    for (let i = 0; i < need.length; i += _BODY_CHUNK) {
-      const part = need.slice(i, i + _BODY_CHUNK);
-      const { data: got, error } = await c.from(_table()).select('id,data').in('id', part.map(r => r.id));
-      if (error) throw error;
-      const m = new Map((got || []).map(g => [g.id, g.data]));
-      for (const r of part) {
-        if (!m.has(r.id)) { gone.add(r.id); continue; }      // 取得の合間に削除された案件
-        r.data = m.get(r.id);
-        next.set(r.id, { sig: _bodySig(r), at: now, data: r.data });
+    // チャンクごとの取得は互いに独立なので、数本ずつ並列に取る（以前は 1 本ずつ順番に待っていたため、
+    // 案件が多いと「往復の待ち時間 × チャンク数」がそのまま読み込み時間になっていた）
+    const parts = [];
+    for (let i = 0; i < need.length; i += _BODY_CHUNK) parts.push(need.slice(i, i + _BODY_CHUNK));
+    let nextPart = 0;
+    const worker = async () => {
+      while (nextPart < parts.length) {
+        const part = parts[nextPart++];
+        const { data: got, error } = await c.from(_table()).select('id,data').in('id', part.map(r => r.id));
+        if (error) throw error;
+        const m = new Map((got || []).map(g => [g.id, g.data]));
+        for (const r of part) {
+          if (!m.has(r.id)) { gone.add(r.id); continue; }      // 取得の合間に削除された案件
+          r.data = m.get(r.id);
+          next.set(r.id, { sig: _bodySig(r), at: now, data: r.data });
+        }
       }
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(_BODY_PARALLEL, parts.length) }, worker));
     _bodyCache = next;
     // 元の並び順（更新が新しい順）を保つ
     return rows.filter(r => !gone.has(r.id));
@@ -348,10 +357,11 @@
     if (wrap && !silent) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
     // 同義グループ（お客様名等の表記ゆれマッピング）を最新化してから集計する。
     // _custKey() がこのキャッシュを参照するため、ランキング描画より前に解決させる必要がある。
-    await Promise.all([
+    // ここでは待たず、案件一覧の取得と同時に走らせる（待つのは描画の直前）。以前は先に待っていたため、往復 1 回ぶん遅れていた
+    const pre = Promise.all([
       _loadProfiles(),
       (typeof window.synLoadCloud === 'function' ? window.synLoadCloud() : Promise.resolve()),
-    ]);
+    ]).catch(() => {});
     // editors（更新者履歴）・locked_by/locked_at（編集ロック）・ref（見積もり番号）・
     // tags（案件タグ）も取得。列が未マイグレーションでも動くよう、段階的にフォールバックする。
     // 一覧は「本体（data）以外の列」だけを毎回取り、本体は変わった案件の分だけ取り直す（通信量の削減。_attachBodies）。
@@ -391,6 +401,7 @@
         return;
       }
     }
+    await pre;   // 表記ゆれのマッピング（_custKey が参照）とプロフィールが揃ってから描画する
     _cloudRows = data || [];
     await _checkStaleHolds();
     _notifyPriceFollows();
