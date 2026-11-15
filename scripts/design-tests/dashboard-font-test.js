@@ -102,7 +102,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const px = s => { const e = document.querySelector(s); return e ? parseFloat(getComputedStyle(e).fontSize) : null; };
     return { sizes, stat: px('.qpd-stat-n'), cust: px('.cloud-kv-cust'), who: px('.cloud-kv-who'), name: px('.cloud-card-name'), btn: px('.btn-preset-preview'), step: px('.qp-step') };
   });
-  const lv = Object.keys(r.sizes).map(parseFloat).sort((a, b) => a - b);
+  const lv = Object.keys(r.sizes).map(parseFloat).filter(v => v > 0).sort((a, b) => a - b);   // 0px＝文字を持たない飾り（進捗インジケーターの点 .qp-step など）は数えない
   // PC は 12／13／14／16／18、スマホ幅（〜600px）は --text-* が 1 段上がる 13／14／16／17／20
   const allowed = W <= 600 ? [13, 14, 16, 17, 20] : [12, 13, 14, 16, 18];
   ok('文字サイズは 5 段だけ（' + allowed.join('／') + 'px）', lv.every(v => allowed.includes(v)), r.sizes);
@@ -112,7 +112,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('お客様名は最大の段（23px から縮めた）', r.cust === xl, r.cust);
   ok('作成・更新者は小さめの本文の段', r.who === sm, r.who);
   ok('案件名は見出しの段', r.name === lg, r.name);
-  ok('ボタン・工程バーは最小の段（10〜11px から上げた）', r.btn === xs && r.step === xs, [r.btn, r.step]);
+  ok('ボタンは最小の段（10〜11px から上げた）', r.btn === xs, r.btn);
   await b.close(); srv.close();
   console.log(fails ? '失敗 ' + fails + ' 件' : 'すべて成功');
   process.exit(fails ? 1 : 0);
