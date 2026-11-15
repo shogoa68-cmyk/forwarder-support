@@ -685,8 +685,8 @@
     };
     fill(document.getElementById('cloudFilterMode'), '輸送モード：すべて', modes, _cloudFilterMode);
     fill(document.getElementById('cloudFilterInco'), 'インコタームズ：すべて', incos, _cloudFilterInco);
-    fill(document.getElementById('qpdFilterMode'),   '輸送モード：すべて', modes, _cloudFilterMode);
-    fill(document.getElementById('qpdFilterInco'),   'インコタームズ：すべて', incos, _cloudFilterInco);
+    fill(document.getElementById('qpdFilterMode'),   'すべて', modes, _cloudFilterMode);
+    fill(document.getElementById('qpdFilterInco'),   'すべて', incos, _cloudFilterInco);
     // ダッシュボード側のテキスト系も現在値へ同期
     const setv = (id, v) => { const e = document.getElementById(id); if (e && e.value !== v) e.value = v; };
     setv('qpdFilterPol', _cloudFilterPol); setv('qpdFilterPod', _cloudFilterPod); setv('qpdFilterCarrier', _cloudFilterCarrier);
@@ -1339,6 +1339,7 @@
         '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + (_cloudLinkMode ? ' cloud-card--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') +
           (simpleDash ? _hierCls(r) : '') + '"' + (simpleDash ? _hierStyle(r) : '') + '>' +
           '<div class="cloud-card-main">' +
+          '<div class="cc3-title' + (memoLine ? '' : ' is-empty') + '" title="' + escHtml(memoLine || '（案件名なし）') + '">' + escHtml(memoLine || '（案件名なし）') + '</div>' +
           _cc3Left(customer, personH) +
           '<div class="cloud-card-row1">' +
             linkChk +
