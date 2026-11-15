@@ -72,6 +72,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('④費用の上に［すべて折りたたむ］［すべて展開］［＋ 行を追加］［📦 チャージ］', (await p.$$('#e2CostBar button')).length === 4 && await vis('#e2CostBar'));
   const nBefore = await p.evaluate(() => document.querySelectorAll('#tableBody tr:not([data-virtual])').length);
   await p.click('#e2CostBar [data-f="addRow"]'); await p.waitForTimeout(400);
+  ok('操作バーの重複（チャージ）は隠れ、行パターンは残る', !(await vis('.quote-cmdbar .cmdbar-lc-btn')) && await vis('.quote-cmdbar .cmdbar-pattern-btn'));
   ok('［＋ 行を追加］で行が 1 本増える', (await p.evaluate(() => document.querySelectorAll('#tableBody tr:not([data-virtual])').length)) > nBefore);
   await p.evaluate(() => document.activeElement && document.activeElement.blur()); await p.mouse.move(5, 5); await p.waitForTimeout(300);
   ok('明細：空のサブコン・パターン・有効期間は行を触るまで隠れる', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual])'); const hid = sel => { const e = tr.querySelector(sel); return !e || getComputedStyle(e).display === 'none'; }; return hid('.w-subcon') && hid('.w-pattern') && hid('.w-valid'); }));
