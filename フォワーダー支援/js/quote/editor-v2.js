@@ -8,7 +8,7 @@
   'use strict';
   const KEY = 'fwd.editorV2', root = document.documentElement;
   const $ = id => document.getElementById(id);
-  const SECS = { 1: ['section-ref', 'section-scope'], 2: ['section-cond'], 3: ['section-cargo', 'section-volume'], 4: ['section-table'], 5: [] };
+  const SECS = { 1: ['section-ref', 'section-scope'], 2: ['section-cond'], 3: ['section-cargo', 'section-volume'], 4: ['section-table'], 5: ['section-remark'] };
   const NAMES = { 1: '基本', 2: 'ルート', 3: '貨物・物量', 4: '費用', 5: 'リマーク・出力' };
   let step = 1, built = false, dockHome = null;
 
