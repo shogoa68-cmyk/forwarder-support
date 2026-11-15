@@ -74,3 +74,7 @@ html.editor-v2 #tab-quote-make .qrc-rail { display: none !important; }
 /* ④費用：上の e2CostBar と重なる操作（チャージ）と、小計行の追加の見出しは操作バーから外す（小計行の追加は「⋯」側・DOM は残す） */
 html.editor-v2 #tab-quote-make .quote-cmdbar .cmdbar-lc-btn,
 html.editor-v2 #tab-quote-make .quote-cmdbar .btn-group-label { display: none !important; }
+/* 明細 1 行は普段見る 8 項目（項目名・備考・数量×単位・通貨・仕入・売値・小計・粗利％）に絞る：未設定のカテゴリ・課税のチェックは行に乗せる／入力するまで隠す */
+html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) td select.w-cat[data-e2empty="1"] { display: none !important; }
+html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) td.tax-cell input[type="checkbox"]:not(:checked) { visibility: hidden; }
+html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) td .drag-handle, html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) td .row-grip { visibility: hidden; }

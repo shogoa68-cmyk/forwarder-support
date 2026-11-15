@@ -132,6 +132,7 @@
 
   // 明細行：空の「有効期間」は行にマウスを乗せる／入力するまで隠す（値があれば常に見せる）
   function tagRows() {
+    document.querySelectorAll('#tableBody select.w-cat').forEach(c => { const e = !String(c.value || '').trim(); if ((c.dataset.e2empty === '1') !== e) c.dataset.e2empty = e ? '1' : '0'; });
     document.querySelectorAll('#tableBody .w-valid').forEach(v => {
       const empty = [].every.call(v.querySelectorAll('input'), i => !String(i.value || '').trim());
       if ((v.dataset.e2empty === '1') !== empty) v.dataset.e2empty = empty ? '1' : '0';

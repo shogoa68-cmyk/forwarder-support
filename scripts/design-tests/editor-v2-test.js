@@ -76,6 +76,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('［＋ 行を追加］で行が 1 本増える', (await p.evaluate(() => document.querySelectorAll('#tableBody tr:not([data-virtual])').length)) > nBefore);
   await p.evaluate(() => document.activeElement && document.activeElement.blur()); await p.mouse.move(5, 5); await p.waitForTimeout(300);
   ok('明細：空のサブコン・パターン・有効期間は行を触るまで隠れる', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual])'); const hid = sel => { const e = tr.querySelector(sel); return !e || getComputedStyle(e).display === 'none'; }; return hid('.w-subcon') && hid('.w-pattern') && hid('.w-valid'); }));
+  ok('明細：未設定のカテゴリ・課税は隠れる', await p.evaluate(() => { const r = document.querySelector('#tableBody tr:not([data-virtual])'); const c = r.querySelector('select.w-cat'), x = r.querySelector('.tax-cell input'); return getComputedStyle(c).display === 'none' && getComputedStyle(x).visibility === 'hidden'; }));
   await p.hover('#tableBody tr:not([data-virtual]) .w-name'); await p.waitForTimeout(250);
   ok('行に乗せると出る', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual])'); return getComputedStyle(tr.querySelector('.w-subcon')).display !== 'none'; }));
   if (out) await p.screenshot({ path: path.join(out, 'e2-step4.png') });
