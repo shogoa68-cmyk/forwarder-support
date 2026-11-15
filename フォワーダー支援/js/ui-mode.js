@@ -16,6 +16,20 @@
 
   window.uiIsSimple = () => root.classList.contains('mode-simple');
 
+  // スマホ幅（〜600px）は常に詳細表示。保存値（fwd.uiMode）は変えず、PC に戻ったときはその値を使う
+  const phoneMq = window.matchMedia ? window.matchMedia('(max-width: 600px)') : null;
+  const isPhone = () => !!(phoneMq && phoneMq.matches);
+  function applyPhoneRule() {
+    const saved = ls.get(KEY) === 'simple';
+    const want = saved && !isPhone();
+    if (root.classList.contains('mode-simple') === want) return;
+    root.classList.toggle('mode-simple', want);
+    syncSwitch();
+    if (typeof window.cloudRerenderDash === 'function') window.cloudRerenderDash();
+    if (typeof window.uiEditorRefresh === 'function') window.uiEditorRefresh();
+  }
+  if (phoneMq && phoneMq.addEventListener) phoneMq.addEventListener('change', applyPhoneRule);
+
   // ---- 切替 ----
   function syncSwitch() {
     const m = window.uiIsSimple() ? 'simple' : 'detail';
@@ -35,7 +49,7 @@
     m = (m === 'simple') ? 'simple' : 'detail';
     ls.set(KEY, m);
     ls.set(HINT, '1');                       // 自分で切り替えたら、初回の案内は不要
-    root.classList.toggle('mode-simple', m === 'simple');
+    root.classList.toggle('mode-simple', m === 'simple' && !isPhone());
     dismissHint();
     uiCloseMenus();
     syncSwitch();

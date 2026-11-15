@@ -257,3 +257,8 @@ html.mode-simple #tab-quote-make .qp-guide-l, html.mode-simple #tab-quote-make .
   html.mode-simple #tab-quote-make .qp-guide-n { font-size: 14px; }
   html.mode-simple #tab-quote-make .qp-guide-l { font-size: 12px; }
 }
+
+/* スマホ幅は詳細表示だけ：表示モードの切替は出さない（PC に戻ったときのために保存値は残す） */
+@media (max-width: 600px) {
+  .uim-switch, .uim-switch--tb, .uim-switch--menu, .uim-switch--m { display: none !important; }
+}
