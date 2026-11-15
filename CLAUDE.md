@@ -192,6 +192,10 @@ Design 提案 `16-Quietテーマ提案`（白地・薄い 1px 線・色は意味
 - **廃止したもの**：`index.html` の `.w-updated`（行）・`mobile-sheet.js` の `#mcs-lu`・`row.js` の `_groupUpdatedHtml`／`_attachGroupUpdatedControl`／`_syncGroupUpdatedHeaders` ほか・`quote.css` の `.w-updated*`／`.grp-updated*`。**保存データの `cells`（行の配列）は位置で持つため、`conditions.js ROW_CELL_FIELDS` の `'lu'` の枠は外していない**（外すと後ろの項目がずれる）。旧データに `lu` の値があっても、画面に欄が無いので無視され（`_applyCells` は欄が無ければ飛ばす）、保存し直すと空になる。
 - テストは `scripts/design-tests/done-record-test.js`（現行／`THEME=1` の Industry／`W=390` のスマホ幅・21 項目：更新日の廃止・記録・表示・解除・排他・別ユーザー・未ログイン・保存と復元・旧データの互換・行の高さ）。
 
+## 🗑️ 廃止した画面部品（2026-11・`css/retired-ui.css`）
+
+DOM・id・保存データは残し、見える入口だけ消した（新旧どちらの画面でも）。①**表示サイズ「大／中／小」**（ツールバーの 📐・「⋯」の設定内）：常に標準の「中」で表示（`ui.js restoreLayoutScale` は保存値を無視）。使い方の説明の該当項目も削除。②**「👤 作成者を指定して保存（管理者・一時機能）」**（`#adminCreatorNew`）：入力欄を隠す（`admin-creator-edit.js` は残置）。③**作業範囲**（`#section-scope`・`#qf-scope`）は**廃止していない**：御見積書に「作業範囲」として出力される（`quote-pdf.js`）ため。新画面では①基本のステップに含めている。旧 `toolbar-more-test.js` の「⋯ の 7 項目」の期待値は以前から実装とずれている（未修正）。
+
 ## 🗑️ 自動保存は廃止（2026-10）
 
 旧「自動保存」（localStorage `quoteData` に1件・復元バナー）は、ページ再読込後に空の状態で上書きされて復元できない不具合があり、ブラウザ保存／チーム共有と役割も重なるため**廃止**。保存はチーム共有（旧「ブラウザ保存」は廃止）、巻き戻しは Undo/Redo。`scheduleAutoSave()` は呼び出し元（約100か所）を変えないため**何もしない関数として残置**。起動時（`initQuoteState`）に旧データ（`quoteData`・`autoSaveEnabled`）を掃除する（後日削除可）。

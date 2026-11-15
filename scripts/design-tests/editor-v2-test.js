@@ -49,6 +49,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('ステップ 5 つ', (await p.$$('#e2Steps [data-e2s]')).length === 5);
   ok('最初は①基本だけ表示', await vis('#section-ref') && !(await vis('#section-cond')) && !(await vis('#section-table')));
   ok('下の合計バーがある・旧い浮かぶ合計は出ない', await vis('#e2Total') && !(await vis('#totFloat')));
+  ok('廃止した「表示サイズ 大中小」「作成者を指定して保存」は見えない', await p.evaluate(() => { const h = s => { const e = document.querySelector(s); return !e || getComputedStyle(e).display === 'none' || e.offsetParent === null; }; return h('.tb-scale-label') && h('.tb-segrow-inline') && h('#adminCreatorNew'); }));
   ok(mobile ? 'スマホ幅は旧来のドックのまま（ツールバーへ移さない）' : 'PDF／プレビュー／保存が上部ツールバーの中', await p.evaluate(m => !!document.querySelector('#saveToolbar #quoteActionDock') !== m, mobile));
   ok('左ナビ・右下ドックの旧位置は使わない', !(await vis('#qSecNav')));
   ok('その他の情報（日付・受信日・関連番号）は最初は畳まれ、お客様・担当者・案件名は見える', !(await vis('#qf-date')) && !(await vis('#qf-received')) && await vis('#qf-customer') && await vis('#qf-person') && await vis('#qf-case-name'));
