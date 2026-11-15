@@ -34,7 +34,20 @@ html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Nav { display: flex; justify-con
 html.editor-v2 #e2Nav button { min-height: 44px; padding: 0 22px; border-radius: 10px; border: 1px solid var(--border, #c8cfd9); background: var(--surface, #fff); font: inherit; font-size: var(--text-base, 14px); cursor: pointer; }
 html.editor-v2 #e2Nav #e2Next:not(:disabled) { background: var(--accent-dk, #2c455d); border-color: var(--accent-dk, #2c455d); color: #fff; }
 html.editor-v2 #e2Nav button:disabled { opacity: .4; cursor: default; }
-@media (max-width: 600px) { html.editor-v2 #e2Steps, html.editor-v2 #e2Nav, html.editor-v2 #e2Total { display: none !important; } }   /* スマホ M2 は未着手：旧画面のまま */
+/* スマホ M2（ステップ式）：上に 5 分割の進捗（押して戻れる）・中は 1 ステップずつ・下に売／粗利と［戻る］［次へ］。右の引き出しは使わず、費用の一覧→編集シートは従来どおり */
+@media (max-width: 600px) {
+  html.editor-v2 #e2Title { display: none !important; }
+  html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Steps { top: 0; gap: 4px; padding: 8px 2px; margin: 0 0 8px; }
+  html.editor-v2 #e2Steps button { min-width: 0; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px 2px; }
+  html.editor-v2 #e2Steps button small { display: none; }
+  html.editor-v2 #e2Steps button i { grid-row: auto; margin-bottom: 2px; }
+  html.editor-v2 #e2Steps button b { font-size: var(--text-xs, 13px); white-space: nowrap; }
+  html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Total { min-height: 48px; padding: 4px 12px; gap: 8px; }
+  html.editor-v2 #e2Total .e2t-amts { gap: 12px; }
+  html.editor-v2 #e2Total .e2t-btns button { min-height: 44px; padding: 0 10px; }
+  html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Nav { margin: 16px 0 96px; gap: 8px; }
+  html.editor-v2 #e2Nav button { flex: 1; }
+}
 /* 全体リマークの引き出しは⑤リマーク・出力のときだけ */
 html.editor-v2 #tab-quote-make:not([data-e2="5"]) ~ #rmSheet, html.editor-v2 body:has(#tab-quote-make:not([data-e2="5"])) #rmSheet { display: none; }
 

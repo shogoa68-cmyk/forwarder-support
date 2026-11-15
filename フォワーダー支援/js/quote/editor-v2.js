@@ -162,7 +162,9 @@
   }
 
   // 右下の固定ボタン（PDF／プレビュー／保存）を上部ツールバーへ。切り戻すときは元の場所へ
+  const phone = () => window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
   function moveDock(on) {
+    if (on && phone()) on = false;   // スマホ幅は旧来のドック（下の固定ボタン）のまま
     const dock = $('quoteActionDock'), tb = $('saveToolbar'); if (!dock || !tb) return;
     if (on) { if (!dockHome) dockHome = { p: dock.parentNode, n: dock.nextSibling }; tb.appendChild(dock); dock.classList.add('e2-in-toolbar'); }
     else if (dockHome) { dock.classList.remove('e2-in-toolbar'); dockHome.p.insertBefore(dock, dockHome.n); dockHome = null; }
@@ -193,6 +195,7 @@
     if (isOn()) { build(); moveDock(true); go(1, true); }
     // 入力のたびに要約・合計を更新（軽く間引く）
     let raf = 0; const kick = () => { if (!isOn()) return; cancelAnimationFrame(raf); raf = requestAnimationFrame(refresh); };
+    window.addEventListener('resize', () => { if (isOn()) moveDock(true); });
     document.addEventListener('input', kick, true); document.addEventListener('change', kick, true);
     new MutationObserver(ms => { if (ms.some(m => !(m.target.closest && m.target.closest('#e2Steps, #e2Total, #e2Nav')))) kick(); }).observe(document.getElementById('tab-quote-make') || document.body, { childList: true, subtree: true, characterData: true });
   });
