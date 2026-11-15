@@ -46,6 +46,45 @@
     if (b.textContent !== txt) b.textContent = txt;
     b.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
+
+  // ②ルート・③貨物・物量：入力済みの条件を「チップの 1 行」で見せる（DOM は変えず、ステップの先頭に要約の帯を 1 つ足す）。
+  // ③の荷姿・換算の詳細は「詳細 ▾」の奥へ（CSS で出し分け）
+  function chipsOf(n) {
+    const sel = id => { const e = $(id); return e && e.selectedIndex >= 0 && e.value ? (e.options[e.selectedIndex].text || e.value).replace(/（.*$/, '').trim() : ''; };
+    if (n === 2) {
+      const pol = val('z2Pol'), pod = val('z2Pod'), dir = val('cond-direction'), dmap = { export: '輸出', import: '輸入', both: '往復', roundtrip: '往復' };
+      return [
+        val('cond-incoterms') && ['貿易条件', val('cond-incoterms')], dir && ['方向', dmap[dir] || dir], val('cond-mode') && ['モード', val('cond-mode')],
+        (pol || pod) && ['航路', (pol || '?') + ' → ' + (pod || '?')], val('z2Icd') && ['ICD', val('z2Icd')], val('z2Carrier') && ['キャリア', val('z2Carrier')],
+        val('cond-insurance-on') === 'true' && ['保険', '付保'], val('cond-handling') && ['荷役', sel('cond-handling')],
+      ].filter(Boolean);
+    }
+    const ct = typeof window.getContainerEntries === 'function' ? window.getContainerEntries().filter(e => e.count > 0).map(e => e.type + '×' + e.count).join(' ') : '';
+    return [val('cond-cargo') && ['貨物', val('cond-cargo')], val('cond-hs') && ['HS', val('cond-hs')], ct && ['コンテナ', ct], val('cond-hazmat') && ['区分', val('cond-hazmat')]].filter(Boolean);
+  }
+  function buildChips() {
+    [['e2Chips2', 'section-cond'], ['e2Chips3', 'section-cargo']].forEach(a => {
+      const sec = $(a[1]); if (!sec || $(a[0])) return;
+      const d = document.createElement('div'); d.className = 'e2-chips'; d.id = a[0];
+      const h = sec.querySelector(':scope > h2'); sec.insertBefore(d, h ? h.nextSibling : sec.firstChild);
+    });
+    const vol = $('section-volume');
+    if (vol && !$('e2PackBtn')) {
+      const b = document.createElement('button'); b.type = 'button'; b.id = 'e2PackBtn'; b.className = 'e2-morebtn';
+      const body = $('volumeBody'); if (body) body.parentNode.insertBefore(b, body);
+      b.addEventListener('click', () => { vol.classList.toggle('e2-pack-open'); refreshChips(); });
+    }
+  }
+  function refreshChips() {
+    [[2, 'e2Chips2'], [3, 'e2Chips3']].forEach(a => {
+      const box = $(a[1]); if (!box) return;
+      const c = chipsOf(a[0]), html = c.length ? c.map(x => '<span><i>' + x[0] + '</i>' + String(x[1]).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>').join('') : '<em>入力するとここに要約が並びます</em>';
+      if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
+    });
+    const vol = $('section-volume'), b = $('e2PackBtn'); if (!vol || !b) return;
+    const open = vol.classList.contains('e2-pack-open'), t = '荷姿・換算・シミュレーターなどの詳細' + (open ? '  ▴ 畳む' : '  ▾ 開く');
+    if (b.textContent !== t) b.textContent = t; b.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
   // 上部ツールバー：案件名・状態・緊急・保存状態
   function buildTitle() {
     const tb = $('saveToolbar'); if (!tb || $('e2Title')) return;
@@ -100,7 +139,7 @@
   }
   function refresh() {
     if (!isOn() || !built) return;
-    refreshBasics(); refreshTitle(); tagRows();
+    refreshBasics(); refreshTitle(); tagRows(); buildChips(); refreshChips();
     const s = summaries(), box = $('e2Steps'); if (!box) return;
     const html = [1, 2, 3, 4, 5].map(n => '<button type="button" data-e2s="' + n + '" class="' + (n === step ? 'is-on' : '') + (s[n].ok ? ' is-ok' : '') + '"><i>' + (s[n].ok ? '✓' : n) + '</i><b>' + NAMES[n] + '</b><small>' + s[n].s.replace(/</g, '&lt;') + '</small></button>').join('');
     if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }

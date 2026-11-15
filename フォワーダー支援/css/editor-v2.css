@@ -60,3 +60,12 @@ html.editor-v2 #tableBody .master-reg-btn { display: none; }
 html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) td :is(.w-subcon, .w-pattern):placeholder-shown { display: none !important; }
 html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) td .w-valid[data-e2empty="1"] { display: none !important; }
 html.editor-v2 #tableBody tr:not(:hover):not(:focus-within) :is(.btn-row-rem, .btn-row-int) { visibility: hidden; }
+
+/* ②ルート・③貨物・物量：入力済みの条件のチップ要約と、③の詳細の畳み */
+.e2-chips, .e2-morebtn { display: none; }
+html.editor-v2 #tab-quote-make:not(.qp-dash) .e2-chips { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 0 0 12px; padding: 8px 10px; border: 1px solid var(--border, #d9dee5); border-radius: 10px; background: var(--surface, #fff); font-size: var(--text-sm, 13px); }
+html.editor-v2 .e2-chips span { display: inline-flex; gap: 6px; align-items: baseline; padding: 2px 10px; border-radius: 999px; background: var(--bg, #eef1f5); }
+html.editor-v2 .e2-chips i { font-style: normal; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); }
+html.editor-v2 .e2-chips em { color: var(--text-muted, #667); font-style: normal; }
+html.editor-v2 #tab-quote-make:not(.qp-dash) #section-volume .e2-morebtn { display: block; width: 100%; min-height: 44px; margin: 4px 0 8px; padding: 0 14px; text-align: left; border: 1px dashed var(--border, #c8cfd9); border-radius: 10px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; }
+html.editor-v2 #tab-quote-make #section-volume:not(.e2-pack-open) .cond-field--cargo-detail { display: none !important; }

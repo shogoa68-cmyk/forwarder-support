@@ -55,7 +55,17 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('上部ツールバーに案件名と状態', (await p.textContent('#e2tName')) === 'テスト案件ZZ' && !!(await p.textContent('#e2tStatus')));
   if (out) await p.screenshot({ path: path.join(out, 'e2-step1.png') });
   await p.click('#e2Next'); await p.waitForTimeout(400);
+  if (out) await p.screenshot({ path: path.join(out, 'e2-step2.png'), fullPage: true });
+  if (out) { await p.click('#e2Next'); await p.waitForTimeout(400); await p.screenshot({ path: path.join(out, 'e2-step3.png'), fullPage: true }); await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(300); }
   ok('［次へ］で②ルート', await vis('#section-cond') && !(await vis('#section-ref')));
+  await p.evaluate(() => { const i = document.getElementById('cond-incoterms'); if (i && i.options.length > 1) { i.value = i.options[1].value; i.dispatchEvent(new Event('change', { bubbles: true })); } const a = document.getElementById('z2Pol'); a.value = 'TOKYO'; a.dispatchEvent(new Event('input', { bubbles: true })); const b = document.getElementById('z2Pod'); b.value = 'LOS ANGELES'; b.dispatchEvent(new Event('input', { bubbles: true })); });
+  await p.waitForTimeout(300);
+  ok('②に条件のチップ要約（航路）', /TOKYO → LOS ANGELES/.test(await p.textContent('#e2Chips2')));
+  await p.click('#e2Next'); await p.waitForTimeout(300);
+  ok('③に要約の帯と、荷姿の詳細は畳まれている', await vis('#e2Chips3') && await vis('#e2PackBtn') && !(await vis('.cond-field--cargo-detail')));
+  await p.click('#e2PackBtn'); await p.waitForTimeout(200);
+  ok('③「詳細 ▾」で荷姿が開く', await vis('.cond-field--cargo-detail'));
+  await p.click('#e2PackBtn'); await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(200);
   await p.click('#e2Steps [data-e2s="4"]'); await p.waitForTimeout(500);
   ok('④費用でテーブル', await vis('#section-table') && !(await vis('#section-cond')));
   ok('④費用の上に［すべて折りたたむ］［すべて展開］［＋ 行を追加］［📦 チャージ］', (await p.$$('#e2CostBar button')).length === 4 && await vis('#e2CostBar'));
