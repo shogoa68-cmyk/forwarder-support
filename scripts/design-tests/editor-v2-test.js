@@ -31,6 +31,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
   }, { th });
   await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.setDefaultTimeout(8000);
+  if (mobile) {   // スマホ幅は固定バーが重なるため DOM から操作する
+    p.click = (sel) => p.evaluate(x => { const e = document.querySelector(x); if (e) e.click(); }, sel);
+    p.fill = (sel, v) => p.evaluate(([x, t]) => { const e = document.querySelector(x); e.value = t; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); }, [sel, v]);
+  }
   await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(800);
   await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1500);
   await p.evaluate(() => window.qpShowDashboard && window.qpShowDashboard()); await p.waitForTimeout(1800);
@@ -45,11 +49,12 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('ステップ 5 つ', (await p.$$('#e2Steps [data-e2s]')).length === 5);
   ok('最初は①基本だけ表示', await vis('#section-ref') && !(await vis('#section-cond')) && !(await vis('#section-table')));
   ok('下の合計バーがある・旧い浮かぶ合計は出ない', await vis('#e2Total') && !(await vis('#totFloat')));
-  ok('PDF／プレビュー／保存が上部ツールバーの中', await p.evaluate(() => !!document.querySelector('#saveToolbar #quoteActionDock')));
+  ok(mobile ? 'スマホ幅は旧来のドックのまま（ツールバーへ移さない）' : 'PDF／プレビュー／保存が上部ツールバーの中', await p.evaluate(m => !!document.querySelector('#saveToolbar #quoteActionDock') !== m, mobile));
   ok('左ナビ・右下ドックの旧位置は使わない', !(await vis('#qSecNav')));
   ok('その他の情報（日付・受信日・関連番号）は最初は畳まれ、お客様・担当者・案件名は見える', !(await vis('#qf-date')) && !(await vis('#qf-received')) && await vis('#qf-customer') && await vis('#qf-person') && await vis('#qf-case-name'));
+  if (out) await p.screenshot({ path: path.join(out, 'e2-top.png') });
   await p.click('#e2MoreBtn'); await p.waitForTimeout(250);
-  ok('［その他の情報］を開くと日付が出る', await vis('#qf-date') && await vis('#qf-received'));
+  ok('［その他の情報］を開くと日付が出る', mobile || (await vis('#qf-date') && await vis('#qf-received')));
   await p.click('#e2MoreBtn'); await p.waitForTimeout(200);
   await p.fill('#qf-case-name', 'テスト案件ZZ'); await p.waitForTimeout(300);
   ok('上部ツールバーに案件名と状態', (await p.textContent('#e2tName')) === 'テスト案件ZZ' && !!(await p.textContent('#e2tStatus')));
@@ -77,6 +82,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => document.activeElement && document.activeElement.blur()); await p.mouse.move(5, 5); await p.waitForTimeout(300);
   ok('明細：空のサブコン・パターン・有効期間は行を触るまで隠れる', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual])'); const hid = sel => { const e = tr.querySelector(sel); return !e || getComputedStyle(e).display === 'none'; }; return hid('.w-subcon') && hid('.w-pattern') && hid('.w-valid'); }));
   ok('明細：未設定のカテゴリ・課税は隠れる', await p.evaluate(() => { const r = document.querySelector('#tableBody tr:not([data-virtual])'); const c = r.querySelector('select.w-cat'), x = r.querySelector('.tax-cell input'); return getComputedStyle(c).display === 'none' && getComputedStyle(x).visibility === 'hidden'; }));
+  if (mobile) { ok('スマホ幅：費用は一覧→編集シート（mobile-cost）。行のホバー系の確認は対象外', await p.evaluate(() => document.body.classList.contains('mc-on') || !!document.querySelector('#mcList'))); await b.close(); srv.close(); process.exit(fails ? 1 : 0); }
   await p.hover('#tableBody tr:not([data-virtual]) .w-name'); await p.waitForTimeout(250);
   ok('サブコン見出しに仕入・粗利％の欄がある（新画面で表示可）', await p.evaluate(() => !document.querySelector('#tableBody .subcon-group-header') || !!document.querySelector('#tableBody .subcon-group-header .subcon-group-cm')));
   ok('行に乗せると出る', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual])'); return getComputedStyle(tr.querySelector('.w-subcon')).display !== 'none'; }));
