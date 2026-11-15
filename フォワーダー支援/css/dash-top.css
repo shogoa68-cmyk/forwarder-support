@@ -122,3 +122,33 @@
   body.dt-rank-body::after { content: ''; position: fixed; inset: 0; background: rgba(16, 24, 40, .45); z-index: 1200; }
   #qpDashboard.dt-on .dt-bar { grid-template-columns: 1fr 1fr; }
 }
+
+/* ===== Design 23 の回答：範囲の出し方・［絞り込み］の整理・スマホの 1 行目と道具 ===== */
+#qpDashboard.dt-on .dt-scope-seg { display: inline-flex; border: 1px solid var(--border, #d9dee5); border-radius: 8px; overflow: hidden; }
+#qpDashboard.dt-on .dt-scope-seg button { min-height: 44px; padding: 0 14px; border: 0; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-base, 14px); cursor: pointer; }
+#qpDashboard.dt-on .dt-scope-seg button + button { border-left: 1px solid var(--border, #d9dee5); }
+#qpDashboard.dt-on .dt-scope-seg button.is-on { background: var(--accent-dk, #2c455d); color: #fff; font-weight: 700; }
+#qpDashboard.dt-on .dt-n2 { margin-left: 6px; font-size: var(--text-xs, 12px); opacity: .8; }
+#qpDashboard.dt-on .dt-flbl { display: block; margin: 10px 2px 4px; font-size: var(--text-xs, 12px); color: var(--text-muted, #667); font-weight: 700; }
+#qpDashboard.dt-on .dt-hide { display: none !important; }
+#qpDashboard.dt-on .dt-pop-foot.dt-bar2 { display: flex; gap: 8px; position: sticky; bottom: -10px; padding-top: 10px; background: var(--surface, #fff); }
+#qpDashboard.dt-on .dt-pop-foot.dt-bar2 .dt-btn { flex: 1; justify-content: center; }
+#qpDashboard.dt-on .dt-pop-foot.dt-bar2 .dt-btn:disabled { opacity: .45; }
+#qpDashboard.dt-on .dt-rank-in { display: none; }
+@media (max-width: 600px) {
+  /* 1 行目：［新規見積を作成］と［⋯］を同じ行に。［作業中の見積に戻る］はあるときだけ、その下に幅いっぱい */
+  #qpDashboard.dt-on .qpd-head-actions { flex-wrap: wrap; gap: 8px; }
+  #qpDashboard.dt-on .qpd-new { flex: 1 1 calc(100% - 56px); order: 1; }
+  #qpDashboard.dt-on .qpd-head-actions > .dt-pop-wrap { order: 2; flex: none; position: static; }
+  #qpDashboard.dt-on .qpd-resume { flex: 1 1 100%; order: 3; }
+  /* 道具：範囲・タグ・絞り込み・表示の 4 つで 1 行（ランキングは「表示」の中） */
+  #qpDashboard.dt-on .dt-bar { display: grid; grid-template-columns: 1.15fr 1fr 1.1fr .85fr; gap: 6px; }
+  #qpDashboard.dt-on .dt-bar > .dt-pop-wrap > .dt-btn, #qpDashboard.dt-on .dt-scope select, #qpDashboard.dt-on .dt-scope-seg button { padding: 0 6px; font-size: var(--text-sm, 13px); }
+  #qpDashboard.dt-on #dtRankBtn { display: none; }
+  #qpDashboard.dt-on .dt-rank-in { display: flex; width: 100%; justify-content: center; margin: 6px 0; }
+  #qpDashboard.dt-on .dt-scope-seg { width: 100%; } #qpDashboard.dt-on .dt-scope-seg button { flex: 1; }
+}
+
+/* 絞り込みパネル：ラベルは 44px の対象から外す（ラベルと入力欄の隙間を詰める）。入力欄側の「〜：すべて」はそのまま */
+#qpDashboard.dt-on .dt-pop .qpd-adv > .dt-flbl { min-height: 0; width: auto; margin: 10px 2px 4px; }
+#qpDashboard.dt-on .dt-pop .qpd-adv > .dt-flbl:first-child { margin-top: 0; }
