@@ -179,3 +179,12 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-sub-cells {
 @media (max-width: 600px) {
   html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-step { min-height: 0; display: block; width: 28px; height: 12px; }
 }
+
+/* ===== 2026-11 取り急ぎ：カードの輪郭・「お客様」の見出しをやめる・スマホは更新日時を案件名の上へ ===== */
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-lbl:empty { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card.cloud-card-labeled { background: #fff !important; border: 1px solid #c3cad5 !important; border-left-width: 4px !important; border-radius: 10px; box-shadow: 0 2px 6px rgba(16, 24, 40, .12); overflow: hidden; margin-bottom: 14px; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card.cloud-card-labeled.is-urgent { border-left-color: #d94a3d !important; }
+@media (max-width: 600px) {
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-who { order: -2; padding: 10px 16px 0; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-title { order: -1; padding-top: 2px; }
+}

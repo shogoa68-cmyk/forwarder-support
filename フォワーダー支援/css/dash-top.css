@@ -168,3 +168,6 @@
 #qpDashboard.dt-on .dt-fmore[hidden] { display: none; }
 #qpDashboard.dt-on .dt-incosel { display: none; margin-top: 6px; }
 #qpDashboard.dt-on .dt-incosel.dt-open { display: block; }
+
+/* ダッシュボードの「作業中の見積に戻る」は廃止（要素は残し、常に隠す） */
+#qpDashboard .qpd-resume { display: none !important; }

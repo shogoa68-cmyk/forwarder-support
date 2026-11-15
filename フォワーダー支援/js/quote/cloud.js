@@ -992,7 +992,7 @@
     const def = d && _DEAL_CHIPS[d.dealType];
     const via = d && d.via ? nameCanonOrSelf(d.via) : '';
     return '<div class="cc3-left"' + (def ? ' data-deal="' + def.k + '"' : '') + '>' +
-      '<span class="cc3-lbl">お客様' + (def ? '<span class="cc3-kind" title="取引形態：' + escHtml(d.dealType) + '">' + escHtml(def.lbl) + '</span>' : '') + '</span>' +
+      '<span class="cc3-lbl">' + (def ? '<span class="cc3-kind" title="取引形態：' + escHtml(d.dealType) + '">' + escHtml(def.lbl) + '</span>' : '') + '</span>' +
       (name ? (rec
         ? '<b class="cc3-cust is-link" role="button" tabindex="0" title="' + escHtml(name) + '（クリックでお客様の詳細）" onclick="event.stopPropagation();dashShowCustomerDetail(\'' + encodeURIComponent(name).replace(/'/g, '%27') + '\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.click();}">' + escHtml(name) + '</b>'
         : '<b class="cc3-cust" title="' + escHtml(name) + '">' + escHtml(name) + '</b>')

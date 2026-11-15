@@ -150,7 +150,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => { const i = document.getElementById('qf-customer'); if (i) { i.value = 'テスト社'; i.dispatchEvent(new Event('input', { bubbles: true })); } });
   await p.waitForTimeout(300);
   await p.evaluate(() => window.qpShowDashboard()); await p.waitForTimeout(500);
-  ok('未保存の入力があると「作業中の見積に戻る」が出る', await vis('.qpd-resume'));
+  ok('「作業中の見積に戻る」は作業中でも出さない（廃止）', !(await vis('.qpd-resume')));
   ok('横にはみ出さない（最後）', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   ok('JS エラーなし', errs.length === 0, errs);
   console.log(fails ? 'NG' : 'OK'); await b.close(); srv.close(); process.exit(fails ? 1 : 0);
