@@ -66,6 +66,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.click('#e2PackBtn'); await p.waitForTimeout(200);
   ok('③「詳細 ▾」で荷姿が開く', await vis('.cond-field--cargo-detail'));
   await p.click('#e2PackBtn'); await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(200);
+  ok('右端のアイコンレールは新画面で隠れる', !(await vis('.qrc-rail')));
   await p.click('#e2Steps [data-e2s="4"]'); await p.waitForTimeout(500);
   ok('④費用でテーブル', await vis('#section-table') && !(await vis('#section-cond')));
   ok('④費用の上に［すべて折りたたむ］［すべて展開］［＋ 行を追加］［📦 チャージ］', (await p.$$('#e2CostBar button')).length === 4 && await vis('#e2CostBar'));
