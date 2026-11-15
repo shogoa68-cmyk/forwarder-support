@@ -1144,10 +1144,9 @@
     let html;
     if (!_cloudRows.length) {
       html = '<div class="preset-empty">共有案件はまだありません<br>'
-        + '<small style="color:#9bb;">「🆕 新規見積を作成」から保存できます</small></div>';
+        + '<small style="color:#9bb;">「新しい見積を作る」から保存できます</small></div>';
       // かんたん表示のダッシュボードは、0 件のとき「ここから始める」の大きな案内を出す（モーダルは従来の文言のまま）
-      const simpleDash0 = !!(window.uiIsSimple && window.uiIsSimple());
-      wraps.forEach(w => { w.innerHTML = (simpleDash0 && w.id === 'qpdListWrap') ? _newCaseWelcomeHtml() : html; });
+      wraps.forEach(w => { w.innerHTML = (w.id === 'qpdListWrap') ? _newCaseWelcomeHtml() : html; });
       return;
     }
     if (!rows.length) {
@@ -1424,13 +1423,13 @@
       const simpleList = !!(window.uiIsSimple && window.uiIsSimple());   // かんたん表示：7列（状態／案件名／お客様／ルート／更新日／開く／⋯）
       dashWrap.classList.toggle('qpd-list--simple', simpleList);
       dashWrap.innerHTML = listMode
-        ? ('<div class="qpd-rows-head' + (simpleList ? ' qpd-rows-head--simple' : '') + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '">' +
+        ? (_newCaseCardHtml() + '<div class="qpd-rows-head' + (simpleList ? ' qpd-rows-head--simple' : '') + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '">' +
               (_cloudLinkMode ? '<span></span>' : '') +
               (simpleList
                 ? '<span>状態</span><span>案件名</span><span>お客様</span><span>ルート</span><span>更新日</span><span></span><span></span></div>'
                 : '<span>状態</span><span>見積番号</span><span>お客様 / 担当</span><span>作業者</span><span>更新</span><span></span></div>')
             + shown.map(r => _cloudListRow(r, simpleList)).join('') + moreBtn)
-        : ((simpleList ? _newCaseCardHtml() : '') + shown.map(r => _cloudCardHtml(r, true)).join('') + moreBtn);
+        : (_newCaseCardHtml() + shown.map(r => _cloudCardHtml(r, true)).join('') + moreBtn);
       if (!listMode) _loadDashChatSummaries(shown);   // 💬 申し送りの件数/最新は描画済みぶんだけ取得
       if (!listMode) _loadDashLinks(shown);           // 🔗 関連案件も描画済みぶんだけ一括取得
     }

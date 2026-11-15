@@ -262,3 +262,7 @@ html.mode-simple #tab-quote-make .qp-guide-l, html.mode-simple #tab-quote-make .
 @media (max-width: 600px) {
   .uim-switch, .uim-switch--tb, .uim-switch--menu, .uim-switch--m { display: none !important; }
 }
+
+/* かんたん表示は廃止（2026-11）：切替は出さない。右上の「新規見積を作成」も廃止し、一覧の先頭の点線カードに一本化 */
+.uim-switch, .uim-switch--tb, .uim-switch--menu, .uim-switch--m { display: none !important; }
+#qpDashboard .qpd-new { display: none !important; }

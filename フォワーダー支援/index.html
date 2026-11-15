@@ -67,7 +67,7 @@
   if (mode !== 'simple' && mode !== 'detail') mode = UI_MODE_DEFAULT;
   /* スマホ幅（〜600px）は常に詳細表示（かんたん表示は使わない）。保存値は変えない */
   var phone = false; try { phone = window.matchMedia('(max-width: 600px)').matches; } catch (e) {}
-  h.classList.toggle('mode-simple', mode === 'simple' && !phone);
+  h.classList.remove('mode-simple');   /* かんたん表示は廃止（2026-11）：常に詳細表示 */
   h.setAttribute('data-ui-mode-default', UI_MODE_DEFAULT);
   [].forEach.call(document.querySelectorAll('link[data-theme-css]'), function (l) {
     l.media = on[l.getAttribute('data-theme-css')] ? 'all' : 'not all';
@@ -2224,11 +2224,6 @@
       <div class="qpd-head">
         <h2 class="qpd-title">📊 見積ダッシュボード</h2>
         <div class="qpd-head-actions">
-          <div class="uim-switch" role="group" aria-label="表示モード">
-            <button type="button" data-uim="simple" onclick="setUiMode('simple')">かんたん表示</button>
-            <button type="button" data-uim="detail" onclick="setUiMode('detail')">詳細表示</button>
-          </div>
-          <button type="button" class="qpd-new" onclick="qpNewQuoteChoose()"><span class="lbl-d">🆕 新規見積を作成</span><span class="lbl-s">＋ 新しい見積を作る</span></button>
           <button type="button" class="qpd-store" onclick="eiOpenStoreFromDashboard()" title="自由入力で提示した見積の原文をそのまま案件として保管し、あとで時間のあるときにメール取込で表に落とします">📝 自由入力で保管</button>
           <button type="button" class="qpd-resume" onclick="qpShowEditor()" title="編集中の見積画面に戻る">▶ <span class="lbl-d">作業中の見積に戻る</span><span class="lbl-s">作業中の見積に戻る</span></button>
         </div>

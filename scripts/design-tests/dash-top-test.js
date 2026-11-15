@@ -45,13 +45,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('統計タイル（元）は隠れ、チップが出る', !(await vis('#qpdStats')) && await vis('#dtChips'));
   const chips = await chipTxt();
   ok('チップ：全体12・作業中5・提示済み1・受注2・その他', chips[0] === '全体12' && chips[1] === '作業中5' && chips[2] === '提示済み1' && chips[3] === '受注2' && /^その他/.test(chips[4]), chips);
-  ok('主ボタンは「新しい見積を作る」', await vis('.qpd-new'));
+  ok('新規は一覧先頭の点線カードだけ（右上の主ボタンは廃止）', await vis('.qpd-newcard') && !(await vis('.qpd-new')));
   ok('作業中の見積が無いので「戻る」は出ない', !(await vis('.qpd-resume')));
   ok('札：未取込 1 が出て、要フォロー（0件）は出ない', await p.evaluate(() => { const t = document.getElementById('dtBadges').textContent; return /未取込 1/.test(t) && !/要フォロー/.test(t); }));
   ok('道具：範囲・検索・タグ・絞り込み・表示', await vis('#dtScope') && await vis('#qpdSearch') && await vis('#dtTagBtn') && await vis('#dtFilterBtn') && await vis('#dtViewBtn'));
   ok('範囲の選択肢（全体12・自分…）', await p.$$eval('#dtScope option', os => os.length >= 2 && /全体 12/.test(os[0].textContent)));
   ok('元の並び替え・表示切替・関連付けモードは「表示」の中へ（要素ごと）', await p.evaluate(() => !!document.querySelector('#dtViewSlot #qpdSort') && !!document.querySelector('#dtViewSlot #qpdViewList') && !!document.querySelector('#dtViewSlot #qpdLinkModeBtn')));
-  ok('かんたん／詳細の切替と自由入力は「⋯」の中', await p.evaluate(() => !!document.querySelector('#dtMorePop .uim-switch') && !!document.querySelector('#dtMorePop .qpd-store')));
+  ok('自由入力で保管は「⋯」の中（かんたん/詳細の切替は廃止）', await p.evaluate(() => !document.querySelector('#dtMorePop .uim-switch') && !!document.querySelector('#dtMorePop .qpd-store')));
   ok('横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await shot('top');
 

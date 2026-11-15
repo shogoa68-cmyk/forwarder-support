@@ -442,3 +442,5 @@ Design 23 の回答を反映：カードは 2 行に圧縮（緊急は 1 行目�
 **ダッシュボードの「▶ 作業中の見積に戻る」は廃止（2026-11）**：一覧から案件を探して開けるため。要素 `.qpd-resume` と `qpHasWorkingQuote()` は残し、`dash-top.js`／`dash-top.css` で常に隠す。
 
 **スマホ幅（〜600px）は常に詳細表示（2026-11）**：かんたん表示はスマホではかえって見づらいため、幅 600px 以下では `mode-simple` を付けず、表示モードの切替（`.uim-switch*`）も隠す（`index.html` の早期スクリプト・`ui-mode.js` の `applyPhoneRule`・`simple-mode.css` 末尾）。保存値 `fwd.uiMode` は変えず、PC 幅に戻ると保存値どおり（かんたんなら かんたん）になる。画面幅が変わったときも追従する。
+
+**かんたん表示は廃止し、常に詳細表示に統合（2026-11）**：`window.uiIsSimple()` は常に `false`、`<html>` に `mode-simple` を付けない（`index.html` の早期スクリプト・`ui-mode.js`）。表示モードの切替（`.uim-switch*`）は隠し、ダッシュボードの切替ボタンは削除。**右上の「新規見積を作成」（`.qpd-new`）も廃止**し、新しい見積は一覧の先頭の点線カード（`.qpd-newcard`・`cloud.js _newCaseCardHtml`）だけに一本化（カード表示・リスト表示の両方・案件が 0 件のときは案内 `_newCaseWelcomeHtml`）。`simple-mode.css` と `uim-*` のコードは残置（未使用）。旧 `new-case-entry-test.js`（かんたん／詳細の入口の試験）は削除。保存値 `fwd.uiMode`・`?mode=` は無視される。
