@@ -245,9 +245,9 @@
   function schedule() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; refresh(); }); }
   function refresh() {
     if (!built) { build(); if (!built) return; }
-    // 作業中の見積に戻る：作業中のときだけ
+    // 「作業中の見積に戻る」は出さない（案件は一覧から探して開けるため）。要素と判定関数は残す
     const rs = document.querySelector('#qpDashboard .qpd-resume');
-    if (rs) rs.hidden = !(typeof window.qpHasWorkingQuote === 'function' && window.qpHasWorkingQuote());
+    if (rs) rs.hidden = true;
     // ステータスのチップ・札
     const tiles = [...document.querySelectorAll('#qpdStats .qpd-stat')];
     const info = {};
