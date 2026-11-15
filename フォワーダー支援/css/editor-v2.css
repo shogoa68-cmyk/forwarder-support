@@ -48,3 +48,10 @@ html.editor-v2 #e2Title b { font-size: var(--text-lg, 16px); overflow: hidden; t
 html.editor-v2 #e2Title #e2tStatus { padding: 2px 10px; border-radius: 999px; background: var(--border, #e2e6ec); font-size: var(--text-xs, 12px); }
 html.editor-v2 #e2Title #e2tStatus:empty, html.editor-v2 #e2Title #e2tSave:empty { display: none; }
 html.editor-v2 #e2Title #e2tSave { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
+
+/* ④ 費用：上の操作バー・説明文を減らす・行のマスター登録ボタンは隠す */
+#e2CostBar { display: none; }
+html.editor-v2 #e2CostBar { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+html.editor-v2 #e2CostBar button { min-height: 36px; padding: 0 14px; border: 1px solid var(--border, #c8cfd9); border-radius: 8px; background: var(--surface, #fff); font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; }
+html.editor-v2 #tableWrap > .section-desc, html.editor-v2 #tableWrap > span[style*="font-size"] { display: none; }
+html.editor-v2 #tableBody .master-reg-btn { display: none; }

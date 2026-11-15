@@ -62,8 +62,18 @@
     const sat = q ? q : ''; if (sa && sa.textContent !== sat) sa.textContent = sat;
   }
 
+  // ④ 費用：上に［すべて折りたたむ］［すべて展開］［＋ 行を追加］［📦 チャージ］（既存の関数を呼ぶだけ）
+  function buildCostBar() {
+    const w = $('tableWrap'); if (!w || $('e2CostBar')) return;
+    const bar = document.createElement('div'); bar.id = 'e2CostBar';
+    bar.innerHTML = '<button type="button" data-f="collapseAllGroups">▶ すべて折りたたむ</button><button type="button" data-f="expandAllGroups">▼ すべて展開</button><button type="button" data-f="addRow">＋ 行を追加</button><button type="button" data-f="lcOpenPicker">📦 チャージ</button>';
+    bar.addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; const f = window[b.dataset.f]; if (typeof f === 'function') { try { f(); } catch (x) {} } });
+    const c = w.querySelector(':scope > .container') || w.firstElementChild; w.insertBefore(bar, c);
+  }
+
   function build() {
     if (built) return;
+    buildCostBar();
     buildBasics(); buildTitle();
     const ws = document.querySelector('#tab-quote-make .quote-workspace'); if (!ws) return;
     const steps = document.createElement('nav'); steps.id = 'e2Steps'; steps.setAttribute('aria-label', '見積入力のステップ');
