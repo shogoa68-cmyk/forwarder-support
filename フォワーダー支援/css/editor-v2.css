@@ -37,3 +37,14 @@ html.editor-v2 #e2Nav button:disabled { opacity: .4; cursor: default; }
 @media (max-width: 600px) { html.editor-v2 #e2Steps, html.editor-v2 #e2Nav, html.editor-v2 #e2Total { display: none !important; } }   /* スマホ M2 は未着手：旧画面のまま */
 /* 全体リマークの引き出しは⑤リマーク・出力のときだけ */
 html.editor-v2 #tab-quote-make:not([data-e2="5"]) ~ #rmSheet, html.editor-v2 body:has(#tab-quote-make:not([data-e2="5"])) #rmSheet { display: none; }
+
+/* ① 基本：その他の情報は畳む */
+#e2MoreBtn, #e2Title { display: none; }
+html.editor-v2 #section-ref #e2MoreBtn { display: block; width: 100%; margin: 10px 0; padding: 10px 14px; text-align: left; border: 1px dashed var(--border-md, #b8c0cc); border-radius: 10px; background: var(--surface, #fff); color: var(--text-md, #475467); font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; }
+html.editor-v2 #section-ref:not(.e2-more-open) .e2-other { display: none !important; }
+/* 上部ツールバーの案件名・状態 */
+html.editor-v2 #saveToolbar #e2Title { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; margin: 0 12px; }
+html.editor-v2 #e2Title b { font-size: var(--text-lg, 16px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
+html.editor-v2 #e2Title #e2tStatus { padding: 2px 10px; border-radius: 999px; background: var(--border, #e2e6ec); font-size: var(--text-xs, 12px); }
+html.editor-v2 #e2Title #e2tStatus:empty, html.editor-v2 #e2Title #e2tSave:empty { display: none; }
+html.editor-v2 #e2Title #e2tSave { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }

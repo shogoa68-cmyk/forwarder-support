@@ -29,8 +29,42 @@
     };
   }
 
+  // ① 基本：最初に入れる 4 つ（番号・お客様・ご担当者・案件名）以外は「その他の情報」にまとめる（CSS で出し分け・DOM は移さない）
+  function buildBasics() {
+    const sec = $('section-ref'); if (!sec || $('e2MoreBtn')) return;
+    ['.ci-cell-recv', '.ci-dates', '#ciRelBtn', '#ciRelPanel', '.ci-more-block'].forEach(sel => sec.querySelectorAll(sel).forEach(e => e.classList.add('e2-other')));
+    const first = sec.querySelector('.ci-first'); if (!first) return;
+    const b = document.createElement('button'); b.type = 'button'; b.id = 'e2MoreBtn'; b.setAttribute('aria-expanded', 'false');
+    first.parentNode.insertBefore(b, first.nextSibling);
+    b.addEventListener('click', () => { const on = !sec.classList.contains('e2-more-open'); sec.classList.toggle('e2-more-open', on); refreshBasics(); });
+  }
+  function refreshBasics() {
+    const sec = $('section-ref'), b = $('e2MoreBtn'); if (!sec || !b) return;
+    const open = sec.classList.contains('e2-more-open'), f = id => val(id);
+    const chips = [f('qf-received') && '受信 ' + f('qf-received').slice(5), f('qf-date') && '発行 ' + f('qf-date').slice(5), f('qf-valid-until') && '有効 ' + f('qf-valid-until').slice(5)].filter(Boolean);
+    const txt = 'その他の情報（受信日・発行日・有効期限・関連番号・タグ・参照資料）' + (chips.length ? '：' + chips.join(' ・ ') : '') + (open ? '  ▴ 畳む' : '  ▾ 入力欄を開く');
+    if (b.textContent !== txt) b.textContent = txt;
+    b.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  // 上部ツールバー：案件名・状態・緊急・保存状態
+  function buildTitle() {
+    const tb = $('saveToolbar'); if (!tb || $('e2Title')) return;
+    const t = document.createElement('div'); t.id = 'e2Title';
+    t.innerHTML = '<b id="e2tName"></b><span id="e2tStatus"></span><span id="e2tSave"></span>';
+    const grp = $('qmGroup'); tb.insertBefore(t, grp ? grp.nextSibling : tb.firstChild);
+  }
+  function refreshTitle() {
+    const n = $('e2tName'); if (!n) return;
+    const name = val('qf-case-name') || (($('qf-memo') && $('qf-memo').value || '').split('\n')[0].trim()) || val('qf-customer') || '（案件名なし）';
+    if (n.textContent !== name) { n.textContent = name; n.title = name; }
+    const st = $('e2tStatus'), sv = val('qf-status'); if (st && st.textContent !== sv) st.textContent = sv;
+    const sa = $('e2tSave'), q = ($('qmBanner') && $('qmBanner').textContent || '').trim();
+    const sat = q ? q : ''; if (sa && sa.textContent !== sat) sa.textContent = sat;
+  }
+
   function build() {
     if (built) return;
+    buildBasics(); buildTitle();
     const ws = document.querySelector('#tab-quote-make .quote-workspace'); if (!ws) return;
     const steps = document.createElement('nav'); steps.id = 'e2Steps'; steps.setAttribute('aria-label', '見積入力のステップ');
     ws.parentNode.insertBefore(steps, ws);
@@ -49,12 +83,13 @@
 
   function refresh() {
     if (!isOn() || !built) return;
+    refreshBasics(); refreshTitle();
     const s = summaries(), box = $('e2Steps'); if (!box) return;
     const html = [1, 2, 3, 4, 5].map(n => '<button type="button" data-e2s="' + n + '" class="' + (n === step ? 'is-on' : '') + (s[n].ok ? ' is-ok' : '') + '"><i>' + (s[n].ok ? '✓' : n) + '</i><b>' + NAMES[n] + '</b><small>' + s[n].s.replace(/</g, '&lt;') + '</small></button>').join('');
     if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
     $('e2Prev').disabled = step <= 1; $('e2Next').disabled = step >= 5;
     const nx = $('e2Next'), nt = step < 5 ? '次へ：' + NAMES[step + 1] + ' →' : '次へ'; if (nx.textContent !== nt) nx.textContent = nt;
-    const t = (id, to) => { const a = $(id), b = $(to); if (!a || !b) return; const v = a.textContent.replace(/\s+/g, ' ').replace(/^粗利\s*/, '').trim() || '—'; if (b.textContent !== v) b.textContent = v; };
+    const t = (id, to) => { const a = $(id), b = $(to); if (!a || !b) return; const v = a.textContent.replace(/\s+/g, ' ').replace(/^粗利\s*/, '').replace(/\s*粗利\s*/, '  ').trim() || '—'; if (b.textContent !== v) b.textContent = v; };
     t('tot-subtotal', 'e2tSell'); t('tot-cost', 'e2tCost'); t('tot-profit', 'e2tProfit');
   }
 
@@ -65,7 +100,7 @@
     [].concat.apply([], Object.values(SECS)).forEach(id => { const s = $(id); if (s) s.classList.remove('e2-show'); });
     SECS[n].forEach(id => { const s = $(id); if (!s) return; s.classList.add('e2-show'); if (s.classList.contains('collapsed') && typeof window.toggleQuoteSection === 'function') { try { window.toggleQuoteSection(id); } catch (e) {} } });
     if (typeof window.rmsOpen === 'function' && typeof window.rmsClose === 'function') { try { n === 5 ? window.rmsOpen() : window.rmsClose(); } catch (e) {} }
-    refresh();
+    refresh(); refreshBasics(); refreshTitle();
     if (!quiet) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
