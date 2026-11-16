@@ -209,6 +209,54 @@ const http = require('http'), fs = require('fs'), path = require('path');
     if (process.env.SHOT) { await p.evaluate(() => { window.closeEmailImport(); document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); }); await p.waitForTimeout(300); await p.screenshot({ path: process.env.SHOT }); }
     await ctx.close();
   }
+  // ===== マスター管理（サブコン詳細）の「メール取込ルール」欄 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member' });
+    const rules = () => p.evaluate(() => (window.__db.master_details.find(r => r.field === 'sv' && r.value === 'テスト運送') || {}).details);
+    await p.evaluate(async () => { const prev = window.mdGet('sv', 'テスト運送').details; await window.mdSave('sv', 'テスト運送', Object.assign({}, prev, { importRules: { aliases: [{ from: 'ドキュメント料', to: 'DOC FEE', cat: 'export-local' }], ccy: 'USD', unit: 'B/L', by: 'taro@example.com', at: '2026-11-16T00:00:00Z' } })); });
+    await p.evaluate(() => window.statsToggleMasterDetail('sv', 'テスト運送')); await p.waitForTimeout(700);
+    await p.evaluate(() => document.querySelector('#mdDetailModal .mt-tab[data-mt="mail"]')?.click()); await p.waitForTimeout(200);
+    let ui = await p.evaluate(() => { const m = document.getElementById('mdDetailModal'); return { tab: !!m.querySelector('.mt-tab[data-mt="mail"]'), sum: (m.querySelector('.mt-tab[data-mt="mail"] .mt-sum') || {}).textContent, vis: !!m.querySelector('.mt-panel[data-mt="mail"]') && !m.querySelector('.mt-panel[data-mt="mail"]').hidden, rows: [...m.querySelectorAll('#irPanel .ir-row')].map(r => [r.querySelector('.ir-from').value, r.querySelector('.ir-to').value, r.querySelector('.ir-cat').value]), ccy: m.querySelector('#irPanel .ir-ccy').value, unit: m.querySelector('#irPanel .ir-unit').value, meta: m.querySelector('#irPanel .ir-meta').textContent }; });
+    ok('サブコンの詳細に「メール取込ルール」タブが出て、保存済みのルールが見える（要約つき）', ui.tab && ui.vis && /1件/.test(ui.sum) && /USD/.test(ui.sum) && ui.rows.length === 1 && ui.rows[0][0] === 'ドキュメント料' && ui.rows[0][1] === 'DOC FEE' && ui.rows[0][2] === 'export-local' && ui.ccy === 'USD' && ui.unit === 'B/L' && /2026-11-16/.test(ui.meta), ui);
+
+    // 回帰：詳細の「保存」（所在地などを直したとき）で、ルールが消えない
+    await p.evaluate(async () => { document.getElementById('md_location').value = '横浜市中区'; await window.statsSaveMasterDetail('sv', 'テスト運送'); }); await p.waitForTimeout(500);
+    let d = await rules();
+    ok('詳細の「保存」で、メール取込のルールが消えない（ほかの項目は更新される）', d.location === '横浜市中区' && d.importRules && d.importRules.aliases.length === 1 && d.importRules.ccy === 'USD' && d.svTypes && d.svTypes[0] === '運送業者', d);
+
+    // パネルでルールを足す・通貨を変える
+    await p.evaluate(() => window.statsToggleMasterDetail('sv', 'テスト運送')); await p.waitForTimeout(600);
+    await p.evaluate(() => {
+      const m = document.getElementById('mdDetailModal'); m.querySelector('#irPanel .ir-add').click();
+      const r = m.querySelectorAll('#irPanel .ir-row'); const n = r[r.length - 1];
+      n.querySelector('.ir-from').value = 'ターミナル代'; n.querySelector('.ir-to').value = 'THC';
+      m.querySelector('#irPanel .ir-ccy').value = 'EUR'; m.querySelector('#irPanel .ir-save').click();
+    }); await p.waitForTimeout(600);
+    d = await rules();
+    ok('パネルでルールを足し、既定の通貨を変えて保存できる（ほかの詳細は残る）', d.importRules.aliases.length === 2 && d.importRules.aliases[1].from === 'ターミナル代' && d.importRules.aliases[1].to === 'THC' && d.importRules.ccy === 'EUR' && d.importRules.unit === 'B/L' && d.location === '横浜市中区', d);
+    ok('保存後、パネルが最新の内容で描き直される（2 件）', await p.evaluate(() => document.querySelectorAll('#irPanel .ir-row').length === 2), null);
+
+    // 行の削除・空の行は保存しない
+    await p.evaluate(() => {
+      const m = document.getElementById('mdDetailModal'); m.querySelector('#irPanel .ir-add').click();   // 空の行（保存されない）
+      m.querySelector('#irPanel .ir-row .ir-del').click();   // 1 行目を削除
+      m.querySelector('#irPanel .ir-save').click();
+    }); await p.waitForTimeout(600);
+    d = await rules();
+    ok('行を ✕ で外して保存すると消える・空の行は保存されない', d.importRules.aliases.length === 1 && d.importRules.aliases[0].from === 'ターミナル代', d.importRules);
+
+    // 取込ダイアログと同じルールを読む（どちらから直しても同じ）
+    await p.evaluate(() => window.statsCloseMasterDetail());
+    await p.evaluate(() => { document.getElementById('eiText') && 0; window.eiOpenForSubcon('テスト運送'); }); await p.waitForTimeout(300);
+    const dlg = await p.evaluate(() => document.querySelector('#eiSvCtx .ei-rules summary').textContent);
+    ok('取込ダイアログにも、マスターで直したルールが反映される', /置き換え 1 件/.test(dlg) && /EUR/.test(dlg), dlg);
+    // 他のサブコン（ルール無し）の詳細でも壊れない
+    await p.evaluate(() => { window.closeEmailImport(); window.statsToggleMasterDetail('sv', 'ABCキャリア'); }); await p.waitForTimeout(600);
+    const none = await p.evaluate(() => ({ rows: document.querySelectorAll('#irPanel .ir-row').length, empty: !document.querySelector('#irPanel .ir-empty').hidden }));
+    ok('ルールの無いサブコンの詳細では「まだありません」と出る', none.rows === 0 && none.empty, none);
+    ok('画面のエラーが出ていない', errs.length === 0, errs);
+    await ctx.close();
+  }
   await b.close(); srv.close();
   console.log(out.join('\n'));
   process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);

@@ -963,6 +963,51 @@
     }
   }
 
+  // ====== マスター管理（サブコン詳細）の「メール取込ルール」欄：ルールの確認・追加・直し・削除 ======
+  //  取込ダイアログと同じ details.importRules を読み書きする（どちらから直しても同じ。チーム共有）
+  function eiMountRulesPanel(el, canon) {
+    if (!el) return;
+    canon = String(canon || '').trim();
+    const r = _rulesOf(canon);
+    const rowHtml = a => '<div class="ir-row"><input type="text" class="ir-from" value="' + _esc(a.from) + '" placeholder="相手の呼び名（例：ドキュメント料）">' +
+      '<span class="ir-arrow">→</span><input type="text" class="ir-to" value="' + _esc(a.to) + '" placeholder="自社の品名（例：DOC FEE）">' +
+      '<select class="ir-cat" title="カテゴリ（任意）">' + _catOptions(a.cat || '') + '</select>' +
+      '<button type="button" class="ir-del" title="このルールを外す">✕</button></div>';
+    const ccyOpts = '<option value="">（なし）</option>' + CCY_LIST.map(c => '<option' + (r.ccy === c ? ' selected' : '') + '>' + c + '</option>').join('');
+    el.innerHTML =
+      '<div class="ir-defaults"><label>既定の通貨 <select class="ir-ccy">' + ccyOpts + '</select></label>' +
+      '<label>既定の単位 <input type="text" class="ir-unit" value="' + _esc(r.unit) + '" placeholder="例）20\'GP"></label></div>' +
+      '<p class="ir-help">既定の通貨を決めると、通貨の書かれていない数字（例：<code>海上運賃 1200 /20GP</code>）もその通貨の金額として読みます（確度は「要確認」）。既定の単位は、単位が読み取れなかった行にだけ入ります。</p>' +
+      '<div class="ir-list">' + r.aliases.map(rowHtml).join('') + '</div>' +
+      '<div class="ir-empty"' + (r.aliases.length ? ' hidden' : '') + '>呼び名の置き換えルールはまだありません。「＋ ルールを追加」か、サブコンの見出しの「📩 メール取込」で品名を直して「🧠 覚える」を押すと増えます。</div>' +
+      '<div class="ir-bar"><button type="button" class="ir-add">＋ ルールを追加</button><button type="button" class="ir-save">💾 ルールを保存</button>' +
+      '<span class="ir-meta">' + (r.at ? '最終更新 ' + _esc(String(r.at).slice(0, 10)) + (r.by ? '・' + _esc((typeof window.cloudNameFor === 'function' && window.cloudNameFor(r.by)) || r.by) : '') : '') + '</span></div>';
+    const list = el.querySelector('.ir-list'), empty = el.querySelector('.ir-empty');
+    const syncEmpty = () => { empty.hidden = !!list.querySelector('.ir-row'); };
+    el.querySelector('.ir-add').addEventListener('click', () => {
+      list.insertAdjacentHTML('beforeend', rowHtml({ from: '', to: '', cat: '' })); syncEmpty();
+      list.lastElementChild.querySelector('.ir-from').focus();
+    });
+    el.addEventListener('click', e => { const d = e.target.closest('.ir-del'); if (d) { d.closest('.ir-row').remove(); syncEmpty(); } });
+    el.querySelector('.ir-save').addEventListener('click', async () => {
+      const next = _rulesOf(canon);
+      const seen = new Map();
+      list.querySelectorAll('.ir-row').forEach(row => {
+        const from = row.querySelector('.ir-from').value.trim(), to = row.querySelector('.ir-to').value.trim();
+        if (!from || !to) return;
+        seen.set(_nzs(from), { from, to, cat: row.querySelector('.ir-cat').value || '' });   // 同じ呼び名は後の行を採用
+      });
+      next.aliases = [...seen.values()];
+      next.ccy = el.querySelector('.ir-ccy').value || '';
+      next.unit = el.querySelector('.ir-unit').value.trim();
+      if (await _saveRules(canon, next)) {
+        if (window.quoteShowToast) quoteShowToast('🧠 「' + canon + '」のメール取込ルールを保存しました（チーム共有）', 'success');
+        eiMountRulesPanel(el, canon);
+        if (_svCtx && _svCtx.canon === canon) _renderSvCtx();
+      }
+    });
+  }
+
   // ====== 🤖 AI整形用プロンプト ======
   // 業者から受け取った見積（メール本文・PDFのテキスト・表など）を、Gemini/Copilot/
   // Claude/ChatGPT 等の汎用AIに渡して parseQuoteEmail() が高確度（ei-high）で読み取れる
@@ -1219,7 +1264,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     eiOpenStored, eiStoreRaw, eiFeImport, eiFeView, eiFeToggle, eiFeDelete,
     openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiToggleAllTax, eiInsertRows, eiApplyAsNew,
     eiSaveGroupAsPattern, eiApplyBulkSv, eiCopyAiPrompt,
-    eiOpenForSubcon, eiRuleSaveDefaults, eiRuleDel, eiLearnFromCorrections,
+    eiOpenForSubcon, eiRuleSaveDefaults, eiRuleDel, eiLearnFromCorrections, eiMountRulesPanel,
     eiApplyRules: _applyRules,   // テスト用
     parseQuoteEmail,   // テスト・将来の AI パーサー差し替え用に公開
   });
