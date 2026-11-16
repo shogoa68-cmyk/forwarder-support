@@ -99,7 +99,7 @@
     if (n.textContent !== full) { n.textContent = full; n.title = full; }
     const st = $('e2tStatus'), sv = val('qf-status'); if (st && st.textContent !== sv) st.textContent = sv;
     const sa = $('e2tSave'), q = ($('qmBanner') && $('qmBanner').textContent || '').trim();
-    const sat = /編集中/.test(q) ? '' : q;   // 「編集中（あなたが作業中）」はツールバー側のチップに出ているので重ねて出さない
+    const sat = /編集中|閲覧モード/.test(q) ? '' : q;   // 「編集中（あなたが作業中）」はツールバー側のチップに出ているので重ねて出さない
     if (sa && sa.textContent !== sat) sa.textContent = sat;
   }
 
@@ -129,15 +129,15 @@
     const main = ws.querySelector('.quote-main'); (main || ws).appendChild(foot);
     const tot = document.createElement('div'); tot.id = 'e2Total';
     tot.innerHTML = '<div class="e2t-amts"><span><i>売</i><b id="e2tSell">—</b></span><span><i>仕入</i><b id="e2tCost">—</b></span><span><i>粗利</i><b id="e2tProfit">—</b></span></div>' +
-      '<div class="e2t-btns"><button type="button" data-e2q="1" title="貨物の荷姿・数量を登録する（③貨物・物量を開く）">数量登録</button><button type="button" data-e2p="1" title="数量パターン（FCL案／LCL案など）を追加する">パターン登録</button><button type="button" data-e2d="digest">費用の内訳 ▸</button><button type="button" data-e2d="ref">参考 ▸</button></div>';
+      '<div class="e2t-btns"><button type="button" data-e2q="1" title="単位ごとの数量をまとめて登録・変更する">数量登録</button><button type="button" data-e2p="1" title="数量パターン（FCL案／LCL案など）を追加する">パターン登録</button><button type="button" data-e2d="digest">費用の内訳 ▸</button><button type="button" data-e2d="ref">参考 ▸</button></div>';
     document.getElementById('tab-quote-make').appendChild(tot);
     steps.addEventListener('click', e => { const b = e.target.closest('[data-e2s]'); if (b) go(+b.dataset.e2s); });
     foot.addEventListener('click', e => { if (e.target.id === 'e2Prev') go(step - 1); if (e.target.id === 'e2Next') go(step + 1); });
     tot.addEventListener('click', e => {
-      if (e.target.closest('[data-e2q]')) { go(3); const sec = $('section-volume'); if (sec && !sec.classList.contains('e2-pack-open')) { const b = $('e2PackBtn'); if (b) b.click(); } }
+      if (e.target.closest('[data-e2q]')) toggleDrawer('scenario');
       if (e.target.closest('[data-e2p]') && typeof window.addPackingPattern === 'function') window.addPackingPattern();
     });
-    tot.addEventListener('click', e => { const b = e.target.closest('[data-e2d]'); if (!b) return; const on = !document.body.classList.contains('e2-drawer') || document.body.dataset.e2d !== b.dataset.e2d; document.body.classList.toggle('e2-drawer', on); document.body.dataset.e2d = b.dataset.e2d; if (on && typeof window.qspSetTab === 'function') { try { window.qspSetTab(b.dataset.e2d === 'digest' ? 'digest' : 'fin'); } catch (x) {} } });
+    tot.addEventListener('click', e => { const b = e.target.closest('#e2Total [data-e2d]'); if (b) toggleDrawer(b.dataset.e2d === 'digest' ? 'digest' : 'similar'); });
     built = true;
   }
 
@@ -161,6 +161,14 @@
     t('tot-subtotal', 'e2tSell'); t('tot-cost', 'e2tCost'); t('tot-profit', 'e2tProfit');
   }
 
+  // 右の引き出し：右パネル（右レール）のモジュールを開く／同じものをもう一度押すと閉じる
+  function toggleDrawer(mod) {
+    const open = document.body.classList.contains('e2-drawer'), same = document.body.dataset.e2drawer === mod;
+    if (open && same) { document.body.classList.remove('e2-drawer'); return; }
+    const btn = document.querySelector('#qrcRail .qrc-rail-btn[data-mod="' + mod + '"]');
+    if (btn && !btn.classList.contains('is-on')) btn.click();   // レールの選択を切り替える（パネルの出し分け・読み込みは右レール側）
+    document.body.classList.add('e2-drawer'); document.body.dataset.e2drawer = mod;
+  }
   function go(n, quiet) {
     if (n < 1 || n > 5) return;
     step = n;

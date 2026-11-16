@@ -37,6 +37,7 @@
 <link rel="stylesheet" href="css/header-menu.css">
 <link rel="stylesheet" href="css/editor-v2.css">
   <link rel="stylesheet" href="css/retired-ui.css">
+  <link rel="stylesheet" href="css/bulk-bar.css">
 <link rel="stylesheet" href="css/dash-top.css">
 <link rel="stylesheet" href="css/card-c3.css">
 <script>
@@ -3958,9 +3959,7 @@
             <!-- 数量パターン（B列／C列／FCL案／LCL案など）の切替：パターンが 2 つ以上あるときだけ出る。画面幅が広いときは上部ツールバー（#saveToolbar の「⋯」の左）へ移って表示される（conditions.js _placeQtyPatternBar）。狭い画面ではここ（表の操作バー）に残る -->
             <div class="cmdbar-qpat" id="qtyPatternBar" hidden></div>
             <div class="cmdbar-main">
-              <span class="btn-group-label" data-tier="adv">小計</span>
-              <button data-tier="adv" class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加（出力にも含まれます。費用行・リマーク・社内メモの追加は各明細行の ➕📋🗑️💬🔒 アイコンから）">＝</button>
-              <button class="btn-bulk-pattern cmdbar-pattern-btn" onclick="openRowPatternMgr()" title="行パターン：チェックした行を保存／保存パターンを挿入">🗂️ 行パターン</button>
+                            <button data-tier="adv" class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加（出力にも含まれます。費用行・リマーク・社内メモの追加は各明細行の ➕📋🗑️💬🔒 アイコンから）">＝ 小計行</button>
               <button class="cmdbar-lc-btn" onclick="lcOpenPicker()" title="諸チャージマスターから行を追加">📦 チャージ</button>
               <button type="button" class="cmdbar-pip-btn" data-pip-btn onclick="quotePipToggle()" title="明細だけの小窓を、他のアプリ・ブラウザの上に常に前面で表示します（船会社の料金表を見ながら入力できます。Chrome／Edge）">🪟 <span data-pip-label>常に前面</span></button>
               <span class="btn-group-label" data-tier="adv">挿入位置</span>
@@ -4062,22 +4061,23 @@
               <button class="btn-bulk-paste"  id="btnPasteClipboard" onclick="pasteClipboardRows()" title="クリップボードの行を選択行の前に挿入（未選択時は末尾に追加）" disabled>📌 貼付</button>
               <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
               <span class="ctx-sep" aria-hidden="true">|</span>
-              <select id="bulkCatSet" class="bulk-cat-select" onchange="applyBulkCategorySet(this)" title="チェックした行のカテゴリを一括設定"></select>
-              <select id="bulkCurrencySet" class="bulk-cat-select" onchange="applyBulkCurrencySet(this)" title="チェックした行の通貨を一括設定">
+              <div class="ctx-bulkset-wrap">
+                <button type="button" class="btn-bulk-set" id="ctxBulkToggle" aria-expanded="false" title="チェックした行のカテゴリ・通貨・単位・サブコン・パターン・乗せ幅をまとめて設定">⚙ 一括設定 ▾</button>
+                <div class="ctx-bulkset" id="ctxBulkSet" hidden>
+                  <div class="ctx-bs-row"><label>カテゴリ</label><div class="ctx-bs-ctl"><select id="bulkCatSet" class="bulk-cat-select" onchange="applyBulkCategorySet(this)" title="チェックした行のカテゴリを一括設定"></select></div></div>
+                  <div class="ctx-bs-row"><label>通貨</label><div class="ctx-bs-ctl"><select id="bulkCurrencySet" class="bulk-cat-select" onchange="applyBulkCurrencySet(this)" title="チェックした行の通貨を一括設定">
                 <option value="__none__">💱 通貨一括設定…</option>
-              </select>
-              <input type="text" id="bulkUnitSet" class="bulk-subcon-input" placeholder="📐 単位一括設定…" list="unit-list" maxlength="20"
-                     onkeydown="if(event.key==='Enter'&&!event.isComposing){applyBulkUnitSet();}" title="チェックした行の単位を一括設定" />
-              <button class="btn-bulk-subcon" onclick="applyBulkUnitSet()" title="チェックした行の単位に左の値を一括設定">設定</button>
-              <input type="text" id="bulkSubconSet" class="bulk-subcon-input" placeholder="サブコン一括設定…" list="svSuggestions" autocomplete="off" maxlength="40"
-                     onkeydown="if(event.key==='Enter'&&!event.isComposing){applyBulkSubcon();}" title="チェックした行のサブコンを一括設定" />
-              <button class="btn-bulk-subcon" onclick="applyBulkSubcon()" title="チェックした行のサブコンに左の値を一括設定">設定</button>
-              <input type="text" id="bulkPatternSet" class="bulk-subcon-input" placeholder="📋 パターン一括設定…" list="ptSuggestions" autocomplete="off" maxlength="40"
-                     onkeydown="if(event.key==='Enter'&&!event.isComposing){applyBulkPattern();}" title="チェックした行のパターンを一括設定" />
-              <button class="btn-bulk-subcon" onclick="applyBulkPattern()" title="チェックした行のパターンに左の値を一括設定">設定</button>
-              <input type="number" id="bulkMarkupSet" class="bulk-subcon-input bulk-markup-input" placeholder="＋ 乗せ幅一括…" min="0" step="any"
-                     onkeydown="if(event.key==='Enter'&&!event.isComposing){applyBulkMarkupSet();}" title="チェックした行の乗せ幅（仕入単価に加算）を一括設定" />
-              <button class="btn-bulk-subcon" onclick="applyBulkMarkupSet()" title="チェックした行の乗せ幅に左の値を一括設定">設定</button>
+              </select></div></div>
+                  <div class="ctx-bs-row"><label>単位</label><div class="ctx-bs-ctl"><input type="text" id="bulkUnitSet" class="bulk-subcon-input" placeholder="📐 単位一括設定…" list="unit-list" maxlength="20" onkeydown="if(event.key==='Enter'&&!event.isComposing){applyBulkUnitSet();}" title="チェックした行の単位を一括設定" />
+              <button class="btn-bulk-subcon" onclick="applyBulkUnitSet()" title="チェックした行の単位に左の値を一括設定">設定</button></div></div>
+                  <div class="ctx-bs-row"><label>サブコン</label><div class="ctx-bs-ctl"><input type="text" id="bulkSubconSet" class="bulk-subcon-input" placeholder="サブコン一括設定…" list="svSuggestions" autocomplete="off" maxlength="40" onkeydown="if(event.key==='Enter'&&!event.isComposing){applyBulkSubcon();}" title="チェックした行のサブコンを一括設定" />
+              <button class="btn-bulk-subcon" onclick="applyBulkSubcon()" title="チェックした行のサブコンに左の値を一括設定">設定</button></div></div>
+                  <div class="ctx-bs-row"><label>パターン</label><div class="ctx-bs-ctl"><input type="text" id="bulkPatternSet" class="bulk-subcon-input" placeholder="📋 パターン一括設定…" list="ptSuggestions" autocomplete="off" maxlength="40" onkeydown="if(event.key==='Enter'&&!event.isComposing){applyBulkPattern();}" title="チェックした行のパターンを一括設定" />
+              <button class="btn-bulk-subcon" onclick="applyBulkPattern()" title="チェックした行のパターンに左の値を一括設定">設定</button></div></div>
+                  <div class="ctx-bs-row"><label>乗せ幅</label><div class="ctx-bs-ctl"><input type="number" id="bulkMarkupSet" class="bulk-subcon-input bulk-markup-input" placeholder="＋ 乗せ幅一括…" min="0" step="any" onkeydown="if(event.key==='Enter'&&!event.isComposing){applyBulkMarkupSet();}" title="チェックした行の乗せ幅（仕入単価に加算）を一括設定" />
+              <button class="btn-bulk-subcon" onclick="applyBulkMarkupSet()" title="チェックした行の乗せ幅に左の値を一括設定">設定</button></div></div>
+                </div>
+              </div>
               <span class="ctx-sep" aria-hidden="true">|</span>
               <button class="btn-bulk-merge" onclick="mergeSelectedRowsFromToolbar()" title="チェックした行を1行にまとめる（先頭のチェック行が統合先。仕入・売の合計を反映し、残りの行は見積書非表示＋「統合先」ラベル付きで区別されます）">🔗 統合</button>
               <span class="cmdbar-spacer"></span>
