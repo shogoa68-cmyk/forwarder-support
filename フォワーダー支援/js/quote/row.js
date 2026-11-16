@@ -1268,6 +1268,13 @@
       const reg = r.st === 'master';
       const detBtn = hdr.querySelector('.sv-hdr-detail');
       const bmBtn = hdr.querySelector('.sv-hdr-bm');
+      // マスター登録済みのサブコンだけ：このサブコンのメール（見積）を取り込む（読み取りルールはマスター詳細に保存）
+      const impBtn = hdr.querySelector('.sv-hdr-import');
+      if (impBtn) {
+        impBtn.hidden = !reg;
+        impBtn.dataset.canon = reg ? r.canon : '';
+        if (reg) impBtn.title = 'サブコン「' + r.canon + '」からのメール（見積）を取り込み、このサブコンの明細に追加します（読み取りルールを覚えさせられます）';
+      }
       if (detBtn) {
         detBtn.hidden = !reg;
         detBtn.dataset.canon = reg ? r.canon : '';
@@ -4034,6 +4041,7 @@
             `<button type="button" class="sv-master-chip" hidden></button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-detail" hidden>📇 詳細</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-bm" hidden>🔖 BOOKMARK</button>` +
+            `<button type="button" class="sv-hdr-btn sv-hdr-import" hidden>📩 メール取込</button>` +
             // 客先表示名・サブコン別リマークの入力は、この見出しの行内に置く（以前はグループ末尾の小計行にあった）
             `<span class="hdr-notes">` +
               `<span class="hdr-note hdr-note-remark" title="このサブコンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF）にも表示されます。">` +
@@ -4070,6 +4078,11 @@
           e.stopPropagation();
           const canon = e.currentTarget.dataset.canon || label;
           if (canon && typeof window.mdShowDetailPopup === 'function') window.mdShowDetailPopup('sv', canon);
+        });
+        hdr.querySelector('.sv-hdr-import').addEventListener('click', e => {
+          e.stopPropagation();
+          const canon = e.currentTarget.dataset.canon;
+          if (canon && typeof window.eiOpenForSubcon === 'function') window.eiOpenForSubcon(canon);
         });
         hdr.querySelector('.sv-hdr-bm').addEventListener('click', e => {
           e.stopPropagation();

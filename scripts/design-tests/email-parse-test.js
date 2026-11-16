@@ -43,4 +43,22 @@ for(const [t,body,exp] of C){
   if(!bad.length){ok++;console.log('OK  ',t);} else {console.log('NG  ',t,'\n      ',bad.join(' | '),'\n       実際:',items.map(i=>`${i.name}|${i.qty}|${i.unit}|${i.ccy}|${i.price}`).join('  //  '));}
 }
 console.log(`\n${ok}/${C.length} 件が期待どおり`);
-process.exit(ok===C.length?0:1);
+
+// ===== サブコン別ルール（既定の通貨・呼び名の置き換え・既定の単位）=====
+let ng = 0;
+const chk = (n, c, x) => { console.log((c ? 'OK   ' : 'NG   ') + n + (c ? '' : ' → ' + JSON.stringify(x))); if (!c) ng++; };
+const its = r => r.entries.filter(e => e._kind === 'item');
+let r = p("海上運賃 1200 /20GP\nTHC 48000", { defaultCcy: 'USD' });
+chk('既定の通貨 USD があれば、通貨のない数字も取り込む（要確認・通貨は既定と表示）', its(r).length === 2 && its(r)[0].ccy === 'USD' && its(r)[0].price === 1200 && its(r)[0].unit === '20GP' && its(r)[0].conf === 'low' && its(r)[0].ccyAssumed, its(r));
+chk('既定の通貨が無ければ従来どおり取り込まない', its(p("海上運賃 1200 /20GP")).length === 0);
+r = p("2026/11/20 までご回答ください\nお問い合わせ 03-1234-5678\n住所 港区芝浦2-11-5 5階\n有効期限 30日間\n数量 5 本\n海上運賃 1200", { defaultCcy: 'USD' });
+chk('日付・電話・住所・日数・数量は金額にしない（海上運賃だけ）', its(r).length === 1 && its(r)[0].name === '海上運賃', its(r));
+r = p("海上運賃 JPY 1200", { defaultCcy: 'USD' });
+chk('通貨が書かれていればそちらを優先（既定で上書きしない）', its(r)[0].ccy === 'JPY', its(r));
+r = p("ドキュメント料 USD 50\nTHC USD 300\nターミナル代 USD 80", {});
+win.eiApplyRules(r, { aliases: [{ from: 'ドキュメント料', to: 'DOC FEE', cat: 'export-local' }, { from: 'ターミナル', to: 'THC', cat: '' }], unit: 'B/L' });
+chk('呼び名の置き換え（完全一致・含む）と既定の単位', its(r)[0].name === 'DOC FEE' && its(r)[0].ruleCat === 'export-local' && its(r)[0].origName === 'ドキュメント料' && its(r)[0].unit === 'B/L' && its(r)[2].name === 'THC' && its(r)[1].ruleHit === undefined, its(r));
+r = p("海上運賃 USD 1,200 /20GP");
+win.eiApplyRules(r, { aliases: [], unit: 'B/L' });
+chk('読み取れた単位は既定の単位で上書きしない', its(r)[0].unit === '20GP', its(r));
+process.exit(ok === C.length && ng === 0 ? 0 : 1);

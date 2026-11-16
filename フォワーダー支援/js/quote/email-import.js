@@ -149,6 +149,25 @@
     };
   }
 
+
+  // 通貨の書かれていない行の「金額らしい数字」の前に、既定の通貨を補う（見つからなければ null）。
+  //  日付（2026/11/20）・電話・住所（2-11-5）・「3日」「5階」・数量（10 未満）・「× 2」は金額にしない。品名（文字 2 つ以上）が先にある行だけ
+  function _injectCcy(body, ccy) {
+    const re = /\d[\d,]*(?:\.\d+)?/g;
+    let m;
+    while ((m = re.exec(body))) {
+      const before = body.slice(0, m.index), after = body.slice(m.index + m[0].length);
+      const v = _num(m[0]);
+      if (v == null || v < 10) continue;
+      if (before && !/[\s:：=]$/.test(before)) continue;
+      if (/[×xX]\s*$/.test(before) || /(?:^|\s)(?:per|@)\s*$/i.test(before) || /\/\s*$/.test(before)) continue;
+      if (/^[A-Za-z0-9\/\-:.'’%％月日年時分号階F]/.test(after)) continue;
+      if ((before.match(/[A-Za-z぀-ヿ一-鿿]/g) || []).length < 2) continue;
+      return before + ccy + ' ' + m[0] + after;
+    }
+    return null;
+  }
+
   // ---- 表（タブ区切り／「|」区切り）の読み取り ----
   const _ROLE_TESTS = [
     ['ccy',    /^(通貨|currency|ccy|cur\.?)$/i],
@@ -240,7 +259,9 @@
 
   // ====== 本文パーサー ======
   // 戻り値：{ fields: {customer, ref, validUntil}, entries: [{_kind:'group'|'item', ...}] }
-  function parseQuoteEmail(text) {
+  function parseQuoteEmail(text, opts) {
+    opts = opts || {};
+    const defCcy = CCY_LIST.includes(String(opts.defaultCcy || '').toUpperCase()) ? String(opts.defaultCcy).toUpperCase() : '';
     const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
     const fields = {};
     const entries = [];
@@ -369,6 +390,11 @@
 
       // パターンC（一般自由文・低確度）：金額・単位（/20GP・per 40HC）・数量（× 3台）・範囲（〜）・Min を読み取る。
       //  「海上運賃 USD 1,200 + BAF USD 300 + THC ¥48,000」のように「 + 」でつないだ 1 行は、項目ごとに分ける
+      let assumed = false;
+      if (defCcy && !_findMoneyAll(body).length) {   // サブコンの既定の通貨があるときだけ、通貨の書かれていない数字も金額として読む
+        const inj = _injectCcy(body, defCcy);
+        if (inj) { body = inj; assumed = true; }
+      }
       const segs = (_findMoneyAll(body).length >= 2 && /\s\+\s/.test(body)) ? body.split(/\s\+\s/) : [body];
       segs.forEach((seg, si) => {
         const r = _parseFreeSeg(seg);
@@ -376,8 +402,8 @@
         if (!/[A-Za-z぀-ヿ一-鿿]/.test(r.name)) return;   // 数字・記号だけの名前（日付・番号など）は項目にしない
         if (/^(以上|宜しく|よろしく|お願い|下記|毎度|拝啓|敬具)/.test(r.name)) return;
         pushItem({
-          _kind: 'item', conf: isBullet ? 'mid' : 'low',
-          name: r.name, qty: r.qty, unit: r.unit, ccy: r.ccy, price: r.price, priceHi: r.priceHi,
+          _kind: 'item', conf: (isBullet && !assumed) ? 'mid' : 'low',
+          name: r.name, qty: r.qty, unit: r.unit, ccy: r.ccy, price: r.price, priceHi: r.priceHi, ccyAssumed: assumed,
           taxed, taxSrc: tax, cond, ref: refFlg,
           note: [si === segs.length - 1 ? note : '', r.minNote].filter(Boolean).join(' / '),
         });
@@ -403,7 +429,42 @@
   // ====== レビュー UI ======
   let _parsed = null;   // { fields, entries }
 
+  // ====== 🧠 サブコン別の読み取りルール（マスター詳細 details.importRules に保存＝チーム共有）======
+  //  rules = { aliases: [{from, to, cat}], ccy: '既定の通貨', unit: '既定の単位', by, at }
+  //  ・aliases：相手の呼び名（from）→ 自社の品名（to）・カテゴリ（cat・任意）。品名は大文字小文字・空白を無視して照合（完全一致、または 3 文字以上で含む）
+  //  ・ccy：通貨の書かれていない数字も、この通貨の金額として読む（確度は「要確認」）
+  //  ・unit：単位が読み取れなかった行の単位
+  let _svCtx = null;   // { canon } サブコン見出しから開いたとき
+  const _nzs = v => String(v || '').toLowerCase().replace(/[\s　]+/g, '');
+  function _rulesOf(canon) {
+    const rec = (typeof window.mdGet === 'function' && canon) ? window.mdGet('sv', canon) : null;
+    const r = rec && rec.details && rec.details.importRules;
+    return { aliases: Array.isArray(r && r.aliases) ? r.aliases.filter(a => a && a.from) : [], ccy: (r && r.ccy) || '', unit: (r && r.unit) || '', by: (r && r.by) || '', at: (r && r.at) || '' };
+  }
+  async function _saveRules(canon, rules) {
+    if (typeof window.mdGet !== 'function' || typeof window.mdSave !== 'function') return false;
+    const prev = (window.mdGet('sv', canon) || {}).details || {};
+    const me = (typeof window.cloudCurrentUser === 'function' && window.cloudCurrentUser()) || {};
+    const next = Object.assign({}, prev, { importRules: { aliases: rules.aliases, ccy: rules.ccy || '', unit: rules.unit || '', by: me.email || '', at: new Date().toISOString() } });
+    return await window.mdSave('sv', canon, next);
+  }
+  // 解析結果（entries）へルールを当てる。当たった行は ruleHit（呼び名の置き換え）・unitFilled を立てる
+  function _applyRules(parsed, rules) {
+    if (!parsed || !rules) return parsed;
+    const al = (rules.aliases || []).map(a => ({ k: _nzs(a.from), to: a.to || a.from, cat: a.cat || '' })).filter(a => a.k);
+    parsed.entries.forEach(e => {
+      if (e._kind !== 'item') return;
+      const key = _nzs(e.name);
+      let hit = al.find(a => a.k === key);
+      if (!hit) hit = al.filter(a => a.k.length >= 3 && key.includes(a.k)).sort((x, y) => y.k.length - x.k.length)[0];
+      if (hit) { e.origName = e.name; e.name = hit.to; e.ruleHit = true; if (hit.cat) e.ruleCat = hit.cat; }
+      if (!e.unit && rules.unit) { e.unit = rules.unit; e.unitFilled = true; }
+    });
+    return parsed;
+  }
+
   function openEmailImport() {
+    _svCtx = null; _renderSvCtx();
     _setStoreOnly(false);
     _curEntryId = null;
     _fromEntry(false);
@@ -681,7 +742,9 @@
   function eiParse() {
     const text = document.getElementById('eiText')?.value || '';
     if (!text.trim()) { if (window.quoteShowToast) quoteShowToast('⚠️ メール本文を貼り付けてください', 'warn'); return; }
-    _parsed = parseQuoteEmail(text);
+    const rules = _svCtx ? _rulesOf(_svCtx.canon) : null;
+    _parsed = parseQuoteEmail(text, { defaultCcy: rules && rules.ccy });
+    if (rules) _applyRules(_parsed, rules);
     renderEiReview();
   }
 
@@ -726,14 +789,14 @@
     entries.forEach(e => {
       if (e._kind === 'group') { curGroup = e.label; return; }
       gi++;
-      const cat = inferCat(e.name);
-      const flags = (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費 ' : '') + (e.priceHi != null ? '幅〜' + Math.round(e.priceHi * 100) / 100 : '');
-      html += `<tr data-gi="${gi}" class="ei-row ei-${e.conf}">` +
+      const cat = e.ruleCat || inferCat(e.name);
+      const flags = (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費 ' : '') + (e.priceHi != null ? '幅〜' + Math.round(e.priceHi * 100) / 100 : '') + (e.ccyAssumed ? ' 通貨は既定' : '') + (e.ruleHit ? ' 🧠置換' : '') + (e.unitFilled ? ' 単位は既定' : '');
+      html += `<tr data-gi="${gi}" data-orig-name="${_esc(e.origName || e.name)}" data-orig-cat="${_esc(cat)}" class="ei-row ei-${e.conf}">` +
         `<td><input type="checkbox" class="ei-chk" checked></td>` +
         `<td class="ei-group-cell"><input type="text" class="ei-in ei-group" value="${_esc(curGroup)}" title="挿入時：小計行のラベル、かつ各行の「パターン（任意）」に登録されます（空欄可）">` +
         `<button type="button" class="ei-group-pattern-btn" title="同じグループのチェック済み行を「行パターン」として登録" onclick="eiSaveGroupAsPattern(this)">🔖</button></td>` +
         `<td><select class="ei-in ei-cat">${_catOptions(cat)}</select></td>` +
-        `<td><input type="text" class="ei-in ei-sv" value="" list="svSuggestions" placeholder="任意"></td>` +
+        `<td><input type="text" class="ei-in ei-sv" value="${_esc(_svCtx ? _svCtx.canon : '')}" list="svSuggestions" placeholder="任意"></td>` +
         `<td><input type="text" class="ei-in ei-name" value="${_esc(e.name)}"></td>` +
         `<td><input type="number" class="ei-in ei-qty" value="${e.qty ?? ''}" step="any"></td>` +
         `<td><input type="text" class="ei-in ei-unit" value="${_esc(e.unit || '')}"></td>` +
@@ -748,6 +811,7 @@
     if (items.length) html += '</tbody></table>';
     html += _remarksHtml(items, rems);
     html += '<datalist id="eiCcyList">' + CCY_LIST.map(c => `<option value="${c}">`).join('') + '</datalist>';
+    if (_svCtx && items.length) html += '<div class="ei-learn"><button type="button" class="ei-learn-btn" onclick="eiLearnFromCorrections()" title="品名・カテゴリを直した行を、このサブコンの「呼び名の置き換え」ルールに追加します（チーム共有）">🧠 修正をこのサブコンのルールとして覚える</button><span>品名・カテゴリを直した行が、次回から自動で直ります</span></div>';
     html += '<p class="ei-hint">💡 通常は単価が仕入・売の両方に入ります（粗利0）。仕入額が分かる場合は挿入後に修正してください。「💰 単価を売値として取り込む」をONにすると、単価は売値としてのみ登録され、挿入後に仕入単価を入力すれば乗せ幅が自動算出されます。「課税」列は本文の語（[課税]・課税対象・税別・非課税・免税 等）から判定した結果です。違う行はチェックで直してください。「要確認」行は品名・金額を必ず確認。</p>';
     wrap.innerHTML = html;
     document.getElementById('eiActions').hidden = false;
@@ -827,6 +891,76 @@
     const v = (document.getElementById('eiBulkSv')?.value || '').trim();
     if (!v) return;
     document.querySelectorAll('#eiReviewWrap .ei-sv').forEach(el => { el.value = v; });
+  }
+
+  // ====== サブコン見出しから開く（そのサブコン専用の取込）======
+  function eiOpenForSubcon(canon) {
+    canon = String(canon || '').trim();
+    if (!canon) return;
+    if (_isViewMode()) { if (window.quoteShowToast) quoteShowToast('🔒 閲覧モードです。「✏️ 編集」を押してから取り込んでください', 'warn'); return; }
+    openEmailImport();
+    _svCtx = { canon };
+    document.getElementById('emailImportBox')?.classList.add('ei-sv-ctx');
+    const t = document.getElementById('eiTitle'); if (t) t.textContent = '📩 メール取込 — 📦 ' + canon;
+    const d = document.getElementById('eiDesc');
+    if (d) d.textContent = '「' + canon + '」からのメール（見積）を貼り付けて「解析」を押してください。取り込んだ行は、このサブコンの明細グループに入ります。直した内容は「🧠 修正をこのサブコンのルールとして覚える」で、次回から自動で直ります（チーム共有）。';
+    _renderSvCtx();
+  }
+  function _renderSvCtx() {
+    const box = document.getElementById('emailImportBox'); if (box && !_svCtx) box.classList.remove('ei-sv-ctx');
+    const wrap = document.getElementById('eiSvCtx'); if (!wrap) return;
+    if (!_svCtx) { wrap.hidden = true; wrap.innerHTML = ''; return; }
+    const r = _rulesOf(_svCtx.canon);
+    const ccyOpts = '<option value="">（なし）</option>' + CCY_LIST.map(c => '<option' + (r.ccy === c ? ' selected' : '') + '>' + c + '</option>').join('');
+    const list = r.aliases.length
+      ? '<ul class="ei-rule-list">' + r.aliases.map((a, i) => '<li><span>' + _esc(a.from) + ' → <b>' + _esc(a.to) + '</b>' + (a.cat ? ' <i>[' + _esc(a.cat) + ']</i>' : '') + '</span><button type="button" onclick="eiRuleDel(' + i + ')" title="このルールを外す">✕</button></li>').join('') + '</ul>'
+      : '<div class="ei-rule-none">呼び名の置き換えルールはまだありません（確認画面で直して「覚える」を押すと増えます）</div>';
+    wrap.hidden = false;
+    wrap.innerHTML = '<details class="ei-rules"' + (r.aliases.length || r.ccy || r.unit ? '' : '') + '><summary>🧠 「' + _esc(_svCtx.canon) + '」の読み取りルール（置き換え ' + r.aliases.length + ' 件' + (r.ccy ? '・既定の通貨 ' + _esc(r.ccy) : '') + (r.unit ? '・既定の単位 ' + _esc(r.unit) : '') + '）</summary>' +
+      '<div class="ei-rule-row"><label>既定の通貨 <select id="eiRuleCcy">' + ccyOpts + '</select></label>' +
+      '<label>既定の単位 <input type="text" id="eiRuleUnit" value="' + _esc(r.unit) + '" placeholder="例）20\'GP"></label>' +
+      '<button type="button" class="ei-rule-save" onclick="eiRuleSaveDefaults()">保存</button></div>' +
+      '<p class="ei-rule-help">既定の通貨を決めると、通貨が書かれていない数字（例：<code>海上運賃 1200 /20GP</code>）も、その通貨の金額として読みます（確度は「要確認」）。</p>' +
+      list + (r.at ? '<div class="ei-rule-meta">最終更新 ' + _esc(String(r.at).slice(0, 10)) + (r.by ? '・' + _esc((typeof window.cloudNameFor === 'function' && window.cloudNameFor(r.by)) || r.by) : '') + '</div>' : '') +
+      '</details>';
+  }
+  async function eiRuleSaveDefaults() {
+    if (!_svCtx) return;
+    const r = _rulesOf(_svCtx.canon);
+    r.ccy = document.getElementById('eiRuleCcy')?.value || '';
+    r.unit = (document.getElementById('eiRuleUnit')?.value || '').trim();
+    if (await _saveRules(_svCtx.canon, r)) { if (window.quoteShowToast) quoteShowToast('🧠 既定の通貨・単位を保存しました（チーム共有）。「解析する」を押し直すと反映されます', 'success'); _renderSvCtx(); }
+  }
+  async function eiRuleDel(i) {
+    if (!_svCtx) return;
+    const r = _rulesOf(_svCtx.canon);
+    const a = r.aliases[i]; if (!a) return;
+    r.aliases.splice(i, 1);
+    if (await _saveRules(_svCtx.canon, r)) { if (window.quoteShowToast) quoteShowToast('🧠 ルール「' + a.from + ' → ' + a.to + '」を外しました', 'info'); _renderSvCtx(); }
+  }
+  // 確認画面で直した内容（品名・カテゴリ）を、このサブコンのルールとして覚える
+  async function eiLearnFromCorrections() {
+    if (!_svCtx) return;
+    const r = _rulesOf(_svCtx.canon);
+    let added = 0;
+    document.querySelectorAll('#eiReviewWrap .ei-table tbody tr').forEach(tr => {
+      const orig = (tr.dataset.origName || '').trim();
+      const cur = (tr.querySelector('.ei-name')?.value || '').trim();
+      const cat = tr.querySelector('.ei-cat')?.value || '';
+      if (!orig || !cur) return;
+      const nameChanged = cur !== orig;
+      const catChanged = cat && cat !== (tr.dataset.origCat || '');
+      if (!nameChanged && !catChanged) return;
+      const k = _nzs(orig);
+      r.aliases = r.aliases.filter(a => _nzs(a.from) !== k);
+      r.aliases.push({ from: orig, to: cur, cat: cat || '' });
+      added++;
+    });
+    if (!added) { if (window.quoteShowToast) quoteShowToast('ℹ️ 覚えさせる修正がありません（品名・カテゴリを直してから押してください）', 'info'); return; }
+    if (await _saveRules(_svCtx.canon, r)) {
+      if (window.quoteShowToast) quoteShowToast('🧠 ' + added + ' 件を「' + _svCtx.canon + '」のルールとして覚えました（チーム共有・次回から自動で直ります）', 'success');
+      _renderSvCtx();
+    }
   }
 
   // ====== 🤖 AI整形用プロンプト ======
@@ -1085,6 +1219,8 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     eiOpenStored, eiStoreRaw, eiFeImport, eiFeView, eiFeToggle, eiFeDelete,
     openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiToggleAllTax, eiInsertRows, eiApplyAsNew,
     eiSaveGroupAsPattern, eiApplyBulkSv, eiCopyAiPrompt,
+    eiOpenForSubcon, eiRuleSaveDefaults, eiRuleDel, eiLearnFromCorrections,
+    eiApplyRules: _applyRules,   // テスト用
     parseQuoteEmail,   // テスト・将来の AI パーサー差し替え用に公開
   });
 })();
