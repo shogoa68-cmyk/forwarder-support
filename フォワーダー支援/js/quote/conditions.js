@@ -3220,6 +3220,52 @@
       + `<button type="button" class="z2-route-plan" onclick="editRoutePlan(${i})" title="案の名前を変更（空にすると案なしに戻す）">${_escMulti(nm)}</button>`
       + `<button type="button" class="z2-route-adopt" onclick="cycleRouteAdopt(${i})" title="クリックで 検討中 → 採用 → 不採用 を切り替え（印だけで、見積書・合計には影響しません）">${_ADOPT_LABEL[ad]}</button></span>`;
   }
+  // 区間（2026-11）：航路ごとに「集荷／海上／航空／配送…」の区間を並べ、区間ごとのモード・キャリア・ETD・メモを控える（画面の整理用・見積書の出力や合計には影響しない）
+  const _SEG_MODES = ['集荷', '海上', '航空', '内航', '鉄道', '陸送', '配送', '通関', 'その他'];
+  function _segs(r) { return Array.isArray(r.segs) ? r.segs.filter(x => x && typeof x === 'object') : []; }
+  function _segChip(r, i) {
+    const sg = _segs(r);
+    if (!sg.length) return `<button type="button" class="z2-route-seg is-none" onclick="openRouteSegs(${i}, this)" title="この航路を区間（集荷・海上・配送など）に分けて、区間ごとのキャリア・ETD を控える（見積書の出力には影響しません）">＋区間</button>`;
+    const tip = sg.map((x, k) => (k + 1) + '. ' + [x.mode, x.carrier, x.etd ? 'ETD ' + x.etd : '', x.note].filter(Boolean).join(' / ')).join('\n');
+    const brief = sg.map(x => _escMulti(x.mode || '—') + (x.carrier ? ':' + _escMulti(x.carrier) : '')).join(' ▸ ');
+    return `<button type="button" class="z2-route-seg" onclick="openRouteSegs(${i}, this)" title="${_escMulti(tip)}">区間${sg.length}｜${brief}</button>`;
+  }
+  let _segPop = null;
+  function _closeSegPop() { if (_segPop) { _segPop.remove(); _segPop = null; } }
+  window.openRouteSegs = function (i, anchor) {
+    const r = _routeEntries[i]; if (!r) return;
+    _closeSegPop();
+    const pop = document.createElement('div'); pop.className = 'z2-seg-pop'; pop.dataset.routeIdx = String(i);
+    const rows = () => _segs(r).map((x, k) => `<div class="z2-seg-row" data-k="${k}">`
+      + `<select class="z2-seg-mode">${_SEG_MODES.map(m => `<option${m === (x.mode || '') ? ' selected' : ''}>${m}</option>`).join('')}</select>`
+      + `<input class="z2-seg-carrier" placeholder="キャリア・業者" value="${_escMulti(x.carrier || '')}" list="svSuggestions">`
+      + `<input class="z2-seg-etd" type="date" value="${_escMulti(x.etd || '')}" title="ETD（出発予定）">`
+      + `<input class="z2-seg-note" placeholder="メモ" value="${_escMulti(x.note || '')}">`
+      + `<button type="button" class="z2-seg-del" title="この区間を削除">✕</button></div>`).join('');
+    const draw = () => {
+      pop.innerHTML = `<div class="z2-seg-head"><b>区間</b><span>航路を区間に分けて控えます（見積書の出力には影響しません）</span><button type="button" class="z2-seg-x" title="閉じる">×</button></div>`
+        + `<div class="z2-seg-rows">${rows() || '<div class="z2-seg-empty">区間はまだありません</div>'}</div>`
+        + `<div class="z2-seg-foot"><button type="button" class="z2-seg-add">＋ 区間を追加</button></div>`;
+    };
+    const commit = () => {
+      r.segs = [...pop.querySelectorAll('.z2-seg-row')].map(row => ({ mode: row.querySelector('.z2-seg-mode').value, carrier: row.querySelector('.z2-seg-carrier').value.trim(), etd: row.querySelector('.z2-seg-etd').value, note: row.querySelector('.z2-seg-note').value.trim() }));
+      const data = document.getElementById('z2-routes-data'); if (data) data.value = JSON.stringify(_routeEntries);
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+      if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    };
+    draw();
+    pop.addEventListener('input', commit); pop.addEventListener('change', commit);
+    pop.addEventListener('click', e => {
+      if (e.target.closest('.z2-seg-x')) { commit(); _closeSegPop(); _renderRouteEntries(); return; }
+      if (e.target.closest('.z2-seg-add')) { commit(); r.segs = _segs(r).concat([{ mode: _segs(r).length ? '海上' : '集荷', carrier: '', etd: '', note: '' }]); draw(); return; }
+      const del = e.target.closest('.z2-seg-del');
+      if (del) { commit(); const k = +del.closest('.z2-seg-row').dataset.k; r.segs = _segs(r).filter((_, n) => n !== k); draw(); commit(); }
+    });
+    document.body.appendChild(pop); _segPop = pop;
+    const b = (anchor || document.getElementById('z2RouteList')).getBoundingClientRect();
+    pop.style.top = Math.min(window.innerHeight - 40, b.bottom + 6) + 'px'; pop.style.left = Math.max(8, Math.min(b.left, window.innerWidth - 560)) + 'px';
+    setTimeout(() => document.addEventListener('mousedown', function h(ev) { if (_segPop && !_segPop.contains(ev.target) && !(ev.target.closest && ev.target.closest('.z2-route-seg'))) { _closeSegPop(); _renderRouteEntries(); } if (!_segPop) document.removeEventListener('mousedown', h); }), 0);
+  };
   window.editRoutePlan = function (i) {
     const r = _routeEntries[i]; if (!r) return;
     const v = prompt('この航路の「案」の名前（例：案1／FCL直行案）。空にすると案なしに戻ります。', r.plan || '');
@@ -3279,7 +3325,7 @@
         + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},1)" ${_atLast ? 'disabled' : ''} title="下へ移動">↓</button>`
         + `<button type="button" class="z2-route-toggle${_routeLinked ? ' route-pattern-linked' : ''}" onclick="toggleRouteEntry(${i})" title="${_escMulti(_toggleTitle)}">${on ? '✓' : '—'}</button>`
         + _legBtn(r, i)
-        + _planChip(r, i)
+        + _planChip(r, i) + _segChip(r, i)
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
         + _roleChip + _actualChip + _ngChip
         + (r.service ? `<span class="z2-route-service">${_escMulti(r.service)}</span>` : '')
@@ -3368,10 +3414,10 @@
       return;
     }
     // carrier=契約先（ブッキング/支払先）、carrierRole=その役割、actualCarrier=実運送人（実際の船会社）
-    const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '', rid: null, leg: '', plan: '', adopt: '' };
+    const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '', rid: null, leg: '', plan: '', adopt: '', segs: [] };
     _pendingRouteFlags = null;
     _routeEntries.push({ carrier, service, carrierRole, actualCarrier, pol, via, pod, icd, tt,
-                         enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason, rid: flags.rid || _newRouteId(), leg: flags.leg || '', plan: flags.plan || '', adopt: flags.adopt || '' });
+                         enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason, rid: flags.rid || _newRouteId(), leg: flags.leg || '', plan: flags.plan || '', adopt: flags.adopt || '', segs: Array.isArray(flags.segs) ? flags.segs : [] });
     if (flags.ng && typeof quoteShowToast === 'function') {
       quoteShowToast('🚫 使用不可の記録を引き継ぎました', 'info', 1800);
     }
@@ -3473,7 +3519,7 @@
     set('z2Tt', r.tt);
     // 契約形態パネルは常時表示のため展開処理は不要
     // 無効・使用不可の状態・rid（パターン紐付けの識別子）は再登録時に引き継ぐ（✎ で消えてしまわないように）
-    _pendingRouteFlags = { enabled: r.enabled !== false && !r.ng, ng: !!r.ng, ngReason: r.ngReason || '', rid: r.rid, leg: r.leg || '', plan: r.plan || '', adopt: r.adopt || '' };
+    _pendingRouteFlags = { enabled: r.enabled !== false && !r.ng, ng: !!r.ng, ngReason: r.ngReason || '', rid: r.rid, leg: r.leg || '', plan: r.plan || '', adopt: r.adopt || '', segs: Array.isArray(r.segs) ? r.segs : [] };
     // エントリを削除して再描画
     _routeEntries.splice(i, 1);
     _renderRouteEntries();

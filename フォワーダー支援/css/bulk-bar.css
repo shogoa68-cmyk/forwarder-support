@@ -39,3 +39,16 @@
 #tab-quote-make .z2-route-adopt { padding: 0 8px; min-height: 24px; border: 1px solid var(--border, #b9c2cc); border-radius: 999px; background: #fff; font-size: var(--text-xs, 12px); cursor: pointer; white-space: nowrap; }
 #tab-quote-make .z2-route-planwrap.is-adopt .z2-route-adopt { background: #e3f4e8; border-color: #3f9a5a; color: #1d6a3a; font-weight: 700; }
 #tab-quote-make .z2-route-planwrap.is-reject .z2-route-adopt, #tab-quote-make .z2-route-planwrap.is-reject .z2-route-plan { background: #f1f1f1; color: #888; text-decoration: line-through; }
+
+/* 航路の「区間」（区間ごとのモード・キャリア・ETD の控え。見積書の出力には影響しない） */
+#tab-quote-make .z2-route-seg { padding: 0 8px; min-height: 24px; border: 1px dashed var(--border, #b9c2cc); border-radius: 999px; background: transparent; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); cursor: pointer; white-space: nowrap; max-width: 360px; overflow: hidden; text-overflow: ellipsis; }
+#tab-quote-make .z2-route-seg:not(.is-none) { border-style: solid; background: #f3f7ef; color: #2f5a22; font-weight: 700; }
+.z2-seg-pop { position: fixed; z-index: 1300; width: min(560px, 94vw); max-height: 70vh; overflow: auto; padding: 10px 12px; background: var(--surface, #fff); border: 1px solid var(--border, #cfd6de); border-radius: 10px; box-shadow: 0 10px 30px rgba(16, 24, 40, .22); font-size: var(--text-sm, 13px); }
+.z2-seg-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.z2-seg-head span { flex: 1; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); }
+.z2-seg-x, .z2-seg-del { border: 0; background: none; cursor: pointer; font-size: 16px; min-width: 28px; min-height: 28px; }
+.z2-seg-row { display: grid; grid-template-columns: 84px 1fr 138px 1fr 28px; gap: 6px; margin-bottom: 6px; align-items: center; }
+.z2-seg-row input, .z2-seg-row select { min-width: 0; height: 30px; padding: 0 6px; border: 1px solid var(--border, #cfd6de); border-radius: 6px; font: inherit; }
+.z2-seg-empty { color: var(--text-muted, #888); padding: 8px 2px; }
+.z2-seg-add { padding: 4px 12px; border: 1px dashed var(--border, #b9c2cc); border-radius: 8px; background: none; cursor: pointer; }
+@media (max-width: 600px) { .z2-seg-row { grid-template-columns: 1fr 1fr; } .z2-seg-row .z2-seg-del { justify-self: end; } }
