@@ -83,7 +83,9 @@ html.editor-v2 .e2-chips em { color: var(--text-muted, #667); font-style: normal
 html.editor-v2 #tab-quote-make:not(.qp-dash) #section-volume .e2-morebtn { display: block; width: 100%; min-height: 44px; margin: 4px 0 8px; padding: 0 14px; text-align: left; border: 1px dashed var(--border, #c8cfd9); border-radius: 10px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; }
 html.editor-v2 #tab-quote-make #section-volume:not(.e2-pack-open) .cond-field--cargo-detail { display: none !important; }
 /* 右端のアイコンの縦並び（旧画面の右レール）は新画面では使わない（下の合計バーから開く引き出しに統合） */
-html.editor-v2 #tab-quote-make .qrc-rail { display: none !important; }
+/* 右の引き出しの中のレール（モジュールの切り替え）は残す。引き出しを開いているときだけ出る */
+html.editor-v2 #tab-quote-make .quote-right-col--rail { width: 440px; max-width: 94vw; flex-direction: row; gap: 6px; padding: 8px; }
+html.editor-v2 #tab-quote-make .qrc-drawer { flex: 1 1 auto; min-width: 0; }
 /* ④費用：上の e2CostBar と重なる操作（チャージ）と、小計行の追加の見出しは操作バーから外す（小計行の追加は「⋯」側・DOM は残す） */
 html.editor-v2 #tab-quote-make .quote-cmdbar .cmdbar-lc-btn,
 html.editor-v2 #tab-quote-make .quote-cmdbar .btn-group-label { display: none !important; }

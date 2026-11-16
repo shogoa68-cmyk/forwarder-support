@@ -1,0 +1,22 @@
+/* 選択行の一括操作バーの整理（2026-11）：1 行に収め、「一括設定 ▾」で開くパネルに 6 つの設定をまとめた。
+   DOM・id・onclick は変えず、部品を .ctx-bulkset の中へ移しただけ（select-mode.js が開閉する）。全テーマ共通。 */
+#tab-quote-make .cmdbar-context { flex-wrap: nowrap; position: relative; overflow: visible; }
+#tab-quote-make .cmdbar-context .ctx-count { white-space: nowrap; }
+#tab-quote-make .cmdbar-context .cmdbar-spacer { flex: 1 1 auto; }
+#tab-quote-make .ctx-bulkset-wrap { position: relative; }
+#tab-quote-make .btn-bulk-set { padding: 0 var(--sp-12, 12px); font-weight: 700; cursor: pointer;
+  background: var(--surface, #fff); border: 1px solid var(--border, #cfd6de); border-radius: var(--r-4, 4px); color: var(--text, #223); }
+#tab-quote-make .btn-bulk-set[aria-expanded="true"] { background: var(--accent-lt, #eef3f8); border-color: var(--accent, #3b6aa0); }
+#tab-quote-make .ctx-bulkset { position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; width: 380px; max-width: 86vw;
+  display: grid; gap: 8px; padding: 12px 14px; background: var(--surface, #fff); border: 1px solid var(--border, #cfd6de);
+  border-radius: var(--r-8, 8px); box-shadow: 0 8px 24px rgba(16, 24, 40, .18); }
+#tab-quote-make .ctx-bulkset[hidden] { display: none; }
+#tab-quote-make .ctx-bs-row { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 8px; }
+#tab-quote-make .ctx-bs-row > label { font-size: var(--text-xs, 12px); font-weight: 700; color: var(--text-muted, #667); }
+#tab-quote-make .ctx-bs-ctl { display: flex; gap: 6px; align-items: center; min-width: 0; }
+#tab-quote-make .ctx-bs-ctl .bulk-subcon-input, #tab-quote-make .ctx-bs-ctl .bulk-cat-select { flex: 1 1 auto; width: auto; min-width: 0; max-width: none; height: 30px; }
+#tab-quote-make .ctx-bs-ctl .btn-bulk-subcon { flex: 0 0 auto; }
+@media (max-width: 680px) {
+  #tab-quote-make .cmdbar-context { flex-wrap: wrap; }
+  #tab-quote-make .ctx-bulkset { position: fixed; left: 8px; right: 8px; top: auto; bottom: 64px; width: auto; max-width: none; }
+}
