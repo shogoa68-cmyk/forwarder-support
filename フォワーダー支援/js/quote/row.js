@@ -1915,7 +1915,7 @@
     if (icBtn) icBtn.onclick = () => toggleIcMode(id);
     const cnBtn = frag.querySelector('.cn-mode-btn');
     if (cnBtn) cnBtn.onclick = () => toggleCnMode(id);
-    ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => calc(id); });
+    ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => { calc(id); _recalcPctDependents(id); }; });   // 売の最低料金が変わると、この行を基準にした % 行も変わる
     const rangeBtn = frag.querySelector('.range-mode-btn');
     if (rangeBtn) rangeBtn.onclick = () => toggleRangeMode(id);
     { const el = q('bphi'); if (el) el.oninput = () => calc(id); }   // 幅（売単価の上限）
@@ -1964,8 +1964,10 @@
     q('tx').onchange   = () => { const r = document.getElementById(`row-${id}`); if (r) r.dataset.txUserSet = '1'; toggleTax(id); };
     q('tx').onkeydown  = e  => { if (e.key === 'Enter') { e.preventDefault(); e.target.checked = !e.target.checked; const r = document.getElementById(`row-${id}`); if (r) r.dataset.txUserSet = '1'; toggleTax(id); } };
     q('nm').oninput    = () => checkUnfilled(id);
-    q('pq').oninput    = () => { _recordPatternQty(id); onPay(id); };
-    q('pc').onchange   = () => onPay(id);
+    // 他の行を基準にした % 行は、基準額がこの行の数量・仕入通貨しだいで変わる（参照行の金額 ÷ この行の数量・通貨換算）ため計算し直す
+    const _isRefPct = () => !!document.getElementById(`ppref-${id}`)?.value && document.getElementById(`row-${id}`)?.classList.contains('row-pct-mode');
+    q('pq').oninput    = () => { _recordPatternQty(id); if (_isRefPct()) _calcPct(id); else onPay(id); };
+    q('pc').onchange   = () => { if (_isRefPct()) _calcPct(id); else onPay(id); };
     q('pp').oninput    = () => {
       if (_isSellMode(id)) { _calcFromSell(id); _recalcPctDependents(id); return; }   // 売値ベース：仕入入力→乗せ幅を算出
       onPay(id);
@@ -2370,24 +2372,35 @@
     // その場合は円換算後の差額のみを正として表示し、無意味な生の差は出さない。
     const ccyMismatch = pc !== bc;
     const isFx = canFx && (bc !== 'JPY' || pc !== 'JPY') && (subtotal || profit);
-    if (ccyMismatch && canFx) {
+    // 仕入側だけミニマム（最低料金）が入っていて、売値側のミニマムが空の行（PROFIT SHARE など売が未確定のもの）：
+    // 売の小計（数量×売単価）と仕入のミニマムを引き算しても意味のある利益にならない（数量しだいで赤字に見える）ため、
+    // 利益・粗利率は計算せず「—」にする。仕入のミニマムは従来どおり仕入側に効く（costAmt）。合計・診断など他の集計は従来どおり
+    const _ppminV = parseFloat(document.getElementById(`ppmin-${id}`)?.value) || 0;
+    const _bpminV = parseFloat(document.getElementById(`bpmin-${id}`)?.value) || 0;
+    const noProfitCalc = _ppminV > 0 && !(_bpminV > 0);
+    if (trEl0) { if (noProfitCalc) trEl0.dataset.noProfit = '1'; else delete trEl0.dataset.noProfit; }
+    if (noProfitCalc) {
+      pr.innerHTML = '<div class="pr-main">—</div>';
+      pr.className = 'profit-cell profit-zero';
+      pr.title = '仕入側だけミニマムが設定されていて、売値側のミニマムが空のため、利益・粗利率は計算しません';
+    } else if (ccyMismatch && canFx) {
       const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(costAmt, pc));
       const jpySub = toJPY(subtotal, bc);
       // 粗利率（Industry のみ表示）は 3 段目に分ける（2 段目は 1 行で、並べると換算の注記が切れるため）
       const rate = jpySub > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (jpyProfit / jpySub * 100).toFixed(1) + '%</small></div>' : '';
       pr.innerHTML = '<div class="pr-main">≈¥' + fmt(jpyProfit) + '</div>' +
         '<div class="pr-sub"><small class="jpy-conv-hint" title="仕入（' + pc + '）と売（' + bc + '）の通貨が異なるため、円換算後の差額のみを表示しています">円換算後</small></div>' + rate;
-      pr.className = `profit-cell ${pClass(jpyProfit)}`;
+      pr.className = `profit-cell ${pClass(jpyProfit)}`; pr.title = '';
     } else if (isFx) {
       const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(costAmt, pc));
       const rate = subtotal > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (profit / subtotal * 100).toFixed(1) + '%</small></div>' : '';
       pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div><div class="pr-sub"><small class="jpy-conv-hint">(≈¥' + fmt(jpyProfit) + ')</small></div>' + rate;
-      pr.className = `profit-cell ${pClass(profit)}`;
+      pr.className = `profit-cell ${pClass(profit)}`; pr.title = '';
     } else {
       // 粗利率（Industry のみ表示。classic は .pr-rate を CSS で隠す）
       const rate = subtotal > 0 ? ' <small class="pr-rate">粗利 ' + (profit / subtotal * 100).toFixed(1) + '%</small>' : '';
       pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div>' + (rate ? '<div class="pr-sub">' + rate + '</div>' : '');
-      pr.className = `profit-cell ${pClass(profit)}`;
+      pr.className = `profit-cell ${pClass(profit)}`; pr.title = '';
     }
     window._rowStateRefresh?.(trEl0);
     scheduleUpdateTotals();
@@ -2553,6 +2566,23 @@
     if (!on && ppbaseEl2) ppbaseEl2.readOnly = false;
   }
 
+  // 参照行（「○○の ○%」の ○○）の金額を、この行の 1 単位あたりの基準額にして返す（この行の仕入通貨建て）。
+  //   参照行の小計（数量×売単価。ミニマムがあれば適用後）を、この行の数量で割る。
+  //   ・この行の数量が参照行の数量と同じなら、従来どおり「参照行の売単価」と同じ値（1 単位あたりの % ）
+  //   ・この行が 1 件（JOB・AWB など）で参照行が 500 C/W なら、参照行の「金額」そのものが基準（A/F の 5% など）
+  //   以前は参照行の売単価（1.95 EUR）をそのまま円として 5% にし、0.0975 円→0 円になっていた（数量も通貨も無視）。
+  //   通貨が違うときは、この行の仕入通貨へ換算する（為替が未取得で換算できないときは null）
+  function _pctRefBase(id, refId) {
+    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    const refBc = document.getElementById(`bc-${refId}`)?.value || 'JPY';
+    const refQty = val(`bq-${refId}`) || val(`pq-${refId}`);
+    const refAmt = applyRowMin(refQty * val(`bp-${refId}`), refId, 'sell');
+    const myQty = val(`pq-${id}`);
+    const per = refAmt / (myQty > 0 ? myQty : 1);
+    const conv = _convCur(per, refBc, pc);
+    return isFinite(conv) ? conv : null;
+  }
+
   function _calcPct(id) {
     const rate = val(`pprate-${id}`);
     const pprefUid = document.getElementById(`ppref-${id}`)?.value;
@@ -2560,9 +2590,10 @@
     if (pprefUid) {
       const refId = _findRowIdByUid(pprefUid);
       if (refId !== null) {
-        base = val(`bp-${refId}`);   // 参照行の売値（売単価）を基準額とする
+        base = _pctRefBase(id, refId);
+        if (base === null) return;   // 為替が未取得で換算できない：仕入単価を 0 などで上書きしない
         const ppbaseEl = document.getElementById(`ppbase-${id}`);
-        if (ppbaseEl) { ppbaseEl.value = base; ppbaseEl.readOnly = true; }
+        if (ppbaseEl) { ppbaseEl.value = Math.round(base * 100) / 100; ppbaseEl.readOnly = true; }
       } else {
         base = val(`ppbase-${id}`);
       }
@@ -2576,6 +2607,13 @@
     if (ppEl) ppEl.value = computed;
     onPay(id);
   }
+  // 為替レートを変えたとき、他の行を基準にしている % 行を計算し直す（外から呼ぶ）
+  window.recalcPctRows = function () {
+    document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-virtual])').forEach(tr => {
+      const rid = tr.id.replace('row-', '');
+      if (document.getElementById(`ppref-${rid}`)?.value && tr.classList.contains('row-pct-mode')) _calcPct(rid);
+    });
+  };
 
   // 保存データ復元時に conditions.js から呼び出す
   function _restorePctMode(id) {
