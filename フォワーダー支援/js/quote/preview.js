@@ -446,31 +446,47 @@
     return false;
   }
 
-  // 出力前の確認ガイド（右下に出る）を、右下の固定ボタン（PDF出力／プレビュー／保存のドック）と、
-  // 画面下の全体リマークの引き出しの上へ避けて置く（ボタンや「このまま出力」が互いに隠れないように）。
+  // 出力前の確認ガイドを、PDF出力／プレビュー／保存のボタンと、画面下の全体リマークの引き出しに重ならない場所へ置く。
+  //   ・ボタンが画面の下寄り（旧画面の右下ドック）：ボタンの上へ避ける（右下に出る）
+  //   ・ボタンが画面の上寄り（新画面：上部ツールバーへ移したボタン）：ボタンの上は画面の外になって読めないため、
+  //     ボタンの下へ出す（panel.style.top）。「次の箇所へ」「このまま出力」まで画面内に収まる
   // 引き出しの上端は、開閉のアニメーション中でも最終の高さ（--rms-lift）で数える。
   function _placePvWarnGuide() {
     const panel = document.getElementById('pvWarnGuide');
     if (!panel || panel.style.display === 'none') return;
-    panel.style.bottom = '';                                   // いったん CSS の既定（下から 80px）へ
+    panel.style.bottom = ''; panel.style.top = '';             // いったん CSS の既定（下から 80px）へ
     const vh = window.innerHeight || document.documentElement.clientHeight;
     const g = panel.getBoundingClientRect();
     const overlapsX = r => r.width > 0 && r.right > g.left && r.left < g.right;
-    let top = vh;
-    const dock = document.getElementById('quoteActionDock');
-    if (dock && getComputedStyle(dock).display !== 'none') {
-      dock.querySelectorAll('.qad-btn').forEach(b => { const r = b.getBoundingClientRect(); if (overlapsX(r)) top = Math.min(top, r.top); });
-    }
+    const GAP = 10, MIN_BOTTOM = 80;
     const sheet = document.getElementById('rmSheet');
     const sp = sheet && sheet.querySelector('.rms-panel');
+    let sheetTop = vh;
     if (sp && sheet.getClientRects().length > 0 && overlapsX(sp.getBoundingClientRect())) {
       const lift = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rms-lift')) || 0;
-      top = Math.min(top, vh - lift);
+      sheetTop = vh - lift;
     }
-    const GAP = 10, MIN_BOTTOM = 80;
+    const list = document.getElementById('pvWarnGuideList');
+    const dock = document.getElementById('quoteActionDock');
+    const btns = (dock && getComputedStyle(dock).display !== 'none')
+      ? [...dock.querySelectorAll('.qad-btn')].map(b => b.getBoundingClientRect()).filter(r => r.width > 0) : [];
+    // ボタンが画面の上半分にある（上部ツールバー）：ボタンの下へ
+    const upper = btns.length && Math.min(...btns.map(r => r.top)) < vh / 2;
+    if (upper) {
+      const below = Math.max(...btns.map(r => r.bottom));
+      const topPos = Math.max(GAP, Math.round(below + GAP));
+      panel.style.top = topPos + 'px';
+      panel.style.bottom = 'auto';
+      if (list) {
+        const room = Math.max(80, Math.round(sheetTop - topPos - GAP - 130));   // 画面の下（または引き出しの上端）まで・見出しとボタンの分（約 130px）を引く
+        list.style.maxHeight = Math.min(200, room) + 'px';
+      }
+      return;
+    }
+    let top = Math.min(vh, sheetTop);
+    btns.filter(overlapsX).forEach(r => { top = Math.min(top, r.top); });
     panel.style.bottom = Math.max(MIN_BOTTOM, Math.round(vh - top + GAP)) + 'px';
     // 上に余白が足りない小さな画面では、一覧をその分だけ短くする
-    const list = document.getElementById('pvWarnGuideList');
     if (list) {
       const room = Math.max(80, Math.round(top - GAP - 16 - 130));   // 見出し・ボタンの分（約 130px）と上の余白を引く
       list.style.maxHeight = Math.min(200, room) + 'px';
