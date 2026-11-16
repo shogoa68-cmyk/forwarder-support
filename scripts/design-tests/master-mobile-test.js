@@ -143,7 +143,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '小タブ・一覧は隠れる', !(await vis(p, '#tab-master .stats-tabs')) && !(await vis(p, '#statsPane-master')));
     const home = await p.evaluate(() => document.getElementById('mmHome').innerText.replace(/\s+/g, ' '));
     if (role === 'admin') ok(L + '承認待ち 2 件のカード', /承認待ち 2 件/.test(home), home); else ok(L + 'メンバーは「申請中 N件」の 1 行', /申請中 \d+ 件/.test(home) && !/承認待ち \d+ 件/.test(home), home);
-    ok(L + 'ゆらぎ・マスター一覧のカード', /ゆらぎチェック/.test(home) && /マスター一覧/.test(home), home);
+    if (role === 'admin') ok(L + 'ゆらぎ・マスター一覧のカード', /ゆらぎチェック/.test(home) && /マスター一覧/.test(home), home); else ok(L + 'メンバーにはゆらぎチェックを出さない（マスター一覧だけ）', !/ゆらぎ/.test(home) && /マスター一覧/.test(home), home);
     ok(L + '横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'mm-home-' + role + '.png') });
     if (role === 'admin') {

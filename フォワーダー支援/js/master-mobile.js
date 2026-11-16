@@ -56,7 +56,7 @@
     let s = '<p class="mm-lead">今日やること</p>';
     if (i.approvalOn && i.admin) s += act('req', '📨', '承認待ち ' + i.pending.length + ' 件', i.pending.length ? 'マスター登録・別名の申請を確認します' : '承認待ちの申請はありません', i.pending.length ? 'warn' : '');
     else if (i.approvalOn && i.mine.length) s += '<button type="button" class="mm-myreq" data-go="mine">📨 申請中 ' + i.mine.length + ' 件 ›</button>';
-    s += act('drift', '🔍', 'ゆらぎチェック ' + (d.review + d.human) + ' 件', nd ? '表記ゆれの確認が必要です' + (d.auto ? '（自動で別名にできるもの ' + d.auto + ' 件）' : '') : '確認が必要なゆらぎはありません', d.review + d.human ? 'warn' : '');
+    if (i.admin) s += act('drift', '🔍', 'ゆらぎチェック ' + (d.review + d.human) + ' 件', nd ? '表記ゆれの確認が必要です' + (d.auto ? '（自動で別名にできるもの ' + d.auto + ' 件）' : '') : '確認が必要なゆらぎはありません', d.review + d.human ? 'warn' : '');
     s += act('list', '🗂', 'マスター一覧', '検索・絞り込み・詳細の確認');
     h.innerHTML = s;
   }
@@ -66,7 +66,7 @@
     const w = $('mmWork'); if (!w) return;
     const i = info(), d = drift();
     const tab = (k, l) => '<button type="button" class="mm-wt' + (wtab === k ? ' is-on' : '') + '" data-wt="' + k + '">' + l + '</button>';
-    let s = '<div class="mm-wtabs">' + tab('req', (i.admin ? '承認待ち ' + i.pending.length : '申請中 ' + i.mine.length)) + tab('drift', 'ゆらぎ ' + (d.review + d.human)) + '</div>';
+    let s = '<div class="mm-wtabs">' + tab('req', (i.admin ? '承認待ち ' + i.pending.length : '申請中 ' + i.mine.length)) + (i.admin ? tab('drift', 'ゆらぎ ' + (d.review + d.human)) : '') + '</div>';
     if (wtab === 'req') {
       const list = i.admin ? i.pending : i.mine;
       if (!list.length) s += '<p class="mm-empty">' + (i.admin ? '承認待ちの申請はありません。' : '申請中のものはありません。') + '</p>';
