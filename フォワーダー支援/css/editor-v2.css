@@ -94,17 +94,7 @@ html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-
 /* ④費用：サブコン見出しに仕入・粗利％も出す（Design 28 §3・新画面のみ。小計行の売値の隣） */
 .subcon-group-cm { display: none; }
 html.editor-v2 #tab-quote-make #quoteTable .subcon-group-header .subcon-group-cm:not(:empty) { display: inline-block; margin-left: 10px; font-size: var(--text-sm, 13px); opacity: .85; white-space: nowrap; }
-/* 全体の確認シート（下から出る） */
-#e2Review { position: fixed; inset: 0; z-index: 1100; background: rgba(16, 24, 40, .45); display: flex; align-items: flex-end; justify-content: center; }
-#e2Review .e2r-card { width: min(520px, 100%); max-height: 80vh; overflow: auto; background: var(--surface, #fff); border-radius: 14px 14px 0 0; padding: 12px 14px 20px; }
-#e2Review .e2r-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: var(--text-lg, 16px); }
-#e2Review .e2r-x { min-width: 44px; min-height: 44px; border: 0; background: none; font-size: var(--text-lg, 16px); cursor: pointer; }
-#e2Review .e2r-row { display: grid; grid-template-columns: 32px 1fr auto; gap: 10px; align-items: center; width: 100%; min-height: 56px; padding: 6px 8px; margin-bottom: 6px; text-align: left; border: 1px solid var(--border, #d9dee5); border-radius: 10px; background: var(--surface, #fff); font: inherit; cursor: pointer; }
-#e2Review .e2r-row i { width: 28px; height: 28px; line-height: 28px; text-align: center; border-radius: 50%; background: var(--border, #e2e6ec); font-style: normal; font-weight: 700; }
-#e2Review .e2r-row.is-ok i { background: #3f9a5a; color: #fff; }
-#e2Review .e2r-row small { display: block; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60vw; }
-#e2Review .e2r-row em { font-style: normal; font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
-@media (max-width: 600px) { html.editor-v2 #e2Total .e2t-btns button[data-e2d] { display: none; } }   /* スマホ幅は「全体の確認」だけ（費用の内訳は費用ステップの一覧） */
+@media (max-width: 600px) { html.editor-v2 #e2Total .e2t-btns button[data-e2d] { display: none; } }   /* スマホ幅は右の引き出しボタンを出さない */
 /* 「⋯」メニュー：案件（取り込み・送る・社内メモ）／その他（元に戻す・やり直す・常に前面・使い方）の 2 区分 */
 html.editor-v2 #tab-quote-make .tb-menu.is-open #tbMenuMore { display: flex; flex-direction: column; }
 html.editor-v2 #tbMenuMore .tb-menu-group { font-size: 0; }
