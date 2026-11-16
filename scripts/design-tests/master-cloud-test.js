@@ -252,6 +252,11 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '承認待ちの一覧（承認・却下）', html.includes('承認待ち 1 件') && html.includes('承認待ち費用') && html.includes('statsApproveRequest'), html.slice(0, 300));
     if (process.env.OUT) { await p.evaluate(() => window.scrollTo(0, 0)); await p.screenshot({ path: path.join(process.env.OUT, 'master-approval.png') }); }
     await p.evaluate(() => statsApproveRequest('q1')); await p.waitForTimeout(500);
+    await p.evaluate(() => { window.__db.master_requests.push({ id: 'qd1', field: 'customer', value: '詳細つき申請社', requested_by: 'm@example.com', status: 'pending', details: { location: '福岡市博多区', mainGoods: '雑貨' }, note: '急ぎです', created_at: new Date().toISOString() }); });
+    await p.evaluate(async () => { await statsLoadMasterCache(); statsRerenderActive(); }); await p.waitForTimeout(400);
+    ok(L + '管理者の申請一覧に詳細・申請メモが出る', await p.evaluate(() => { const t = (document.querySelector('#statsPane-master .stats-req-section') || { textContent: '' }).textContent; return t.includes('詳細つき申請社') && t.includes('福岡市博多区') && t.includes('急ぎです'); }));
+    await p.evaluate(() => statsApproveRequest('qd1')); await p.waitForTimeout(700);
+    ok(L + '詳細つきの申請を承認すると、マスターと詳細が一緒に登録される', await p.evaluate(() => window.__db.master_votes.some(v => v.value === '詳細つき申請社') && ((window.__db.master_details.find(m => m.value === '詳細つき申請社') || { details: {} }).details.location === '福岡市博多区')));
     const r = await p.evaluate(() => ({
       req: window.__db.master_requests.find(x => x.id === 'q1'),
       vote: window.__db.master_votes.some(m => m.value === '承認待ち費用'),
@@ -368,6 +373,15 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '役割バッジ（メンバー）・件数（承認待ち／承認済み／却下）', r.badge === 'メンバー' && !r.admin && r.kpis.join() === '1承認待ち,1承認済み,1却下', r);
     ok(L + '申請の状態を記号用の class つきで表示', r.states.length === 3 && r.states.some(x => x.includes('is-wait')) && r.states.some(x => x.includes('is-ok')) && r.states.some(x => x.includes('is-no')), r.states);
     ok(L + 'メンバーには個別マスターの解除（「⋯」）を出さない', r.ops === 0, r);
+    ok(L + 'メンバーの新規登録ボタンは「マスターを申請」', await p.evaluate(() => { const b = document.querySelector('#statsPane-master .master-register-toggle'); return !!b && b.textContent.includes('申請'); }));
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    await p.click('#statsPane-master .master-register-toggle'); await p.waitForTimeout(250);
+    ok(L + '申請のモーダル（申請メモ欄・「📨 申請する」・詳細の入力欄）', await p.evaluate(() => { const m = document.getElementById('masterNewModal'); return !!m && !!m.querySelector('#masterNewNote') && m.querySelector('.master-new-btn').textContent.includes('申請する') && !!m.querySelector('#md_location'); }));
+    await p.selectOption('#masterNewField', 'customer'); await p.waitForTimeout(150);
+    await p.fill('#masterNewValue', 'メンバー申請商事'); await p.fill('#md_location', '大阪市北区'); await p.fill('#md_referrer', '紹介元商事'); await p.fill('#masterNewNote', '展示会で名刺交換しました');
+    await p.click('#masterNewModal .master-new-btn'); await p.waitForTimeout(700);
+    ok(L + '申請が詳細・メモつきで出る（マスターには直接ならない）', await p.evaluate(() => { const q = window.__db.master_requests.find(x => x.value === 'メンバー申請商事'); return !!q && q.status === 'pending' && q.field === 'customer' && q.details && q.details.location === '大阪市北区' && q.details.referrer === '紹介元商事' && q.note === '展示会で名刺交換しました' && !window.__db.master_votes.some(v => v.value === 'メンバー申請商事'); }));
+    ok(L + '申請後にモーダルが閉じ、「あなたの申請」に出る', await p.evaluate(() => !document.getElementById('masterNewModal') && document.querySelector('#statsPane-master .stats-req-section').textContent.includes('メンバー申請商事') && document.querySelector('#statsPane-master .req-details').textContent.includes('大阪市北区')));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
