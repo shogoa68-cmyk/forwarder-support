@@ -63,6 +63,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.click('#e2Next'); await p.waitForTimeout(400);
   if (out) await p.screenshot({ path: path.join(out, 'e2-step2.png'), fullPage: true });
   if (out) { await p.click('#e2Next'); await p.waitForTimeout(400); await p.screenshot({ path: path.join(out, 'e2-step3.png'), fullPage: true }); await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(300); }
+  ok('②ルート：①と同じ左位置・幅（2 カラムの配置を引きずらない）', await p.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(); const a = r('section-cond'); const ref = document.getElementById('section-ref'); const cols = !!document.getElementById('qmCols'); const tab = document.getElementById('tab-quote-make'); const m = tab.querySelector('.quote-main').getBoundingClientRect(); return !cols && Math.abs(a.left - m.left) < 40 && a.width > m.width * 0.8; }));
   ok('［次へ］で②ルート', await vis('#section-cond') && !(await vis('#section-ref')));
   await p.evaluate(() => { const i = document.getElementById('cond-incoterms'); if (i && i.options.length > 1) { i.value = i.options[1].value; i.dispatchEvent(new Event('change', { bubbles: true })); } const a = document.getElementById('z2Pol'); a.value = 'TOKYO'; a.dispatchEvent(new Event('input', { bubbles: true })); const b = document.getElementById('z2Pod'); b.value = 'LOS ANGELES'; b.dispatchEvent(new Event('input', { bubbles: true })); });
   await p.waitForTimeout(300);
@@ -79,6 +80,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('シートの行を押すとそのステップへ移り閉じる', await vis('#section-cargo') && !(await p.evaluate(() => !!document.getElementById('e2Review'))));
   await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(200);
   await p.click('#e2Steps [data-e2s="5"]'); await p.waitForTimeout(600);
+  ok('⑤リマークは本文に直接出る（下の引き出しは出さない）', await p.evaluate(() => { const sec = document.getElementById('section-remark'); const sh = document.getElementById('rmSheet'); return !!sec.closest('.quote-main') && (!sh || getComputedStyle(sh).display === 'none'); }));
   ok('⑤リマーク：入力欄が見えて、上に何も重ならず押せる', await p.evaluate(() => { const t = document.getElementById('remarkTextarea'); if (!t) return false; const b = t.getBoundingClientRect(); if (b.width < 50 || b.height < 20) return false; const e = document.elementFromPoint(b.left + 20, b.top + 10); return !!e && e.id === 'remarkTextarea'; }));
   await p.fill('#remarkTextarea', 'テストのリマーク'); await p.waitForTimeout(200);
   ok('⑤リマークに入力でき、要約に反映される', (await p.evaluate(() => document.getElementById('remarkTextarea').value)) === 'テストのリマーク' && /リマークあり/.test(await p.textContent('#e2Steps [data-e2s="5"]')));
