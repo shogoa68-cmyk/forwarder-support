@@ -148,6 +148,7 @@
   function updateBadge() {
     const btn = document.querySelector('.cat-btn[aria-controls="tab-master"]'); if (!btn) return;
     let b = document.getElementById('driftTabBadge');
+    if (!isAdmin()) { if (b) b.remove(); return; }   // ゆらぎチェックは管理者だけ
     const c = counts(_res), n = c.review + c.human + c.auto;
     if (!n) { if (b) b.remove(); return; }
     if (!b) { b = document.createElement('span'); b.id = 'driftTabBadge'; b.className = 'drift-tab-badge'; btn.appendChild(b); }
@@ -258,7 +259,7 @@
 
   function render() {
     const el = document.getElementById('driftCard'); if (!el) return;
-    if (!cloudOn()) { el.innerHTML = ''; return; }
+    if (!cloudOn() || !isAdmin()) { el.innerHTML = ''; return; }   // ゆらぎチェックは管理者だけ（メンバーには出さない）
     _acts = [];
     if (!_res) {
       el.innerHTML = '<div class="drift-head"><span class="drift-title">🔍 ゆらぎチェック</span><span class="drift-sub">' + (_busy ? '確認しています…' : '準備しています…') + '</span></div>';

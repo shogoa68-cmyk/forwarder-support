@@ -59,12 +59,16 @@
   let _reqs = [];              // 申請（新しい順）
   let _reqOn = false;          // 申請テーブルが使える
   let _aliasReqOn = false;     // 別名の追加申請（alias_of 列）も使える
+  let _detailsReqOn = false;   // 申請に詳細（details）・申請メモ（note）を持たせられる（docs/sql/master-request-details.sql）
   let _countryReqOn = false;   // 港の申請に国（country 列）を持たせられる（docs/sql/master-request-country.sql）
   async function _loadRequests() {
     const c = _c();
     if (!c) { _reqs = []; _reqOn = false; return; }
     // alias_of（別名の追加申請）列は docs/sql/synonym-groups-approval.sql で追加。無い間は従来どおり（別名はメンバーも直接追加できる）
-    let res = await c.from(REQ_TABLE).select('id,field,value,alias_of,country,requested_by,status,decided_by,decided_at,created_at')
+    let res = await c.from(REQ_TABLE).select('id,field,value,alias_of,country,details,note,requested_by,status,decided_by,decided_at,created_at')
+      .order('created_at', { ascending: false }).limit(300);
+    _detailsReqOn = !res.error;   // details／note 列は docs/sql/master-request-details.sql で追加。無い間は名前だけの申請
+    if (res.error) res = await c.from(REQ_TABLE).select('id,field,value,alias_of,country,requested_by,status,decided_by,decided_at,created_at')
       .order('created_at', { ascending: false }).limit(300);
     _countryReqOn = !res.error;   // country 列（港の申請に国を持たせる）は docs/sql/master-request-country.sql で追加。無い間は国なしの申請
     if (res.error) res = await c.from(REQ_TABLE).select('id,field,value,alias_of,requested_by,status,decided_by,decided_at,created_at')
@@ -72,7 +76,7 @@
     _aliasReqOn = !res.error;
     if (res.error) res = await c.from(REQ_TABLE).select('id,field,value,requested_by,status,decided_by,decided_at,created_at')
       .order('created_at', { ascending: false }).limit(300);
-    if (res.error) { _reqs = []; _reqOn = false; _aliasReqOn = false; _countryReqOn = false; return; }
+    if (res.error) { _reqs = []; _reqOn = false; _aliasReqOn = false; _countryReqOn = false; _detailsReqOn = false; return; }
     _reqs = res.data || []; _reqOn = true;
   }
   const _isAdmin = () => window._myRole === 'admin';
@@ -83,19 +87,28 @@
   const _FIELD_LABEL = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港', icd: 'ICD' };
   function _toast(msg, type, ms) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(msg, type || 'success', ms || 3200); }
 
-  async function _request(field, value, country) {
-    if (_pendingReq(field, value)) { _toast('「' + value + '」はすでに申請中です（管理者の承認待ち）', 'info'); return; }
+  async function _request(field, value, country, extra) {
+    if (_pendingReq(field, value)) { _toast('「' + value + '」はすでに申請中です（管理者の承認待ち）', 'info'); return false; }
     const row = { field, value, requested_by: _me(), status: 'pending' };
+    // 詳細・申請メモ（新規登録モーダルから）。列が無い間は名前だけの申請になる
+    let dropped = false;
+    if (extra && ((extra.details && Object.keys(extra.details).length) || extra.note)) {
+      if (_detailsReqOn) { if (extra.details && Object.keys(extra.details).length) row.details = extra.details; if (extra.note) row.note = extra.note; }
+      else dropped = true;
+    }
     const withCountry = !!country && _countryReqOn;   // 国（港の申請）。country 列が無い間は国を持たせられない
     if (withCountry) row.country = country;
     const { error } = await _c().from(REQ_TABLE).insert(row);
-    if (error) { _toast('申請に失敗しました: ' + error.message, 'warn'); return; }
+    if (error) { _toast('申請に失敗しました: ' + error.message, 'warn'); return false; }
     await _loadRequests();
     if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // 行の「申請中」の印を反映
     const cj = country && typeof window.countryJa === 'function' ? window.countryJa(country) : '';
     _toast('📨 ' + (_FIELD_LABEL[field] || field) + '「' + value + '」' + (withCountry && cj ? '（' + cj + '）' : '') + 'をマスターに申請しました。管理者の承認後に入力候補に出ます' +
-      (country && !withCountry ? '（国は申請に付けられませんでした。承認後にマスター管理で設定してください）' : ''), 'success', 4200);
+      (country && !withCountry ? '（国は申請に付けられませんでした。承認後にマスター管理で設定してください）' : '') +
+      (dropped ? '（詳細・メモは申請に付けられませんでした。管理者が SQL を実行すると付けられます）' : ''), 'success', 4200);
+    return true;
   }
+  window.statsMasterRequest = _request;
   // 名称を、国つきでマスターに登録する（見積の POL／経由地／POD から）。承認制のメンバーは「申請」（国も一緒に申請）、管理者・従来の動きは直接登録して国を付ける
   // 戻り値の status：'registered'（登録した）／'requested'（申請した）／'exists'（すでにマスター）／'failed'
   window.statsRegisterWithCountry = async function (field, value, country) {
@@ -135,6 +148,12 @@
     } else if (approve) {
       const { error } = await _c().from(VOTES_TABLE).upsert({ field: r.field, value: r.value, voter_email: _me() }, { onConflict: 'field,value,voter_email' });
       if (error) { _toast('承認に失敗しました: ' + error.message, 'warn'); return; }
+      // 詳細つきの申請（新規登録モーダルから）：承認と一緒に詳細を登録する（すでにある項目は変えない＝管理者が先に入れた内容を守る）
+      if (r.details && typeof r.details === 'object' && Object.keys(r.details).length && typeof window.mdGet === 'function' && typeof window.mdSave === 'function') {
+        const prev = (window.mdGet(r.field, r.value) || {}).details || {};
+        const merged = Object.assign({}, r.details, prev);
+        if (!(await window.mdSave(r.field, r.value, merged))) { _toast('マスターには登録しましたが、詳細を保存できませんでした。マスター管理の詳細から入れ直してください', 'warn', 6000); }
+      }
       // 国つきの申請（港）：承認と一緒に国を付ける（すでにある国は変えない）
       if (r.country && typeof window.mdGet === 'function' && typeof window.mdSave === 'function') {
         const prev = (window.mdGet(r.field, r.value) || {}).details || {};
@@ -177,6 +196,24 @@
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
   }
   // マスター管理画面：申請の一覧（管理者は承認・却下、メンバーは自分の申請と状態）。状態は「記号＋文字」（○ 承認待ち／■ 承認済み／× 却下）
+  // 申請に付いた詳細・メモの要約（承認する前に内容を確認できる）
+  function _reqDetailsSummary(r) {
+    const d = r.details && typeof r.details === 'object' ? r.details : null;
+    const schema = (window.MD_SCHEMA && window.MD_SCHEMA[r.field]) || [];
+    const parts = [];
+    if (d) schema.forEach(sc => {
+      const v = d[sc.key];
+      if (v == null || v === '' || (Array.isArray(v) && !v.length)) return;
+      let t;
+      if (sc.contacts) t = v.map(c => [c.name, c.dept, c.phone, c.email].filter(Boolean).join(' ')).join(' ／ ');
+      else if (sc.areas) t = v.map(k => window.areaLabel ? window.areaLabel(k) : k).join('、');
+      else if (sc.country) t = window.countryLabel ? window.countryLabel(v) : v;
+      else t = Array.isArray(v) ? v.join('、') : String(v);
+      parts.push('<span class="req-d-item"><b>' + _esc(sc.label.replace(/（.*$/, '')) + '</b> ' + _esc(t.length > 60 ? t.slice(0, 60) + '…' : t) + '</span>');
+    });
+    if (r.note) parts.push('<span class="req-d-item req-d-note"><b>💬 申請メモ</b> ' + _esc(r.note) + '</span>');
+    return parts.length ? '<div class="req-details">' + parts.join('') + '</div>' : '';
+  }
   function _requestsHtml() {
     if (!_approvalOn()) return '';
     const admin = _isAdmin(), me = _me();
@@ -198,7 +235,8 @@
           `<button class="stats-demote-btn btn-secondary" onclick="statsRejectRequest('${_ea(r.id)}')">却下…</button>`
         : (r.status === 'pending' ? `<button class="stats-demote-btn btn-secondary" onclick="statsCancelRequest('${_ea(r.id)}')">取り消す</button>` : '');
       const st = ST[r.status] || ['', r.status];
-      return `<tr><td>${_esc(_FIELD_LABEL[r.field] || r.field)}</td><td class="stats-val">${_esc(r.value)}${r.alias_of ? ' <span class="req-alias-of">→ 「' + _esc(r.alias_of) + '」の別名</span>' : ''}${r.country ? ' <span class="req-country" title="申請者が選んだ国">🌐 ' + _esc(typeof window.countryJa === 'function' ? window.countryJa(r.country) : r.country) + '</span>' : ''}</td>` +
+      const sum = _reqDetailsSummary(r);
+      return `<tr><td>${_esc(_FIELD_LABEL[r.field] || r.field)}</td><td class="stats-val">${_esc(r.value)}${sum}${r.alias_of ? ' <span class="req-alias-of">→ 「' + _esc(r.alias_of) + '」の別名</span>' : ''}${r.country ? ' <span class="req-country" title="申請者が選んだ国">🌐 ' + _esc(typeof window.countryJa === 'function' ? window.countryJa(r.country) : r.country) + '</span>' : ''}</td>` +
              `<td>${admin ? _esc(who) : `<span class="req-state ${st[0]}">${st[1]}</span>`}</td><td class="ops">${ops}</td></tr>`;
     }).join('');
     return '<div class="stats-req-section"><p class="stats-master-info-title">' + head + '</p>' +
@@ -2691,19 +2729,23 @@
     if (_regModalEl()) { window.statsMasterCloseRegister(); return; }
     window.statsCloseMasterDetail();
     const cur = _REG_FIELDS.some(f => f[0] === _masterFieldFilter) ? _masterFieldFilter : 'sv';
+    const req = _approvalOn() && !_isAdmin();   // 承認制のメンバー：登録ではなく「申請」（管理者が承認するとマスターになる）
     const m = document.createElement('div');
     m.id = 'masterNewModal'; m.className = 'md-modal-overlay'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
-    m.innerHTML = '<div class="md-modal master-new-modal"><div class="md-modal-head"><h3>＋ マスターを新規登録</h3><button type="button" class="md-modal-close" title="閉じる（Esc）" aria-label="閉じる">✕</button></div>' +
+    m.innerHTML = '<div class="md-modal master-new-modal"><div class="md-modal-head"><h3>' + (req ? '📨 マスターを申請' : '＋ マスターを新規登録') + '</h3><button type="button" class="md-modal-close" title="閉じる（Esc）" aria-label="閉じる">✕</button></div>' +
       '<div class="md-modal-body">' +
         '<div class="mnr-top">' +
           '<label class="mnr-lab mnr-kind">種別<select id="masterNewField" class="ar-select">' + _REG_FIELDS.map(f => `<option value="${f[0]}"${f[0] === cur ? ' selected' : ''}>${f[1]}</option>`).join('') + '</select></label>' +
           '<label class="mnr-lab mnr-name">マスター名（正しい名前）<input id="masterNewValue" class="ar-input" type="text" autocomplete="off"></label>' +
         '</div>' +
         '<div class="master-detail-form mnr-fields" id="masterNewFields"></div>' +
-        '<p class="master-new-hint">実際の入力値に無い名称でも登録できます。種別ごとの詳細は、わかる範囲で入れておけます（あとから「詳細」でも追加できます）。添付ファイル・ニュース・顧客カルテ・取引ルールは、登録後の「詳細」から追加します。</p>' +
+        (req ? '<label class="mnr-lab mnr-note">申請メモ（管理者へ。任意）<textarea id="masterNewNote" class="ar-input" rows="2" placeholder="例）新規のお客様です。○○社の紹介で取引開始予定"></textarea></label>' : '') +
+        '<p class="master-new-hint">' + (req
+          ? '登録するのは管理者です。ここで出した申請は、管理者が内容を確認して承認するとマスターになります（入れた詳細も一緒に登録されます）。わかる範囲で入れてください。承認の状況は、この画面の上の「あなたの申請」で見られます。'
+          : '実際の入力値に無い名称でも登録できます。種別ごとの詳細は、わかる範囲で入れておけます（あとから「詳細」でも追加できます）。添付ファイル・ニュース・顧客カルテ・取引ルールは、登録後の「詳細」から追加します。') + '</p>' +
       '</div>' +
-      '<div class="mt-foot master-new-foot"><label class="master-new-more"><input type="checkbox" id="masterNewMore"> 続けて登録する</label><span class="mnr-spacer"></span>' +
-        '<button type="button" class="master-new-btn" onclick="statsMasterAddCanonical()">登録</button><button type="button" class="master-new-cancel" onclick="statsMasterCloseRegister()">キャンセル</button></div></div>';
+      '<div class="mt-foot master-new-foot"><label class="master-new-more"><input type="checkbox" id="masterNewMore"> ' + (req ? '続けて申請する' : '続けて登録する') + '</label><span class="mnr-spacer"></span>' +
+        '<button type="button" class="master-new-btn" onclick="statsMasterAddCanonical()">' + (req ? '📨 申請する' : '登録') + '</button><button type="button" class="master-new-cancel" onclick="statsMasterCloseRegister()">キャンセル</button></div></div>';
     document.body.appendChild(m); document.body.classList.add('md-modal-open');
     const inp = m.querySelector('#masterNewValue'), sel = m.querySelector('#masterNewField'), box = m.querySelector('#masterNewFields');
     const paint = () => {
@@ -2866,7 +2908,7 @@
     // --- マスターを新規登録するフォーム（実データに無い名称も登録可）---
     const fieldOpts = [['sv', 'サブコン'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['icd', 'ICD'], ['un', '単位']]
       .map(([v, l]) => `<option value="${v}"${v === _masterFieldFilter ? ' selected' : ''}>${l}</option>`).join('');
-    const formH = '<div class="master-register-bar"><button type="button" class="master-register-toggle" onclick="statsMasterToggleRegister()">＋ マスターを新規登録</button></div>';
+    const formH = '<div class="master-register-bar"><button type="button" class="master-register-toggle" onclick="statsMasterToggleRegister()">' + (_approvalOn() && !_isAdmin() ? '📨 マスターを申請' : '＋ マスターを新規登録') + '</button>' + (_approvalOn() && !_isAdmin() ? '<span class="master-register-note">申請すると、管理者の承認後にマスターになります</span>' : '') + '</div>';
 
     // --- マスター＋別名の一覧（単位も同じ synonym_groups）---
     const synGroups = (typeof window.synGetGroups === 'function' ? window.synGetGroups() : []).slice();
@@ -3200,6 +3242,23 @@
     if (!fSel || !inp) return;
     const field = fSel.value;
     const value = (inp.value || '').trim();
+    // 承認制のメンバー：登録ではなく「申請」（名前・詳細・メモを管理者へ。承認すると詳細ごとマスターになる）
+    if (_approvalOn() && !_isAdmin()) {
+      const t = (m, ty) => { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(m, ty || 'success', ty === 'warn' ? 5000 : undefined); };
+      if (!value) { t('名前を入力してください', 'warn'); inp.focus(); return; }
+      if (field !== 'un' && _voteInfo(field, value).total > 0) { t('「' + value + '」はすでにマスターに登録されています', 'info'); return; }
+      const dts = field === 'un' ? {} : _mdCollectDetails(field);
+      const noteEl = document.getElementById('masterNewNote');
+      const ok = await _request(field, value, '', { details: dts, note: noteEl ? noteEl.value.trim() : '' });
+      if (!ok) return;
+      const more = document.getElementById('masterNewMore');
+      if (more && more.checked) {
+        inp.value = ''; if (noteEl) noteEl.value = ''; inp.focus();
+        const sel = document.getElementById('masterNewField'); if (sel) sel.dispatchEvent(new Event('change'));
+      } else window.statsMasterCloseRegister();
+      _rerenderMasters();
+      return;
+    }
     const toast = (msg, t) => { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(msg, t || 'success', t === 'warn' ? 5000 : undefined); };
     if (!value) { toast('マスター名を入力してください', 'warn'); inp.focus(); return; }
     // 1. マスターに登録（承認制のメンバーは申請になる）
@@ -3521,7 +3580,8 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && document.getElementById('mdDetailModal') && !document.querySelector('.confirm-dialog, .ui-confirm-overlay')) window.statsCloseMasterDetail();
   });
-  window.statsSaveMasterDetail = async function (field, value) {
+    // 詳細の入力欄（#md_*）から、保存する詳細（details）を集める。保存と、メンバーの申請（承認制）の両方で使う
+  function _mdCollectDetails(field) {
     const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
     const details = {};
     schema.forEach(s => {
@@ -3567,6 +3627,10 @@
       }
       if (v) details[s.key] = v;
     });
+    return details;
+  }
+  window.statsSaveMasterDetail = async function (field, value) {
+    const details = _mdCollectDetails(field);
     // 先のお客様（同業者の側の編集）：先のお客様が 1 社でもいれば、取引形態が空なら「同業者」にする
     let viaAdd = [], viaDel = [];
     const viaWrap = field === 'customer' ? document.getElementById('md_viaChildren') : null;
