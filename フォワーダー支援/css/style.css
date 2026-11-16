@@ -6124,3 +6124,30 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 .req-details { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; font-size: 12px; font-weight: 400; color: #4a5561; }
 .req-d-item b { color: #6b7a8c; margin-right: 3px; }
 .req-d-note { background: #fff7d6; border-radius: 4px; padding: 0 6px; }
+
+
+/* 📩 サブコン詳細の「メール取込ルール」欄（マスター管理の詳細ポップアップ） */
+.ir-section { margin-top: 12px; }
+.ir-panel { display: flex; flex-direction: column; gap: 10px; }
+.ir-panel .ir-defaults { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; font-size: var(--text-sm, 13px); }
+.ir-panel .ir-defaults input[type=text] { width: 140px; }
+.ir-panel .ir-help, .ir-panel .ir-empty, .ir-panel .ir-meta { margin: 0; font-size: var(--text-xs, 12px); color: var(--text-muted, #57606a); line-height: 1.6; }
+.ir-panel .ir-empty[hidden] { display: none; }
+.ir-panel .ir-list { display: flex; flex-direction: column; gap: 6px; }
+.ir-panel .ir-row { display: grid; grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr) minmax(110px, 150px) auto; gap: 8px; align-items: center; }
+.ir-panel .ir-row input, .ir-panel .ir-row select { min-width: 0; width: 100%; }
+.ir-panel .ir-arrow { color: var(--text-muted, #57606a); }
+.ir-panel .ir-del { border: 0; background: none; cursor: pointer; color: var(--text-muted, #57606a); font-size: var(--text-base, 14px); }
+.ir-panel .ir-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ir-panel .ir-add, .ir-panel .ir-save { padding: 6px 12px; border: 1px solid var(--border, #d0d7de); border-radius: 6px; background: var(--surface, #fff); cursor: pointer; font-size: var(--text-sm, 13px); }
+.ir-panel .ir-save { border-color: #2f8f83; color: #1f6f65; background: #eefaf8; }
+@media (max-width: 600px) { .ir-panel .ir-row { grid-template-columns: 1fr 1fr; } .ir-panel .ir-arrow { display: none; } }
+
+/* 📩 メール取込ルールの使用状況・古いルールの整理 */
+.ir-panel .ir-row { grid-template-columns: minmax(110px, 1fr) auto minmax(110px, 1fr) minmax(100px, 140px) 72px auto; }
+.ir-panel .ir-row .ir-use { grid-column: 1 / -1; font-size: var(--text-xs, 12px); color: var(--text-muted, #57606a); margin: -2px 0 4px; }
+.ir-panel .ir-use.is-stale { color: #9a6700; }
+.ir-panel .ir-qau { display: inline-flex; align-items: center; gap: 6px; }
+.ir-panel .ir-clean { padding: 6px 12px; border: 1px solid #d4a72c; color: #7d4e00; background: #fff8c5; border-radius: 6px; cursor: pointer; font-size: var(--text-sm, 13px); }
+.ir-panel .ir-clean[hidden] { display: none; }
+@media (max-width: 600px) { .ir-panel .ir-row { grid-template-columns: 1fr 1fr; } }
