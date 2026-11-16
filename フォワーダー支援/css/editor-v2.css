@@ -119,3 +119,15 @@ html.editor-v2 #tbMenuMore [data-pip-btn] { order: 13; }
 html.editor-v2 #tbMenuMore [onclick^="openQuoteTabHelp"] { order: 14; }
 html.editor-v2 #tbMenuMore .tb-mi-static { display: none !important; }   /* 廃止した表示サイズ・表示モードの行 */
 html.editor-v2 #tbMenuMore .tb-mi-quiet-only { order: 6; }
+
+/* スマホ幅（〜600px）：下の固定ドック（PDF／プレビュー／保存）の上に合計バーを置き、右の引き出しは下から出るシートにする */
+@media (max-width: 600px) {
+  html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Total { bottom: 49px; }
+  html.editor-v2 #e2Total .e2t-btns button[data-e2q], html.editor-v2 #e2Total .e2t-btns button[data-e2p] { display: inline-block; }
+  html.editor-v2 #tab-quote-make .quote-right-col { position: fixed !important; top: auto !important; left: 0 !important; right: 0 !important; bottom: 108px !important; width: auto !important; max-width: none !important; max-height: 62vh; height: auto !important; transform: translateY(120%); z-index: 1001; overflow: auto; }
+  html.editor-v2 body.e2-drawer #tab-quote-make .quote-right-col { transform: none; }
+  html.editor-v2 #tab-quote-make:not(.qp-dash) { padding-bottom: 130px; }
+  html.editor-v2 #tab-quote-make .quote-right-col { flex-direction: column !important; background: var(--surface, #fff) !important; border-top: 1px solid var(--border, #d9dee5) !important; box-shadow: 0 -8px 24px rgba(16, 24, 40, .18); padding: 8px !important; }
+  html.editor-v2 #tab-quote-make .qrc-drawer { width: 100% !important; flex: 0 0 auto; }
+  html.editor-v2 #tab-quote-make .qrc-rail { order: -1; width: auto; flex-direction: row; flex-wrap: wrap; justify-content: center; }
+}

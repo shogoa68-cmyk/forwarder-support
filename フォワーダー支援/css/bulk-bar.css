@@ -30,3 +30,12 @@
 #tab-quote-make .subcon-group-header .sv-hdr-role[hidden] { display: none; }
 /* 操作バーの「常に前面」は上部ツールバーの「⋯」にもあるので、バーからは外す（重複の整理） */
 #tab-quote-make .quote-cmdbar .cmdbar-pip-btn { display: none; }
+
+/* 航路チップのルート案（案の名前・採用／不採用の印）。見積書の出力には影響しない整理用 */
+#tab-quote-make .z2-route-plan { padding: 0 8px; min-height: 24px; border: 1px dashed var(--border, #b9c2cc); border-radius: 999px; background: transparent; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); cursor: pointer; white-space: nowrap; }
+#tab-quote-make .z2-route-plan.is-none { opacity: .7; }
+#tab-quote-make .z2-route-planwrap { display: inline-flex; align-items: center; gap: 2px; }
+#tab-quote-make .z2-route-planwrap .z2-route-plan { border-style: solid; background: #eef3fb; color: #24467a; font-weight: 700; }
+#tab-quote-make .z2-route-adopt { padding: 0 8px; min-height: 24px; border: 1px solid var(--border, #b9c2cc); border-radius: 999px; background: #fff; font-size: var(--text-xs, 12px); cursor: pointer; white-space: nowrap; }
+#tab-quote-make .z2-route-planwrap.is-adopt .z2-route-adopt { background: #e3f4e8; border-color: #3f9a5a; color: #1d6a3a; font-weight: 700; }
+#tab-quote-make .z2-route-planwrap.is-reject .z2-route-adopt, #tab-quote-make .z2-route-planwrap.is-reject .z2-route-plan { background: #f1f1f1; color: #888; text-decoration: line-through; }
