@@ -2370,24 +2370,35 @@
     // その場合は円換算後の差額のみを正として表示し、無意味な生の差は出さない。
     const ccyMismatch = pc !== bc;
     const isFx = canFx && (bc !== 'JPY' || pc !== 'JPY') && (subtotal || profit);
-    if (ccyMismatch && canFx) {
+    // 仕入側だけミニマム（最低料金）が入っていて、売値側のミニマムが空の行（PROFIT SHARE など売が未確定のもの）：
+    // 売の小計（数量×売単価）と仕入のミニマムを引き算しても意味のある利益にならない（数量しだいで赤字に見える）ため、
+    // 利益・粗利率は計算せず「—」にする。仕入のミニマムは従来どおり仕入側に効く（costAmt）。合計・診断など他の集計は従来どおり
+    const _ppminV = parseFloat(document.getElementById(`ppmin-${id}`)?.value) || 0;
+    const _bpminV = parseFloat(document.getElementById(`bpmin-${id}`)?.value) || 0;
+    const noProfitCalc = _ppminV > 0 && !(_bpminV > 0);
+    if (trEl0) { if (noProfitCalc) trEl0.dataset.noProfit = '1'; else delete trEl0.dataset.noProfit; }
+    if (noProfitCalc) {
+      pr.innerHTML = '<div class="pr-main">—</div>';
+      pr.className = 'profit-cell profit-zero';
+      pr.title = '仕入側だけミニマムが設定されていて、売値側のミニマムが空のため、利益・粗利率は計算しません';
+    } else if (ccyMismatch && canFx) {
       const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(costAmt, pc));
       const jpySub = toJPY(subtotal, bc);
       // 粗利率（Industry のみ表示）は 3 段目に分ける（2 段目は 1 行で、並べると換算の注記が切れるため）
       const rate = jpySub > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (jpyProfit / jpySub * 100).toFixed(1) + '%</small></div>' : '';
       pr.innerHTML = '<div class="pr-main">≈¥' + fmt(jpyProfit) + '</div>' +
         '<div class="pr-sub"><small class="jpy-conv-hint" title="仕入（' + pc + '）と売（' + bc + '）の通貨が異なるため、円換算後の差額のみを表示しています">円換算後</small></div>' + rate;
-      pr.className = `profit-cell ${pClass(jpyProfit)}`;
+      pr.className = `profit-cell ${pClass(jpyProfit)}`; pr.title = '';
     } else if (isFx) {
       const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(costAmt, pc));
       const rate = subtotal > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (profit / subtotal * 100).toFixed(1) + '%</small></div>' : '';
       pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div><div class="pr-sub"><small class="jpy-conv-hint">(≈¥' + fmt(jpyProfit) + ')</small></div>' + rate;
-      pr.className = `profit-cell ${pClass(profit)}`;
+      pr.className = `profit-cell ${pClass(profit)}`; pr.title = '';
     } else {
       // 粗利率（Industry のみ表示。classic は .pr-rate を CSS で隠す）
       const rate = subtotal > 0 ? ' <small class="pr-rate">粗利 ' + (profit / subtotal * 100).toFixed(1) + '%</small>' : '';
       pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div>' + (rate ? '<div class="pr-sub">' + rate + '</div>' : '');
-      pr.className = `profit-cell ${pClass(profit)}`;
+      pr.className = `profit-cell ${pClass(profit)}`; pr.title = '';
     }
     window._rowStateRefresh?.(trEl0);
     scheduleUpdateTotals();
