@@ -39,19 +39,199 @@
     return isFinite(n) ? n : null;
   }
 
-  // 金額文字列 → {v, ccy}。'¥1,234' / '1,234.00 USD' / 'USD 1,234' / '(¥1,234)' に対応
+  // 全角の英数字・＄・，・．・／・＋ を半角へ（品名・金額の解析用。全角のカッコ・コロン等は他の判定が使うので触らない）
+  function _fw(s) {
+    return String(s == null ? '' : s)
+      .replace(/[０-９Ａ-Ｚａ-ｚ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+      .replace(/＄/g, '$').replace(/，/g, ',').replace(/．/g, '.').replace(/／/g, '/').replace(/＋/g, '+');
+  }
+
+  // ---- 金額の見つけ方（通貨記号・通貨コード・円／元、範囲「1,000〜1,200」に対応）----
+  const _NUM = '(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?)';
+  const _CCY_ALL = CCY_RE + '|RMB';
+  const _SYM_MAP = { 'US$': 'USD', '$': 'USD', 'HK$': 'HKD', 'NT$': 'TWD', 'SG$': 'SGD', 'S$': 'SGD', 'AU$': 'AUD', 'A$': 'AUD', '€': 'EUR', '£': 'GBP' };
+  const _MONEY_SRC =
+    '(?:(?<s1>[¥￥])\\s?(?<n1>' + _NUM.slice(1, -1) + '))' +
+    '|(?:(?<s2>HK\\$|NT\\$|SG\\$|AU\\$|US\\$|S\\$|A\\$|\\$|€|£)\\s?(?<n2>' + _NUM.slice(1, -1) + '))' +
+    '|(?:\\b(?<c3>' + _CCY_ALL + ')(?![A-Za-z])\\s?(?<n3>' + _NUM.slice(1, -1) + '))' +
+    '|(?:(?<n4>' + _NUM.slice(1, -1) + ')\\s?(?<c4>' + _CCY_ALL + ')\\b)' +
+    '|(?:(?<n5>' + _NUM.slice(1, -1) + ')\\s?(?<c5>円|元))';
+  // 金額のすぐ後ろの「〜上限」（〜 ~ ～ - – to）。単位（20GP など）を範囲と取り違えないよう、直後に英数字が続くものは範囲にしない
+  const _RANGE_RE = new RegExp('^\\s*(?:[〜~～]|[–—-]|\\bto\\b)\\s*(?:[¥￥$€£]|\\b(?:' + _CCY_ALL + ')\\b)?\\s?' + _NUM + '(?:\\s?(?:' + _CCY_ALL + '|円|元)\\b)?(?![A-Za-z0-9\'’])', 'i');
+  const _MIN_PRE_RE = /[（(]?\s*(?:minimum|min\.?|最低料金|最低|ミニマム)\s*[:：]?\s*$/i;
+
+  // 文字列の中の金額を前から順にすべて返す：[{v, hi, ccy, start, end}]（hi＝範囲の上限・無ければ null）
+  function _findMoneyAll(s) {
+    const out = [];
+    const re = new RegExp(_MONEY_SRC, 'gi');
+    let m;
+    while ((m = re.exec(s))) {
+      const g = m.groups;
+      let ccy, num;
+      if (g.n1) { ccy = 'JPY'; num = g.n1; }
+      else if (g.n2) { ccy = _SYM_MAP[g.s2.toUpperCase()] || 'USD'; num = g.n2; }
+      else if (g.n3) { ccy = g.c3.toUpperCase(); num = g.n3; }
+      else if (g.n4) { ccy = g.c4.toUpperCase(); num = g.n4; }
+      else { ccy = 'JPY'; num = g.n5; if (g.c5 === '元') ccy = 'CNY'; }
+      if (ccy === 'RMB') ccy = 'CNY';
+      const v = _num(num);
+      let end = m.index + m[0].length, hi = null;
+      const rm = _RANGE_RE.exec(s.slice(end));
+      if (rm) { const h = _num(rm[1]); if (h != null && v != null && h > v) { hi = h; end += rm[0].length; } }
+      out.push({ v, hi, ccy, start: m.index, end });
+      re.lastIndex = end;
+    }
+    return out;
+  }
+
+  // 金額文字列 → {v, ccy}。'¥1,234' / '1,234.00 USD' / 'USD 1,234' / '$1,234' / '(¥1,234)' / '１，２３４円' に対応
   function parseMoney(str) {
     if (!str) return null;
-    const s = String(str).replace(/[()（）]/g, '').trim();
-    let m = s.match(/[¥￥]\s?([\d,]+(?:\.\d+)?)/);
-    if (m) return { v: _num(m[1]), ccy: 'JPY' };
-    m = s.match(new RegExp('([\\d,]+(?:\\.\\d+)?)\\s*(' + CCY_RE + ')\\b', 'i'));
-    if (m) return { v: _num(m[1]), ccy: m[2].toUpperCase() };
-    m = s.match(new RegExp('\\b(' + CCY_RE + ')\\s*([\\d,]+(?:\\.\\d+)?)', 'i'));
-    if (m) return { v: _num(m[2]), ccy: m[1].toUpperCase() };
-    m = s.match(/([\d,]+(?:\.\d+)?)\s*円/);
-    if (m) return { v: _num(m[1]), ccy: 'JPY' };
+    // カッコは空白に置き換える（消すと「1,200（20GP）」が「1,20020GP」とくっついて金額が壊れるため）
+    const s = _fw(String(str).replace(/[()（）]/g, ' ')).trim();
+    const t = _findMoneyAll(s)[0];
+    return t ? { v: t.v, ccy: t.ccy } : null;
+  }
+
+  // ---- 単位・数量の見つけ方（「/20GP」「per 40HC」「(20GP)」「× 3台」「2×40'HC」）----
+  // 20・40・45 は「'」かサイズ記号（GP/HC…）が付くときだけ単位（日付の「/20」などを単位と取り違えない）
+  const _UNIT_SRC = "(?:(?:20|40|45)(?:\\s*['’]\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU)?|\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU))|R\\/T|RT|CBM|M3|M³|㎥|KGS?|MT|CNTR|CTR|CNT|CONTAINER|B\\/L|BL|SHPT|SHIPMENT|SHP|VAN|JOB|PKG|PLT|PALLET|CTN|PCS?|SET|BOX|TEU|FEU|件|台|本|枚|式|梱|才|個|便|回|コンテナ|ロット|口|パレット|トン|立米|DAY)";
+  const _UNIT_END = '(?![A-Za-z0-9])';
+  const _PER_RE        = new RegExp('(?:\\/|\\bper\\b|あたり|につき|毎|@)\\s*(?:1\\s*)?(' + _UNIT_SRC + ')' + _UNIT_END, 'i');
+  const _PAREN_UNIT_RE = new RegExp('[（(]\\s*(' + _UNIT_SRC + ')\\s*[）)]', 'i');
+  const _LEAD_X_RE     = new RegExp('^\\s*(\\d+(?:\\.\\d+)?)\\s*[×xX]\\s*(' + _UNIT_SRC + ')' + _UNIT_END + '\\s*', 'i');
+  const _TRAIL_X_RE    = new RegExp('(?:×|(?:^|[\\s)）])x)\\s*(\\d+(?:\\.\\d+)?)\\s*(' + _UNIT_SRC + ')?' + _UNIT_END + '\\s*$', 'i');
+  const _CNTR_TAIL_RE  = /(?:^|\s)((?:20|40|45)\s*['’]?\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT))\s*$/i;
+  const _fmtMoney = t => (t.ccy === 'JPY' ? '¥' : '') + t.v.toLocaleString('en-US') + (t.ccy === 'JPY' ? '' : ' ' + t.ccy);
+
+  // 自由文 1 区切り（1 項目ぶん）→ { name, qty, unit, ccy, price, priceHi, minNote } ／ 金額が無ければ null
+  //  ・「/20GP」「per 40HC」「(20GP)」「× 3台」「2×40'HC」があるときは、金額を“単価”として扱う（数量で割らない）
+  //  ・単位の表記が無く「品名 2 R/T ¥10,000」のように数量だけあるときは、従来どおり金額を“合計”として数量で割る
+  //  ・「Min USD 345」「(Min ¥3,000)」は最低料金として品名から外し、備考にだけ残す
+  function _parseFreeSeg(body, popts) {
+    popts = popts || {};
+    const toks = _findMoneyAll(body);
+    if (!toks.length) return null;
+    let main = null, minNote = '';
+    const cut = [];
+    toks.forEach(tk => {
+      const mm = body.slice(0, tk.start).match(_MIN_PRE_RE);
+      if (mm) { if (!minNote) minNote = 'Min ' + _fmtMoney(tk); cut.push([tk.start - mm[0].length, tk.end]); }
+      else { if (!main) main = tk; cut.push([tk.start, tk.end]); }
+    });
+    if (!main) { main = toks[0]; minNote = ''; cut.length = 0; cut.push([main.start, main.end]); }
+    let rest = body;
+    cut.sort((a, b) => b[0] - a[0]).forEach(([a, b]) => { rest = rest.slice(0, a) + ' ' + rest.slice(b); });
+
+    let qty = null, unit = '', perUnit = false, m;
+    if ((m = rest.match(_LEAD_X_RE))) { qty = _num(m[1]); unit = m[2]; rest = rest.slice(m[0].length); perUnit = true; }
+    else if ((m = rest.match(_TRAIL_X_RE))) { qty = _num(m[1]); if (m[2]) unit = m[2]; rest = rest.slice(0, m.index); perUnit = true; }
+    if ((m = rest.match(_PER_RE)) || (m = rest.match(_PAREN_UNIT_RE))) {
+      if (!unit) unit = m[1];
+      rest = rest.slice(0, m.index) + ' ' + rest.slice(m.index + m[0].length);
+      perUnit = true;
+    } else if (!unit && (m = rest.match(_CNTR_TAIL_RE))) {
+      unit = m[1]; rest = rest.slice(0, m.index); perUnit = true;
+    }
+
+    if (minNote) rest = rest.replace(/\b(or|または)\b/gi, ' ');
+    let name = rest.replace(/[（(]\s*[）)]/g, ' ');
+    if (!/[（(]/.test(name)) name = name.replace(/[)）]\s*$/, '');
+    name = name.replace(/\s+/g, ' ').replace(/^[\s:：/／,，、\-–]+|[\s:：/／,，、\-–×]+$/g, '').trim();
+
+    if (!perUnit) {   // 従来の読み方：「品名 数量 単位 … 金額（合計）」
+      const qm = name.match(/\s([\d.,]+)\s*(R\/T|RT|CBM|M3|KGS?|CNTR|B\/L|BL|SHPT|VAN|件|台|本|枚|式|梱|才|20'?\S*|40'?\S*)$/i);
+      if (qm) { qty = _num(qm[1]) ?? 1; unit = qm[2]; name = name.slice(0, qm.index).trim(); }
+    }
+    const div = (perUnit || popts.qtyAsUnit) ? 1 : (qty || 1);   // 数量付きの金額を単価として書くサブコン（qtyAsUnit）は割らない
+    return {
+      name, qty: qty ?? 1, unit, ccy: main.ccy,
+      price: main.v / div, priceHi: main.hi != null ? main.hi / div : null, minNote,
+    };
+  }
+
+
+  // 通貨の書かれていない行の「金額らしい数字」の前に、既定の通貨を補う（見つからなければ null）。
+  //  日付（2026/11/20）・電話・住所（2-11-5）・「3日」「5階」・数量（10 未満）・「× 2」は金額にしない。品名（文字 2 つ以上）が先にある行だけ
+  function _injectCcy(body, ccy) {
+    const re = /\d[\d,]*(?:\.\d+)?/g;
+    let m;
+    while ((m = re.exec(body))) {
+      const before = body.slice(0, m.index), after = body.slice(m.index + m[0].length);
+      const v = _num(m[0]);
+      if (v == null || v < 10) continue;
+      if (before && !/[\s:：=]$/.test(before)) continue;
+      if (/[×xX]\s*$/.test(before) || /(?:^|\s)(?:per|@)\s*$/i.test(before) || /\/\s*$/.test(before)) continue;
+      if (/^[A-Za-z0-9\/\-:.'’%％月日年時分号階F]/.test(after)) continue;
+      if ((before.match(/[A-Za-z぀-ヿ一-鿿]/g) || []).length < 2) continue;
+      return before + ccy + ' ' + m[0] + after;
+    }
     return null;
+  }
+
+  // ---- 表（タブ区切り／「|」区切り）の読み取り ----
+  const _ROLE_TESTS = [
+    ['ccy',    /^(通貨|currency|ccy|cur\.?)$/i],
+    ['qty',    /数量|^q'?ty|quantity|^数$/i],
+    ['price',  /単価|unit\s*price|^rate|price|料金/i],
+    ['amount', /金額|amount|total|合計|^計$/i],
+    ['unit',   /^(単位|unit|uom)$/i],
+    ['note',   /備考|note|remark|comment|摘要/i],
+    ['name',   /項目|品名|品目|内訳|費目|名称|item|description|charge|particular|^name$/i],
+  ];
+  function _splitCells(t) {
+    const s = _fw(t);
+    if (/\t/.test(s)) return s.split('\t').map(c => c.trim());
+    return s.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim());
+  }
+  function _tableHeader(cells) {
+    if (cells.some(c => _findMoneyAll(c).length)) return null;
+    const cols = {};
+    cells.forEach((c, i) => {
+      if (!c) return;
+      const r = _ROLE_TESTS.find(([k, re]) => cols[k] == null && re.test(c));
+      if (r) cols[r[0]] = i;
+    });
+    const n = Object.keys(cols).length;
+    if (n < 2 || !(cols.name != null || cols.price != null || cols.amount != null)) return null;
+    cols._hdr = cells;
+    return cols;
+  }
+  // 見出しの文字に通貨コードがあれば拾う（例：「Unit Price (USD)」「単価（JPY）」）
+  function _ccyInText(s) {
+    const m = String(s || '').match(new RegExp('\\b(' + _CCY_ALL + ')\\b', 'i'));
+    return m ? (m[1].toUpperCase() === 'RMB' ? 'CNY' : m[1].toUpperCase()) : '';
+  }
+  function _tableRow(cells, cols) {
+    const plain = s => /^[\d,]+(?:\.\d+)?$/.test(s) ? _num(s) : null;
+    let name = '', qty = null, unit = '', note = '', price = null, ccy = '', amt = null;
+    if (cols) {
+      const c = k => cols[k] != null ? (cells[cols[k]] || '') : '';
+      name = c('name'); unit = c('unit'); note = c('note'); qty = plain(c('qty'));
+      const pm = _findMoneyAll(c('price'))[0], am = _findMoneyAll(c('amount'))[0];
+      ccy = (pm && pm.ccy) || (am && am.ccy) || c('ccy').toUpperCase() || _ccyInText(cols._hdr[cols.price]) || _ccyInText(cols._hdr[cols.amount]);
+      price = pm ? pm.v : plain(c('price'));
+      amt = am ? am.v : plain(c('amount'));
+      if (price == null && amt != null) price = amt / (qty || 1);
+    } else {
+      const moneyCells = [], numCells = [];
+      cells.forEach(c => {
+        if (!c) return;
+        const mm = _findMoneyAll(c)[0];
+        if (mm) moneyCells.push(mm);
+        else if (plain(c) != null && !name) numCells.push(plain(c));
+        else if (plain(c) != null) numCells.push(plain(c));
+        else if (!name) name = c;
+        else if (!unit && c.length <= 8) unit = c;
+        else if (!note) note = c;
+      });
+      if (!moneyCells.length) return null;
+      price = moneyCells[0].v; ccy = moneyCells[0].ccy;
+      if (numCells.length) qty = numCells[0];
+    }
+    name = String(name || '').trim();
+    if (!name || price == null) return null;
+    return { name, qty: qty ?? 1, unit, ccy: ccy || 'JPY', price, note, _noCcy: !ccy };
   }
 
   // 課税・非課税の判定（本文の語から）。戻り値 'on'＝課税／'off'＝非課税／null＝判定できない。
@@ -80,7 +260,9 @@
 
   // ====== 本文パーサー ======
   // 戻り値：{ fields: {customer, ref, validUntil}, entries: [{_kind:'group'|'item', ...}] }
-  function parseQuoteEmail(text) {
+  function parseQuoteEmail(text, opts) {
+    opts = opts || {};
+    const defCcy = CCY_LIST.includes(String(opts.defaultCcy || '').toUpperCase()) ? String(opts.defaultCcy).toUpperCase() : '';
     const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
     const fields = {};
     const entries = [];
@@ -111,10 +293,12 @@
       break;
     }
 
+    let tableCols = null;   // 表（タブ／| 区切り）の見出しから決めた列の役割。空行で解除
     lines.forEach(raw => {
-      const line = raw.replace(/\s+$/, '');
+      // メールの引用記号（「> 」）は外す（返信メールの引用部分に見積が入っていることが多い）
+      const line = raw.replace(/^(?:[ \t]*>)+[ \t]?/, '').replace(/\s+$/, '');
       const t = line.trim();
-      if (!t) { lastItemIdx = -1; return; }   // 空行をはさんだ「※」は、直前の明細の注記にしない（全体リマーク）
+      if (!t) { lastItemIdx = -1; tableCols = null; return; }   // 空行をはさんだ「※」は、直前の明細の注記にしない（全体リマーク）
       const prevItem = lastItemIdx; lastItemIdx = -1;   // 明細の直後だけ「※…」をその明細の注記として扱う
 
       // ヘッダー項目
@@ -136,15 +320,33 @@
 
       // スキップ：罫線・サマリ・署名・注記
       if (/^[─═―_\-=]{4,}/.test(t)) return;
-      if (/^(　)?(小計|課税対象小計|御見積額|消費税|仕入合計|売値合計|合計)/.test(t)) return;
+      if (/^(　)?(小計|課税対象小計|御見積額|消費税|仕入合計|売値合計|合計|総合計|総額|ご?請求(合計|金額)|(grand\s*|sub\s*-?\s*)?total\b|ttl\b)/i.test(t)) return;
       if (/^※/.test(t)) { pushRemark(t, prevItem >= 0 ? prevItem : null); lastItemIdx = prevItem; return; }   // 続く「※」も同じ明細へ
       if (/^(■(?!.*[×＝])|TEL|FAX|Mail|E-?mail)/i.test(t)) return;
       // サマリの区間行（ラベル＋空白＋¥金額のみ）は明細と重複するためスキップ
       if (/^　.+\s{2,}[¥￥][\d,]+$/.test(line)) return;
 
+      // 表（Excel／メール内の表を貼ったタブ区切り、または「|」区切り）。見出し行があれば列の役割を使う
+      if (/\t/.test(t) || /^\|.*\|$/.test(t)) {
+        const cells = _splitCells(t);
+        if (cells.length >= 2) {
+          if (cells.every(c => /^:?-{2,}:?$/.test(c) || !c)) return;   // 「|---|---|」の区切り行
+          const hdr = _tableHeader(cells);
+          if (hdr) { tableCols = hdr; return; }
+          const row = _tableRow(cells, tableCols);
+          if (row) {
+            const tx = _taxOf(row.name + ' ' + row.note);
+            const nm = _stripTaxMarks(row.name).replace(/\s+/g, ' ').trim();
+            pushItem({ _kind: 'item', conf: row._noCcy ? 'low' : 'mid', name: nm, qty: row.qty, unit: row.unit, ccy: row.ccy, price: row.price,
+              taxed: tx === 'on', taxSrc: tx, cond: false, ref: false, note: row.note });
+            return;
+          }
+        }
+      }
+
       // 実費行（自形式）：・NAME …… 実費
       const isBullet = /^[・･\-\*●○]/.test(t);
-      let body = t.replace(/^[・･\-\*●○]\s*/, '');
+      let body = _fw(t.replace(/^[・･\-\*●○]\s*/, ''));
 
       // 備考（※…）を分離
       let note = '';
@@ -187,29 +389,26 @@
         }
       }
 
-      // パターンC（一般自由文・低確度）：行内の最後の金額を採用
-      const money = parseMoney(body);
-      if (money && money.v != null) {
-        // 金額部分と数量・単位らしき断片を除いた残りを品名に
-        let nm3 = body
-          .replace(new RegExp('[¥￥]\\s?[\\d,]+(?:\\.\\d+)?', 'g'), ' ')
-          .replace(new RegExp('([\\d,]+(?:\\.\\d+)?)\\s*(' + CCY_RE + ')\\b', 'gi'), ' ')
-          .replace(new RegExp('\\b(' + CCY_RE + ')\\s*[\\d,]+(?:\\.\\d+)?', 'gi'), ' ')
-          .replace(/([\d,]+(?:\.\d+)?)\s*円/g, ' ')
-          .replace(/[：:／/]+\s*$/, '')
-          .replace(/\s+/g, ' ').trim();
-        // 数量 単位（例 "2 R/T" / "1 B/L"）が残っていれば拾う
-        let qty = 1, unit = '';
-        const qm = nm3.match(/\s([\d.,]+)\s*(R\/T|RT|CBM|M3|KGS?|CNTR|B\/L|BL|SHPT|VAN|件|台|本|枚|式|梱|才|20'?\S*|40'?\S*)$/i);
-        if (qm) { qty = _num(qm[1]) ?? 1; unit = qm[2]; nm3 = nm3.slice(0, qm.index).trim(); }
-        if (nm3 && !/^(以上|宜しく|よろしく|お願い|下記|毎度|拝啓|敬具)/.test(nm3)) {
-          pushItem({
-            _kind: 'item', conf: isBullet ? 'mid' : 'low',
-            name: nm3, qty, unit, ccy: money.ccy, price: money.v / (qty || 1),
-            taxed, taxSrc: tax, cond, ref: refFlg, note,
-          });
-        }
+      // パターンC（一般自由文・低確度）：金額・単位（/20GP・per 40HC）・数量（× 3台）・範囲（〜）・Min を読み取る。
+      //  「海上運賃 USD 1,200 + BAF USD 300 + THC ¥48,000」のように「 + 」でつないだ 1 行は、項目ごとに分ける
+      let assumed = false;
+      if (defCcy && !_findMoneyAll(body).length) {   // サブコンの既定の通貨があるときだけ、通貨の書かれていない数字も金額として読む
+        const inj = _injectCcy(body, defCcy);
+        if (inj) { body = inj; assumed = true; }
       }
+      const segs = (_findMoneyAll(body).length >= 2 && /\s\+\s/.test(body)) ? body.split(/\s\+\s/) : [body];
+      segs.forEach((seg, si) => {
+        const r = _parseFreeSeg(seg, { qtyAsUnit: !!opts.qtyAsUnit });
+        if (!r || !r.name || r.price == null) return;
+        if (!/[A-Za-z぀-ヿ一-鿿]/.test(r.name)) return;   // 数字・記号だけの名前（日付・番号など）は項目にしない
+        if (/^(以上|宜しく|よろしく|お願い|下記|毎度|拝啓|敬具)/.test(r.name)) return;
+        pushItem({
+          _kind: 'item', conf: (isBullet && !assumed) ? 'mid' : 'low',
+          name: r.name, qty: r.qty, unit: r.unit, ccy: r.ccy, price: r.price, priceHi: r.priceHi, ccyAssumed: assumed,
+          taxed, taxSrc: tax, cond, ref: refFlg,
+          note: [si === segs.length - 1 ? note : '', r.minNote].filter(Boolean).join(' / '),
+        });
+      });
     });
 
     // 「品名：注記」の形のリマークは、その品名の明細へ付ける（品名は大文字小文字・空白の違いを無視して、含む・含まれるで照合）
@@ -231,7 +430,58 @@
   // ====== レビュー UI ======
   let _parsed = null;   // { fields, entries }
 
+  // ====== 🧠 サブコン別の読み取りルール（マスター詳細 details.importRules に保存＝チーム共有）======
+  //  rules = { aliases: [{from, to, cat}], ccy: '既定の通貨', unit: '既定の単位', by, at }
+  //  ・aliases：相手の呼び名（from）→ 自社の品名（to）・カテゴリ（cat・任意）。品名は大文字小文字・空白を無視して照合（完全一致、または 3 文字以上で含む）
+  //  ・ccy：通貨の書かれていない数字も、この通貨の金額として読む（確度は「要確認」）
+  //  ・unit：単位が読み取れなかった行の単位
+  let _svCtx = null;   // { canon } サブコン見出しから開いたとき
+  const _nzs = v => String(v || '').toLowerCase().replace(/[\s　]+/g, '');
+  function _rulesOf(canon) {
+    const rec = (typeof window.mdGet === 'function' && canon) ? window.mdGet('sv', canon) : null;
+    const r = rec && rec.details && rec.details.importRules;
+    // aliases の各要素は { from, to, cat, unit, n(使った回数), last(最後に使った日), by, at(登録日時) }。知らない項目もそのまま持ち回る
+    return { aliases: Array.isArray(r && r.aliases) ? r.aliases.filter(a => a && a.from).map(a => Object.assign({}, a)) : [], ccy: (r && r.ccy) || '', unit: (r && r.unit) || '', qtyAsUnit: !!(r && r.qtyAsUnit), by: (r && r.by) || '', at: (r && r.at) || '' };
+  }
+  const _STALE_DAYS = 180;   // これだけ使われていない（登録後も使われていない）ルールは「古い」として整理の候補にする
+  const _todayIso = () => new Date().toISOString().slice(0, 10);
+  const _daysSince = iso => { const t = Date.parse(String(iso || '').slice(0, 10)); return isFinite(t) ? Math.floor((Date.now() - t) / 86400000) : null; };
+  function _ruleIdleDays(a) { return _daysSince(a.last || a.at); }   // 最後に使った日（無ければ登録日）からの日数。日付が無いルールは null（古いとはみなさない）
+  function _isStaleRule(a) { const d = _ruleIdleDays(a); return d != null && d >= _STALE_DAYS; }
+  // 同じ呼び名のルールは 1 つにまとめ、使った回数・登録日は引き継ぐ（直しても履歴が消えない）
+  function _upsertAlias(list, a) {
+    const k = _nzs(a.from);
+    const i = list.findIndex(x => _nzs(x.from) === k);
+    if (i >= 0) { list[i] = Object.assign({}, list[i], a); return list; }
+    list.push(Object.assign({ n: 0 }, a));
+    return list;
+  }
+  async function _saveRules(canon, rules) {
+    if (typeof window.mdGet !== 'function' || typeof window.mdSave !== 'function') return false;
+    const prev = (window.mdGet('sv', canon) || {}).details || {};
+    const me = (typeof window.cloudCurrentUser === 'function' && window.cloudCurrentUser()) || {};
+    const now = new Date().toISOString();
+    const aliases = (rules.aliases || []).map(a => Object.assign({}, a, { at: a.at || now, by: a.by || me.email || '' }));   // 登録日・登録者は最初の保存で記録
+    const next = Object.assign({}, prev, { importRules: { v: 2, aliases, ccy: rules.ccy || '', unit: rules.unit || '', qtyAsUnit: !!rules.qtyAsUnit, by: me.email || '', at: now } });
+    return await window.mdSave('sv', canon, next);
+  }
+  // 解析結果（entries）へルールを当てる。当たった行は ruleHit（呼び名の置き換え）・unitFilled を立てる
+  function _applyRules(parsed, rules) {
+    if (!parsed || !rules) return parsed;
+    const al = (rules.aliases || []).map(a => ({ k: _nzs(a.from), to: a.to || a.from, cat: a.cat || '', unit: a.unit || '' })).filter(a => a.k);
+    parsed.entries.forEach(e => {
+      if (e._kind !== 'item') return;
+      const key = _nzs(e.name);
+      let hit = al.find(a => a.k === key);
+      if (!hit) hit = al.filter(a => a.k.length >= 3 && key.includes(a.k)).sort((x, y) => y.k.length - x.k.length)[0];
+      if (hit) { e.origName = e.name; e.name = hit.to; e.ruleHit = true; e.ruleKey = hit.k; if (hit.cat) e.ruleCat = hit.cat; if (!e.unit && hit.unit) { e.unit = hit.unit; e.unitFilled = true; } }
+      if (!e.unit && rules.unit) { e.unit = rules.unit; e.unitFilled = true; }
+    });
+    return parsed;
+  }
+
   function openEmailImport() {
+    _svCtx = null; _renderSvCtx();
     _setStoreOnly(false);
     _curEntryId = null;
     _fromEntry(false);
@@ -509,7 +759,9 @@
   function eiParse() {
     const text = document.getElementById('eiText')?.value || '';
     if (!text.trim()) { if (window.quoteShowToast) quoteShowToast('⚠️ メール本文を貼り付けてください', 'warn'); return; }
-    _parsed = parseQuoteEmail(text);
+    const rules = _svCtx ? _rulesOf(_svCtx.canon) : null;
+    _parsed = parseQuoteEmail(text, { defaultCcy: rules && rules.ccy, qtyAsUnit: rules && rules.qtyAsUnit });
+    if (rules) _applyRules(_parsed, rules);
     renderEiReview();
   }
 
@@ -554,14 +806,14 @@
     entries.forEach(e => {
       if (e._kind === 'group') { curGroup = e.label; return; }
       gi++;
-      const cat = inferCat(e.name);
-      const flags = (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費' : '');
-      html += `<tr data-gi="${gi}" class="ei-row ei-${e.conf}">` +
+      const cat = e.ruleCat || inferCat(e.name);
+      const flags = (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費 ' : '') + (e.priceHi != null ? '幅〜' + Math.round(e.priceHi * 100) / 100 : '') + (e.ccyAssumed ? ' 通貨は既定' : '') + (e.ruleHit ? ' 🧠置換' : '') + (e.unitFilled ? ' 単位は既定' : '');
+      html += `<tr data-gi="${gi}" data-orig-name="${_esc(e.origName || e.name)}" data-orig-cat="${_esc(cat)}" data-orig-unit="${_esc(e.unit || '')}" class="ei-row ei-${e.conf}">` +
         `<td><input type="checkbox" class="ei-chk" checked></td>` +
         `<td class="ei-group-cell"><input type="text" class="ei-in ei-group" value="${_esc(curGroup)}" title="挿入時：小計行のラベル、かつ各行の「パターン（任意）」に登録されます（空欄可）">` +
         `<button type="button" class="ei-group-pattern-btn" title="同じグループのチェック済み行を「行パターン」として登録" onclick="eiSaveGroupAsPattern(this)">🔖</button></td>` +
         `<td><select class="ei-in ei-cat">${_catOptions(cat)}</select></td>` +
-        `<td><input type="text" class="ei-in ei-sv" value="" list="svSuggestions" placeholder="任意"></td>` +
+        `<td><input type="text" class="ei-in ei-sv" value="${_esc(_svCtx ? _svCtx.canon : '')}" list="svSuggestions" placeholder="任意"></td>` +
         `<td><input type="text" class="ei-in ei-name" value="${_esc(e.name)}"></td>` +
         `<td><input type="number" class="ei-in ei-qty" value="${e.qty ?? ''}" step="any"></td>` +
         `<td><input type="text" class="ei-in ei-unit" value="${_esc(e.unit || '')}"></td>` +
@@ -576,6 +828,7 @@
     if (items.length) html += '</tbody></table>';
     html += _remarksHtml(items, rems);
     html += '<datalist id="eiCcyList">' + CCY_LIST.map(c => `<option value="${c}">`).join('') + '</datalist>';
+    if (_svCtx && items.length) html += '<div class="ei-learn"><button type="button" class="ei-learn-btn" onclick="eiLearnFromCorrections()" title="品名・カテゴリ・単位を直した行を、このサブコンの「呼び名の置き換え」ルールに追加します（チーム共有）">🧠 修正をこのサブコンのルールとして覚える</button><span>品名・カテゴリ・単位を直した行が、次回から自動で直ります</span></div>';
     html += '<p class="ei-hint">💡 通常は単価が仕入・売の両方に入ります（粗利0）。仕入額が分かる場合は挿入後に修正してください。「💰 単価を売値として取り込む」をONにすると、単価は売値としてのみ登録され、挿入後に仕入単価を入力すれば乗せ幅が自動算出されます。「課税」列は本文の語（[課税]・課税対象・税別・非課税・免税 等）から判定した結果です。違う行はチェックで直してください。「要確認」行は品名・金額を必ず確認。</p>';
     wrap.innerHTML = html;
     document.getElementById('eiActions').hidden = false;
@@ -655,6 +908,166 @@
     const v = (document.getElementById('eiBulkSv')?.value || '').trim();
     if (!v) return;
     document.querySelectorAll('#eiReviewWrap .ei-sv').forEach(el => { el.value = v; });
+  }
+
+  // 挿入する行のうち、ルール（呼び名の置き換え）が当たった行の呼び名キー（同じルールが複数行に当たれば重ねて返す）
+  function _usedRuleKeys() {
+    const items = (_parsed && _parsed.entries || []).filter(e => e._kind === 'item');
+    return [..._checkedItemSet()].map(gi => items[gi] && items[gi].ruleKey).filter(Boolean);
+  }
+  // 使ったルールの回数・最後に使った日を記録する。ほかの人の保存と食い違わないよう、保存の直前に最新を読み直す。失敗しても何も出さない
+  async function _bumpRuleUse(canon, keys) {
+    try {
+      if (!canon || !keys.length) return;
+      const r = _rulesOf(canon), today = _todayIso();
+      let hit = 0;
+      keys.forEach(k => { const a = r.aliases.find(x => _nzs(x.from) === k); if (a) { a.n = (a.n || 0) + 1; a.last = today; hit++; } });
+      if (hit) await _saveRules(canon, r);
+    } catch (e) { /* 記録できなくても取込は成功のまま */ }
+  }
+
+  // ====== サブコン見出しから開く（そのサブコン専用の取込）======
+  function eiOpenForSubcon(canon) {
+    canon = String(canon || '').trim();
+    if (!canon) return;
+    if (_isViewMode()) { if (window.quoteShowToast) quoteShowToast('🔒 閲覧モードです。「✏️ 編集」を押してから取り込んでください', 'warn'); return; }
+    openEmailImport();
+    _svCtx = { canon };
+    document.getElementById('emailImportBox')?.classList.add('ei-sv-ctx');
+    const t = document.getElementById('eiTitle'); if (t) t.textContent = '📩 メール取込 — 📦 ' + canon;
+    const d = document.getElementById('eiDesc');
+    if (d) d.textContent = '「' + canon + '」からのメール（見積）を貼り付けて「解析」を押してください。取り込んだ行は、このサブコンの明細グループに入ります。直した内容は「🧠 修正をこのサブコンのルールとして覚える」で、次回から自動で直ります（チーム共有）。';
+    _renderSvCtx();
+  }
+  function _renderSvCtx() {
+    const box = document.getElementById('emailImportBox'); if (box && !_svCtx) box.classList.remove('ei-sv-ctx');
+    const wrap = document.getElementById('eiSvCtx'); if (!wrap) return;
+    if (!_svCtx) { wrap.hidden = true; wrap.innerHTML = ''; return; }
+    const r = _rulesOf(_svCtx.canon);
+    const ccyOpts = '<option value="">（なし）</option>' + CCY_LIST.map(c => '<option' + (r.ccy === c ? ' selected' : '') + '>' + c + '</option>').join('');
+    const list = r.aliases.length
+      ? '<ul class="ei-rule-list">' + r.aliases.map((a, i) => '<li><span>' + _esc(a.from) + ' → <b>' + _esc(a.to) + '</b>' + (a.cat ? ' <i>[' + _esc(a.cat) + ']</i>' : '') + '</span><button type="button" onclick="eiRuleDel(' + i + ')" title="このルールを外す">✕</button></li>').join('') + '</ul>'
+      : '<div class="ei-rule-none">呼び名の置き換えルールはまだありません（確認画面で直して「覚える」を押すと増えます）</div>';
+    wrap.hidden = false;
+    wrap.innerHTML = '<details class="ei-rules"' + (r.aliases.length || r.ccy || r.unit ? '' : '') + '><summary>🧠 「' + _esc(_svCtx.canon) + '」の読み取りルール（置き換え ' + r.aliases.length + ' 件' + (r.ccy ? '・既定の通貨 ' + _esc(r.ccy) : '') + (r.unit ? '・既定の単位 ' + _esc(r.unit) : '') + (r.qtyAsUnit ? '・数量付きの金額は単価' : '') + '）</summary>' +
+      '<div class="ei-rule-row"><label>既定の通貨 <select id="eiRuleCcy">' + ccyOpts + '</select></label>' +
+      '<label>既定の単位 <input type="text" id="eiRuleUnit" value="' + _esc(r.unit) + '" placeholder="例）20\'GP"></label>' +
+      '<button type="button" class="ei-rule-save" onclick="eiRuleSaveDefaults()">保存</button></div>' +
+      '<p class="ei-rule-help">既定の通貨を決めると、通貨が書かれていない数字（例：<code>海上運賃 1200 /20GP</code>）も、その通貨の金額として読みます（確度は「要確認」）。</p>' +
+      list + (r.at ? '<div class="ei-rule-meta">最終更新 ' + _esc(String(r.at).slice(0, 10)) + (r.by ? '・' + _esc((typeof window.cloudNameFor === 'function' && window.cloudNameFor(r.by)) || r.by) : '') + '</div>' : '') +
+      '</details>';
+  }
+  async function eiRuleSaveDefaults() {
+    if (!_svCtx) return;
+    const r = _rulesOf(_svCtx.canon);
+    r.ccy = document.getElementById('eiRuleCcy')?.value || '';
+    r.unit = (document.getElementById('eiRuleUnit')?.value || '').trim();
+    if (await _saveRules(_svCtx.canon, r)) { if (window.quoteShowToast) quoteShowToast('🧠 既定の通貨・単位を保存しました（チーム共有）。「解析する」を押し直すと反映されます', 'success'); _renderSvCtx(); }
+  }
+  async function eiRuleDel(i) {
+    if (!_svCtx) return;
+    const r = _rulesOf(_svCtx.canon);
+    const a = r.aliases[i]; if (!a) return;
+    r.aliases.splice(i, 1);
+    if (await _saveRules(_svCtx.canon, r)) { if (window.quoteShowToast) quoteShowToast('🧠 ルール「' + a.from + ' → ' + a.to + '」を外しました', 'info'); _renderSvCtx(); }
+  }
+  // 確認画面で直した内容（品名・カテゴリ）を、このサブコンのルールとして覚える
+  async function eiLearnFromCorrections() {
+    if (!_svCtx) return;
+    const r = _rulesOf(_svCtx.canon);
+    let added = 0;
+    document.querySelectorAll('#eiReviewWrap .ei-table tbody tr').forEach(tr => {
+      const orig = (tr.dataset.origName || '').trim();
+      const cur = (tr.querySelector('.ei-name')?.value || '').trim();
+      const cat = tr.querySelector('.ei-cat')?.value || '';
+      if (!orig || !cur) return;
+      const unit = (tr.querySelector('.ei-unit')?.value || '').trim();
+      const nameChanged = cur !== orig;
+      const catChanged = cat && cat !== (tr.dataset.origCat || '');
+      const unitChanged = unit && unit !== (tr.dataset.origUnit || '');   // 単位を直した行は、その単位も覚える
+      if (!nameChanged && !catChanged && !unitChanged) return;
+      const na = { from: orig, to: cur, cat: cat || '' };
+      if (unitChanged) na.unit = unit;   // 単位は、直した行だけ覚える（直していない行の単位で上書きしない）
+      _upsertAlias(r.aliases, na);   // 同じ呼び名は更新（使った回数は引き継ぐ）
+      added++;
+    });
+    if (!added) { if (window.quoteShowToast) quoteShowToast('ℹ️ 覚えさせる修正がありません（品名・カテゴリ・単位を直してから押してください）', 'info'); return; }
+    if (await _saveRules(_svCtx.canon, r)) {
+      if (window.quoteShowToast) quoteShowToast('🧠 ' + added + ' 件を「' + _svCtx.canon + '」のルールとして覚えました（チーム共有・次回から自動で直ります）', 'success');
+      _renderSvCtx();
+    }
+  }
+
+  // ====== マスター管理（サブコン詳細）の「メール取込ルール」欄：ルールの確認・追加・直し・削除 ======
+  //  取込ダイアログと同じ details.importRules を読み書きする（どちらから直しても同じ。チーム共有）
+  function eiMountRulesPanel(el, canon) {
+    if (!el) return;
+    canon = String(canon || '').trim();
+    const r = _rulesOf(canon);
+    const useText = a => {
+      if (a.n == null && !a.last && !a.at) return '';
+      const idle = _ruleIdleDays(a), stale = _isStaleRule(a);
+      const t = (a.n ? '使用 ' + a.n + '回' + (a.last ? '・最終 ' + String(a.last).slice(5).replace('-', '/') : '') : '未使用' + (a.at ? '（' + String(a.at).slice(0, 10).replace(/-/g, '/') + ' 登録）' : ''));
+      return '<span class="ir-use' + (stale ? ' is-stale' : '') + '" title="' + (stale ? idle + '日間使われていません（整理の候補）' : '登録した人：' + _esc((typeof window.cloudNameFor === 'function' && window.cloudNameFor(a.by)) || a.by || '')) + '">' + (stale ? '⏳ ' : '') + t + '</span>';
+    };
+    const rowHtml = a => '<div class="ir-row" data-key="' + _esc(_nzs(a.from)) + '"><input type="text" class="ir-from" value="' + _esc(a.from) + '" placeholder="相手の呼び名（例：ドキュメント料）">' +
+      '<span class="ir-arrow">→</span><input type="text" class="ir-to" value="' + _esc(a.to) + '" placeholder="自社の品名（例：DOC FEE）">' +
+      '<select class="ir-cat" title="カテゴリ（任意）">' + _catOptions(a.cat || '') + '</select>' +
+      '<input type="text" class="ir-aunit" value="' + _esc(a.unit || '') + '" placeholder="単位" title="この品名の単位（任意・読み取れなかったときだけ入る）">' +
+      '<button type="button" class="ir-del" title="このルールを外す">✕</button>' + useText(a) + '</div>';
+    const staleN = r.aliases.filter(_isStaleRule).length;
+    const ccyOpts = '<option value="">（なし）</option>' + CCY_LIST.map(c => '<option' + (r.ccy === c ? ' selected' : '') + '>' + c + '</option>').join('');
+    el.innerHTML =
+      '<div class="ir-defaults"><label>既定の通貨 <select class="ir-ccy">' + ccyOpts + '</select></label>' +
+      '<label>既定の単位 <input type="text" class="ir-unit" value="' + _esc(r.unit) + '" placeholder="例）20\'GP"></label>' +
+      '<label class="ir-qau"><input type="checkbox" class="ir-qtyunit"' + (r.qtyAsUnit ? ' checked' : '') + '> 数量が書いてある行の金額は「単価」として読む</label></div>' +
+      '<p class="ir-help">既定の通貨を決めると、通貨の書かれていない数字（例：<code>海上運賃 1200 /20GP</code>）もその通貨の金額として読みます（確度は「要確認」）。既定の単位は、単位が読み取れなかった行にだけ入ります。</p>' +
+      '<div class="ir-list">' + r.aliases.map(rowHtml).join('') + '</div>' +
+      '<div class="ir-empty"' + (r.aliases.length ? ' hidden' : '') + '>呼び名の置き換えルールはまだありません。「＋ ルールを追加」か、サブコンの見出しの「📩 メール取込」で品名を直して「🧠 覚える」を押すと増えます。</div>' +
+      '<div class="ir-bar"><button type="button" class="ir-add">＋ ルールを追加</button><button type="button" class="ir-save">💾 ルールを保存</button>' +
+      '<button type="button" class="ir-clean"' + (staleN ? '' : ' hidden') + ' title="' + _STALE_DAYS + '日以上使われていないルールをまとめて外します">⏳ 長く使っていないルール ' + staleN + ' 件を外す</button>' +
+      '<span class="ir-meta">' + (r.at ? '最終更新 ' + _esc(String(r.at).slice(0, 10)) + (r.by ? '・' + _esc((typeof window.cloudNameFor === 'function' && window.cloudNameFor(r.by)) || r.by) : '') : '') + '</span></div>';
+    const list = el.querySelector('.ir-list'), empty = el.querySelector('.ir-empty');
+    const syncEmpty = () => { empty.hidden = !!list.querySelector('.ir-row'); };
+    el.querySelector('.ir-add').addEventListener('click', () => {
+      list.insertAdjacentHTML('beforeend', rowHtml({ from: '', to: '', cat: '' })); syncEmpty();
+      list.lastElementChild.querySelector('.ir-from').focus();
+    });
+    el.addEventListener('click', e => { const d = e.target.closest('.ir-del'); if (d) { d.closest('.ir-row').remove(); syncEmpty(); } });
+    el.querySelector('.ir-clean').addEventListener('click', async () => {
+      const cur = _rulesOf(canon), stale = cur.aliases.filter(_isStaleRule);
+      if (!stale.length) return;
+      const ask = (typeof window.uiConfirm === 'function')
+        ? window.uiConfirm({ title: '長く使っていないルールを外しますか？', lines: [stale.length + ' 件（' + _STALE_DAYS + '日以上使われていないルール）を外します。', stale.slice(0, 5).map(a => a.from + ' → ' + a.to).join('、') + (stale.length > 5 ? ' ほか' : '')], irreversible: '外すと元に戻せません（必要なら、もう一度覚えさせてください）。', okLabel: '外す', danger: true })
+        : Promise.resolve(confirm(stale.length + ' 件の古いルールを外しますか？'));
+      if (!(await ask)) return;
+      cur.aliases = cur.aliases.filter(a => !_isStaleRule(a));
+      if (await _saveRules(canon, cur)) {
+        if (window.quoteShowToast) quoteShowToast('⏳ 古いルール ' + stale.length + ' 件を外しました', 'info');
+        eiMountRulesPanel(el, canon);
+        if (_svCtx && _svCtx.canon === canon) _renderSvCtx();
+      }
+    });
+    el.querySelector('.ir-save').addEventListener('click', async () => {
+      const next = _rulesOf(canon);
+      const seen = new Map();
+      list.querySelectorAll('.ir-row').forEach(row => {
+        const from = row.querySelector('.ir-from').value.trim(), to = row.querySelector('.ir-to').value.trim();
+        if (!from || !to) return;
+        seen.set(_nzs(from), { from, to, cat: row.querySelector('.ir-cat').value || '', unit: (row.querySelector('.ir-aunit')?.value || '').trim() });   // 同じ呼び名は後の行を採用
+      });
+      // 使った回数・登録日などは、保存済みのルールから引き継ぐ（画面で直しても履歴が消えない）
+      const old = new Map(next.aliases.map(a => [_nzs(a.from), a]));
+      next.aliases = [...seen.entries()].map(([k, a]) => Object.assign({}, old.get(k) || { n: 0 }, a));
+      next.qtyAsUnit = !!el.querySelector('.ir-qtyunit').checked;
+      next.ccy = el.querySelector('.ir-ccy').value || '';
+      next.unit = el.querySelector('.ir-unit').value.trim();
+      if (await _saveRules(canon, next)) {
+        if (window.quoteShowToast) quoteShowToast('🧠 「' + canon + '」のメール取込ルールを保存しました（チーム共有）', 'success');
+        eiMountRulesPanel(el, canon);
+        if (_svCtx && _svCtx.canon === canon) _renderSvCtx();
+      }
+    });
   }
 
   // ====== 🤖 AI整形用プロンプト ======
@@ -787,6 +1200,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
         zc: '', vf: '', vt: '', ac: src.actual ? '1' : '', pt: group,
         ps: '', co: src.cond ? '1' : '', lu: '', ppmode: useSell ? 'sell' : '', pprate: '', ppbase: '', uid: '', ppref: '',
         ri: src.ref ? '1' : '',
+        bphi: (!src.actual && src.priceHi != null) ? String(Math.round(src.priceHi * 100) / 100) : '',   // 「1,000〜1,200」の上限（売単価〜上限の「幅」）
       };
       CELL_FIELDS.forEach(k => cells.push(f[k]));
       if (!f.nm) return;
@@ -857,7 +1271,9 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     if (!rows.length && !rem.count) { if (window.quoteShowToast) quoteShowToast('⚠️ 挿入する行（またはリマーク）にチェックを入れてください', 'warn'); return; }
     if (typeof window.appendQuoteRows !== 'function') return;
     if (_isViewMode()) { if (window.quoteShowToast) quoteShowToast('🔒 閲覧モードです。「✏️ 編集」を押してから挿入してください', 'warn'); return; }
+    const usedKeys = _svCtx ? _usedRuleKeys() : [];
     const n = rows.length ? window.appendQuoteRows(rows) : 0;
+    if (_svCtx && usedKeys.length) _bumpRuleUse(_svCtx.canon, usedKeys);   // 待たない（取込の動作を遅くしない）
     const remN = _applyGlobalRemarks(rem.global);
     // 保管した自由入力から取り込んだときは、その 1 件を取込済みにする（原文は案件に残る）。
     // それ以外（貼り付けから直接）は、原文を案件の取込元メモ（#qf-import-src）に残す
@@ -912,6 +1328,8 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     eiOpenStored, eiStoreRaw, eiFeImport, eiFeView, eiFeToggle, eiFeDelete,
     openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiToggleAllTax, eiInsertRows, eiApplyAsNew,
     eiSaveGroupAsPattern, eiApplyBulkSv, eiCopyAiPrompt,
+    eiOpenForSubcon, eiRuleSaveDefaults, eiRuleDel, eiLearnFromCorrections, eiMountRulesPanel,
+    eiApplyRules: _applyRules,   // テスト用
     parseQuoteEmail,   // テスト・将来の AI パーサー差し替え用に公開
   });
 })();

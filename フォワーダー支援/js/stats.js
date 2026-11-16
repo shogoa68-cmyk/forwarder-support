@@ -3536,6 +3536,7 @@
       `</div>` +
       // お客様：取引ルール（お客様・担当者ごとの決まりごと。customer-rules.js）
       (field === 'sv' || field === 'customer' ? `<div class="mn-section"><div class="master-attach-hdr"><span>📰 ニュース（新着・事務所移転・担当変更など／時系列・チーム共有）</span></div><div class="mn-panel" id="mnPanel"></div></div>` : '') +
+      (field === 'sv' ? `<div class="ir-section"><div class="master-attach-hdr"><span>📩 メール取込の読み取りルール（このサブコンのメールを取り込むときに自動で効く／チーム共有）</span></div><div class="ir-panel" id="irPanel"></div></div>` : '') +
       (field === 'customer' ? `<div class="cc-section"><div class="master-attach-hdr"><span>🗂 顧客カルテ（案件ごとのイレギュラー・解決策・改善案／チーム共有）</span></div><div class="cc-panel" id="ccPanel"></div></div>` : '') +
       (field === 'customer' ? `<div class="cr-section"><div class="master-attach-hdr"><span>📌 取引ルール（お客様・担当者ごと／チーム共有）</span></div><div class="cr-panel" id="crPanel"></div></div>` : '') +
       `</div></div>`;
@@ -3544,6 +3545,7 @@
     const firstInput = row.querySelector('input,textarea,select'); if (firstInput) firstInput.focus();
     window.statsRefreshMasterAttachments(field, value);
     if ((field === 'sv' || field === 'customer') && typeof window.mnMountPanel === 'function') window.mnMountPanel(document.getElementById('mnPanel'), field, value);
+    if (field === 'sv' && typeof window.eiMountRulesPanel === 'function') window.eiMountRulesPanel(document.getElementById('irPanel'), value);
     if (field === 'customer' && typeof window.ccMountPanel === 'function') window.ccMountPanel(document.getElementById('ccPanel'), value);
     if (field === 'customer' && typeof window.crMountPanel === 'function') window.crMountPanel(document.getElementById('crPanel'), value);
   };
@@ -3631,6 +3633,13 @@
   }
   window.statsSaveMasterDetail = async function (field, value) {
     const details = _mdCollectDetails(field);
+    // 詳細の入力欄に無い項目（例：サブコンの「メール取込のルール」importRules）は、保存で消さずに引き継ぐ
+    //（mdSave は詳細を丸ごと置き換えるため、引き継がないと別の画面で覚えさせたルールが消える）
+    {
+      const prev = ((typeof window.mdGet === 'function' && window.mdGet(field, value)) || {}).details || {};
+      const known = new Set(((window.MD_SCHEMA && window.MD_SCHEMA[field]) || []).map(x => x.key));
+      Object.keys(prev).forEach(k => { if (!known.has(k) && !(k in details)) details[k] = prev[k]; });
+    }
     // 先のお客様（同業者の側の編集）：先のお客様が 1 社でもいれば、取引形態が空なら「同業者」にする
     let viaAdd = [], viaDel = [];
     const viaWrap = field === 'customer' ? document.getElementById('md_viaChildren') : null;
