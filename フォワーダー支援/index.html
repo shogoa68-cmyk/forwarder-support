@@ -3959,9 +3959,7 @@
             <!-- 数量パターン（B列／C列／FCL案／LCL案など）の切替：パターンが 2 つ以上あるときだけ出る。画面幅が広いときは上部ツールバー（#saveToolbar の「⋯」の左）へ移って表示される（conditions.js _placeQtyPatternBar）。狭い画面ではここ（表の操作バー）に残る -->
             <div class="cmdbar-qpat" id="qtyPatternBar" hidden></div>
             <div class="cmdbar-main">
-              <span class="btn-group-label" data-tier="adv">小計</span>
-              <button data-tier="adv" class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加（出力にも含まれます。費用行・リマーク・社内メモの追加は各明細行の ➕📋🗑️💬🔒 アイコンから）">＝</button>
-              <button class="btn-bulk-pattern cmdbar-pattern-btn" onclick="openRowPatternMgr()" title="行パターン：チェックした行を保存／保存パターンを挿入">🗂️ 行パターン</button>
+                            <button data-tier="adv" class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加（出力にも含まれます。費用行・リマーク・社内メモの追加は各明細行の ➕📋🗑️💬🔒 アイコンから）">＝ 小計行</button>
               <button class="cmdbar-lc-btn" onclick="lcOpenPicker()" title="諸チャージマスターから行を追加">📦 チャージ</button>
               <button type="button" class="cmdbar-pip-btn" data-pip-btn onclick="quotePipToggle()" title="明細だけの小窓を、他のアプリ・ブラウザの上に常に前面で表示します（船会社の料金表を見ながら入力できます。Chrome／Edge）">🪟 <span data-pip-label>常に前面</span></button>
               <span class="btn-group-label" data-tier="adv">挿入位置</span>

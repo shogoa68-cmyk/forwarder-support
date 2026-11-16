@@ -86,7 +86,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('④費用の上に［すべて折りたたむ］［すべて展開］［＋ 行を追加］［📦 チャージ］', (await p.$$('#e2CostBar button')).length === 4 && await vis('#e2CostBar'));
   const nBefore = await p.evaluate(() => document.querySelectorAll('#tableBody tr:not([data-virtual])').length);
   await p.click('#e2CostBar [data-f="addRow"]'); await p.waitForTimeout(400);
-  ok('操作バーの重複（チャージ）は隠れ、行パターンは残る', !(await vis('.quote-cmdbar .cmdbar-lc-btn')) && await vis('.quote-cmdbar .cmdbar-pattern-btn'));
+  ok('操作バーの重複（チャージ）は隠れ、行パターンのボタンは操作バーから外れた（右レールから開く）', !(await vis('.quote-cmdbar .cmdbar-lc-btn')) && !(await vis('.quote-cmdbar .cmdbar-pattern-btn')));
   if (!mobile) { await p.evaluate(() => { const m = document.querySelector('[data-tb-menu="more"]'); m.classList.add('is-open'); }); await p.waitForTimeout(150);
     const mres = await p.evaluate(() => { const m = document.getElementById('tbMenuMore'); const items = [...m.children].filter(e => getComputedStyle(e).display !== 'none').sort((a, b) => (+getComputedStyle(a).order) - (+getComputedStyle(b).order)); const heads = items.filter(e => e.classList.contains('tb-menu-group')).map(e => getComputedStyle(e, '::after').content.replace(/"/g, '')); const first = !!(items[1] && items[1].textContent.includes('メール取込')); return { heads, first, items: items.map(e => e.textContent.trim().slice(0, 8) + ':' + getComputedStyle(e).order) }; });
     ok('「⋯」は「案件」「その他」の 2 区分で、案件が先', mres.heads.join(',') === '案件,その他' && mres.first, mres);

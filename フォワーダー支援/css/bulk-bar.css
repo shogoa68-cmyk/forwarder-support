@@ -20,3 +20,6 @@
   #tab-quote-make .cmdbar-context { flex-wrap: wrap; }
   #tab-quote-make .ctx-bulkset { position: fixed; left: 8px; right: 8px; top: auto; bottom: 64px; width: auto; max-width: none; }
 }
+
+/* 見積もりテーブルの上の操作バー（cmdbar-main）：「小計行」ボタンは文字つきなので、アイコン用の固定幅を外す */
+#tab-quote-make .cmdbar-main .btn-ins-sub.cmdbar-icon-btn { width: auto; padding: 0 var(--sp-10, 10px) !important; font-size: var(--text-xs, 12px); white-space: nowrap; }
