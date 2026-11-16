@@ -39,19 +39,179 @@
     return isFinite(n) ? n : null;
   }
 
-  // 金額文字列 → {v, ccy}。'¥1,234' / '1,234.00 USD' / 'USD 1,234' / '(¥1,234)' に対応
+  // 全角の英数字・＄・，・．・／・＋ を半角へ（品名・金額の解析用。全角のカッコ・コロン等は他の判定が使うので触らない）
+  function _fw(s) {
+    return String(s == null ? '' : s)
+      .replace(/[０-９Ａ-Ｚａ-ｚ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+      .replace(/＄/g, '$').replace(/，/g, ',').replace(/．/g, '.').replace(/／/g, '/').replace(/＋/g, '+');
+  }
+
+  // ---- 金額の見つけ方（通貨記号・通貨コード・円／元、範囲「1,000〜1,200」に対応）----
+  const _NUM = '(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?)';
+  const _CCY_ALL = CCY_RE + '|RMB';
+  const _SYM_MAP = { 'US$': 'USD', '$': 'USD', 'HK$': 'HKD', 'NT$': 'TWD', 'SG$': 'SGD', 'S$': 'SGD', 'AU$': 'AUD', 'A$': 'AUD', '€': 'EUR', '£': 'GBP' };
+  const _MONEY_SRC =
+    '(?:(?<s1>[¥￥])\\s?(?<n1>' + _NUM.slice(1, -1) + '))' +
+    '|(?:(?<s2>HK\\$|NT\\$|SG\\$|AU\\$|US\\$|S\\$|A\\$|\\$|€|£)\\s?(?<n2>' + _NUM.slice(1, -1) + '))' +
+    '|(?:\\b(?<c3>' + _CCY_ALL + ')(?![A-Za-z])\\s?(?<n3>' + _NUM.slice(1, -1) + '))' +
+    '|(?:(?<n4>' + _NUM.slice(1, -1) + ')\\s?(?<c4>' + _CCY_ALL + ')\\b)' +
+    '|(?:(?<n5>' + _NUM.slice(1, -1) + ')\\s?(?<c5>円|元))';
+  // 金額のすぐ後ろの「〜上限」（〜 ~ ～ - – to）。単位（20GP など）を範囲と取り違えないよう、直後に英数字が続くものは範囲にしない
+  const _RANGE_RE = new RegExp('^\\s*(?:[〜~～]|[–—-]|\\bto\\b)\\s*(?:[¥￥$€£]|\\b(?:' + _CCY_ALL + ')\\b)?\\s?' + _NUM + '(?:\\s?(?:' + _CCY_ALL + '|円|元)\\b)?(?![A-Za-z0-9\'’])', 'i');
+  const _MIN_PRE_RE = /[（(]?\s*(?:minimum|min\.?|最低料金|最低|ミニマム)\s*[:：]?\s*$/i;
+
+  // 文字列の中の金額を前から順にすべて返す：[{v, hi, ccy, start, end}]（hi＝範囲の上限・無ければ null）
+  function _findMoneyAll(s) {
+    const out = [];
+    const re = new RegExp(_MONEY_SRC, 'gi');
+    let m;
+    while ((m = re.exec(s))) {
+      const g = m.groups;
+      let ccy, num;
+      if (g.n1) { ccy = 'JPY'; num = g.n1; }
+      else if (g.n2) { ccy = _SYM_MAP[g.s2.toUpperCase()] || 'USD'; num = g.n2; }
+      else if (g.n3) { ccy = g.c3.toUpperCase(); num = g.n3; }
+      else if (g.n4) { ccy = g.c4.toUpperCase(); num = g.n4; }
+      else { ccy = 'JPY'; num = g.n5; if (g.c5 === '元') ccy = 'CNY'; }
+      if (ccy === 'RMB') ccy = 'CNY';
+      const v = _num(num);
+      let end = m.index + m[0].length, hi = null;
+      const rm = _RANGE_RE.exec(s.slice(end));
+      if (rm) { const h = _num(rm[1]); if (h != null && v != null && h > v) { hi = h; end += rm[0].length; } }
+      out.push({ v, hi, ccy, start: m.index, end });
+      re.lastIndex = end;
+    }
+    return out;
+  }
+
+  // 金額文字列 → {v, ccy}。'¥1,234' / '1,234.00 USD' / 'USD 1,234' / '$1,234' / '(¥1,234)' / '１，２３４円' に対応
   function parseMoney(str) {
     if (!str) return null;
-    const s = String(str).replace(/[()（）]/g, '').trim();
-    let m = s.match(/[¥￥]\s?([\d,]+(?:\.\d+)?)/);
-    if (m) return { v: _num(m[1]), ccy: 'JPY' };
-    m = s.match(new RegExp('([\\d,]+(?:\\.\\d+)?)\\s*(' + CCY_RE + ')\\b', 'i'));
-    if (m) return { v: _num(m[1]), ccy: m[2].toUpperCase() };
-    m = s.match(new RegExp('\\b(' + CCY_RE + ')\\s*([\\d,]+(?:\\.\\d+)?)', 'i'));
-    if (m) return { v: _num(m[2]), ccy: m[1].toUpperCase() };
-    m = s.match(/([\d,]+(?:\.\d+)?)\s*円/);
-    if (m) return { v: _num(m[1]), ccy: 'JPY' };
-    return null;
+    // カッコは空白に置き換える（消すと「1,200（20GP）」が「1,20020GP」とくっついて金額が壊れるため）
+    const s = _fw(String(str).replace(/[()（）]/g, ' ')).trim();
+    const t = _findMoneyAll(s)[0];
+    return t ? { v: t.v, ccy: t.ccy } : null;
+  }
+
+  // ---- 単位・数量の見つけ方（「/20GP」「per 40HC」「(20GP)」「× 3台」「2×40'HC」）----
+  // 20・40・45 は「'」かサイズ記号（GP/HC…）が付くときだけ単位（日付の「/20」などを単位と取り違えない）
+  const _UNIT_SRC = "(?:(?:20|40|45)(?:\\s*['’]\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU)?|\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU))|R\\/T|RT|CBM|M3|M³|㎥|KGS?|MT|CNTR|CTR|CNT|CONTAINER|B\\/L|BL|SHPT|SHIPMENT|SHP|VAN|JOB|PKG|PLT|PALLET|CTN|PCS?|SET|BOX|TEU|FEU|件|台|本|枚|式|梱|才|個|便|回|コンテナ|ロット|口|パレット|トン|立米|DAY)";
+  const _UNIT_END = '(?![A-Za-z0-9])';
+  const _PER_RE        = new RegExp('(?:\\/|\\bper\\b|あたり|につき|毎|@)\\s*(?:1\\s*)?(' + _UNIT_SRC + ')' + _UNIT_END, 'i');
+  const _PAREN_UNIT_RE = new RegExp('[（(]\\s*(' + _UNIT_SRC + ')\\s*[）)]', 'i');
+  const _LEAD_X_RE     = new RegExp('^\\s*(\\d+(?:\\.\\d+)?)\\s*[×xX]\\s*(' + _UNIT_SRC + ')' + _UNIT_END + '\\s*', 'i');
+  const _TRAIL_X_RE    = new RegExp('(?:×|(?:^|[\\s)）])x)\\s*(\\d+(?:\\.\\d+)?)\\s*(' + _UNIT_SRC + ')?' + _UNIT_END + '\\s*$', 'i');
+  const _CNTR_TAIL_RE  = /(?:^|\s)((?:20|40|45)\s*['’]?\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT))\s*$/i;
+  const _fmtMoney = t => (t.ccy === 'JPY' ? '¥' : '') + t.v.toLocaleString('en-US') + (t.ccy === 'JPY' ? '' : ' ' + t.ccy);
+
+  // 自由文 1 区切り（1 項目ぶん）→ { name, qty, unit, ccy, price, priceHi, minNote } ／ 金額が無ければ null
+  //  ・「/20GP」「per 40HC」「(20GP)」「× 3台」「2×40'HC」があるときは、金額を“単価”として扱う（数量で割らない）
+  //  ・単位の表記が無く「品名 2 R/T ¥10,000」のように数量だけあるときは、従来どおり金額を“合計”として数量で割る
+  //  ・「Min USD 345」「(Min ¥3,000)」は最低料金として品名から外し、備考にだけ残す
+  function _parseFreeSeg(body) {
+    const toks = _findMoneyAll(body);
+    if (!toks.length) return null;
+    let main = null, minNote = '';
+    const cut = [];
+    toks.forEach(tk => {
+      const mm = body.slice(0, tk.start).match(_MIN_PRE_RE);
+      if (mm) { if (!minNote) minNote = 'Min ' + _fmtMoney(tk); cut.push([tk.start - mm[0].length, tk.end]); }
+      else { if (!main) main = tk; cut.push([tk.start, tk.end]); }
+    });
+    if (!main) { main = toks[0]; minNote = ''; cut.length = 0; cut.push([main.start, main.end]); }
+    let rest = body;
+    cut.sort((a, b) => b[0] - a[0]).forEach(([a, b]) => { rest = rest.slice(0, a) + ' ' + rest.slice(b); });
+
+    let qty = null, unit = '', perUnit = false, m;
+    if ((m = rest.match(_LEAD_X_RE))) { qty = _num(m[1]); unit = m[2]; rest = rest.slice(m[0].length); perUnit = true; }
+    else if ((m = rest.match(_TRAIL_X_RE))) { qty = _num(m[1]); if (m[2]) unit = m[2]; rest = rest.slice(0, m.index); perUnit = true; }
+    if ((m = rest.match(_PER_RE)) || (m = rest.match(_PAREN_UNIT_RE))) {
+      if (!unit) unit = m[1];
+      rest = rest.slice(0, m.index) + ' ' + rest.slice(m.index + m[0].length);
+      perUnit = true;
+    } else if (!unit && (m = rest.match(_CNTR_TAIL_RE))) {
+      unit = m[1]; rest = rest.slice(0, m.index); perUnit = true;
+    }
+
+    if (minNote) rest = rest.replace(/\b(or|または)\b/gi, ' ');
+    let name = rest.replace(/[（(]\s*[）)]/g, ' ');
+    if (!/[（(]/.test(name)) name = name.replace(/[)）]\s*$/, '');
+    name = name.replace(/\s+/g, ' ').replace(/^[\s:：/／,，、\-–]+|[\s:：/／,，、\-–×]+$/g, '').trim();
+
+    if (!perUnit) {   // 従来の読み方：「品名 数量 単位 … 金額（合計）」
+      const qm = name.match(/\s([\d.,]+)\s*(R\/T|RT|CBM|M3|KGS?|CNTR|B\/L|BL|SHPT|VAN|件|台|本|枚|式|梱|才|20'?\S*|40'?\S*)$/i);
+      if (qm) { qty = _num(qm[1]) ?? 1; unit = qm[2]; name = name.slice(0, qm.index).trim(); }
+    }
+    const div = perUnit ? 1 : (qty || 1);
+    return {
+      name, qty: qty ?? 1, unit, ccy: main.ccy,
+      price: main.v / div, priceHi: main.hi != null ? main.hi / div : null, minNote,
+    };
+  }
+
+  // ---- 表（タブ区切り／「|」区切り）の読み取り ----
+  const _ROLE_TESTS = [
+    ['ccy',    /^(通貨|currency|ccy|cur\.?)$/i],
+    ['qty',    /数量|^q'?ty|quantity|^数$/i],
+    ['price',  /単価|unit\s*price|^rate|price|料金/i],
+    ['amount', /金額|amount|total|合計|^計$/i],
+    ['unit',   /^(単位|unit|uom)$/i],
+    ['note',   /備考|note|remark|comment|摘要/i],
+    ['name',   /項目|品名|品目|内訳|費目|名称|item|description|charge|particular|^name$/i],
+  ];
+  function _splitCells(t) {
+    const s = _fw(t);
+    if (/\t/.test(s)) return s.split('\t').map(c => c.trim());
+    return s.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim());
+  }
+  function _tableHeader(cells) {
+    if (cells.some(c => _findMoneyAll(c).length)) return null;
+    const cols = {};
+    cells.forEach((c, i) => {
+      if (!c) return;
+      const r = _ROLE_TESTS.find(([k, re]) => cols[k] == null && re.test(c));
+      if (r) cols[r[0]] = i;
+    });
+    const n = Object.keys(cols).length;
+    if (n < 2 || !(cols.name != null || cols.price != null || cols.amount != null)) return null;
+    cols._hdr = cells;
+    return cols;
+  }
+  // 見出しの文字に通貨コードがあれば拾う（例：「Unit Price (USD)」「単価（JPY）」）
+  function _ccyInText(s) {
+    const m = String(s || '').match(new RegExp('\\b(' + _CCY_ALL + ')\\b', 'i'));
+    return m ? (m[1].toUpperCase() === 'RMB' ? 'CNY' : m[1].toUpperCase()) : '';
+  }
+  function _tableRow(cells, cols) {
+    const plain = s => /^[\d,]+(?:\.\d+)?$/.test(s) ? _num(s) : null;
+    let name = '', qty = null, unit = '', note = '', price = null, ccy = '', amt = null;
+    if (cols) {
+      const c = k => cols[k] != null ? (cells[cols[k]] || '') : '';
+      name = c('name'); unit = c('unit'); note = c('note'); qty = plain(c('qty'));
+      const pm = _findMoneyAll(c('price'))[0], am = _findMoneyAll(c('amount'))[0];
+      ccy = (pm && pm.ccy) || (am && am.ccy) || c('ccy').toUpperCase() || _ccyInText(cols._hdr[cols.price]) || _ccyInText(cols._hdr[cols.amount]);
+      price = pm ? pm.v : plain(c('price'));
+      amt = am ? am.v : plain(c('amount'));
+      if (price == null && amt != null) price = amt / (qty || 1);
+    } else {
+      const moneyCells = [], numCells = [];
+      cells.forEach(c => {
+        if (!c) return;
+        const mm = _findMoneyAll(c)[0];
+        if (mm) moneyCells.push(mm);
+        else if (plain(c) != null && !name) numCells.push(plain(c));
+        else if (plain(c) != null) numCells.push(plain(c));
+        else if (!name) name = c;
+        else if (!unit && c.length <= 8) unit = c;
+        else if (!note) note = c;
+      });
+      if (!moneyCells.length) return null;
+      price = moneyCells[0].v; ccy = moneyCells[0].ccy;
+      if (numCells.length) qty = numCells[0];
+    }
+    name = String(name || '').trim();
+    if (!name || price == null) return null;
+    return { name, qty: qty ?? 1, unit, ccy: ccy || 'JPY', price, note, _noCcy: !ccy };
   }
 
   // 課税・非課税の判定（本文の語から）。戻り値 'on'＝課税／'off'＝非課税／null＝判定できない。
@@ -111,10 +271,12 @@
       break;
     }
 
+    let tableCols = null;   // 表（タブ／| 区切り）の見出しから決めた列の役割。空行で解除
     lines.forEach(raw => {
-      const line = raw.replace(/\s+$/, '');
+      // メールの引用記号（「> 」）は外す（返信メールの引用部分に見積が入っていることが多い）
+      const line = raw.replace(/^(?:[ \t]*>)+[ \t]?/, '').replace(/\s+$/, '');
       const t = line.trim();
-      if (!t) { lastItemIdx = -1; return; }   // 空行をはさんだ「※」は、直前の明細の注記にしない（全体リマーク）
+      if (!t) { lastItemIdx = -1; tableCols = null; return; }   // 空行をはさんだ「※」は、直前の明細の注記にしない（全体リマーク）
       const prevItem = lastItemIdx; lastItemIdx = -1;   // 明細の直後だけ「※…」をその明細の注記として扱う
 
       // ヘッダー項目
@@ -136,15 +298,33 @@
 
       // スキップ：罫線・サマリ・署名・注記
       if (/^[─═―_\-=]{4,}/.test(t)) return;
-      if (/^(　)?(小計|課税対象小計|御見積額|消費税|仕入合計|売値合計|合計)/.test(t)) return;
+      if (/^(　)?(小計|課税対象小計|御見積額|消費税|仕入合計|売値合計|合計|総合計|総額|ご?請求(合計|金額)|(grand\s*|sub\s*-?\s*)?total\b|ttl\b)/i.test(t)) return;
       if (/^※/.test(t)) { pushRemark(t, prevItem >= 0 ? prevItem : null); lastItemIdx = prevItem; return; }   // 続く「※」も同じ明細へ
       if (/^(■(?!.*[×＝])|TEL|FAX|Mail|E-?mail)/i.test(t)) return;
       // サマリの区間行（ラベル＋空白＋¥金額のみ）は明細と重複するためスキップ
       if (/^　.+\s{2,}[¥￥][\d,]+$/.test(line)) return;
 
+      // 表（Excel／メール内の表を貼ったタブ区切り、または「|」区切り）。見出し行があれば列の役割を使う
+      if (/\t/.test(t) || /^\|.*\|$/.test(t)) {
+        const cells = _splitCells(t);
+        if (cells.length >= 2) {
+          if (cells.every(c => /^:?-{2,}:?$/.test(c) || !c)) return;   // 「|---|---|」の区切り行
+          const hdr = _tableHeader(cells);
+          if (hdr) { tableCols = hdr; return; }
+          const row = _tableRow(cells, tableCols);
+          if (row) {
+            const tx = _taxOf(row.name + ' ' + row.note);
+            const nm = _stripTaxMarks(row.name).replace(/\s+/g, ' ').trim();
+            pushItem({ _kind: 'item', conf: row._noCcy ? 'low' : 'mid', name: nm, qty: row.qty, unit: row.unit, ccy: row.ccy, price: row.price,
+              taxed: tx === 'on', taxSrc: tx, cond: false, ref: false, note: row.note });
+            return;
+          }
+        }
+      }
+
       // 実費行（自形式）：・NAME …… 実費
       const isBullet = /^[・･\-\*●○]/.test(t);
-      let body = t.replace(/^[・･\-\*●○]\s*/, '');
+      let body = _fw(t.replace(/^[・･\-\*●○]\s*/, ''));
 
       // 備考（※…）を分離
       let note = '';
@@ -187,29 +367,21 @@
         }
       }
 
-      // パターンC（一般自由文・低確度）：行内の最後の金額を採用
-      const money = parseMoney(body);
-      if (money && money.v != null) {
-        // 金額部分と数量・単位らしき断片を除いた残りを品名に
-        let nm3 = body
-          .replace(new RegExp('[¥￥]\\s?[\\d,]+(?:\\.\\d+)?', 'g'), ' ')
-          .replace(new RegExp('([\\d,]+(?:\\.\\d+)?)\\s*(' + CCY_RE + ')\\b', 'gi'), ' ')
-          .replace(new RegExp('\\b(' + CCY_RE + ')\\s*[\\d,]+(?:\\.\\d+)?', 'gi'), ' ')
-          .replace(/([\d,]+(?:\.\d+)?)\s*円/g, ' ')
-          .replace(/[：:／/]+\s*$/, '')
-          .replace(/\s+/g, ' ').trim();
-        // 数量 単位（例 "2 R/T" / "1 B/L"）が残っていれば拾う
-        let qty = 1, unit = '';
-        const qm = nm3.match(/\s([\d.,]+)\s*(R\/T|RT|CBM|M3|KGS?|CNTR|B\/L|BL|SHPT|VAN|件|台|本|枚|式|梱|才|20'?\S*|40'?\S*)$/i);
-        if (qm) { qty = _num(qm[1]) ?? 1; unit = qm[2]; nm3 = nm3.slice(0, qm.index).trim(); }
-        if (nm3 && !/^(以上|宜しく|よろしく|お願い|下記|毎度|拝啓|敬具)/.test(nm3)) {
-          pushItem({
-            _kind: 'item', conf: isBullet ? 'mid' : 'low',
-            name: nm3, qty, unit, ccy: money.ccy, price: money.v / (qty || 1),
-            taxed, taxSrc: tax, cond, ref: refFlg, note,
-          });
-        }
-      }
+      // パターンC（一般自由文・低確度）：金額・単位（/20GP・per 40HC）・数量（× 3台）・範囲（〜）・Min を読み取る。
+      //  「海上運賃 USD 1,200 + BAF USD 300 + THC ¥48,000」のように「 + 」でつないだ 1 行は、項目ごとに分ける
+      const segs = (_findMoneyAll(body).length >= 2 && /\s\+\s/.test(body)) ? body.split(/\s\+\s/) : [body];
+      segs.forEach((seg, si) => {
+        const r = _parseFreeSeg(seg);
+        if (!r || !r.name || r.price == null) return;
+        if (!/[A-Za-z぀-ヿ一-鿿]/.test(r.name)) return;   // 数字・記号だけの名前（日付・番号など）は項目にしない
+        if (/^(以上|宜しく|よろしく|お願い|下記|毎度|拝啓|敬具)/.test(r.name)) return;
+        pushItem({
+          _kind: 'item', conf: isBullet ? 'mid' : 'low',
+          name: r.name, qty: r.qty, unit: r.unit, ccy: r.ccy, price: r.price, priceHi: r.priceHi,
+          taxed, taxSrc: tax, cond, ref: refFlg,
+          note: [si === segs.length - 1 ? note : '', r.minNote].filter(Boolean).join(' / '),
+        });
+      });
     });
 
     // 「品名：注記」の形のリマークは、その品名の明細へ付ける（品名は大文字小文字・空白の違いを無視して、含む・含まれるで照合）
@@ -555,7 +727,7 @@
       if (e._kind === 'group') { curGroup = e.label; return; }
       gi++;
       const cat = inferCat(e.name);
-      const flags = (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費' : '');
+      const flags = (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費 ' : '') + (e.priceHi != null ? '幅〜' + Math.round(e.priceHi * 100) / 100 : '');
       html += `<tr data-gi="${gi}" class="ei-row ei-${e.conf}">` +
         `<td><input type="checkbox" class="ei-chk" checked></td>` +
         `<td class="ei-group-cell"><input type="text" class="ei-in ei-group" value="${_esc(curGroup)}" title="挿入時：小計行のラベル、かつ各行の「パターン（任意）」に登録されます（空欄可）">` +
@@ -787,6 +959,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
         zc: '', vf: '', vt: '', ac: src.actual ? '1' : '', pt: group,
         ps: '', co: src.cond ? '1' : '', lu: '', ppmode: useSell ? 'sell' : '', pprate: '', ppbase: '', uid: '', ppref: '',
         ri: src.ref ? '1' : '',
+        bphi: (!src.actual && src.priceHi != null) ? String(Math.round(src.priceHi * 100) / 100) : '',   // 「1,000〜1,200」の上限（売単価〜上限の「幅」）
       };
       CELL_FIELDS.forEach(k => cells.push(f[k]));
       if (!f.nm) return;
