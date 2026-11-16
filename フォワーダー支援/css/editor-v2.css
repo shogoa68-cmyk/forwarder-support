@@ -14,8 +14,12 @@ html.editor-v2 #tab-quote-make:not(.qp-dash) .condition-section.e2-show { displa
 /* 左ナビ・手順の道しるべ・かんたん表示の部品は新画面では使わない（ステップに統合） */
 html.editor-v2 #qSecNav, html.editor-v2 #qpGuide, html.editor-v2 #qpHint, html.editor-v2 #uimAdvBar { display: none !important; }
 /* 右パネル（費用の縮小表示・参考）は下の合計バーから開く引き出しに */
-html.editor-v2 .quote-right-col { position: fixed; top: 110px; right: 0; bottom: 56px; width: 380px; max-width: 92vw; z-index: 90; overflow: auto; background: var(--surface, #fff); border-left: 1px solid var(--border, #d9dee5); box-shadow: -6px 0 18px rgba(16, 24, 40, .14); transform: translateX(105%); transition: transform .18s; }
-html.editor-v2 body.e2-drawer .quote-right-col, body.e2-drawer html.editor-v2 .quote-right-col { transform: none; }
+html.editor-v2 .quote-right-col { position: fixed; top: 110px; right: 0; bottom: 56px; width: 380px; max-width: 92vw; z-index: 90; overflow: auto; background: var(--surface, #fff); border-left: 1px solid var(--border, #d9dee5); box-shadow: -6px 0 18px rgba(16, 24, 40, .14); }
+/* 閉じている間は画面の外へ寄せるだけにせず、本当に隠す（寄せただけだと、ページが横にスクロールできてしまい中身が見える） */
+html.editor-v2 body:not(.e2-drawer) .quote-right-col { display: none !important; }
+html.editor-v2 body.e2-drawer .quote-right-col, body.e2-drawer html.editor-v2 .quote-right-col { display: flex; animation: e2DrawerIn .18s ease-out; }
+@keyframes e2DrawerIn { from { transform: translateX(32px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { html.editor-v2 body.e2-drawer .quote-right-col { animation: none; } }
 html.editor-v2 .quote-main { margin-right: 0 !important; max-width: none; }
 /* 右下の固定ボタンは上部ツールバーへ */
 html.editor-v2 #quoteActionDock.e2-in-toolbar { position: static; display: inline-flex; gap: 8px; margin-left: auto; padding: 0; bottom: auto; right: auto; box-shadow: none; background: none; transform: none; }
