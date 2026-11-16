@@ -95,10 +95,12 @@
   function refreshTitle() {
     const n = $('e2tName'); if (!n) return;
     const name = val('qf-case-name') || (($('qf-memo') && $('qf-memo').value || '').split('\n')[0].trim()) || val('qf-customer') || '（案件名なし）';
-    if (n.textContent !== name) { n.textContent = name; n.title = name; }
+    const ref = val('qf-ref'), full = (ref ? ref + ' / ' : '') + name;   // 案件番号 / 案件名
+    if (n.textContent !== full) { n.textContent = full; n.title = full; }
     const st = $('e2tStatus'), sv = val('qf-status'); if (st && st.textContent !== sv) st.textContent = sv;
     const sa = $('e2tSave'), q = ($('qmBanner') && $('qmBanner').textContent || '').trim();
-    const sat = q ? q : ''; if (sa && sa.textContent !== sat) sa.textContent = sat;
+    const sat = /編集中/.test(q) ? '' : q;   // 「編集中（あなたが作業中）」はツールバー側のチップに出ているので重ねて出さない
+    if (sa && sa.textContent !== sat) sa.textContent = sat;
   }
 
   // ④ 費用：上に［すべて折りたたむ］［すべて展開］［＋ 行を追加］［📦 チャージ］（既存の関数を呼ぶだけ）
