@@ -180,10 +180,12 @@ const http = require('http'), fs = require('fs'), path = require('path');
   // ===== サブコン別明細の見出し：登録済みなら「詳細」、種別がキャリアなら「BOOKMARK」 =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, approval: true, role: 'member' });
+    const roleTxt = () => p.evaluate(() => { const e = document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-role'); return e && !e.hidden && e.offsetParent !== null ? e.textContent : ''; });
     const hdr = () => p.evaluate(() => { const h = document.querySelector('#tableBody tr.subcon-group-header'); const v = s => { const e = h && h.querySelector(s); return !!e && !e.hidden && e.offsetParent !== null; }; return { exists: !!h, det: v('.sv-hdr-detail'), bm: v('.sv-hdr-bm'), detCanon: h && h.querySelector('.sv-hdr-detail').dataset.canon }; });
     await setSv(p, 'テスト運送');
     let h = await hdr();
     ok('マスター登録済み（運送業者）のサブコン見出しに「詳細」が出て、「BOOKMARK」は出ない', h.det && !h.bm && h.detCanon === 'テスト運送', h);
+    ok('見出しにサブコンの役割（マスターの種別）が出る', (await roleTxt()) === '運送業者', await roleTxt());
     await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-detail').click()); await p.waitForTimeout(500);
     const dp = await p.evaluate(() => ({ hidden: document.getElementById('customerDetailOverlay').hidden, title: document.getElementById('cdTitle').textContent, body: document.getElementById('cdBody').textContent }));
     ok('「詳細」を押すと、マスターの詳細（サブコン種別・添付）が開く', !dp.hidden && /テスト運送/.test(dp.title) && /サブコン種別/.test(dp.body) && /運送業者/.test(dp.body) && /添付/.test(dp.body), dp);
@@ -192,6 +194,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await setSv(p, 'ABCキャリア');
     h = await hdr();
     ok('種別が FCL／LCL CARRIER のサブコンには「詳細」と「BOOKMARK」の両方が出る', h.det && h.bm, h);
+    ok('役割が 2 つのときは「・」でつないで出る', (await roleTxt()) === 'FCL CARRIER・LCL CARRIER', await roleTxt());
     await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-bm').click()); await p.waitForTimeout(700);
     const bp = await p.evaluate(() => { const e = document.querySelector('.sv-bm-pop'); return e ? { text: e.textContent, chips: [...e.querySelectorAll('.sv-bm-chip')].map(c => c.textContent.trim()), links: [...e.querySelectorAll('a.sv-bm-chip')].map(a => a.href), add: !!e.querySelector('.sv-bm-pop-add'), inView: e.getBoundingClientRect().right <= innerWidth && e.getBoundingClientRect().bottom <= innerHeight } : null; });
     ok('「BOOKMARK」を押すと、そのキャリアのリンクが出る（別名で登録したものも・他社のものは出ない）', bp && bp.chips.length === 3 && bp.chips.some(c => /公式サイト/.test(c)) && bp.chips.some(c => /運賃表/.test(c)) && bp.chips.some(c => /別名側/.test(c)) && !bp.chips.some(c => /他社/.test(c)), bp);
