@@ -95,12 +95,19 @@
   function refreshTitle() {
     const n = $('e2tName'); if (!n) return;
     const name = val('qf-case-name') || (($('qf-memo') && $('qf-memo').value || '').split('\n')[0].trim()) || val('qf-customer') || '（案件名なし）';
-    if (n.textContent !== name) { n.textContent = name; n.title = name; }
+    const ref = val('qf-ref'), full = (ref ? ref + ' / ' : '') + name;   // 案件番号 / 案件名
+    if (n.textContent !== full) { n.textContent = full; n.title = full; }
     const st = $('e2tStatus'), sv = val('qf-status'); if (st && st.textContent !== sv) st.textContent = sv;
     const sa = $('e2tSave'), q = ($('qmBanner') && $('qmBanner').textContent || '').trim();
-    const sat = q ? q : ''; if (sa && sa.textContent !== sat) sa.textContent = sat;
+    const sat = /編集中/.test(q) ? '' : q;   // 「編集中（あなたが作業中）」はツールバー側のチップに出ているので重ねて出さない
+    if (sa && sa.textContent !== sat) sa.textContent = sat;
   }
 
+  // 「⋯」メニューを「案件」「その他」の 2 区分に（出力の PDF／プレビューは上部ツールバーにあるため置かない）。見出しに印を付けるだけで、並べ替え・見出し名は CSS（order・::after）
+  function tagMenu() {
+    const m = $('tbMenuMore'); if (!m) return;
+    m.querySelectorAll('.tb-menu-group').forEach(g => { const t = g.textContent.trim(); g.dataset.e2mg = t === '操作' ? 'misc' : t === '取り込み・送る' ? 'case' : 'set'; });
+  }
   // ④ 費用：上に［すべて折りたたむ］［すべて展開］［＋ 行を追加］［📦 チャージ］（既存の関数を呼ぶだけ）
   function buildCostBar() {
     const w = $('tableWrap'); if (!w || $('e2CostBar')) return;
@@ -112,7 +119,7 @@
 
   function build() {
     if (built) return;
-    buildCostBar();
+    buildCostBar(); tagMenu();
     buildBasics(); buildTitle();
     const ws = document.querySelector('#tab-quote-make .quote-workspace'); if (!ws) return;
     const steps = document.createElement('nav'); steps.id = 'e2Steps'; steps.setAttribute('aria-label', '見積入力のステップ');

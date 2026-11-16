@@ -105,3 +105,21 @@ html.editor-v2 #tab-quote-make #quoteTable .subcon-group-header .subcon-group-cm
 #e2Review .e2r-row small { display: block; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60vw; }
 #e2Review .e2r-row em { font-style: normal; font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
 @media (max-width: 600px) { html.editor-v2 #e2Total .e2t-btns button[data-e2d] { display: none; } }   /* スマホ幅は「全体の確認」だけ（費用の内訳は費用ステップの一覧） */
+/* 「⋯」メニュー：案件（取り込み・送る・社内メモ）／その他（元に戻す・やり直す・常に前面・使い方）の 2 区分 */
+html.editor-v2 #tab-quote-make .tb-menu.is-open #tbMenuMore { display: flex; flex-direction: column; }
+html.editor-v2 #tbMenuMore .tb-menu-group { font-size: 0; }
+html.editor-v2 #tbMenuMore .tb-menu-group[data-e2mg="case"]::after { content: "案件"; font-size: var(--text-xs, 12px); }
+html.editor-v2 #tbMenuMore .tb-menu-group[data-e2mg="misc"]::after { content: "その他"; font-size: var(--text-xs, 12px); }
+html.editor-v2 #tbMenuMore .tb-menu-group[data-e2mg="set"] { display: none !important; }
+html.editor-v2 #tbMenuMore .tb-menu-group[data-e2mg="case"] { order: 1; }
+html.editor-v2 #tbMenuMore [onclick^="openEmailImport"] { order: 2; }
+html.editor-v2 #tbMenuMore [onclick^="eiOpenStoreForCurrent"] { order: 3; }
+html.editor-v2 #tbMenuMore [onclick^="openSubconRequestMail"] { order: 4; }
+html.editor-v2 #tbMenuMore [onclick^="toggleMemoFloat"] { order: 5; }
+html.editor-v2 #tbMenuMore .tb-menu-group[data-e2mg="misc"] { order: 10; }
+html.editor-v2 #tbMenuMore #btnQuoteUndoMenu { order: 11; }
+html.editor-v2 #tbMenuMore #btnQuoteRedoMenu { order: 12; }
+html.editor-v2 #tbMenuMore [data-pip-btn] { order: 13; }
+html.editor-v2 #tbMenuMore [onclick^="openQuoteTabHelp"] { order: 14; }
+html.editor-v2 #tbMenuMore .tb-mi-static { display: none !important; }   /* 廃止した表示サイズ・表示モードの行 */
+html.editor-v2 #tbMenuMore .tb-mi-quiet-only { order: 6; }
