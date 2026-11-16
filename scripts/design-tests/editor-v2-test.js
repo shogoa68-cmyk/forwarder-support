@@ -77,7 +77,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.click('#e2PackBtn'); await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(200);
   await p.click('#e2Steps [data-e2s="5"]'); await p.waitForTimeout(600);
   ok('⑤リマークは本文に直接出る（下の引き出しは出さない）', await p.evaluate(() => { const sec = document.getElementById('section-remark'); const sh = document.getElementById('rmSheet'); return !!sec.closest('.quote-main') && (!sh || getComputedStyle(sh).display === 'none'); }));
-  ok('⑤リマーク：入力欄が見えて、上に何も重ならず押せる', await p.evaluate(() => { const t = document.getElementById('remarkTextarea'); if (!t) return false; const b = t.getBoundingClientRect(); if (b.width < 50 || b.height < 20) return false; const e = document.elementFromPoint(b.left + 20, b.top + 10); return !!e && e.id === 'remarkTextarea'; }));
+  ok('⑤リマーク：入力欄が見えて、上に何も重ならず押せる', await p.evaluate(() => { const t = document.getElementById('remarkTextarea'); if (!t) return false; const b = t.getBoundingClientRect(); if (b.width < 50 || b.height < 20) return false; t.scrollIntoView({ block: 'center' }); const b2 = t.getBoundingClientRect(); const e0 = document.elementFromPoint(b2.left + 20, b2.top + 10); return !!e0 && e0.id === 'remarkTextarea'; const e = document.elementFromPoint(b.left + 20, b.top + 10); return !!e && e.id === 'remarkTextarea'; }));
   await p.fill('#remarkTextarea', 'テストのリマーク'); await p.waitForTimeout(200);
   ok('⑤リマークに入力でき、要約に反映される', (await p.evaluate(() => document.getElementById('remarkTextarea').value)) === 'テストのリマーク' && /リマークあり/.test(await p.textContent('#e2Steps [data-e2s="5"]')));
   await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(200);
@@ -95,6 +95,14 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => document.activeElement && document.activeElement.blur()); await p.mouse.move(5, 5); await p.waitForTimeout(300);
   ok('明細：空のサブコン・パターン・有効期間は行を触るまで隠れる', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual])'); const hid = sel => { const e = tr.querySelector(sel); return !e || getComputedStyle(e).display === 'none'; }; return hid('.w-subcon') && hid('.w-pattern') && hid('.w-valid'); }));
   ok('明細：未設定のカテゴリ・課税は隠れる', await p.evaluate(() => { const r = document.querySelector('#tableBody tr:not([data-virtual])'); const c = r.querySelector('select.w-cat'), x = r.querySelector('.tax-cell input'); return getComputedStyle(c).display === 'none' && getComputedStyle(x).visibility === 'hidden'; }));
+  if (mobile) {   // スマホ幅：数量登録で右の引き出しが画面内に開き、中身が出る
+    await p.evaluate(() => document.querySelector('#e2Total [data-e2q]').click()); await p.waitForTimeout(500);
+    const r = await p.evaluate(() => { const c = document.querySelector('.quote-right-col').getBoundingClientRect(); const sc = document.getElementById('scPanel'); return { l: c.left, w: c.width, vw: innerWidth, sc: !!sc && getComputedStyle(sc).display !== 'none', body: document.body.classList.contains('e2-drawer') }; });
+    ok('スマホ幅：「数量登録」で引き出しが画面内に開く', r.body && r.l >= 0 && r.l + r.w <= r.vw + 1 && r.sc, r);
+    if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'e2-drawer-sp.png') });
+    await p.evaluate(() => document.querySelector('#e2Total [data-e2q]').click()); await p.waitForTimeout(300);
+    ok('スマホ幅：もう一度押すと閉じる', !(await p.evaluate(() => document.body.classList.contains('e2-drawer'))));
+  }
   if (mobile) { ok('スマホ幅：費用は一覧→編集シート（mobile-cost）。行のホバー系の確認は対象外', await p.evaluate(() => document.body.classList.contains('mc-on') || !!document.querySelector('#mcList'))); await b.close(); srv.close(); process.exit(fails ? 1 : 0); }
   await p.hover('#tableBody tr:not([data-virtual]) .w-name'); await p.waitForTimeout(250);
   ok('サブコン見出しに仕入・粗利％の欄がある（新画面で表示可）', await p.evaluate(() => !document.querySelector('#tableBody .subcon-group-header') || !!document.querySelector('#tableBody .subcon-group-header .subcon-group-cm')));
