@@ -131,3 +131,6 @@ html.editor-v2 #tbMenuMore .tb-mi-quiet-only { order: 6; }
   html.editor-v2 #tab-quote-make .qrc-drawer { width: 100% !important; flex: 0 0 auto; }
   html.editor-v2 #tab-quote-make .qrc-rail { order: -1; width: auto; flex-direction: row; flex-wrap: wrap; justify-content: center; }
 }
+
+/* 明細 1 行：「その他 ▾」は、中の設定（％・MIN・幅・貿易条件など）を何も使っていないあいだは、行にカーソルを乗せる／入力するまで隠す（使っている行は件数バッジつきで出したまま） */
+html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) .row-detail-btn:not(:has(.used-badge:not([data-n="0"]))):not([aria-expanded="true"]) { visibility: hidden !important; }
