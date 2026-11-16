@@ -23,3 +23,10 @@
 
 /* 見積もりテーブルの上の操作バー（cmdbar-main）：「小計行」ボタンは文字つきなので、アイコン用の固定幅を外す */
 #tab-quote-make .cmdbar-main .btn-ins-sub.cmdbar-icon-btn { width: auto; padding: 0 var(--sp-10, 10px) !important; font-size: var(--text-xs, 12px); white-space: nowrap; }
+
+/* サブコン見出しの役割（マスターのサブコン種別）の小さな札 */
+#tab-quote-make .subcon-group-header .sv-hdr-role { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: var(--text-xs, 12px); font-weight: 700; white-space: nowrap;
+  background: #fdf0d8; color: #7a4a0c; border: 1px solid #e9c98a; }
+#tab-quote-make .subcon-group-header .sv-hdr-role[hidden] { display: none; }
+/* 操作バーの「常に前面」は上部ツールバーの「⋯」にもあるので、バーからは外す（重複の整理） */
+#tab-quote-make .quote-cmdbar .cmdbar-pip-btn { display: none; }

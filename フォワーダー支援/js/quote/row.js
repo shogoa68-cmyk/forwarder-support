@@ -1280,6 +1280,14 @@
           if (!gEl) { gEl = document.createElement('span'); gEl.className = 'sv-hdr-group'; detBtn.after(gEl); }
           gEl.textContent = '🏢 ' + grp; gEl.title = '所属グループ：' + grp; gEl.hidden = false;
         } else if (gEl) gEl.hidden = true;
+        // 役割（マスターのサブコン種別：FCL CARRIER／通関／国内陸送など）を見出しに小さく出す（読み取り表示のみ・マスターの値）
+        const types = grec && grec.details && Array.isArray(grec.details.svTypes) ? grec.details.svTypes.map(t => String(t).trim()).filter(Boolean) : [];
+        let rEl = hdr.querySelector('.sv-hdr-role');
+        if (types.length) {
+          if (!rEl) { rEl = document.createElement('span'); rEl.className = 'sv-hdr-role'; (hdr.querySelector('.sv-hdr-group') || detBtn).after(rEl); }
+          rEl.textContent = types.slice(0, 2).join('・') + (types.length > 2 ? ' ほか' + (types.length - 2) : '');
+          rEl.title = 'サブコンの役割（マスターの種別）：' + types.join('・'); rEl.hidden = false;
+        } else if (rEl) rEl.hidden = true;
       }
       if (bmBtn) {
         const rec = reg && typeof window.mdGetCanon === 'function' ? window.mdGetCanon('sv', v) : null;
