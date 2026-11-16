@@ -149,6 +149,7 @@ grant execute on function public.cp_watch_purge() to service_role;
 -- ============================================================
 -- 6b) 「取引」を直接追いかける（見積の案件がなくても追える）
 --   ・source='case'  … 見積の案件を追う（従来どおり。preset_id＝案件の id。案件が「受注」のものだけ確認する）
+--   ・source='container' … 「コンテナの状況」の結果から入れた 1 本（container_nos に 1 本。bl_no は入れない＝その 1 本だけを確認）
 --   ・source='trade' … サイバーポートの「取引」を追う（preset_id＝この名簿専用の id・trade_no＝取引番号）。案件の状態は見ない。
 --   ・同じ取引は 1 行だけ（チームで共有。二重に確認しない）。
 --   ・案件の外部キーは外した（取引だけの行は、案件に無い id を持つため）。代わりに、案件を消したら
@@ -157,9 +158,9 @@ grant execute on function public.cp_watch_purge() to service_role;
 alter table public.cp_watch_targets add column if not exists source   text not null default 'case';
 alter table public.cp_watch_targets add column if not exists trade_no text;
 alter table public.cp_watch_targets add column if not exists title    text;       -- 一覧に出す名前（取引名など）
-do $$ begin
-  alter table public.cp_watch_targets add constraint cp_watch_targets_source_chk check (source in ('case', 'trade'));
-exception when duplicate_object then null; end $$;
+-- 種類：case＝見積の案件／trade＝サイバーポートの取引／container＝コンテナの状況から入れた 1 本（古い版の制約は作り直す）
+alter table public.cp_watch_targets drop constraint if exists cp_watch_targets_source_chk;
+alter table public.cp_watch_targets add constraint cp_watch_targets_source_chk check (source in ('case', 'trade', 'container'));
 do $$ begin
   alter table public.cp_watch_targets add constraint cp_watch_targets_trade_chk check (source <> 'trade' or trade_no is not null);
 exception when duplicate_object then null; end $$;
@@ -172,6 +173,10 @@ do $$ declare r record; begin
 end $$;
 alter table public.cp_watch_targets alter column preset_id set default gen_random_uuid();
 create unique index if not exists cp_watch_targets_trade_uidx on public.cp_watch_targets (trade_no) where source = 'trade';
+-- コンテナは 1 本だけ入れる（container_nos の先頭）。同じ向き・同じコンテナは 1 行だけ（二重に確認しない）
+alter table public.cp_watch_targets drop constraint if exists cp_watch_targets_container_chk;
+alter table public.cp_watch_targets add constraint cp_watch_targets_container_chk check (source <> 'container' or cardinality(container_nos) = 1);
+create unique index if not exists cp_watch_targets_ctn_uidx on public.cp_watch_targets (direction, (container_nos[1])) where source = 'container';
 
 create or replace function public.cp_watch_case_deleted() returns trigger
 language plpgsql security definer set search_path = public as $$
@@ -195,7 +200,7 @@ create trigger cp_watch_target_deleted after delete on public.cp_watch_targets f
 grant insert (source, trade_no, title) on public.cp_watch_targets to authenticated;
 grant update (title) on public.cp_watch_targets to authenticated;
 
--- 次に確認するものを選ぶ：取引の追跡は案件の状態を見ない。案件の追跡は従来どおり「受注」だけ
+-- 次に確認するものを選ぶ：取引・コンテナのウォッチは案件の状態を見ない。案件の追跡は従来どおり「受注」だけ
 create or replace function public.cp_watch_pick(p_n integer default 5, p_min_gap interval default interval '2 hours')
 returns setof public.cp_watch_targets
 language sql
@@ -207,7 +212,7 @@ as $$
     left join public.quote_presets q on q.id = t.preset_id
    where t.trace
      and t.state = 'active'
-     and (t.source = 'trade' or q.status in ('受注', 'won'))
+     and (t.source in ('trade', 'container') or q.status in ('受注', 'won'))
      and (t.last_checked_at is null or t.last_checked_at < now() - p_min_gap)
      and (t.consecutive_errors < 3 or t.last_checked_at < now() - interval '6 hours')
    order by (case when t.urgent_at is not null and t.urgent_at <= now() + interval '48 hours' then 0 else 1 end),

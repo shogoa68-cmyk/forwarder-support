@@ -197,3 +197,5 @@
 #tab-cptest .cpt-wchg li.is-alert { border-left-color: var(--cpt-over); background: var(--cpt-over-bg); }
 #tab-cptest .cpt-wchg li.is-warn { border-left-color: var(--cpt-warn-dot); background: var(--cpt-warn-bg); }
 #tab-cptest .cpt-wchg-t { color: var(--cpt-ink3); font-size: var(--text-xs, 12px); font-variant-numeric: tabular-nums; }
+#tab-cptest .cpt-wbulk { margin-top: 8px; }
+#tab-cptest .cpt-wsnap { margin: 4px 0 16px; }

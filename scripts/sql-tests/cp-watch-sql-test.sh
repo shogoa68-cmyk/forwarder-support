@@ -190,6 +190,19 @@ begin
   perform t.as_admin();
   perform t.ok('取引の追跡を外すと、その変化の記録も消える', not exists (select 1 from public.cp_changes where label = 'l' and scope = 's'));
 
+  -- ④c コンテナをウォッチリストへ（コンテナの状況から）
+  perform t.as_user('alice@example.com');
+  insert into public.cp_watch_targets (source, direction, container_nos, title, created_by) values ('container', 'import', array['MRKU9737538'], 'MRKU9737538 B/L X', 'alice@example.com');
+  perform t.ok('メンバーはコンテナ（1 本）をウォッチリストに入れられる', exists (select 1 from public.cp_watch_targets where source = 'container' and container_nos[1] = 'MRKU9737538'));
+  perform t.err('同じ向き・同じコンテナは二重に入れられない', $q$insert into public.cp_watch_targets (source, direction, container_nos) values ('container', 'import', array['MRKU9737538'])$q$, 'duplicate key');
+  insert into public.cp_watch_targets (source, direction, container_nos) values ('container', 'export', array['MRKU9737538']);
+  perform t.ok('向きが違えば同じコンテナ番号も入れられる（輸入と輸出は別）', (select count(*) from public.cp_watch_targets where source = 'container') = 2);
+  perform t.err('コンテナは 1 本だけ（0 本・2 本は不可）', $q$insert into public.cp_watch_targets (source, direction, container_nos) values ('container', 'import', array['AAAA0000001', 'BBBB0000002'])$q$, 'check constraint');
+  perform t.as_service();
+  perform t.ok('コンテナのウォッチは案件がなくても選ばれる', exists (select 1 from public.cp_watch_pick(20) where source = 'container'));
+  perform t.as_admin();
+  delete from public.cp_watch_targets where source = 'container';
+
   -- ⑤ 掃除
   insert into public.cp_changes (preset_id, scope, label, kind, sev, detected_at) values (B, 's', 'old', 'new', 'info', now() - interval '100 days');
   insert into public.cp_watch_runs (picked, started_at) values (1, now() - interval '40 days');

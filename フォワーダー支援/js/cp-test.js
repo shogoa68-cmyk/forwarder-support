@@ -399,7 +399,7 @@
       var r;
       if (k === 'watch') {
         var wst = wState(x);
-        r = { i: i, title: wTitle(x), sub: (x.source === 'trade' ? '取引' : '見積案件') + '　' + (x.direction === 'export' ? '輸出' : '輸入') + wKeysText(x, '　'), dot: wst.dot, chip: wst.label, cls: wst.cls, lv: wst.lv };
+        r = { i: i, title: wTitle(x), kind: wKind(x), sub: W_KIND_L[wKind(x)] + '　' + (x.direction === 'export' ? '輸出' : '輸入') + wKeysText(x, '　') + (x.urgent_at ? '　次の期限 ' + fmtDt(x.urgent_at).slice(5) + '（' + remainText(x.urgent_at, nowMs()) + '）' : ''), dot: wst.dot, chip: wst.label, cls: wst.cls, lv: wst.lv };
       } else if (k === 'trade') {
         var done = /完了|complete/i.test(String(g(x, 'tradeStatus') || ''));
         r = { i: i, title: g(x, 'tradeNo') || '（番号なし）', sub: g(x, 'tradeName') || '', dot: done ? 'ok' : 'now', chip: g(x, 'tradeStatus') || '', cls: done ? 'is-ok' : '', lv: null, star: !!watchedTrade(g(x, 'tradeNo')) };
@@ -419,6 +419,7 @@
         var note = g(x, 'shipmentAvailability') === false ? '船積できない' : (em.slip || fi.slip) ? '予定を過ぎている' : has(sdt) ? '船積 ' + fmtDt(sdt).slice(5) : NODATA_C_S;
         r = { i: i, title: g(x, 'container.containerNo') || '（番号なし）', sub: size2 + (size2 ? '　' : '') + note, dot: le || 'none', chip: le === 'warn' ? '要確認' : le === 'ok' ? '順調' : LV_CHIP.none, cls: le === 'warn' ? 'is-warn' : le === 'ok' ? 'is-ok' : 'is-nodata', lv: le };
       }
+      if (k.indexOf('ctn:') === 0) r.star = !!watchedCtn(k === 'ctn:export' ? 'export' : 'import', g(x, 'container.containerNo'));
       r.k = sortKeys(k, x, meta, now, r);
       out.push(r);
     });
@@ -463,8 +464,8 @@
 
 
   // ---- 追いかけ（ウォッチ）：取引を選んで「朝夕の自動確認」の対象にする。保存は Supabase の cp_watch_targets（チームで共有） ----
-  var W_SETUP = '追いかけの保存先（サーバー側の準備）がまだのようです。管理者に「docs/sql/cp-watch.sql を Supabase で実行」を依頼してください。';
-  var W_LOGIN = 'ログインすると、追いかけを使えます（右上の「Google でログイン」）。';
+  var W_SETUP = 'ウォッチリストの保存先（サーバー側の準備）がまだのようです。管理者に「docs/sql/cp-watch.sql を Supabase で実行」を依頼してください。';
+  var W_LOGIN = 'ログインすると、ウォッチリストを使えます（右上の「Google でログイン」）。';
   function wClient() { try { return window.cloudGetClient ? window.cloudGetClient() : null; } catch (e) { return null; } }
   async function wEmail(sb) { try { var r = await sb.auth.getSession(); var u = r && r.data && r.data.session && r.data.session.user; return u ? (u.email || '') : null; } catch (e) { return null; } }
   function watchedTrade(no) {
@@ -486,8 +487,14 @@
     if (w.state === 'done') return { label: '追跡完了', dot: 'ok', cls: 'is-ok', lv: null };
     if (w.state === 'ask') return { label: '確認待ち', dot: 'warn', cls: 'is-warn', lv: 'warn' };
     if (w.last_status === 'error') return { label: '確認エラー', dot: 'over', cls: 'is-over', lv: 'over' };
-    return { label: '追跡中', dot: 'now', cls: '', lv: 'ok' };
+    // 次に来る期限（確認のたびに記録される urgent_at）が過ぎていれば赤・48時間以内なら黄
+    var ul = w.urgent_at ? levelOf(w.urgent_at, nowMs()) : null;
+    if (ul === 'over') return { label: '期限超過', dot: 'over', cls: 'is-over', lv: 'over' };
+    if (ul === 'warn') return { label: '48時間以内', dot: 'warn', cls: 'is-warn', lv: 'warn' };
+    return { label: 'ウォッチ中', dot: 'now', cls: '', lv: 'ok' };
   }
+  function wKind(w) { return w.source === 'container' ? 'ctn' : w.source === 'trade' ? 'trade' : 'case'; }
+  var W_KIND_L = { ctn: 'コンテナ', trade: '取引', 'case': '見積案件' };
   function syncWatchStore() {
     var s = ST.store.watch || (ST.store.watch = { items: null, sel: 0, filter: 'all', msg: null, meta: {} });
     var W = ST.watch;
@@ -497,8 +504,8 @@
   }
   function paintWatchBadge() {
     var b = $id('cptWatchBadge'); if (!b) return;
-    var n = (ST.watch.rows || []).filter(function (w) { return w.state === 'ask'; }).length;
-    b.hidden = !n; b.textContent = '確認待ち ' + n;
+    var n = (ST.watch.rows || []).filter(function (w) { var l = wState(w).lv; return w.trace && (w.state === 'ask' || l === 'over' || l === 'warn'); }).length;
+    b.hidden = !n; b.textContent = '要注意 ' + n;
   }
   async function loadWatch() {
     var sb = wClient(), W = ST.watch;
@@ -514,7 +521,7 @@
       W.err = '';
     } catch (e) {
       var m = (e && (e.message || e.code)) || String(e);
-      W.rows = null; W.err = /does not exist|42P01|schema cache|relation/i.test(m) ? W_SETUP : '追いかけの一覧を読み込めませんでした：' + m;
+      W.rows = null; W.err = /does not exist|42P01|schema cache|relation/i.test(m) ? W_SETUP : 'ウォッチリストを読み込めませんでした：' + m;
     }
     syncWatchStore(); paint();
   }
@@ -522,7 +529,7 @@
   function wGuessDir(x) { var no = String(g(x, 'tradeNo') || ''), t = String(g(x, 'tradeType') || ''); return (/^EXP/i.test(no) || /export|輸出/i.test(t)) ? 'export' : 'import'; }
   var SEV_L = { alert: '要対応', warn: '注意', info: 'お知らせ' };
   function wFormHtml(f) {
-    return '<div class="cpt-wform" id="cptWf"><b>追いかける手がかり</b>' +
+    return '<div class="cpt-wform" id="cptWf"><b>ウォッチの手がかり</b>' +
       '<div class="cpt-wf-note">サイバーポート（COLINS）の動きは、B/L番号（輸入）・ブッキング番号（輸出）・コンテナ番号のどれかで調べます。どれか1つは入れてください。</div>' +
       '<div class="cpt-seg" role="group" aria-label="輸入か輸出か"><button type="button" data-wdir="import" aria-pressed="' + (f.dir !== 'export') + '">輸入</button><button type="button" data-wdir="export" aria-pressed="' + (f.dir === 'export') + '">輸出</button></div>' +
       '<label class="cpt-wf-l">B/L番号（輸入）<input type="text" id="cptWfBl" class="cpt-input" maxlength="40" autocomplete="off" value="' + esc(f.bl) + '"></label>' +
@@ -530,24 +537,31 @@
       '<label class="cpt-wf-l">コンテナ番号（複数ならスペースで区切る・10本まで）<input type="text" id="cptWfCtn" class="cpt-input" maxlength="200" autocomplete="off" value="' + esc(f.ctn) + '"></label>' +
       '<label class="cpt-wf-l">一覧に出す名前<input type="text" id="cptWfTitle" class="cpt-input" maxlength="80" autocomplete="off" value="' + esc(f.title) + '"></label>' +
       (f.err ? '<div class="cpt-wf-err" role="alert">' + esc(f.err) + '</div>' : '') +
-      '<div class="cpt-wf-btns"><button type="button" class="cpt-btn is-primary is-s" data-act="w-save">' + (f.mode === 'edit' ? '保存する' : '追いかけを始める') + '</button><button type="button" class="cpt-btn is-s" data-act="w-cancel">やめる</button></div></div>';
+      '<div class="cpt-wf-btns"><button type="button" class="cpt-btn is-primary is-s" data-act="w-save">' + (f.mode === 'edit' ? '保存する' : 'ウォッチに入れる') + '</button><button type="button" class="cpt-btn is-s" data-act="w-cancel">やめる</button></div></div>';
   }
-  // 取引の詳細に出す「☆ 追いかける」
+  // 取引の詳細に出す「☆ ウォッチに入れる」
   function wTradeExtra(x) {
     var no = String(g(x, 'tradeNo') || ''), f = ST.watch.form;
     if (!no) return '';
     var w = watchedTrade(no);
-    if (w) return '<div class="cpt-wbar"><span class="cpt-chip is-ok">★ 追いかけ中</span><button type="button" class="cpt-btn is-s" data-act="w-open">追いかけ中の画面で見る</button></div>';
+    if (w) return '<div class="cpt-wbar"><span class="cpt-chip is-ok">★ ウォッチ中</span><button type="button" class="cpt-btn is-s" data-act="w-open">ウォッチリストで見る</button></div>';
     if (f && f.mode === 'add' && f.tradeNo === no) return wFormHtml(f);
-    return '<div class="cpt-wbar"><button type="button" class="cpt-btn is-s" data-act="w-add">☆ 追いかける</button><span class="cpt-wbar-n">朝夕に自動で動きを確認し、変化を記録します。</span></div>';
+    return '<div class="cpt-wbar"><button type="button" class="cpt-btn is-s" data-act="w-add">☆ ウォッチに入れる</button><span class="cpt-wbar-n">朝夕に自動で動きを確認し、変化を記録します。</span></div>';
   }
   // 追いかけ中の詳細（状態・操作・変化の記録）
   function wExtra(w) {
     var f = ST.watch.form, st = wState(w), out = [];
     out.push('<div class="cpt-wst">' + (w.last_checked_at ? '最後に確認：' + esc(fmtDt(w.last_checked_at)) + (w.last_status === 'error' ? '（エラー：' + esc(w.last_error || '') + '）' : w.last_status === 'nodata' ? '（COLINSに情報がありません）' : '（成功）') : 'まだ確認していません。次の朝・夕の自動確認で調べます。') + '</div>');
-    if (w.state === 'ask') out.push('<div class="cpt-msg is-info cpt-wask"><b>終わりにしてよいか、確認してください</b><div class="cpt-msg-b">' + esc(w.state_note || '到着の実績が取れないまま、予定を過ぎました。') + '</div><div class="cpt-wf-btns"><button type="button" class="cpt-btn is-s" data-act="w-snooze">もう少し追う（3日）</button><button type="button" class="cpt-btn is-s" data-act="w-del">追いかけをやめる</button></div></div>');
+    if (w.state === 'ask') out.push('<div class="cpt-msg is-info cpt-wask"><b>終わりにしてよいか、確認してください</b><div class="cpt-msg-b">' + esc(w.state_note || '到着の実績が取れないまま、予定を過ぎました。') + '</div><div class="cpt-wf-btns"><button type="button" class="cpt-btn is-s" data-act="w-snooze">もう少し追う（3日）</button><button type="button" class="cpt-btn is-s" data-act="w-del">ウォッチから外す</button></div></div>');
     if (f && f.mode === 'edit' && f.id === w.preset_id) out.push(wFormHtml(f));
-    else out.push('<div class="cpt-wbar"><button type="button" class="cpt-btn is-s" data-act="w-toggle">' + (w.trace ? '一時停止' : '再開') + '</button><button type="button" class="cpt-btn is-s" data-act="w-edit">手がかりを直す</button><button type="button" class="cpt-btn is-s" data-act="w-del">追いかけをやめる</button></div>');
+    else out.push('<div class="cpt-wbar"><button type="button" class="cpt-btn is-s" data-act="w-toggle">' + (w.trace ? '一時停止' : '再開') + '</button>' + (w.source === 'container' ? '' : '<button type="button" class="cpt-btn is-s" data-act="w-edit">手がかりを直す</button>') + '<button type="button" class="cpt-btn is-s" data-act="w-del">ウォッチから外す</button></div>');
+    // 最新の確認結果（確認のたびに記録される写し）：値のある項目だけ
+    var snap = (Array.isArray(w.snapshot) ? w.snapshot : []).filter(function (q) { return q && q.val != null && q.val !== ''; });
+    if (snap.length) out.push('<div class="cpt-flow-h">最新の確認結果</div><dl class="cpt-dl cpt-wsnap">' + snap.slice(0, 30).map(function (q) {
+      var v = q.cat === 'date' ? fmtDt(q.val) : q.cat === 'flag' ? (q.val === 'true' || q.val === true ? '〇' : q.val === 'false' || q.val === false ? '×' : String(q.val)) : String(q.val);
+      var lv = q.dl ? levelOf(q.val, nowMs()) : null;
+      return '<div><dt>' + esc(q.label) + '</dt><dd' + (lv === 'over' ? ' class="cpt-due-over"' : lv === 'warn' ? ' class="cpt-due-warn"' : '') + '>' + esc(v) + '</dd></div>';
+    }).join('') + '</dl>');
     var ch = (ST.watch.chg[w.preset_id] || []).slice(0, 20);
     out.push('<div class="cpt-flow-h">最近の変化</div>' + (ch.length ? '<ul class="cpt-wchg">' + ch.map(function (c) {
       var fv = function (v) { return v && /^\d{4}-\d{2}-\d{2}T/.test(v) ? fmtDt(v) : (v || '—'); };
@@ -555,6 +569,45 @@
       return '<li class="is-' + esc(c.sev) + '"><span class="cpt-wchg-t">' + esc(fmtDt(c.detected_at)) + '</span> <span class="cpt-chip is-s">' + esc(SEV_L[c.sev] || c.sev) + '</span> <b>' + esc(c.scope) + '　' + esc(c.label) + '</b>' + mv + (c.note ? '　' + esc(c.note) : '') + '</li>';
     }).join('') + '</ul>' : '<div class="cpt-empty">まだ変化の記録はありません（朝夕の自動確認で、前回との違いを記録します）。</div>'));
     return out.join('');
+  }
+  // ---- コンテナをウォッチリストへ（コンテナの状況の結果から。手がかりは結果に入っているので、入力は要らない） ----
+  function watchedCtn(dir, no) {
+    var w = ST.watch.rows; if (!w || !no) return null;
+    for (var i = 0; i < w.length; i++) if (w[i].source === 'container' && w[i].direction === dir && (w[i].container_nos || [])[0] === no) return w[i];
+    return null;
+  }
+  function wCtnRecord(x, dir, email) {
+    var no = String(g(x, 'container.containerNo') || ''), bl = String(g(x, 'billOfLadingDetail.blNo') || '');
+    var vs = [g(x, 'vessel.vesselName'), g(x, 'vessel.voyageNo')].filter(Boolean).join(' ');
+    // bl_no は入れない（入れると B/L の全コンテナをまとめて確認してしまう。ここでは、選んだ 1 本だけを追う）。B/L・本船は名前に添える
+    return { source: 'container', direction: dir, container_nos: [no], trace: true, state: 'active', created_by: email, updated_by: email,
+      title: no + (bl ? '　B/L ' + bl : '') + (vs ? '　' + vs : '') };
+  }
+  // 詳細に出す「☆ ウォッチに入れる」
+  function wCtnExtra(x, dir) {
+    var no = String(g(x, 'container.containerNo') || ''); if (!no) return '';
+    var w = watchedCtn(dir, no);
+    if (w) return '<div class="cpt-wbar"><span class="cpt-chip is-ok">★ ウォッチ中</span><button type="button" class="cpt-btn is-s" data-act="w-open-ctn" data-no="' + esc(no) + '">ウォッチリストで見る</button></div>';
+    return '<div class="cpt-wbar"><button type="button" class="cpt-btn is-s" data-act="w-add-ctn">☆ ウォッチに入れる</button><span class="cpt-wbar-n">朝夕に自動で動きを確認し、変化を記録します。</span></div>';
+  }
+  async function wAddContainers(list, dir) {
+    var sb = wClient(), email = sb ? await wEmail(sb) : null;
+    if (!sb || !email) { wToast(W_LOGIN); return; }
+    if (!ST.watch.rows) await loadWatch();
+    var add = 0, skip = 0, fail = '';
+    for (var i = 0; i < list.length; i++) {
+      var no = String(g(list[i], 'container.containerNo') || '');
+      if (!no || watchedCtn(dir, no)) { skip++; continue; }
+      var r = await sb.from('cp_watch_targets').insert(wCtnRecord(list[i], dir, email));
+      if (r.error) {
+        if (r.error.code === '23505') { skip++; continue; }
+        fail = /does not exist|42P01|schema cache|relation|column|violates check/i.test(r.error.message || '') ? W_SETUP : '入れられませんでした：' + (r.error.message || r.error.code);
+        break;
+      }
+      add++;
+    }
+    await loadWatch();
+    wToast(fail || (add ? add + ' 本をウォッチリストに入れました（朝夕に自動で確認します）' + (skip ? '。' + skip + ' 本はすでに入っています' : '') : 'すべて、すでにウォッチリストに入っています'));
   }
   function wCurrent() { var s = slot(); return s.items && s.items[s.sel] ? s.items[s.sel] : null; }
   async function wSave() {
@@ -575,11 +628,11 @@
     else r = await sb.from('cp_watch_targets').insert(Object.assign({ source: 'trade', trade_no: f.tradeNo, trace: true, state: 'active', created_by: email }, rec));
     if (r.error) {
       var m = r.error.message || r.error.code || '';
-      f.err = r.error.code === '23505' ? 'この取引は、すでに追いかけています。' : /does not exist|42P01|schema cache|relation|column/i.test(m) ? W_SETUP : '保存できませんでした：' + m;
+      f.err = r.error.code === '23505' ? 'この取引は、すでにウォッチリストに入っています。' : /does not exist|42P01|schema cache|relation|column/i.test(m) ? W_SETUP : '保存できませんでした：' + m;
       paint(); return;
     }
     ST.watch.form = null;
-    wToast(f.mode === 'edit' ? '手がかりを保存しました' : '追いかけを始めました（朝夕に自動で確認します）');
+    wToast(f.mode === 'edit' ? '手がかりを保存しました' : 'ウォッチに入れました（朝夕に自動で確認します）');
     await loadWatch();
   }
   async function wUpdate(w, patch, okMsg) {
@@ -591,13 +644,13 @@
     await loadWatch();
   }
   async function wDelete(w) {
-    var ok = window.uiConfirm ? await window.uiConfirm({ title: '追いかけをやめますか？', lines: ['「' + wTitle(w) + '」の追いかけをやめます。', 'これまでの変化の記録も、この一覧から消えます。'], irreversible: '消した記録は戻せません。', okLabel: 'やめる', danger: true }) : window.confirm('追いかけをやめますか？（変化の記録も消えます）');
+    var ok = window.uiConfirm ? await window.uiConfirm({ title: 'ウォッチから外しますか？', lines: ['「' + wTitle(w) + '」をウォッチから外します。', 'これまでの変化の記録も、この一覧から消えます。'], irreversible: '消した記録は戻せません。', okLabel: 'やめる', danger: true }) : window.confirm('ウォッチから外しますか？（変化の記録も消えます）');
     if (!ok) return;
     var sb = wClient();
     if (!sb) return;
     var r = await sb.from('cp_watch_targets').delete().eq('preset_id', w.preset_id);
     if (r.error) { wToast('やめられませんでした：' + (r.error.message || r.error.code)); return; }
-    wToast('追いかけをやめました');
+    wToast('ウォッチから外しました');
     await loadWatch();
   }
   function wAction(a) {
@@ -607,6 +660,19 @@
       var no = String(g(x, 'tradeNo') || '');
       W.form = { mode: 'add', tradeNo: no, dir: wGuessDir(x), bl: String(g(x, 'blNo') || ''), bk: '', ctn: '', title: String(g(x, 'tradeName') || no), err: '' };
       paint(); return;
+    }
+    if (a === 'w-add-ctn') {
+      var cx = wCurrent(); if (!cx) return;
+      wAddContainers([cx], ST.dir === 'export' ? 'export' : 'import'); return;
+    }
+    if (a === 'w-add-all') {
+      var cs = slot(); if (!cs.items || !cs.items.length) return;
+      wAddContainers(cs.items, ST.dir === 'export' ? 'export' : 'import'); return;
+    }
+    if (a === 'w-open-ctn') {
+      var wc = watchedCtn(ST.dir === 'export' ? 'export' : 'import', String((wCurrent() ? g(wCurrent(), 'container.containerNo') : '') || ''));
+      if (!wc) return;
+      ST.tab = 'watch'; syncWatchStore(); slot().sel = Math.max(0, (W.rows || []).indexOf(wc)); ST.mv = 'detail'; ST.allOpen = false; W.form = null; paint(); return;
     }
     if (a === 'w-cancel') { W.form = null; paint(); return; }
     if (a === 'w-save') { wSave(); return; }
@@ -633,11 +699,11 @@
     };
     if (k === 'watch') {
       var wst2 = wState(x), dirL = x.direction === 'export' ? '輸出' : '輸入';
-      var wdl = [['種類', x.source === 'trade' ? '取引（サイバーポート）' : '見積の案件'], ['取引番号', x.trade_no || ''], ['向き', dirL], ['B/L番号', x.bl_no || ''], ['ブッキング番号', x.booking_no || ''],
+      var wdl = [['種類', x.source === 'container' ? 'コンテナ（COLINS）' : x.source === 'trade' ? '取引（サイバーポート）' : '見積の案件'], ['取引番号', x.trade_no || ''], ['向き', dirL], ['B/L番号', x.bl_no || ''], ['ブッキング番号', x.booking_no || ''],
         ['コンテナ番号', (x.container_nos || []).join('・')], ['状態', wst2.label + (x.state_note ? '（' + x.state_note + '）' : '')], ['最後に確認', x.last_checked_at ? fmtDt(x.last_checked_at) : ''],
         ['最後の結果', x.last_status === 'ok' ? '取得できた' : x.last_status === 'nodata' ? 'COLINSに情報なし' : x.last_status === 'error' ? 'エラー' : ''], ['エラーの内容', x.last_error || ''],
-        ['追いかけを始めた人', x.created_by || ''], ['始めた日時', x.created_at ? fmtDt(x.created_at) : '']];
-      return { title: wTitle(x), sub: (x.source === 'trade' ? '取引 ' + (x.trade_no || '') : '見積の案件からの追跡'), chips: [dirL, wst2.label], flowTitle: '', steps: null,
+        ['ウォッチに入れた人', x.created_by || ''], ['入れた日時', x.created_at ? fmtDt(x.created_at) : '']];
+      return { title: wTitle(x), sub: (x.source === 'container' ? 'コンテナ ' + ((x.container_nos || [])[0] || '') : x.source === 'trade' ? '取引 ' + (x.trade_no || '') : '見積の案件からの追跡'), chips: [dirL, wst2.label], flowTitle: '', steps: null,
         dl: wdl.map(function (q) { return { k: q[0], v: q[1], cls: '', nd: '—' }; }), kind: 'watch', wextra: wExtra(x) };
     }
     if (k === 'trade') {
@@ -659,7 +725,7 @@
     var cSteps = dirc === 'export' ? stepsExportContainer(x, now) : stepsImportContainer(x, now);
     // 流れの全部が「情報なし」（COLINS に載っていない）ときは、船会社のトラッキングへ案内する
     var cGuide = cSteps.every(function (p) { return p.st === 'nodata'; }) ? guideHtml([g(x, 'billOfLadingDetail.blNo'), g(x, 'container.containerNo')]) : '';
-    return { title: g(x, 'container.containerNo') || '（番号なし）', sub: subBits.join('　／　'), chips: chips, flowTitle: dirc === 'export' ? '輸出の流れ' : 'いまの流れ', steps: cSteps, dl: colsDl(containerCols(dirc, names), NODATA_C_S), kind: 'ctn', extra: cGuide };
+    return { title: g(x, 'container.containerNo') || '（番号なし）', sub: subBits.join('　／　'), chips: chips, flowTitle: dirc === 'export' ? '輸出の流れ' : 'いまの流れ', steps: cSteps, dl: colsDl(containerCols(dirc, names), NODATA_C_S), kind: 'ctn', extra: cGuide, wextra: wCtnExtra(x, dirc) };
   }
 
   // ---- 描画 ----
@@ -713,15 +779,23 @@
              : '<button type="button" class="cpt-gb" data-f="over" aria-pressed="' + (s.filter === 'over') + '"><i class="cpt-sw is-over"></i>超過 ' + nOver + '</button>' +
                '<button type="button" class="cpt-gb" data-f="warn" aria-pressed="' + (s.filter === 'warn') + '"><i class="cpt-sw is-warn"></i>48時間以内 ' + nWarn + '</button>') +
         '<div class="cpt-legend">' + (exp ? '黄＝止まっている、または予定を過ぎている（船積可否×・搬出／搬入の予定超過）' : '緑＝順調／黄＝48時間以内／赤＝超過（搬出期限・返却期限）／灰＝' + NODATA_C_S) + '</div>';
+      var nNew = rows.filter(function (q) { return !q.star; }).length;
+      fbar.innerHTML += '<div class="cpt-wbulk">' + (nNew ? '<button type="button" class="cpt-btn is-s" data-act="w-add-all">☆ 表示中の ' + nNew + ' 本をウォッチリストに入れる</button>' : '<span class="cpt-wbar-n">★ 表示中のコンテナは、すべてウォッチリストに入っています</span>') + '</div>';
+    } else if (isWatch && has0 && rows.length) {
+      var kc = { ctn: 0, trade: 0, 'case': 0 }; rows.forEach(function (q) { kc[q.kind] = (kc[q.kind] || 0) + 1; });
+      fbar.hidden = false;
+      fbar.innerHTML = '<button type="button" class="cpt-gb" data-f="all" aria-pressed="' + (s.filter === 'all') + '">すべて ' + rows.length + '</button>' +
+        ['ctn', 'trade', 'case'].filter(function (kk) { return kc[kk]; }).map(function (kk) { return '<button type="button" class="cpt-gb" data-f="' + kk + '" aria-pressed="' + (s.filter === kk) + '">' + W_KIND_L[kk] + ' ' + kc[kk] + '</button>'; }).join('') +
+        '<div class="cpt-legend">赤＝期限を過ぎた／黄＝48時間以内（または終わりの確認待ち）／灰＝一時停止</div>';
     } else fbar.innerHTML = '';
     var note = $id('cptNote'); if (note) { var nt = has0 && s.meta && s.meta.note ? s.meta.note : ''; note.hidden = !nt; note.textContent = nt; }
-    var shown = rows.filter(function (q) { return !isCtn || s.filter === 'all' || q.lv === s.filter; });
+    var shown = rows.filter(function (q) { return s.filter === 'all' || (isCtn ? q.lv === s.filter : isWatch ? q.kind === s.filter : true); });
     var list = $id('cptList');
     if (!has0) list.innerHTML = '<div class="cpt-empty">' + (isWatch ? '読み込み中です…' : '上の欄に入力して、検索してください。') + '</div>';
-    else if (!shown.length) list.innerHTML = '<div class="cpt-empty">' + (isWatch ? '追いかけているものは、まだありません。「取引」タブで取引を選び、「☆ 追いかける」を押してください。' : 'この条件に当てはまるものはありません。') + '</div>';
+    else if (!shown.length) list.innerHTML = '<div class="cpt-empty">' + (isWatch ? 'ウォッチリストは空です。「取引」や「コンテナの状況」の結果から、「☆ ウォッチに入れる」を押してください。' : 'この条件に当てはまるものはありません。') + '</div>';
     else list.innerHTML = shown.slice(0, 50).map(function (q) {
       return '<button type="button" class="cpt-row" data-i="' + q.i + '" aria-pressed="' + (q.i === s.sel) + '">' + dotHtml(q.dot) +
-        '<span class="cpt-row-m"><b>' + (q.star ? '<span class="cpt-star" title="追いかけ中">★</span> ' : '') + esc(q.title) + '</b><span class="cpt-row-s' + (/情報なし/.test(q.sub) ? ' is-nodata' : '') + '">' + esc(q.sub) + '</span></span>' +
+        '<span class="cpt-row-m"><b>' + (q.star ? '<span class="cpt-star" title="ウォッチ中">★</span> ' : '') + esc(q.title) + '</b><span class="cpt-row-s' + (/情報なし/.test(q.sub) ? ' is-nodata' : '') + '">' + esc(q.sub) + '</span></span>' +
         (q.chip ? '<span class="cpt-chip ' + q.cls + '">' + esc(q.chip) + '</span>' : '') + '<span class="cpt-row-go" aria-hidden="true">›</span></button>';
     }).join('') + (shown.length > 50 ? '<div class="cpt-empty">先頭50件を表示しています（全 ' + shown.length + ' 件）。</div>' : '');
     // 詳細
@@ -736,7 +810,7 @@
         return '<li class="cpt-step"><span class="cpt-rail"><span class="cpt-node is-' + dot + '"></span><span class="cpt-line"></span></span><span class="cpt-step-b"><b>' + esc(p.t) + '</b> <span class="cpt-chip is-s ' + p.cls + '">' + esc(p.badge) + '</span>' +
           '<div class="cpt-step-v' + (p.st === 'nodata' ? ' is-nodata' : '') + '">' + esc(p.v) + '</div></span></li>';
       }).join('') + '</ol>' : '';
-      var future = d.kind === 'trade' ? '<div class="cpt-future"><b>今後ここに入る予定</b><br>この取引に結び付いた見積の案件・取引内チャットの読み取り（いまは表示しません）。動きの確認は、上の「☆ 追いかける」で始められます。</div>' : '';
+      var future = d.kind === 'trade' ? '<div class="cpt-future"><b>今後ここに入る予定</b><br>この取引に結び付いた見積の案件・取引内チャットの読み取り（いまは表示しません）。動きの確認は、上の「☆ ウォッチに入れる」で始められます。</div>' : '';
       var dl = ST.allOpen ? '<dl class="cpt-dl">' + d.dl.map(function (q) {
         return '<div><dt>' + esc(q.k) + '</dt><dd' + (q.cls ? ' class="' + q.cls + '"' : '') + (q.v === '' ? ' class="is-nodata"' : '') + '>' + (q.v === '' ? esc(q.nd) : esc(q.v)) + '</dd></div>';
       }).join('') + '</dl>' : '';
@@ -896,7 +970,7 @@
       '<button type="button" role="tab" class="cpt-tab" data-tab="trade" aria-selected="false">取引</button>' +
       '<button type="button" role="tab" class="cpt-tab" data-tab="vessel" aria-selected="false">本船の動静</button>' +
       '<button type="button" role="tab" class="cpt-tab" data-tab="ctn" aria-selected="true">コンテナの状況<span class="cpt-chip is-over is-s" id="cptBadge" hidden></span></button>' +
-      '<button type="button" role="tab" class="cpt-tab" data-tab="watch" aria-selected="false">追いかけ中<span class="cpt-chip is-warn is-s" id="cptWatchBadge" hidden></span></button></div>' +
+      '<button type="button" role="tab" class="cpt-tab" data-tab="watch" aria-selected="false">ウォッチリスト<span class="cpt-chip is-warn is-s" id="cptWatchBadge" hidden></span></button></div>' +
       '<div class="cpt-search">' +
       '<select id="cptDir" class="cpt-select" aria-label="輸入・輸出" hidden><option value="import">輸入</option><option value="export">輸出</option></select>' +
       '<input type="text" id="cptKw" class="cpt-input" data-for="trade" maxlength="45" autocomplete="off" placeholder="取引番号・B/L・ブッキング・社内管理番号（空なら直近30日の更新）" aria-label="取引の検索">' +
@@ -909,7 +983,7 @@
       '<input type="text" id="cptCtn" class="cpt-input" data-for="ctn" maxlength="40" autocomplete="off" placeholder="コンテナ番号／B/L番号（輸入）／ブッキング番号（輸出）" aria-label="コンテナの検索">' +
       '<button type="button" class="cpt-btn is-primary" id="cptColinsC" data-for="ctn">コンテナの状況を調べる</button>' +
       '<button type="button" class="cpt-btn is-s" id="cptWatchReload" data-for="watch">一覧を更新</button>' +
-      '<div class="cpt-hint" id="cptWatchHint" data-for="watch">「取引」タブで取引を選んで「☆ 追いかける」を押すと、ここに入ります。朝・夕に自動で動きを確認し、前回との違いを記録します（読み取りのみ）。</div>' +
+      '<div class="cpt-hint" id="cptWatchHint" data-for="watch">「取引」や「コンテナの状況」の結果で「☆ ウォッチに入れる」を押すと、ここに入ります。朝・夕に自動で動きを確認し、前回との違いを記録します（読み取りのみ）。</div>' +
       '<div class="cpt-hint" id="cptDirHintV" data-for="vessel">港は一覧から選びます（一覧に無い港は「その他」を選んで、UN/LOCODE の5桁コードを入力します。例：JPTYO＝東京）。「輸入／輸出」はコンテナの照会と共通です。動静は、照会した日の前後2週間のものを表示します。</div></div>' +
       '<div id="cptLive" class="cpt-live" aria-live="polite" hidden></div>' +
       '<div id="cptMain" class="cpt-main"><div class="cpt-split" id="cptSplit" data-mv="list"><div class="cpt-listpane"><div id="cptSortBar" class="cpt-sortbar" hidden></div><div id="cptNote" class="cpt-note" hidden></div><div id="cptFilter" class="cpt-filter"></div><div id="cptList"></div></div><div class="cpt-detailpane" id="cptDetail"></div></div></div></div>' +
