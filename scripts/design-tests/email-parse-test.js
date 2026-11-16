@@ -61,4 +61,14 @@ chk('呼び名の置き換え（完全一致・含む）と既定の単位', its
 r = p("海上運賃 USD 1,200 /20GP");
 win.eiApplyRules(r, { aliases: [], unit: 'B/L' });
 chk('読み取れた単位は既定の単位で上書きしない', its(r)[0].unit === '20GP', its(r));
+// ===== 土台：数量付きの金額の読み方・単位つきルール・古さの判定 =====
+r = p("海上運賃 2 R/T ¥10,000");
+chk('既定：数量だけ書かれた金額は合計として数量で割る（従来どおり）', its(r)[0].qty === 2 && its(r)[0].price === 5000, its(r));
+r = p("海上運賃 2 R/T ¥10,000", { qtyAsUnit: true });
+chk('サブコンの癖「数量付きの金額は単価」では割らない', its(r)[0].qty === 2 && its(r)[0].price === 10000 && its(r)[0].unit === 'R/T', its(r));
+r = p("海上運賃 USD 1,200 /20GP", { qtyAsUnit: true });
+chk('単位つきの書き方は、癖があっても変わらない（単価）', its(r)[0].price === 1200 && its(r)[0].unit === '20GP', its(r));
+r = p("ドキュメント料 USD 50");
+win.eiApplyRules(r, { aliases: [{ from: 'ドキュメント料', to: 'DOC FEE', cat: 'export-local', unit: 'B/L' }], unit: 'CNTR' });
+chk('ルールの単位は、読めなかったときだけ入る（既定の単位より優先）・当たったルールの印が付く', its(r)[0].unit === 'B/L' && its(r)[0].unitFilled && its(r)[0].ruleKey === 'ドキュメント料', its(r));
 process.exit(ok === C.length && ng === 0 ? 0 : 1);

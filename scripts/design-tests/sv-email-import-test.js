@@ -257,6 +257,74 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('画面のエラーが出ていない', errs.length === 0, errs);
     await ctx.close();
   }
+  // ===== 土台：使用回数・履歴の引き継ぎ・古いルールの整理・単位の学習・数量付きの金額 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member' });
+    const rules = () => p.evaluate(() => (window.__db.master_details.find(r => r.field === 'sv' && r.value === 'テスト運送') || {}).details.importRules);
+    const old = new Date(Date.now() - 200 * 86400000).toISOString(), recent = new Date(Date.now() - 5 * 86400000).toISOString();
+    await p.evaluate(async ({ old, recent }) => {
+      const prev = window.mdGet('sv', 'テスト運送').details;
+      await window.mdSave('sv', 'テスト運送', Object.assign({}, prev, { importRules: { aliases: [
+        { from: 'ドキュメント料', to: 'DOC FEE', cat: 'export-local', n: 2, last: '2026-11-01', at: recent, by: 'a@example.com' },
+        { from: '古い呼び名', to: 'OLD', n: 1, last: '2025-01-05', at: old, by: 'a@example.com' },
+        { from: '使われなかった', to: 'UNUSED', n: 0, at: old, by: 'a@example.com' },
+      ], ccy: '', unit: '' } }));
+    }, { old, recent });
+    const today = new Date().toISOString().slice(0, 10);
+
+    // 1) 取り込んで挿入すると、当たったルールの使用回数・最終使用日が記録される（挿入は待たない）
+    await setSv(p, 'テスト運送');
+    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click()); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.getElementById('eiText').value = 'ドキュメント料 USD 50\nTHC USD 300'; window.eiParse(); }); await p.waitForTimeout(300);
+    await p.evaluate(() => window.eiInsertRows()); await p.waitForTimeout(900);
+    let r = await rules(), a = r.aliases.find(x => x.from === 'ドキュメント料');
+    ok('挿入すると、当たったルールの使用回数が増え、最終使用日が今日になる（当たらなかったルールは変わらない）', a.n === 3 && a.last === today && r.aliases.find(x => x.from === '古い呼び名').n === 1 && r.aliases.find(x => x.from === '使われなかった').n === 0, r.aliases);
+
+    // 2) パネルの表示：使用状況・古いルールの印・整理ボタン
+    await p.evaluate(() => window.statsToggleMasterDetail('sv', 'テスト運送')); await p.waitForTimeout(600);
+    await p.evaluate(() => document.querySelector('#mdDetailModal .mt-tab[data-mt="mail"]')?.click()); await p.waitForTimeout(200);
+    const ui = await p.evaluate(() => { const m = document.getElementById('mdDetailModal'); const rows = [...m.querySelectorAll('#irPanel .ir-row')]; return { uses: rows.map(r => ({ t: (r.querySelector('.ir-use') || {}).textContent || '', stale: !!r.querySelector('.ir-use.is-stale') })), clean: (m.querySelector('#irPanel .ir-clean') || {}), cleanShown: !!m.querySelector('#irPanel .ir-clean') && !m.querySelector('#irPanel .ir-clean').hidden, cleanText: (m.querySelector('#irPanel .ir-clean') || {}).textContent }; });
+    ok('パネルに使用状況が出て、長く使っていないルール（古い・未使用の 2 件）が印と整理ボタンで分かる', /使用 3回/.test(ui.uses[0].t) && !ui.uses[0].stale && ui.uses[1].stale && ui.uses[2].stale && /未使用/.test(ui.uses[2].t) && ui.cleanShown && /2 件/.test(ui.cleanText), ui);
+
+    // 3) パネルで直して保存しても、使用回数・登録日が消えない／単位・「数量付きの金額は単価」を保存できる
+    await p.evaluate(() => {
+      const m = document.getElementById('mdDetailModal');
+      const row = [...m.querySelectorAll('#irPanel .ir-row')].find(x => x.querySelector('.ir-from').value === 'ドキュメント料');
+      row.querySelector('.ir-to').value = 'DOC FEE（書類）'; row.querySelector('.ir-aunit').value = 'B/L';
+      m.querySelector('#irPanel .ir-qtyunit').checked = true; m.querySelector('#irPanel .ir-save').click();
+    }); await p.waitForTimeout(600);
+    r = await rules(); a = r.aliases.find(x => x.from === 'ドキュメント料');
+    ok('パネルで直して保存しても、使用回数・最終使用日・登録日は引き継がれる（単位と癖も保存される）', a.to === 'DOC FEE（書類）' && a.n === 3 && a.last === today && !!a.at && a.unit === 'B/L' && r.qtyAsUnit === true && r.aliases.length === 3, r);
+
+    // 4) 古いルールの整理（確認つき）：古い 2 件だけ外れ、使っているルールは残る
+    await p.evaluate(() => document.querySelector('#mdDetailModal #irPanel .ir-clean').click());
+    await p.waitForSelector('.confirm-dialog', { timeout: 5000 });
+    const dlgText = await p.evaluate(() => document.querySelector('.confirm-dialog').textContent);
+    await p.click('.confirm-dialog .confirm-actions button:not(.btn-cancel)'); await p.waitForTimeout(700);
+    r = await rules();
+    ok('整理の確認に件数と内容が出て、実行すると古い 2 件だけが外れる（使っているルールは残る）', /2 件/.test(dlgText) && /古い呼び名/.test(dlgText) && r.aliases.length === 1 && r.aliases[0].from === 'ドキュメント料' && r.aliases[0].n === 3, { dlgText, aliases: r.aliases });
+    ok('整理のあと、整理ボタンは出ない', await p.evaluate(() => document.querySelector('#mdDetailModal #irPanel .ir-clean').hidden), null);
+
+    // 5) 「数量付きの金額は単価」の癖が、取込で効く
+    await p.evaluate(() => window.statsCloseMasterDetail());
+    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click()); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.getElementById('eiText').value = '陸送費 3 台 ¥10,000'; window.eiParse(); }); await p.waitForTimeout(300);
+    let row = await p.evaluate(() => { const tr = document.querySelector('#eiReviewWrap .ei-table tbody tr'); return { qty: tr.querySelector('.ei-qty').value, price: tr.querySelector('.ei-price').value, unit: tr.querySelector('.ei-unit').value }; });
+    ok('癖「数量付きの金額は単価」が取込で効く（3 台 ¥10,000 → 単価 10,000）', row.qty === '3' && row.price === '10000', row);
+
+    // 6) 単位を直して「覚える」と、単位も覚える（直していない行の単位は覚えない）
+    await p.evaluate(() => { document.getElementById('eiText').value = '保管料 ¥500\nTHC ¥48,000 /CNTR'; window.eiParse(); }); await p.waitForTimeout(300);
+    await p.evaluate(() => { const trs = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr'); trs[0].querySelector('.ei-unit').value = 'DAY'; window.eiLearnFromCorrections(); }); await p.waitForTimeout(700);
+    r = await rules();
+    const lu = r.aliases.find(x => x.from === '保管料');
+    ok('単位だけ直した行も覚える（直していない行は覚えない）・既存ルールの使用回数は残る', lu && lu.unit === 'DAY' && lu.to === '保管料' && !r.aliases.find(x => x.from === 'THC') && r.aliases.find(x => x.from === 'ドキュメント料').n === 3, r.aliases);
+    // 次回：単位が自動で入る
+    await p.evaluate(() => { document.getElementById('eiText').value = '保管料 ¥500'; window.eiParse(); }); await p.waitForTimeout(300);
+    row = await p.evaluate(() => { const tr = document.querySelector('#eiReviewWrap .ei-table tbody tr'); return { unit: tr.querySelector('.ei-unit').value, flags: tr.querySelector('.ei-flags').textContent }; });
+    ok('次回の取込では、覚えた単位が自動で入る', row.unit === 'DAY' && /単位は既定/.test(row.flags), row);
+    ok('画面のエラーが出ていない', errs.length === 0, errs);
+    await ctx.close();
+  }
   await b.close(); srv.close();
   console.log(out.join('\n'));
   process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);
