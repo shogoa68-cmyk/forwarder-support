@@ -3209,6 +3209,34 @@
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
 
+  // ルート案（2026-11）：航路に「案の名前」と「採用／不採用」の印を付ける（画面の整理用・見積書の出力・合計には影響しない）。
+  // plan＝案の名前（空＝案なし）／adopt＝''（検討中）・'adopt'（採用）・'reject'（不採用）
+  const _ADOPT_LABEL = { '': '検討中', adopt: '✓ 採用', reject: '✕ 不採用' };
+  function _planChip(r, i) {
+    const nm = String(r.plan || '').trim();
+    if (!nm) return `<button type="button" class="z2-route-plan is-none" onclick="editRoutePlan(${i})" title="この航路に「案」の名前を付ける（例：案1・FCL直行案）。複数の航路案を比べるときの整理用です（見積書の出力には影響しません）">＋案</button>`;
+    const ad = r.adopt === 'adopt' || r.adopt === 'reject' ? r.adopt : '';
+    return `<span class="z2-route-planwrap${ad ? ' is-' + ad : ''}">`
+      + `<button type="button" class="z2-route-plan" onclick="editRoutePlan(${i})" title="案の名前を変更（空にすると案なしに戻す）">${_escMulti(nm)}</button>`
+      + `<button type="button" class="z2-route-adopt" onclick="cycleRouteAdopt(${i})" title="クリックで 検討中 → 採用 → 不採用 を切り替え（印だけで、見積書・合計には影響しません）">${_ADOPT_LABEL[ad]}</button></span>`;
+  }
+  window.editRoutePlan = function (i) {
+    const r = _routeEntries[i]; if (!r) return;
+    const v = prompt('この航路の「案」の名前（例：案1／FCL直行案）。空にすると案なしに戻ります。', r.plan || '');
+    if (v == null) return;
+    r.plan = v.trim(); if (!r.plan) r.adopt = '';
+    _renderRouteEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+  window.cycleRouteAdopt = function (i) {
+    const r = _routeEntries[i]; if (!r) return;
+    r.adopt = r.adopt === 'adopt' ? 'reject' : r.adopt === 'reject' ? '' : 'adopt';
+    _renderRouteEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+
   // viewOnly=true：チップの再描画だけ行い、保存用の隠しフィールド（z2-routes-data）には書き込まない。
   // 案件を開く途中（フィールド復元後・航路の復元前）に呼ばれても、前の案件の航路で隠しフィールドを
   // 上書きして新しい案件へ混入させないため（setDirection から呼ぶときに使う）
@@ -3251,6 +3279,7 @@
         + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},1)" ${_atLast ? 'disabled' : ''} title="下へ移動">↓</button>`
         + `<button type="button" class="z2-route-toggle${_routeLinked ? ' route-pattern-linked' : ''}" onclick="toggleRouteEntry(${i})" title="${_escMulti(_toggleTitle)}">${on ? '✓' : '—'}</button>`
         + _legBtn(r, i)
+        + _planChip(r, i)
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
         + _roleChip + _actualChip + _ngChip
         + (r.service ? `<span class="z2-route-service">${_escMulti(r.service)}</span>` : '')
@@ -3339,10 +3368,10 @@
       return;
     }
     // carrier=契約先（ブッキング/支払先）、carrierRole=その役割、actualCarrier=実運送人（実際の船会社）
-    const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '', rid: null, leg: '' };
+    const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '', rid: null, leg: '', plan: '', adopt: '' };
     _pendingRouteFlags = null;
     _routeEntries.push({ carrier, service, carrierRole, actualCarrier, pol, via, pod, icd, tt,
-                         enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason, rid: flags.rid || _newRouteId(), leg: flags.leg || '' });
+                         enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason, rid: flags.rid || _newRouteId(), leg: flags.leg || '', plan: flags.plan || '', adopt: flags.adopt || '' });
     if (flags.ng && typeof quoteShowToast === 'function') {
       quoteShowToast('🚫 使用不可の記録を引き継ぎました', 'info', 1800);
     }
@@ -3444,7 +3473,7 @@
     set('z2Tt', r.tt);
     // 契約形態パネルは常時表示のため展開処理は不要
     // 無効・使用不可の状態・rid（パターン紐付けの識別子）は再登録時に引き継ぐ（✎ で消えてしまわないように）
-    _pendingRouteFlags = { enabled: r.enabled !== false && !r.ng, ng: !!r.ng, ngReason: r.ngReason || '', rid: r.rid, leg: r.leg || '' };
+    _pendingRouteFlags = { enabled: r.enabled !== false && !r.ng, ng: !!r.ng, ngReason: r.ngReason || '', rid: r.rid, leg: r.leg || '', plan: r.plan || '', adopt: r.adopt || '' };
     // エントリを削除して再描画
     _routeEntries.splice(i, 1);
     _renderRouteEntries();
