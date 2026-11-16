@@ -168,11 +168,24 @@
     const tab = $('tab-quote-make'); if (tab) tab.dataset.e2 = String(n);
     [].concat.apply([], Object.values(SECS)).forEach(id => { const s = $(id); if (s) s.classList.remove('e2-show'); });
     SECS[n].forEach(id => { const s = $(id); if (!s) return; s.classList.add('e2-show'); if (s.classList.contains('collapsed') && typeof window.toggleQuoteSection === 'function') { try { window.toggleQuoteSection(id); } catch (e) {} } });
-    if (typeof window.rmsOpen === 'function' && typeof window.rmsClose === 'function') { try { n === 5 ? window.rmsOpen() : window.rmsClose(); } catch (e) {} }
     refresh(); refreshBasics(); refreshTitle();
     if (!quiet) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  // ⑤リマーク：下の引き出しではなく、ステップの本文としてそのまま入力できるようにする（要素ごと移して、旧画面へ戻すときは引き出しへ返す）
+  let remarkHome = null;
+  function moveRemark(on) {
+    const sec = $('section-remark'); if (!sec) return;
+    if (on) {
+      const nav = $('e2Nav'); if (!nav || !nav.parentNode) return;
+      if (!remarkHome) remarkHome = { p: sec.parentNode, n: sec.nextSibling };
+      if (sec.parentNode !== nav.parentNode || sec.nextSibling !== nav) nav.parentNode.insertBefore(sec, nav);
+      sec.classList.remove('collapsed');
+    } else if (remarkHome) {
+      remarkHome.p.insertBefore(sec, remarkHome.n && remarkHome.n.parentNode === remarkHome.p ? remarkHome.n : null);
+      remarkHome = null;
+    }
+  }
   // 右下の固定ボタン（PDF／プレビュー／保存）を上部ツールバーへ。切り戻すときは元の場所へ
   const phone = () => window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
   function moveDock(on) {
@@ -186,7 +199,7 @@
     root.classList.toggle('editor-v2', on);
     ls.set(KEY, on ? '1' : '0');
     if (!on) closeReview();
-    if (on) { build(); moveDock(true); go(step, true); } else { moveDock(false); document.body.classList.remove('e2-drawer'); const tab = $('tab-quote-make'); if (tab) delete tab.dataset.e2; try { window.rmsClose && 0; } catch (e) {} }
+    if (on) { build(); moveDock(true); moveRemark(true); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(step, true); } else { moveRemark(false); try { window.lcCheck && window.lcCheck(); } catch (e) {} moveDock(false); document.body.classList.remove('e2-drawer'); const tab = $('tab-quote-make'); if (tab) delete tab.dataset.e2; try { window.rmsClose && 0; } catch (e) {} }
     syncBtn();
   }
   window.editorV2Set = apply;
@@ -205,7 +218,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     let tries = 0; const t = setInterval(() => { if (addMenuBtn() || ++tries > 20) clearInterval(t); }, 300);
-    if (isOn()) { build(); moveDock(true); go(1, true); }
+    if (isOn()) { build(); moveDock(true); moveRemark(true); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(1, true); }
     // 入力のたびに要約・合計を更新（軽く間引く）
     let raf = 0; const kick = () => { if (!isOn()) return; cancelAnimationFrame(raf); raf = requestAnimationFrame(refresh); };
     window.addEventListener('resize', () => { if (isOn()) moveDock(true); });

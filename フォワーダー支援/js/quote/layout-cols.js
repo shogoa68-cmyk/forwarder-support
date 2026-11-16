@@ -28,6 +28,7 @@
   }
   function check() {
     if (!main) return;
+    if (document.documentElement.classList.contains('editor-v2')) { one(); return; }   // 新しい見積入力画面（ステップ式）は 1 カラムで 1 ステップずつ出す
     const w = main.getBoundingClientRect().width; if (!w) return;   // 非表示（他のタブ）のときは何もしない
     if (!on && w >= ENTER) two(); else if (on && w < LEAVE) one();
   }
