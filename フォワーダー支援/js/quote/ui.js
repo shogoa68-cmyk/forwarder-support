@@ -913,6 +913,7 @@
     if (v > 0) {
       _fxRates[cur] = v;
       saveFxRates();
+      if (typeof window.recalcPctRows === 'function') window.recalcPctRows();   // 他の行を基準にした % 行（通貨が違うもの）も換算し直す
       updateTotals();
       // 通知なし（FBにより削除）
     }
@@ -923,6 +924,7 @@
     if (btn) { btn.disabled = true; btn.textContent = '取得中…'; }
     const ok = await fetchAutoFxRates();
     renderFxPanel();
+    if (typeof window.recalcPctRows === 'function') window.recalcPctRows();
     updateTotals();
     if (btn) { btn.disabled = false; btn.textContent = '🔄 今すぐ取得'; }
     quoteShowToast(ok ? '✅ 為替レートを更新しました' : '⚠️ 取得失敗。デフォルト値を使用します', ok ? 'success' : 'warn', 3000);
