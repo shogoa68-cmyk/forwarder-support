@@ -52,3 +52,9 @@
 .z2-seg-empty { color: var(--text-muted, #888); padding: 8px 2px; }
 .z2-seg-add { padding: 4px 12px; border: 1px dashed var(--border, #b9c2cc); border-radius: 8px; background: none; cursor: pointer; }
 @media (max-width: 600px) { .z2-seg-row { grid-template-columns: 1fr 1fr; } .z2-seg-row .z2-seg-del { justify-self: end; } }
+
+/* ダッシュボードのカード／航路ポップアップに出す、ルート案・区間の印（表示だけ） */
+.cc3-rt-plan { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: #eef3fb; color: #24467a; font-size: var(--text-xs, 12px); font-weight: 700; white-space: nowrap; }
+.cc3-rt-plan.is-adopt { background: #e3f4e8; color: #1d6a3a; }
+.cc3-rt-plan.is-reject { background: #f1f1f1; color: #888; text-decoration: line-through; }
+.cc3-rt-segs { display: block; margin-top: 2px; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); }

@@ -1798,6 +1798,9 @@
           pod:     (r.pod     || '').trim(),
           via:     (r.via     || '').trim(),
           carrier: (r.carrier || '').trim(),
+          plan:    String(r.plan || '').trim(),                                  // ルート案の名前・採用の印（カードの表示用）
+          adopt:   r.adopt === 'adopt' || r.adopt === 'reject' ? r.adopt : '',
+          segs:    Array.isArray(r.segs) ? r.segs.filter(x => x && typeof x === 'object').map(x => ({ mode: String(x.mode || ''), carrier: String(x.carrier || ''), etd: String(x.etd || '') })) : [],
         })).filter(r => r.pol || r.pod);
       }
     } catch (e) {}

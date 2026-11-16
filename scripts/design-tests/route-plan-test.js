@@ -59,6 +59,9 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   await p.evaluate(i => { window.editRouteEntry(i); window.addRouteEntry(); }, idx); await p.waitForTimeout(200);
   const after2 = await p.evaluate(() => JSON.parse(document.getElementById('z2-routes-data').value).some(r => Array.isArray(r.segs) && r.segs.length === 2));
   ok('✎ で編集して再登録しても区間が残る', after2);
+  // ダッシュボードのカード用メタ（案・採用・区間が通る）
+  const meta = await p.evaluate(() => { const rs = [{ pol: 'TOKYO', pod: 'LA', carrier: 'ONE', plan: 'FCL案', adopt: 'adopt', segs: [{ mode: '集荷', carrier: 'A社', etd: '2026-12-01' }] }]; const m = window.quotePresetMeta({ data: { fields: { 'z2-routes-data': JSON.stringify(rs) } } }); return m.routes; });
+  ok('カード用メタに案・採用・区間が入る', meta && meta[0].plan === 'FCL案' && meta[0].adopt === 'adopt' && meta[0].segs.length === 1 && meta[0].segs[0].mode === '集荷', meta);
   ok('ページエラーなし', errs.length === 0, errs);
   console.log(fails ? `\n${fails} 件 FAIL` : '\n全項目 PASS');
   await b.close(); srv.close(); process.exit(fails ? 1 : 0);
