@@ -44,6 +44,21 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   ok('✎ で編集して再登録しても案の名前・印が残る', after.some(a => a[0] === '混載案' && a[1] === 'adopt'), after);
   await p.evaluate(() => { window.prompt = () => ''; window.editRoutePlan(0); }); await p.waitForTimeout(150);
   ok('名前を空にすると案なしに戻る', (await chips()).some(x => x.none));
+  // 区間（区間ごとのモード・キャリア・ETD）
+  await add('YANG MING', 'OSAKA', 'SEATTLE'); await p.waitForTimeout(200);
+  const idx = await p.evaluate(() => JSON.parse(document.getElementById('z2-routes-data').value).length - 1);
+  ok('どの航路にも「＋区間」が出る', await p.evaluate(() => !!document.querySelector('#z2RouteList .z2-route-seg.is-none')));
+  await p.evaluate(i => window.openRouteSegs(i), idx); await p.waitForTimeout(200);
+  await p.evaluate(() => { document.querySelector('.z2-seg-add').click(); document.querySelector('.z2-seg-add').click(); }); await p.waitForTimeout(100);
+  ok('区間を 2 つ追加でき、1 つ目は集荷・2 つ目は海上が既定', await p.evaluate(() => [...document.querySelectorAll('.z2-seg-mode')].map(e => e.value).join()) === '集荷,海上');
+  await p.evaluate(() => { const rows = document.querySelectorAll('.z2-seg-row'); const c = rows[1].querySelector('.z2-seg-carrier'); c.value = 'YANG MING'; c.dispatchEvent(new Event('input', { bubbles: true })); const e = rows[1].querySelector('.z2-seg-etd'); e.value = '2026-12-05'; e.dispatchEvent(new Event('change', { bubbles: true })); });
+  const segs = await p.evaluate(i => JSON.parse(document.getElementById('z2-routes-data').value)[i].segs, idx);
+  ok('入力すると保存用のデータ（segs）に入る', segs.length === 2 && segs[1].carrier === 'YANG MING' && segs[1].etd === '2026-12-05' && segs[0].mode === '集荷', segs);
+  await p.evaluate(() => document.querySelector('.z2-seg-x').click()); await p.waitForTimeout(200);
+  ok('閉じるとチップに「区間2｜…」の要約が出る', await p.evaluate(() => [...document.querySelectorAll('#z2RouteList .z2-route-seg')].some(b => /区間2/.test(b.textContent) && /YANG MING/.test(b.textContent))));
+  await p.evaluate(i => { window.editRouteEntry(i); window.addRouteEntry(); }, idx); await p.waitForTimeout(200);
+  const after2 = await p.evaluate(() => JSON.parse(document.getElementById('z2-routes-data').value).some(r => Array.isArray(r.segs) && r.segs.length === 2));
+  ok('✎ で編集して再登録しても区間が残る', after2);
   ok('ページエラーなし', errs.length === 0, errs);
   console.log(fails ? `\n${fails} 件 FAIL` : '\n全項目 PASS');
   await b.close(); srv.close(); process.exit(fails ? 1 : 0);
