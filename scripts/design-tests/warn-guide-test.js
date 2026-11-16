@@ -1,5 +1,5 @@
 // 出力前の確認ガイド（右下）が、右下の固定ボタン（PDF出力／プレビュー／保存）や全体リマークの引き出しと重ならない試験。
-//   node scripts/design-tests/warn-guide-test.js   （THEME=1 Industry／MODE=simple かんたん／W=390 スマホ幅）
+//   node scripts/design-tests/warn-guide-test.js   （THEME=1 Industry／MODE=simple かんたん／W=390 スマホ幅／EDITOR=v2 新画面＝ボタンが上部ツールバーにあるとき、ガイドはボタンの下に出る）
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
 const OUT = process.env.OUT || require('os').tmpdir() + '/design-tests-out'; fs.mkdirSync(OUT, { recursive: true });
@@ -13,6 +13,7 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   const W = +process.env.W || 1500, H = 900, narrow = W < 700;
   const ctx = await b.newContext({ viewport: { width: W, height: H }, locale: 'ja-JP', hasTouch: false });
   await ctx.addInitScript((mode) => { try { localStorage.setItem('fwd.uiMode', mode); localStorage.removeItem('quoteRemarkSheetH_v1'); } catch (e) {} }, process.env.MODE || 'detail');
+  if (process.env.EDITOR === 'v2') await ctx.addInitScript(() => { try { localStorage.setItem('fwd.editorV2', '1'); } catch (e) {} });
   if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
   await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.setDefaultTimeout(8000);
@@ -46,6 +47,23 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   });
   await showGuide();
   let g = await geo();
+  if (process.env.EDITOR === 'v2' && !narrow) {
+    // 新画面：ボタンは上部ツールバー。ガイドはボタンの下に出て、画面内に収まり、「このまま出力」「次の箇所へ」が押せる
+    const v = await p.evaluate(() => {
+      const gd = document.getElementById('pvWarnGuide'), gr = gd.getBoundingClientRect();
+      const btns = [...document.querySelectorAll('#quoteActionDock .qad-btn')].map(b => b.getBoundingClientRect()).filter(r => r.width > 0);
+      const below = Math.max(...btns.map(r => r.bottom)), upper = Math.min(...btns.map(r => r.top)) < innerHeight / 2;
+      const hitOf = sel => { const e = gd.querySelector(sel), r = e.getBoundingClientRect(), h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!(h && h.closest(sel)); };
+      return { upper, below: Math.round(below), top: Math.round(gr.top), bottom: Math.round(gr.bottom), vh: innerHeight, skip: hitOf('.pv-wg-btn-skip'), next: hitOf('.pv-wg-btn-next') };
+    });
+    ok('新画面：ボタンが上部にある', v.upper, v);
+    ok('新画面：ガイドはボタンの下に出る（上端 ≧ ボタンの下端）', v.top >= v.below, v);
+    ok('新画面：ガイド全体が画面の中に収まる', v.top >= 0 && v.bottom <= v.vh, v);
+    ok('新画面：「次の箇所へ」「このまま出力」が押せる', v.skip && v.next, v);
+    await p.screenshot({ path: OUT + '/warn-guide-v2.png' });
+    ok('JS エラーなし', errs.length === 0, errs);
+    await b.close(); srv.close(); console.log(fails ? `\nFAIL=${fails}` : '\nALL PASS'); process.exit(fails ? 1 : 0);
+  }
   ok('プレビューを押すと確認ガイドが出る', g.shown, g);
   ok('閉じた引き出しのとき：ガイドの下端は、ドックのボタンの上端より上（重ならない）', g.shown && (g.dockTop == null || g.bottom <= g.dockTop), g);
   ok('ガイドは画面の中に収まり、「このまま出力」が押せる（ボタンに隠れていない）', g.shown && g.top >= 0 && g.bottom <= g.vh && g.skipClickable, g);
