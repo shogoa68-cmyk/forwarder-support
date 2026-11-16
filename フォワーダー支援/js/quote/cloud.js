@@ -1338,6 +1338,7 @@
         const shown = pts.length <= 3 ? pts : [pts[0], '…（経由 ' + (pts.length - 2) + '）', pts[pts.length - 1]];
         route2 = '<dd data-kv="route2" class="cc3-route2"><b>' + shown.map(escHtml).join(' <span class="cloud-kv-arrow">→</span> ') + '</b>' +
           (m0.carrier ? ' <span class="cc3-rt-car">🚢 ' + escHtml(m0.carrier) + '</span>' : '') +
+          (m0.plan ? ' <span class="cc3-rt-plan' + (m0.adopt ? ' is-' + m0.adopt : '') + '" title="ルート案">' + escHtml(m0.plan) + (m0.adopt === 'adopt' ? ' ✓' : m0.adopt === 'reject' ? ' ✕' : '') + '</span>' : '') +
           (_rts.length > 1 ? ' <button type="button" class="cc3-rt-more" onclick="event.stopPropagation();cc3ShowRoutes(\'' + idAttr + '\',this)" title="ほかの航路を見る">＋' + (_rts.length - 1) + ' ルート</button>' : '') + '</dd>';
       }
 
@@ -1480,7 +1481,9 @@
     pop.innerHTML = '<div class="cc3-rt-pop-h"><b>航路（' + list.length + '）</b><button type="button" aria-label="閉じる">✕</button></div>' + list.map((x, i) =>
       '<div class="cc3-rt-row' + (i === 0 ? ' is-main' : '') + '">' + (i === 0 ? '<span class="cc3-rt-tag">表示中</span>' : '') +
       '<b>' + [x.pol].concat(String(x.via || '').split(/[,、／\/→>]+/).map(y => y.trim()).filter(Boolean), [x.pod]).filter(Boolean).map(escHtml).join(' → ') + '</b>' +
-      (x.carrier ? '<span>🚢 ' + escHtml(x.carrier) + '</span>' : '') + '</div>').join('');
+      (x.carrier ? '<span>🚢 ' + escHtml(x.carrier) + '</span>' : '') +
+      (x.plan ? '<span class="cc3-rt-plan' + (x.adopt ? ' is-' + x.adopt : '') + '">' + escHtml(x.plan) + (x.adopt === 'adopt' ? ' ✓採用' : x.adopt === 'reject' ? ' ✕不採用' : '') + '</span>' : '') +
+      ((x.segs || []).length ? '<span class="cc3-rt-segs" title="区間">' + x.segs.map(g => escHtml(g.mode || '—') + (g.carrier ? ':' + escHtml(g.carrier) : '') + (g.etd ? '（' + escHtml(g.etd.slice(5).replace('-', '/')) + '）' : '')).join(' ▸ ') + '</span>' : '') + '</div>').join('');
     document.body.appendChild(pop);
     const rc = btn.getBoundingClientRect();
     pop.style.top = Math.max(8, Math.min(innerHeight - pop.offsetHeight - 8, rc.bottom + 6)) + 'px'; pop.style.left = Math.max(8, Math.min(innerWidth - pop.offsetWidth - 8, rc.left)) + 'px';
