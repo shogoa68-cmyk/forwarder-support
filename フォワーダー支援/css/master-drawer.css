@@ -13,3 +13,13 @@
 /* 「● 編集中（未保存）」の印（ヘッダー） */
 #mdDetailModal .mt-dirty { flex: none; padding: 2px 10px; border-radius: 999px; background: #fff3dc; color: #8a5a00; font-size: var(--text-xs, 12px); font-weight: 700; white-space: nowrap; }
 #mdDetailModal .mt-dirty[hidden] { display: none; }
+
+/* 🔧 ゆらぎ・未登録（統計から移設した名寄せ・Design 29 案B）の種別チップと案内 */
+#statsPane-fix .fix-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0 10px; }
+#statsPane-fix .fix-head b { font-size: var(--text-lg, 16px); }
+#statsPane-fix .fix-sub { color: var(--text-muted, #667); font-size: var(--text-sm, 13px); }
+#statsPane-fix .fix-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+#statsPane-fix .fix-chip { min-height: 36px; padding: 0 14px; border: 1px solid var(--border, #c8cfd9); border-radius: 999px; background: var(--surface, #fff); font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; }
+#statsPane-fix .fix-chip.is-on { background: var(--accent, #2c455d); border-color: var(--accent, #2c455d); color: #fff; font-weight: 700; }
+#tab-stats .stats-moved-note { margin: 0 0 10px; padding: 8px 12px; border: 1px dashed var(--border, #c8cfd9); border-radius: 8px; background: var(--surface, #fff); font-size: var(--text-sm, 13px); color: var(--text-muted, #556); }
+#tab-stats .stats-moved-btn { margin-left: 8px; min-height: 32px; padding: 0 12px; border: 1px solid var(--accent, #2c455d); border-radius: 6px; background: var(--surface, #fff); color: var(--accent, #2c455d); font: inherit; cursor: pointer; }

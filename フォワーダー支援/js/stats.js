@@ -3948,7 +3948,9 @@
   }
 
   function _renderActivePane() {
-    const active = document.querySelector('#tab-stats .stats-pane.is-active');
+    const _fixOn = document.querySelector('#statsPane-fix.is-active');
+    const active = (_fixOn && document.getElementById('tab-master')?.classList.contains('active'))
+      ? _fixOn.querySelector('.stats-pane.is-active') : document.querySelector('#tab-stats .stats-pane.is-active');
     if (!active) return;
     const id = active.id.replace('statsPane-', '');
     if (id === 'pattern') { _renderPattern(); return; }
@@ -3973,10 +3975,43 @@
 
   // === サブタブ切替 ===
 
+  // 名寄せ 6 種（サブコン／キャリア／お客様／品名／単位／チャージ）は「🗂 マスター管理 → 🔧 ゆらぎ・未登録」へ移設した（Design 29・案B）。
+  // 統計から呼ばれても（statsSetPane('sv') など）マスター管理のその種別を開く。
+  const _FIX_KINDS = ['sv', 'carrier', 'customer', 'nm', 'un', 'charges'];
+  const _FIX_LABEL = { sv: '🏢 サブコン', carrier: '🚢 キャリア', customer: '👤 お客様', nm: '📝 品名', un: '📐 単位', charges: '💰 チャージ' };
+  let _fixKind = 'sv';
+  function _fixChips() {
+    const box = document.getElementById('fixChips'); if (!box) return;
+    box.innerHTML = _FIX_KINDS.map(k => '<button type="button" class="fix-chip' + (k === _fixKind ? ' is-on' : '') + '" role="tab" aria-selected="' + (k === _fixKind) + '" data-fix="' + k + '" onclick="fixSetKind(\'' + k + '\')">' + _FIX_LABEL[k] + '</button>').join('');
+  }
+  function fixSetKind(kind) {
+    if (!_FIX_KINDS.includes(kind)) kind = 'sv';
+    _fixKind = kind; _listLimit = {};
+    document.querySelectorAll('#statsPane-fix .stats-pane').forEach(p => { p.classList.remove('is-active'); p.innerHTML = ''; });
+    document.getElementById('statsPane-' + kind)?.classList.add('is-active');
+    if (!_data) { _data = _build(document.getElementById('statsSource')?.value || 'both'); _updateSummary(); }
+    _fixChips();
+    if      (kind === 'sv')       _renderSv();
+    else if (kind === 'carrier')  _renderCarrier();
+    else if (kind === 'customer') _renderCustomer();
+    else if (kind === 'nm')       _renderNm();
+    else if (kind === 'un')       _renderUn();
+    else if (kind === 'charges')  _renderCharges();
+  }
+  window.fixSetKind = fixSetKind;
+  function _openFix(kind) {
+    _fixKind = _FIX_KINDS.includes(kind) ? kind : 'sv';
+    const tab = document.getElementById('tab-master');
+    if (tab && tab.classList.contains('active')) { masterSetPane('fix'); return; }
+    window.__masterWant = 'fix';
+    const btn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
+    if (typeof window.switchCategory === 'function') window.switchCategory('master', btn);
+  }
   function statsSetPane(paneId) {
+    if (_FIX_KINDS.includes(paneId)) { _openFix(paneId); return; }
     // 存在しないタブ ID（廃止したダッシュボード等）が渡されても、本文が空白になりタブが
     // どれも選択されない状態にならないよう、先頭のサブタブへ退避する。
-    if (!document.getElementById('statsTabBtn-' + paneId) && !document.getElementById('statsPane-' + paneId)) paneId = 'sv';
+    if (!document.getElementById('statsTabBtn-' + paneId) && !document.getElementById('statsPane-' + paneId)) paneId = 'winrate';
     _listLimit = {};
     document.querySelectorAll('#tab-stats .stats-tab-btn').forEach(b => {
       b.classList.remove('is-active');
@@ -4042,7 +4077,7 @@
     _data  = _build(source);
     _updateSummary();
     _renderCloud();
-    statsSetPane('sv');
+    statsSetPane('winrate');
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     if (_cloud()) {
       await _loadCloudVotes();
@@ -4070,11 +4105,13 @@
     document.getElementById('statsPane-' + paneId)?.classList.add('is-active');
     if      (paneId === 'master') _renderMaster();
     else if (paneId === 'alias')  _renderAlias();
+    else if (paneId === 'fix')    fixSetKind(_fixKind);
   }
   window.masterSetPane = masterSetPane;
 
   window.initMasterTab = async function () {
-    masterSetPane('master');
+    const _want = window.__masterWant === 'fix' ? 'fix' : 'master'; window.__masterWant = null;
+    masterSetPane(_want);
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     if (_cloud()) {
       _cvMap = null;
@@ -4085,7 +4122,7 @@
       if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();   // 読み込んだクラウドのマスターを入力補完へ
       // アクティブなマスタータブのペインを再描画
       const active = document.querySelector('#tab-master .stats-pane.is-active');
-      if (active && active.id === 'statsPane-alias') _renderAlias(); else _renderMaster();
+      if (active && active.id === 'statsPane-alias') _renderAlias(); else if (active && active.id === 'statsPane-fix') fixSetKind(_fixKind); else _renderMaster();
     }
   };
 
