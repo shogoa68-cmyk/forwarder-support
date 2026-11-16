@@ -135,6 +135,11 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const vis = await p.evaluate(() => { const r = document.querySelector('#tableBody tr:not([data-virtual])'); const bb = r && r.querySelector('.row-detail-btn'); window.__d = r && [r.matches(':hover'), r.matches(':focus-within'), bb && bb.matches(':has(.used-badge:not([data-n="0"]))'), bb && bb.getAttribute('aria-expanded'), document.documentElement.className]; const b = r && r.querySelector('.row-detail-btn'); return b ? getComputedStyle(b).visibility : 'none'; });
     ok('使っていない「その他 ▾」は行に乗せるまで隠れる', vis === 'hidden' || vis === 'none', [vis, await p.evaluate(() => window.__d)]);
   }
+  if (!mobile) {   // サブコン見出しの注記入力は、空のあいだ見出しに乗せるまで隠す
+    await p.mouse.move(5, 5); await p.evaluate(() => document.activeElement && document.activeElement.blur()); await p.waitForTimeout(200);
+    const hn = await p.evaluate(() => { const h = document.querySelector('#tableBody .subcon-group-header .hdr-notes'); return h ? getComputedStyle(h).display : 'none'; });
+    ok('サブコン見出しの注記入力は、空のあいだ隠れる', hn === 'none', hn);
+  }
   await p.evaluate(() => window.editorV2Set(false)); await p.waitForTimeout(500);
   ok('旧画面へ戻る：全セクションが出る・ドックは元の場所・ステップは消える', await vis('#section-ref') && await vis('#section-cond') && await vis('#section-table') && await p.evaluate(() => !document.querySelector('#saveToolbar #quoteActionDock')) && !(await vis('#e2Steps')) && !(await vis('#e2Total')));
   if (out) await p.screenshot({ path: path.join(out, 'e2-back-to-v1.png') });

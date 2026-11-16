@@ -134,3 +134,6 @@ html.editor-v2 #tbMenuMore .tb-mi-quiet-only { order: 6; }
 
 /* 明細 1 行：「その他 ▾」は、中の設定（％・MIN・幅・貿易条件など）を何も使っていないあいだは、行にカーソルを乗せる／入力するまで隠す（使っている行は件数バッジつきで出したまま） */
 html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) .row-detail-btn:not(:has(.used-badge:not([data-n="0"]))):not([aria-expanded="true"]) { visibility: hidden !important; }
+
+/* サブコン・パターン見出し：客先表示名・リマークの入力は、空のあいだは見出しにカーソルを乗せる／入力するまで隠す（入っていれば出したまま） */
+html.editor-v2 #tab-quote-make #quoteTable :is(.subcon-group-header, .subcon-subgroup-header):not(:hover):not(:focus-within) .hdr-notes:not(:has(input:not(:placeholder-shown))) { display: none !important; }
