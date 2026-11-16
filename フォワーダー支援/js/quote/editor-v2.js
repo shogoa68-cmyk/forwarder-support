@@ -103,6 +103,11 @@
     if (sa && sa.textContent !== sat) sa.textContent = sat;
   }
 
+  // 「⋯」メニューを「案件」「その他」の 2 区分に（出力の PDF／プレビューは上部ツールバーにあるため置かない）。見出しに印を付けるだけで、並べ替え・見出し名は CSS（order・::after）
+  function tagMenu() {
+    const m = $('tbMenuMore'); if (!m) return;
+    m.querySelectorAll('.tb-menu-group').forEach(g => { const t = g.textContent.trim(); g.dataset.e2mg = t === '操作' ? 'misc' : t === '取り込み・送る' ? 'case' : 'set'; });
+  }
   // ④ 費用：上に［すべて折りたたむ］［すべて展開］［＋ 行を追加］［📦 チャージ］（既存の関数を呼ぶだけ）
   function buildCostBar() {
     const w = $('tableWrap'); if (!w || $('e2CostBar')) return;
@@ -114,7 +119,7 @@
 
   function build() {
     if (built) return;
-    buildCostBar();
+    buildCostBar(); tagMenu();
     buildBasics(); buildTitle();
     const ws = document.querySelector('#tab-quote-make .quote-workspace'); if (!ws) return;
     const steps = document.createElement('nav'); steps.id = 'e2Steps'; steps.setAttribute('aria-label', '見積入力のステップ');
