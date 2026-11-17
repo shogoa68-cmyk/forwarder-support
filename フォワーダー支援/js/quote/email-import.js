@@ -491,6 +491,44 @@
     return parsed;
   }
 
+  // ====== 📥 取り込みの入口（テキスト／PDF／荷姿を選ぶ） ======
+  let _chooserCanon = '';
+  function openImportChooser(canon) {
+    canon = String(canon || '').trim();
+    if (_isViewMode()) { if (window.quoteShowToast) quoteShowToast('🔒 閲覧モードです。「✏️ 編集」を押してから取り込んでください', 'warn'); return; }
+    _chooserCanon = canon;
+    const m = document.getElementById('importChooser'); if (!m) return;
+    const sub = document.getElementById('icSub');
+    if (sub) sub.textContent = canon ? '「' + canon + '」の明細グループに取り込みます（読み取りルールが自動で使われます）' : '取り込み方を選んでください';
+    const pk = document.getElementById('icPacking'); if (pk) pk.hidden = !!canon;
+    m.classList.add('open');
+  }
+  function closeImportChooser() { document.getElementById('importChooser')?.classList.remove('open'); }
+  function icChoose(kind) {
+    const canon = _chooserCanon;
+    if (kind === 'pdf') { document.getElementById('icPdfFile')?.click(); return; }   // 選択画面は、ファイルを選んだあとに閉じる
+    closeImportChooser();
+    if (kind === 'text') { if (canon) eiOpenForSubcon(canon); else openEmailImport(); }
+    else if (kind === 'packing' && typeof window.openPackingImport === 'function') window.openPackingImport();
+  }
+  async function icPdfSelected(input) {
+    const file = input && input.files && input.files[0];
+    if (!file) return;
+    const canon = _chooserCanon;
+    try {
+      const fn = window.pkiExtractPdfLines;
+      const r = typeof fn === 'function' ? await fn(file) : { error: 'PDFの取り込み機能が読み込まれていません' };
+      if (r.error) { if (window.quoteShowToast) quoteShowToast('⚠️ ' + r.error, 'warn', 7000); return; }
+      closeImportChooser();
+      if (canon) eiOpenForSubcon(canon); else openEmailImport();
+      const t = document.getElementById('eiText'); if (!t) return;
+      // 表の列は Tab でつなぐ（表として読む解析にそのまま渡せる）
+      t.value = r.lines.map(cells => cells.join('\t')).join('\n');
+      eiParse();
+      if (window.quoteShowToast) quoteShowToast('📄 PDFの文字を取り出して解析しました。内容を確認してから挿入してください（表の崩れは文字を直すか、AI整形用プロンプトをお使いください）', 'success', 6000);
+    } finally { input.value = ''; }
+  }
+
   function openEmailImport() {
     _svCtx = null; _renderSvCtx();
     _setStoreOnly(false);
@@ -805,10 +843,10 @@
     let html = '';
     // ヘッダー項目
     html += '<div class="ei-fields">' +
-      '<label>お客様 <input type="text" id="eiF-customer" value="' + _esc(fields.customer || '') + '"></label>' +
-      '<label>REF# <input type="text" id="eiF-ref" value="' + _esc(fields.ref || '') + '"></label>' +
-      '<label>有効期限 <input type="date" id="eiF-valid" value="' + _esc(fields.validUntil || '') + '"></label>' +
-      '<label>サブコン一括設定 <input type="text" id="eiBulkSv" list="svSuggestions" placeholder="例）〇〇物流">' +
+      '<label class="ei-f-meta">お客様 <input type="text" id="eiF-customer" value="' + _esc(fields.customer || '') + '"></label>' +
+      '<label class="ei-f-meta">REF# <input type="text" id="eiF-ref" value="' + _esc(fields.ref || '') + '"></label>' +
+      '<label class="ei-f-meta">有効期限 <input type="date" id="eiF-valid" value="' + _esc(fields.validUntil || '') + '"></label>' +
+      '<label>サブコン一括設定 <input type="text" id="eiBulkSv" list="svSuggestions" value="' + _esc(_svCtx ? _svCtx.canon : '') + '" placeholder="例）〇〇物流">' +
         '<button type="button" class="ei-bulk-sv-btn" onclick="eiApplyBulkSv()" title="入力したサブコン名を全行に反映します（個別に直したい行は挿入前に上書き可能）">全行に設定</button></label>' +
       '<label class="ei-sellmode-label" title="既存システムからの移植等、取り込む単価が「売値」しか分からない場合向け。チェックすると、取り込んだ単価は売単価として登録され、仕入単価は空欄になります。挿入後に見積テーブルで行ごとに「仕入単価」を入力すると、乗せ幅が自動で算出されます（売単価－仕入単価）。">' +
         '<input type="checkbox" id="eiSellMode"> 💰 単価を売値として取り込む（仕入を後で入力→乗せ幅を自動算出）</label>' +
@@ -847,7 +885,10 @@
     html += _remarksHtml(items, rems);
     html += '<datalist id="eiCcyList">' + CCY_LIST.map(c => `<option value="${c}">`).join('') + '</datalist>';
     if (_svCtx && items.length) html += '<div class="ei-learn"><button type="button" class="ei-learn-btn" onclick="eiLearnFromCorrections()" title="品名・カテゴリ・単位を直した行を、このサブコンの「呼び名の置き換え」ルールに追加します（チーム共有）">🧠 修正をこのサブコンのルールとして覚える</button><span>品名・カテゴリ・単位を直した行が、次回から自動で直ります</span></div>';
-    html += '<p class="ei-hint">💡 通常は単価が仕入・売の両方に入ります（粗利0）。仕入額が分かる場合は挿入後に修正してください。「💰 単価を売値として取り込む」をONにすると、単価は売値としてのみ登録され、挿入後に仕入単価を入力すれば乗せ幅が自動算出されます。「課税」列は本文の語（[課税]・課税対象・税別・非課税・免税 等）から判定した結果です。違う行はチェックで直してください。「要確認」行は品名・金額を必ず確認。</p>';
+    // 「単価を売値として取り込む」はサブコン専用の取込では出さないので、その説明もそのときは外す
+    html += '<p class="ei-hint">💡 通常は単価が仕入・売の両方に入ります（粗利0）。仕入額が分かる場合は挿入後に修正してください。' +
+      (_svCtx ? '' : '「💰 単価を売値として取り込む」をONにすると、単価は売値としてのみ登録され、挿入後に仕入単価を入力すれば乗せ幅が自動算出されます。') +
+      '「課税」列は本文の語（[課税]・課税対象・税別・非課税・免税 等）から判定した結果です。違う行はチェックで直してください。「要確認」行は品名・金額を必ず確認。</p>';
     wrap.innerHTML = html;
     document.getElementById('eiActions').hidden = false;
     _updateInsertTarget();
@@ -1381,7 +1422,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
   Object.assign(window, {
     eiPendingOf, eiFreeEntriesOf, eiMakeEntry, eiRefreshPendingBanner, eiOpenStoreFromDashboard, eiOpenStoreForCard, eiOpenStoreForCurrent,
     eiOpenStored, eiStoreRaw, eiFeImport, eiFeView, eiFeToggle, eiFeDelete,
-    openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiToggleAllTax, eiInsertRows, eiApplyAsNew,
+    openImportChooser, closeImportChooser, icChoose, icPdfSelected, openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiToggleAllTax, eiInsertRows, eiApplyAsNew,
     eiSaveGroupAsPattern, eiApplyBulkSv, eiCopyAiPrompt,
     eiCopyUnread, eiMaskLine, eiOpenForSubcon, eiRuleSaveDefaults, eiRuleDel, eiLearnFromCorrections, eiMountRulesPanel,
     eiApplyRules: _applyRules,   // テスト用

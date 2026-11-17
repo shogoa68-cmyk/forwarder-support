@@ -35,7 +35,7 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
   await p.click('#tbMenuMore .uim-switch [data-uim="detail"]');await p.waitForTimeout(300);
   ok(label+'：「詳細表示」へ戻せる',await p.evaluate(()=>!document.documentElement.classList.contains('mode-simple')),null);
   if(!await p.evaluate(()=>document.querySelector('#saveToolbar .tb-menu').classList.contains('is-open')))await p.click('#saveToolbar .tb-menu .save-btn-menu');
-  await p.click('#tbMenuMore [onclick*="openEmailImport"]');await p.waitForTimeout(400);
+  await p.click('#tbMenuMore [onclick*="openImportChooser"]');await p.waitForTimeout(400);
   ok(label+'：メニューの「メール取込」でモーダルが開く',await p.evaluate(()=>{const e=document.getElementById('emailImportModal')||document.querySelector('[id*="emailImport"]');return !!e&&getComputedStyle(e).display!=='none'&&e.offsetParent!==null||!!document.querySelector('.modal-overlay.open, .ei-overlay.open, #eiOverlay.open');}),null);
   await p.evaluate(()=>{document.querySelectorAll('.open').forEach(e=>{if(/modal|overlay/i.test(e.className+e.id))e.classList.remove('open');});});
   ok(label+'：JS エラーなし',errs.length===0,errs);

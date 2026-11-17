@@ -12480,6 +12480,9 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make .ei-unread li { margin: 2px 0; word-break: break-all; }
 #tab-quote-make .ei-unread p { margin: 6px 0 0; font-size: var(--text-xs, 12px); color: #57606a; line-height: 1.6; }
 #tab-quote-make .ei-unread .ei-unread-copy { margin-top: 8px; padding: 5px 12px; border: 1px solid #d4a72c; border-radius: 6px; background: #fff; color: #7d4e00; cursor: pointer; font-size: var(--text-sm, 13px); }
+/* サブコン専用の取込では、新規案件用の項目（お客様・REF#・有効期限）と「単価を売値として取り込む」は出さない */
+#tab-quote-make #emailImportBox.ei-sv-ctx .ei-f-meta,
+#tab-quote-make #emailImportBox.ei-sv-ctx .ei-sellmode-label { display: none !important; }
 
 /* 保険料の計算（保険カテゴリの行）：ボタンは青緑系。ON の行だけ、貨物価額・保険価額率・保険料率の入力欄を出す（Industry は「その他 ▾」の中）。
    計算結果は仕入単価（読み取り専用）に入る。売単価は仕入＋乗せ幅、最低保険料は仕入の MIN */
@@ -12508,3 +12511,15 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make .ins-group .ins-x, #tab-quote-make .ins-group .ins-u { font-size: var(--fs-10); color: var(--text-md); }
 #tab-quote-make .ins-group .ins-hint { flex-basis: 100%; font-size: var(--fs-10); color: var(--text-md); white-space: normal; overflow-wrap: anywhere; }
 #tab-quote-make .ins-group .ins-hint.is-warn { color: #b45309; font-weight: 700; }
+
+/* ===== 📥 取り込みの入口（テキスト／PDF／荷姿） ===== */
+#tab-quote-make #importChooser { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9000; align-items: center; justify-content: center; }
+#tab-quote-make #importChooser.open { display: flex; }
+#tab-quote-make #importChooser .ic-box { background: var(--surface-warm); border-radius: var(--r-10); padding: var(--sp-16) var(--sp-20) var(--sp-18); width: min(94vw, 480px); box-shadow: 0 8px 32px rgba(0,0,0,.25); }
+#tab-quote-make #importChooser .ic-sub { margin: 0 0 var(--sp-12); font-size: var(--text-sm, 13px); color: var(--text-md); line-height: 1.6; }
+#tab-quote-make #importChooser .ic-opt { display: flex; align-items: center; gap: var(--sp-12); width: 100%; margin-top: var(--sp-8); padding: var(--sp-12) var(--sp-14); min-height: 44px; text-align: left; font-family: inherit; border: 1px solid var(--border); border-radius: var(--r-8); background: var(--card-bg); color: var(--text); cursor: pointer; }
+#tab-quote-make #importChooser .ic-opt:hover { border-color: #3aa392; background: #f2faf8; }
+#tab-quote-make #importChooser .ic-opt[hidden] { display: none; }
+#tab-quote-make #importChooser .ic-ico { font-size: 24px; }
+#tab-quote-make #importChooser .ic-opt b { display: block; font-size: var(--text-base, 14px); }
+#tab-quote-make #importChooser .ic-opt small { display: block; margin-top: 2px; font-size: var(--text-xs, 12px); color: var(--text-md); line-height: 1.5; }
