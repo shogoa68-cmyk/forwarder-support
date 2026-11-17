@@ -125,7 +125,7 @@ html.editor-v2 #tbMenuMore .tb-mi-quiet-only { order: 6; }
 
 /* スマホ幅（〜600px）：下の固定ドック（PDF／プレビュー／保存）の上に合計バーを置き、右の引き出しは下から出るシートにする */
 @media (max-width: 600px) {
-  html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Total { bottom: 49px; }
+  html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Total { bottom: 56px; }
   html.editor-v2 #e2Total .e2t-btns button[data-e2q], html.editor-v2 #e2Total .e2t-btns button[data-e2p] { display: inline-block; }
   html.editor-v2 #tab-quote-make .quote-right-col { position: fixed !important; top: auto !important; left: 0 !important; right: 0 !important; bottom: 108px !important; width: auto !important; max-width: none !important; max-height: 62vh; height: auto !important; transform: translateY(120%); z-index: 1001; overflow: auto; }
   html.editor-v2 body.e2-drawer #tab-quote-make .quote-right-col { transform: none; }
@@ -148,67 +148,90 @@ html.editor-v2 #tab-quote-make #quoteTable :is(.subcon-group-header, .subcon-sub
   html.editor-v2 #tab-quote-make .quote-cmdbar { display: none !important; }
 }
 
-/* ===== Design 31・案T3：ツールバー 1 段（48px）＋左の開閉レール（PC・601px〜） ===== */
-#e2Head, #e2State, #e2Pat, #e2PatNeed, #e2StatePop, #e2PvMore, #e2PvMenu, #e2Rail { display: none; }
+/* ===== Design 31・案T3＋Design 32（R3：重ねて開く・暗幕つき）：ツールバー 1 段（48px）＋左の開閉レール ===== */
+#e2Head, #e2State, #e2Pat, #e2PatNeed, #e2StatePop, #e2PvMore, #e2PvMenu, #e2Scrim, #e2Br { display: none; }
+/* 作業状態の札・数量パターン（PC・スマホ共通。元の #qtyPatternBar は新画面では隠すだけ） */
+html.editor-v2 #qtyPatternBar { display: none !important; }
+html.editor-v2 #saveToolbar #e2State { display: inline-flex; align-items: center; flex: 0 0 auto; height: 28px; padding: 0 10px; border-radius: 999px; font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; border: 1px solid var(--border, #c8cfd9); background: var(--bg-soft, #eef1f5); color: var(--text-md, #475467); white-space: nowrap; margin-left: 8px; }
+html.editor-v2 #saveToolbar #e2State[hidden] { display: none; }
+html.editor-v2 #e2State.is-edit { background: var(--accent-dk, #2c455d); border-color: var(--accent-dk, #2c455d); color: #fff; }
+html.editor-v2 #e2State.is-lock { background: #fff; border: 2px solid #c0392b; color: #c0392b; }
+html.editor-v2 #saveToolbar #e2StatePop { position: absolute; top: 46px; left: 140px; z-index: 1300; max-width: 320px; padding: 10px 14px; border: 1px solid var(--border, #c8cfd9); border-radius: 10px; background: var(--surface, #fff); box-shadow: 0 8px 24px rgba(16,24,40,.18); font-size: var(--text-sm, 13px); line-height: 1.6; }
+html.editor-v2 #saveToolbar #e2StatePop:not([hidden]) { display: block; }
+html.editor-v2 #saveToolbar #e2Pat:not([hidden]) { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; position: relative; }
+html.editor-v2 #e2PatBtn { height: 30px; padding: 0 10px; border: 1px solid var(--border, #c8cfd9); border-radius: 8px; background: var(--surface, #fff); font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+html.editor-v2 #e2PatMenu { position: absolute; top: 36px; left: 0; z-index: 1300; min-width: 200px; max-height: 60vh; overflow: auto; padding: 6px; border: 1px solid var(--border, #c8cfd9); border-radius: 10px; background: var(--surface, #fff); box-shadow: 0 8px 24px rgba(16,24,40,.18); }
+html.editor-v2 #e2PatMenu[hidden] { display: none; }
+html.editor-v2 #e2PatMenu button { display: flex; width: 100%; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: var(--text-sm, 13px); text-align: left; cursor: pointer; }
+html.editor-v2 #e2PatMenu button:hover, html.editor-v2 #e2PatMenu button.is-on { background: var(--bg-soft, #eef1f5); font-weight: 700; }
+html.editor-v2 #e2PatMenu small { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
+html.editor-v2 #saveToolbar #e2PatNeed:not([hidden]) { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border: 0; border-radius: 999px; background: #fdecc8; color: #8a5a00; font: inherit; font-size: var(--text-xs, 12px); cursor: pointer; flex: 0 0 auto; }
+html.editor-v2 #saveToolbar .save-toolbar-sep, html.editor-v2 #saveToolbar #qmBanner, html.editor-v2 #saveToolbar #saveStatus { display: none !important; }
+/* ［←］ダッシュボードへ（文字は title／aria-label に） */
+html.editor-v2 #qmDash { font-size: 0; width: 36px; min-width: 36px; padding: 0; height: 36px; }
+html.editor-v2 #qmDash::before { content: "←"; font-size: var(--text-xl, 18px); line-height: 1; }
+/* ［プレビュー ▾］（▾ の中に PDF 出力）＋主ボタン 1 つ */
+html.editor-v2 #quoteActionDock > .qad-pdf { display: none; }
+html.editor-v2 #quoteActionDock #e2PvMore { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; width: 28px; padding: 0; border: 0; border-radius: 0 8px 8px 0; background: var(--accent, #4a6d8c); color: #fff; font-size: var(--text-xs, 12px); cursor: pointer; margin-right: 8px; }
+html.editor-v2 #quoteActionDock .qad-preview { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 1px; }
+html.editor-v2 #quoteActionDock #e2PvMenu:not([hidden]) { display: block; position: absolute; z-index: 1300; min-width: 160px; padding: 6px; border: 1px solid var(--border, #c8cfd9); border-radius: 10px; background: var(--surface, #fff); box-shadow: 0 8px 24px rgba(16,24,40,.18); }
+html.editor-v2 #e2PvMenu .qad-pdf { display: flex !important; width: 100%; min-height: 36px; align-items: center; }
 @media (min-width: 601px) {
   /* 旧画面の左端ナビ用の余白（68px）は使わない：レールをカテゴリの行の左端にそろえる */
   html.editor-v2 #tab-quote-make:not(.qp-dash) { padding-left: 0; }
-  html.editor-v2 #tab-quote-make:not(.qp-dash) > .save-toolbar { margin-left: 0; }
-  /* ツールバー：高さ 48px・1 段。固定はこの 1 段だけ（操作バーの top は「カテゴリ + 48px」） */
-  html.editor-v2 #tab-quote-make:not(.qp-dash) > .save-toolbar { height: 48px; min-height: 48px; max-height: 48px; flex-wrap: nowrap; padding: 0 12px; gap: 8px; overflow: visible; box-sizing: border-box; }
+  html.editor-v2 #tab-quote-make:not(.qp-dash) > .save-toolbar { margin-left: 0; height: 48px; min-height: 48px; max-height: 48px; flex-wrap: nowrap; padding: 0 12px; gap: 8px; overflow: visible; box-sizing: border-box; }
   html.editor-v2 #tab-quote-make .quote-cmdbar { top: calc(var(--nav-cat-h, 56px) + 48px); }
-  html.editor-v2 #saveToolbar .save-toolbar-sep, html.editor-v2 #saveToolbar #qmBanner, html.editor-v2 #saveToolbar #saveStatus { display: none !important; }
-  /* ［←］ダッシュボードへ（文字は title／aria-label に） */
-  html.editor-v2 #qmDash { font-size: 0; width: 36px; min-width: 36px; padding: 0; height: 36px; }
-  html.editor-v2 #qmDash::before { content: "←"; font-size: var(--text-xl, 18px); line-height: 1; }
-  /* 題名：1 行・太字 16px・最大 380px（長いと…）。状態チップ・作業状態の札・数量パターンが右に続く */
+  /* 題名：1 行・太字 16px・最大 360px（長いと…・全文は title）。状態チップとの間は 8px */
   html.editor-v2 #saveToolbar #e2Title { flex: 0 1 auto; margin: 0 4px; gap: 8px; min-width: 0; }
-  html.editor-v2 #e2Title b { max-width: 380px; font-weight: 700; }
-  html.editor-v2 #saveToolbar #e2State { display: inline-flex; align-items: center; flex: 0 0 auto; height: 28px; padding: 0 10px; border-radius: 999px; font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; border: 1px solid var(--border, #c8cfd9); background: var(--bg-soft, #eef1f5); color: var(--text-md, #475467); white-space: nowrap; }
-  html.editor-v2 #e2State.is-edit { background: var(--accent-dk, #2c455d); border-color: var(--accent-dk, #2c455d); color: #fff; }
-  html.editor-v2 #e2State.is-lock { background: #fff; border: 2px solid #c0392b; color: #c0392b; }
-  html.editor-v2 #saveToolbar #e2StatePop { position: absolute; top: 46px; left: 140px; z-index: 1300; max-width: 320px; padding: 10px 14px; border: 1px solid var(--border, #c8cfd9); border-radius: 10px; background: var(--surface, #fff); box-shadow: 0 8px 24px rgba(16,24,40,.18); font-size: var(--text-sm, 13px); line-height: 1.6; }
-  html.editor-v2 #saveToolbar #e2StatePop:not([hidden]) { display: block; }
-  /* 数量パターン：2 つ以上あるときだけ「数量：FCL案 ▾ N案」。一覧はポップアップ（高さは増えない） */
-  html.editor-v2 #qtyPatternBar { display: none !important; }
-  html.editor-v2 #saveToolbar #e2Pat:not([hidden]) { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; position: relative; }
-  html.editor-v2 #e2PatBtn { height: 30px; padding: 0 10px; border: 1px solid var(--border, #c8cfd9); border-radius: 8px; background: var(--surface, #fff); font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
-  html.editor-v2 #e2PatMenu { position: absolute; top: 36px; left: 0; z-index: 1300; min-width: 200px; max-height: 60vh; overflow: auto; padding: 6px; border: 1px solid var(--border, #c8cfd9); border-radius: 10px; background: var(--surface, #fff); box-shadow: 0 8px 24px rgba(16,24,40,.18); }
-  html.editor-v2 #e2PatMenu[hidden] { display: none; }
-  html.editor-v2 #e2PatMenu button { display: flex; width: 100%; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: var(--text-sm, 13px); text-align: left; cursor: pointer; }
-  html.editor-v2 #e2PatMenu button:hover, html.editor-v2 #e2PatMenu button.is-on { background: var(--bg-soft, #eef1f5); font-weight: 700; }
-  html.editor-v2 #e2PatMenu small { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
-  html.editor-v2 #saveToolbar #e2PatNeed:not([hidden]) { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border: 0; border-radius: 999px; background: #fdecc8; color: #8a5a00; font: inherit; font-size: var(--text-xs, 12px); cursor: pointer; flex: 0 0 auto; }
-  /* 出力：［プレビュー ▾］（▾ の中に PDF 出力）＋主ボタン 1 つ */
+  html.editor-v2 #e2Title b { max-width: 360px; font-weight: 700; }
   html.editor-v2 #quoteActionDock.e2-in-toolbar { position: relative; flex: 0 0 auto; gap: 0; margin-left: 0; }
   html.editor-v2 #saveToolbar > .tb-menu { margin-left: auto; flex: 0 0 auto; }
-  html.editor-v2 #quoteActionDock.e2-in-toolbar > .qad-pdf { display: none; }
-  html.editor-v2 #quoteActionDock.e2-in-toolbar .qad-preview { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 1px; }
-  html.editor-v2 #quoteActionDock.e2-in-toolbar #e2PvMore { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; width: 28px; padding: 0; border: 0; border-radius: 0 8px 8px 0; background: var(--accent, #4a6d8c); color: #fff; font-size: var(--text-xs, 12px); cursor: pointer; margin-right: 8px; }
-  html.editor-v2 #quoteActionDock.e2-in-toolbar #e2PvMenu:not([hidden]) { display: block; position: absolute; top: 42px; right: 0; z-index: 1300; min-width: 160px; padding: 6px; border: 1px solid var(--border, #c8cfd9); border-radius: 10px; background: var(--surface, #fff); box-shadow: 0 8px 24px rgba(16,24,40,.18); }
-  html.editor-v2 #e2PvMenu .qad-pdf { display: flex !important; width: 100%; min-height: 36px; align-items: center; }
-  /* 左のレール：しまった時 56px（丸だけ）／開いた時 180px。sticky で高さぶんの余白を負のマージンで打ち消すので、開閉しても上の高さ・本文は動かない（開いた時は本文に重なる） */
-  html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Steps { display: flex; flex-direction: column; gap: 6px; position: sticky; top: calc(var(--nav-cat-h, 56px) + 48px); height: calc(100vh - var(--nav-cat-h, 56px) - 100px); width: 56px; box-sizing: border-box; padding: 8px 6px; margin: 0 0 calc(-1 * (100vh - var(--nav-cat-h, 56px) - 100px)); background: var(--surface, #fff); border: 0; border-right: 1px solid var(--border, #e2e6ec); overflow: hidden auto; z-index: 40; transition: width .15s ease; }
-  html.editor-v2 #tab-quote-make.e2-rail-open #e2Steps { width: 180px; box-shadow: 4px 0 16px rgba(16,24,40,.12); }
-  html.editor-v2 #e2Steps button { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; min-height: 40px; padding: 6px; border: 0; border-radius: 10px; background: none; text-align: left; font: inherit; cursor: pointer; flex: 0 0 auto; flex-wrap: wrap; }
-  html.editor-v2 #e2Steps button i { flex: 0 0 22px; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; background: var(--border, #e2e6ec); font-style: normal; font-weight: 700; font-size: var(--text-xs, 12px); }
+  html.editor-v2 #quoteActionDock.e2-in-toolbar #e2PvMenu:not([hidden]) { top: 42px; right: 0; }
+  /* 左のレール：しまった時 56px（丸 26px のみ）／開いた時 200px で本文に重ねる（本文は動かさない）。sticky のまま高さぶんを負のマージンで打ち消す */
+  html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Steps { display: flex; flex-direction: column; gap: 4px; position: sticky; top: calc(var(--nav-cat-h, 56px) + 48px); height: calc(100vh - var(--nav-cat-h, 56px) - 100px); width: 56px; box-sizing: border-box; padding: 8px 5px; margin: 0 0 calc(-1 * (100vh - var(--nav-cat-h, 56px) - 100px)); background: var(--surface, #fff); border: 0; border-right: 1px solid var(--border, #e2e6ec); overflow: hidden auto; z-index: 43; transition: width .15s ease; }
+  html.editor-v2 #tab-quote-make.e2-rail-open #e2Steps { width: 200px; box-shadow: 4px 0 16px rgba(16,24,40,.22); }
+  html.editor-v2 #e2Steps button { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; min-height: 40px; padding: 6px 7px; border: 0; border-left: 3px solid transparent; border-radius: 8px; background: none; text-align: left; font: inherit; cursor: pointer; flex: 0 0 auto; flex-wrap: wrap; }
+  html.editor-v2 #e2Steps button i { flex: 0 0 26px; width: 26px; height: 26px; line-height: 26px; text-align: center; border-radius: 50%; background: #e4e7ec; color: #475467; font-style: normal; font-weight: 700; font-size: var(--text-xs, 12px); }
   html.editor-v2 #e2Steps button b, html.editor-v2 #e2Steps button small { display: none; }
-  html.editor-v2 #tab-quote-make.e2-rail-open #e2Steps button b { display: inline; font-size: var(--text-sm, 13px); white-space: nowrap; }
-  html.editor-v2 #tab-quote-make.e2-rail-open #e2Steps button.is-on small { display: -webkit-box; flex-basis: 100%; padding-left: 30px; font-size: var(--text-xs, 12px); color: inherit; opacity: .85; white-space: normal; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; max-width: none; word-break: break-all; }
-  html.editor-v2 #e2Steps button.is-ok i { background: #cfe8d6; color: #1f6b3a; }
-  html.editor-v2 #e2Steps button.is-warn i { background: #f6b04a; color: #5a3500; }
-  html.editor-v2 #e2Steps button.is-on { background: var(--accent-dk, #2c455d); color: #fff; box-shadow: none; border: 0; }
-  html.editor-v2 #e2Steps button.is-on i { background: #fff; color: var(--accent-dk, #2c455d); }
-  html.editor-v2 #e2Steps button.e2-rail-toggle { min-height: 32px; justify-content: center; border: 1px solid var(--border, #d9dee5); }
+  html.editor-v2 #tab-quote-make.e2-rail-open #e2Steps button b { display: inline; font-size: var(--text-sm, 13px); font-weight: 500; white-space: nowrap; }
+  html.editor-v2 #tab-quote-make.e2-rail-open #e2Steps button.is-on small { display: -webkit-box; flex-basis: 100%; padding-left: 34px; font-size: 11px; color: #667085; white-space: normal; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; max-width: none; word-break: break-all; }
+  /* 印は 3 種（まだ＝番号／入力済み＝✓／必須の欠け＝!）。「いま見ている」は印ではなく左の太い線＋薄い背景＋太字で示す */
+  html.editor-v2 #e2Steps button.is-ok i { background: #dcf3e4; color: #1e7a4a; }
+  html.editor-v2 #e2Steps button.is-warn i { background: #fdebd3; color: #b45309; }
+  html.editor-v2 #e2Steps button.is-on { border-left-color: #2f5fb3; background: #eef3fb; color: inherit; box-shadow: none; }
+  html.editor-v2 #e2Steps button.is-on b { font-weight: 700 !important; }
+  html.editor-v2 #e2Steps button:hover:not(.is-on) { background: var(--bg-soft, #f2f4f7); }
+  html.editor-v2 #e2Steps button.e2-rail-toggle { min-height: 30px; justify-content: center; border: 1px solid var(--border, #d9dee5); border-left-width: 1px; background: #fff; }
+  html.editor-v2 #e2Steps button.e2-rail-toggle i { background: none; flex-basis: auto; width: auto; }
   html.editor-v2 #tab-quote-make.e2-rail-open #e2Steps button.e2-rail-toggle { justify-content: flex-start; }
   html.editor-v2 #e2Steps button.e2-rail-toggle b { display: none; }
   html.editor-v2 #tab-quote-make.e2-rail-open #e2Steps button.e2-rail-toggle b { display: inline; }
-  /* 本文は左のレール（56px）のぶん右へ。見出しにステップ名＋要約を常に出す */
-  html.editor-v2 #tab-quote-make:not(.qp-dash) .quote-workspace, html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Nav, html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Head { margin-left: 64px; }
+  /* 暗幕：レールの外側すべて（ツールバー z45・⋯／プレビュー▾のメニュー z1300 より下、本文・操作バー z40 より上） */
+  html.editor-v2 #tab-quote-make.e2-rail-open #e2Scrim { display: block; position: fixed; inset: 0; z-index: 42; background: rgba(16, 24, 40, .28); }
+  /* 本文は常に左 56px 分あけ、最大 1100px・左寄せ。見出しは「ステップ番号 名前　要約」の 1 本（既存の見出しは 14px の小見出しへ） */
+  html.editor-v2 #tab-quote-make:not(.qp-dash) .quote-workspace, html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Nav, html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Head { margin-left: 64px; max-width: 1100px; }
   html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Head { display: flex; align-items: baseline; gap: 12px; padding: 14px 4px 4px; }
-  html.editor-v2 #e2Head b { font-size: var(--text-lg, 16px); }
-  html.editor-v2 #e2Head span { font-size: var(--text-sm, 13px); color: var(--text-muted, #667); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  html.editor-v2 #e2Head b { font-size: var(--text-xl, 18px); font-weight: 700; }
+  html.editor-v2 #e2Head span { font-size: var(--text-sm, 13px); color: #667085; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  html.editor-v2 #tab-quote-make:not(.qp-dash) .condition-section .section-toggle-title { font-size: var(--text-base, 14px); }
 }
+/* スマホ（〜600px）：上のバーは 2 段（①［← 題名 ⋯］44px／②［状態札］［数量：○○案 ▾］36px）。出力は下に固定（［プレビュー ▾］＋主ボタン・56px） */
 @media (max-width: 600px) {
   html.editor-v2 #e2Steps .e2-rail-toggle { display: none; }
+  html.editor-v2 #tab-quote-make:not(.qp-dash) > #saveToolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; padding: 0 8px; height: auto; min-height: 44px; }
+  html.editor-v2 #saveToolbar #qmGroup { order: 1; }
+  html.editor-v2 #saveToolbar #e2Title { display: flex !important; order: 2; flex: 1 1 0; min-width: 0; height: 44px; align-items: center; margin: 0; }
+  html.editor-v2 #e2Title b { font-size: var(--text-lg, 16px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: none; }
+  html.editor-v2 #e2Title #e2tStatus, html.editor-v2 #e2Title #e2tSave { display: none; }
+  html.editor-v2 #saveToolbar > .tb-menu { order: 3; margin-left: 0; }
+  html.editor-v2 #saveToolbar #e2Br { display: block; order: 4; flex: 0 0 100%; height: 0; }
+  html.editor-v2 #saveToolbar #e2State { order: 5; margin-left: 0; height: 30px; }
+  html.editor-v2 #saveToolbar #e2Pat:not([hidden]) { order: 6; }
+  html.editor-v2 #saveToolbar #e2PatNeed:not([hidden]) { order: 7; }
+  html.editor-v2 #saveToolbar > #e2State, html.editor-v2 #saveToolbar > #e2Pat, html.editor-v2 #saveToolbar > #e2PatNeed { margin-top: 3px; margin-bottom: 3px; }
+  html.editor-v2 #quoteActionDock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1200; display: flex; gap: 0; height: 56px; padding: 6px 10px; box-sizing: border-box; background: var(--surface, #fff); border-top: 1px solid var(--border, #e2e6ec); box-shadow: 0 -4px 12px rgba(16,24,40,.08); align-items: center; }
+  html.editor-v2 #quoteActionDock .qad-preview { flex: 1 1 0; min-height: 44px; }
+  html.editor-v2 #quoteActionDock #e2PvMore { min-height: 44px; width: 40px; }
+  html.editor-v2 #quoteActionDock #qadMode { flex: 1 1 0; min-height: 44px; }
+  html.editor-v2 #quoteActionDock #e2PvMenu:not([hidden]) { bottom: 60px; left: 10px; }
 }

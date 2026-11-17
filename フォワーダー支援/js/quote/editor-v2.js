@@ -106,6 +106,7 @@
     const need = document.createElement('button'); need.type = 'button'; need.id = 'e2PatNeed'; need.hidden = true;
     need.addEventListener('click', () => { if (typeof window.jumpToQtyNeedsCheck === 'function') window.jumpToQtyNeedsCheck(); });
     pat.after(need);
+    const br = document.createElement('span'); br.id = 'e2Br'; t.after(br);
     $('e2PatBtn').addEventListener('click', e => { e.stopPropagation(); $('e2PatMenu').hidden = !$('e2PatMenu').hidden; });
     $('e2PatMenu').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; $('e2PatMenu').hidden = true; if (typeof window.switchPackingPattern === 'function') window.switchPackingPattern(+b.dataset.i); });
     document.addEventListener('click', e => { const m = $('e2PatMenu'); if (m && !m.hidden && !$('e2Pat').contains(e.target)) m.hidden = true; });
@@ -168,6 +169,9 @@
     const steps = document.createElement('nav'); steps.id = 'e2Steps'; steps.setAttribute('aria-label', '見積入力のステップ');
     ws.parentNode.insertBefore(steps, ws);
     const head = document.createElement('div'); head.id = 'e2Head'; ws.parentNode.insertBefore(head, ws);
+    const scrim = document.createElement('div'); scrim.id = 'e2Scrim'; scrim.addEventListener('click', () => setRail(false));
+    const tabEl = $('tab-quote-make'); if (tabEl) tabEl.appendChild(scrim);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && railOpen) { e.stopPropagation(); setRail(false); } }, true);
     const foot = document.createElement('div'); foot.id = 'e2Nav';
     foot.innerHTML = '<button type="button" id="e2Prev">← 戻る</button><button type="button" id="e2Next">次へ →</button>';
     const main = ws.querySelector('.quote-main'); (main || ws).appendChild(foot);
@@ -208,9 +212,9 @@
     if (!isOn() || !built) return;
     refreshBasics(); refreshTitle(); tagRows(); buildChips(); refreshChips();
     const s = summaries(), box = $('e2Steps'); if (!box) return;
-    const REQ = { 1: 1, 2: 1, 4: 1 };
+    const REQ = { 1: 1, 2: 1, 4: 1 };   // 印は選択中でも 3 種のまま（選択中は印でなく行の線・背景で示す）
     const toggle = '<button type="button" class="e2-rail-toggle" aria-expanded="' + railOpen + '" title="' + (railOpen ? 'ステップをしまう（[ キー）' : 'ステップを開く（[ キー）') + '"><i>' + (railOpen ? '«' : '»') + '</i><b>しまう</b></button>';
-    const html = toggle + [1, 2, 3, 4, 5].map(n => { const warn = !s[n].ok && REQ[n] && visited[n] && n !== step; const mark = s[n].ok ? '✓' : warn ? '!' : n; const sm = s[n].s.replace(/</g, '&lt;'); return '<button type="button" data-e2s="' + n + '" title="' + NAMES[n] + '：' + sm + '" class="' + (n === step ? 'is-on' : '') + (s[n].ok ? ' is-ok' : '') + (warn ? ' is-warn' : '') + '"><i>' + mark + '</i><b>' + NAMES[n] + '</b><small>' + sm + '</small></button>'; }).join('');
+    const html = toggle + [1, 2, 3, 4, 5].map(n => { const warn = !s[n].ok && REQ[n] && visited[n]; const mark = s[n].ok ? '✓' : warn ? '!' : n; const sm = s[n].s.replace(/</g, '&lt;'); return '<button type="button" data-e2s="' + n + '" title="' + NAMES[n] + '：' + sm + '" class="' + (n === step ? 'is-on' : '') + (s[n].ok ? ' is-ok' : '') + (warn ? ' is-warn' : '') + '"><i>' + mark + '</i><b>' + NAMES[n] + '</b><small>' + sm + '</small></button>'; }).join('');
     if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
     const hd = $('e2Head'); if (hd) { const ht = '<b>' + step + ' ' + NAMES[step] + '</b><span>' + s[step].s.replace(/</g, '&lt;') + '</span>'; if (hd.dataset.h !== ht) { hd.dataset.h = ht; hd.innerHTML = ht; } }
     $('e2Prev').disabled = step <= 1; $('e2Next').disabled = step >= 5;
@@ -271,8 +275,8 @@
     }
   }
   function moveDock(on) {
-    if (on && phone()) on = false;   // スマホ幅は旧来のドック（下の固定ボタン）のまま
     const dock = $('quoteActionDock'), tb = $('saveToolbar'); if (!dock || !tb) return;
+    if (on && phone()) { pvMenu(dock, true); return; }   // スマホ幅はドックを下に固定のまま、［プレビュー ▾］だけ付ける
     if (on) { if (!dockHome) dockHome = { p: dock.parentNode, n: dock.nextSibling }; tb.appendChild(dock); dock.classList.add('e2-in-toolbar'); pvMenu(dock, true); }
     else { pvMenu(dock, false); if (dockHome) { dock.classList.remove('e2-in-toolbar'); dockHome.p.insertBefore(dock, dockHome.n); dockHome = null; } }
   }

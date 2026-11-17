@@ -54,6 +54,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('左ナビ・右下ドックの旧位置は使わない', !(await vis('#qSecNav')));
   ok('その他の情報（日付・受信日・関連番号）は最初は畳まれ、お客様・担当者・案件名は見える', !(await vis('#qf-date')) && !(await vis('#qf-received')) && await vis('#qf-customer') && await vis('#qf-person') && await vis('#qf-case-name'));
   // ===== Design 31・案T3：ツールバー 1 段（48px）＋左の開閉レール =====
+  if (mobile) {
+    ok('[T3スマホ] 上のバーに題名・⋯が 1 段目、状態札が 2 段目に出る', await p.evaluate(() => { const r = id => { const e = document.getElementById(id) || document.querySelector(id); return e ? e.getBoundingClientRect() : null; }; const t = r('e2tName'), m = r('#saveToolbar .tb-menu'), s = r('e2State'); return !!t && t.width > 40 && !!m && !!s && s.top > t.bottom - 4 && Math.abs(m.top - t.top) < 30; }));
+    ok('[T3スマホ] 下に［プレビュー ▾］と主ボタンが固定（高さ 56px 前後）', await p.evaluate(() => { const d = document.getElementById('quoteActionDock').getBoundingClientRect(); return Math.abs(d.bottom - innerHeight) < 2 && d.height >= 54 && !!document.getElementById('e2PvMore'); }));
+  }
   if (!mobile) {
     const g = (sel, f) => p.evaluate(([s, fn]) => { const e = document.querySelector(s); return e ? new Function('e', 'return ' + fn)(e) : null; }, [sel, f]);
     ok('[T3] ツールバーの高さは 48px', (await g('#saveToolbar', 'Math.round(e.getBoundingClientRect().height)')) === 48, await g('#saveToolbar', 'e.getBoundingClientRect().height'));
@@ -66,14 +70,18 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.keyboard.press('Escape'); await p.evaluate(() => document.body.click()); await p.waitForTimeout(100);
     ok('[T3] 数量パターンが 1 つ以下なら出ない', !(await vis('#e2Pat')));
     await p.click('#e2Steps .e2-rail-toggle'); await p.waitForTimeout(300);
-    ok('[T3] ［»］で開くと幅 180px・ステップ名が出る', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 180 && await vis('#e2Steps [data-e2s="2"] b'));
+    ok('[T3] ［»］で開くと幅 200px・暗幕・ステップ名が出る', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 200 && await vis('#e2Steps [data-e2s="2"] b') && await vis('#e2Scrim'));
     await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(400);
     ok('[T3] 開いて選ぶと切り替わり、自動でしまう', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 56 && await vis('#section-cond') && /2 ルート/.test((await p.textContent('#e2Head')) || ''));
     await p.click('#e2Steps [data-e2s="1"]'); await p.waitForTimeout(300);
     ok('[T3] しまったまま押しても開かない（切替だけ）', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 56 && await vis('#section-ref'));
     await p.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur()); await p.keyboard.press('['); await p.waitForTimeout(250);
-    ok('[T3] ［ キーで開閉できる', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 180);
-    await p.keyboard.press('['); await p.waitForTimeout(250);
+    ok('[T3] ［ キーで開閉できる', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 200);
+    await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+    ok('[T3] Esc で閉じる（暗幕も消える）', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 56 && !(await vis('#e2Scrim')));
+    await p.keyboard.press('['); await p.waitForTimeout(250); await p.mouse.click(900, 500); await p.waitForTimeout(250);
+    ok('[T3] 暗幕を押すと閉じる', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 56);
+    ok('[T3] 選択中の印は番号／✓／!のまま（✓の黒丸にしない）', await p.evaluate(() => { const on = document.querySelector('#e2Steps button.is-on i'); return !!on && getComputedStyle(on).backgroundColor !== 'rgb(44, 69, 93)'; }));
     ok('[T3] 本文の左端はレールと重ならない', await p.evaluate(() => document.querySelector('#tab-quote-make .quote-workspace').getBoundingClientRect().left >= 56));
     ok('[T3] 題名は 1 行（最大幅 380px）', await p.evaluate(() => { const b = document.getElementById('e2tName'); return b.getBoundingClientRect().width <= 381 && getComputedStyle(b).whiteSpace === 'nowrap'; }));
   }
