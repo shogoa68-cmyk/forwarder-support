@@ -2670,7 +2670,7 @@
   let _masterFieldFilter = 'all';
   window.statsMasterSetFilter = function (f) {
     _masterFieldFilter = f || 'all';
-    _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = '';   // 種別が変わったらサブコン種別・地域の絞り込みは解く
+    _masterDeal = ''; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = '';   // 種別が変わったらサブコン種別・地域の絞り込みは解く
     _masterSort = 'name';
     _renderMaster();
   };
@@ -2686,6 +2686,8 @@
   window.statsMasterSetSub = function (k) { _masterSub = k || ''; _masterSvType = ''; _renderMaster(); };
   // 並び順：'name'＝名前順（既定）／'tag'＝種別・タグごとにまとめて表示（サブコン・お客様のとき）
   let _masterSort = 'name';
+  let _masterDeal = '';   // お客様の取引形態での絞り込み（'' ＝すべて・'ship'／'fwd'／'agent'／'otsu'／'other'／'none'）
+  window.statsMasterSetDeal = function (k) { _masterDeal = k || ''; _renderMaster(); };
   window.statsMasterSetSort = function (m) { _masterSort = (m === 'tag' || m === 'group' || m === 'area' || m === 'deal') ? m : 'name'; _renderMaster(); };
   // お客様の取引形態（荷主／同業者／その他／未設定）。一覧の行の色・見出しの色・「取引形態ごとにまとめる」に使う
   const _DEAL_DEFS = [['ship', '荷主（直接）', '🏭'], ['fwd', '同業者（フォワーダー・代理店）', '🤝'], ['agent', '海外代理店', '🌏'], ['otsu', '乙仲', '🛃'], ['other', 'その他', '📁'], ['none', '取引形態 未設定', '❔']];
@@ -2959,8 +2961,9 @@
   }
   // 「いまの条件」のチップ行（Design 29・案B ③）：種別・検索・地域・種別/タグ・エリア・並び順を 1 行にまとめ、✕で個別に外せる／［条件をクリア］で一括解除。
   window.statsMasterClearCond = function (k) {
-    if (!k || k === 'all') { _masterFieldFilter = 'all'; _masterQuery = ''; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = ''; _masterSort = 'name'; }
-    else if (k === 'field') { _masterFieldFilter = 'all'; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = ''; _masterSort = 'name'; }
+    if (!k || k === 'all') { _masterDeal = ''; _masterFieldFilter = 'all'; _masterQuery = ''; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = ''; _masterSort = 'name'; }
+    else if (k === 'deal') _masterDeal = '';
+    else if (k === 'field') { _masterDeal = ''; _masterFieldFilter = 'all'; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = ''; _masterSort = 'name'; }
     else if (k === 'q') _masterQuery = '';
     else if (k === 'region') { _masterRegion = ''; _masterSub = ''; }
     else if (k === 'sub') _masterSub = '';
@@ -2976,6 +2979,7 @@
     if (_masterQuery.trim()) add('q', '検索', _masterQuery.trim());
     if (_masterRegion) add('region', '地域', _masterRegion);
     if (_masterSub) add('sub', '小地域', _masterSub);
+    if (_masterDeal) { const dd = _DEAL_DEFS.find(x => x[0] === _masterDeal); add('deal', '取引形態', dd ? dd[1] : _masterDeal); }
     if (_masterSvType) add('type', _SUB_FILTER[_masterFieldFilter] ? _SUB_FILTER[_masterFieldFilter].label : '絞り込み', _masterSvType === _SV_NONE ? '未設定' : _subLabel(_masterFieldFilter, _masterSvType));
     if (_masterAreaKind || _masterArea) add('area', '得意エリア', _masterArea ? (_masterArea === _SV_NONE ? '未設定' : (typeof window.areaLabel === 'function' ? window.areaLabel(_masterArea) : _masterArea)) : (_masterAreaKind === 'DOM' ? '国内' : _masterAreaKind === 'OVS' ? '海外' : '未設定'));
     if (_masterSort !== 'name') add('sort', '並び', { tag: '種別・タグごと', group: '所属グループごと', area: '得意エリアごと', deal: '取引形態ごと' }[_masterSort] || _masterSort);
@@ -3097,6 +3101,23 @@
         const keep = n => _masterSvType === _SV_NONE ? !_svTypesOf(n).length : _svTypesOf(n).includes(_masterSvType);
         entries = entries.filter(m => keep(m.value));
         synFiltered = synFiltered.filter(g => keep(g.canonical));
+      }
+    }
+
+    // お客様：取引形態での絞り込み（チップ＋条件バー）
+    if (_masterFieldFilter === 'customer') {
+      const dn = [...entries.map(m => m.value), ...synFiltered.map(g => g.canonical)];
+      const dcnt = {}; dn.forEach(n => { const k = _dealKeyOf('customer', n) || 'none'; dcnt[k] = (dcnt[k] || 0) + 1; });
+      if (_masterDeal && !dcnt[_masterDeal]) _masterDeal = '';
+      const dchip = (k, label, n) => `<button class="master-filter-chip master-deal-chip${_masterDeal === k ? ' is-active' : ''}" onclick="statsMasterSetDeal('${k}')">${_esc(label)}<span class="master-filter-count">${n}</span></button>`;
+      if (Object.keys(dcnt).length > 1 || _masterDeal) {
+        chipsH += '<div class="master-filter-chips master-type-chips"><span class="master-type-chips-label">取引形態：</span>' + dchip('', 'すべて', dn.length) +
+          _DEAL_DEFS.filter(x => dcnt[x[0]]).map(x => dchip(x[0], x[1], dcnt[x[0]])).join('') + '</div>';
+      }
+      if (_masterDeal) {
+        const keepD = n => (_dealKeyOf('customer', n) || 'none') === _masterDeal;
+        entries = entries.filter(m => keepD(m.value));
+        synFiltered = synFiltered.filter(g => keepD(g.canonical));
       }
     }
 

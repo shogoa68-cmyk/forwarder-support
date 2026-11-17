@@ -145,6 +145,12 @@ const http = require('http'), fs = require('fs'), path = require('path');
     if (role === 'admin') ok(L + '承認待ち 2 件のカード', /承認待ち 2 件/.test(home), home); else ok(L + 'メンバーは「申請中 N件」の 1 行', /申請中 \d+ 件/.test(home) && !/承認待ち \d+ 件/.test(home), home);
     if (role === 'admin') ok(L + 'ゆらぎ・マスター一覧のカード', /ゆらぎチェック/.test(home) && /マスター一覧/.test(home), home); else ok(L + 'メンバーにはゆらぎチェックを出さない（マスター一覧だけ）', !/ゆらぎ/.test(home) && /マスター一覧/.test(home), home);
     ok(L + '横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    ok(L + '[下タブ] 今日やること・マスター・分析の 3 つが下に出て、いまは「今日やること」', await p.evaluate(() => { const b = document.getElementById('ptBar'); if (!b || b.hidden) return false; const bt = [...b.querySelectorAll('button')]; return bt.length === 3 && b.getBoundingClientRect().bottom >= innerHeight - 1 && bt.every(x => x.getBoundingClientRect().height >= 44) && b.querySelector('.is-on').dataset.pt === 'todo'; }));
+    await p.evaluate(() => document.querySelector('#ptBar [data-pt="master"]').click()); await p.waitForTimeout(500);
+    ok(L + '[下タブ] 「マスター」でマスター一覧へ', await p.evaluate(() => document.getElementById('tab-master').classList.contains('mm-view-list') && document.querySelector('#ptBar .is-on').dataset.pt === 'master'));
+    await p.evaluate(() => document.querySelector('#ptBar [data-pt="stats"]').click()); await p.waitForTimeout(500);
+    ok(L + '[下タブ] 「分析」で統計の今日の確認へ（下タブは残る）', await p.evaluate(() => document.getElementById('tab-stats').classList.contains('active') && document.getElementById('tab-stats').classList.contains('sm-view-home') && document.querySelector('#ptBar .is-on').dataset.pt === 'stats'));
+    await p.evaluate(() => document.querySelector('#ptBar [data-pt="todo"]').click()); await p.waitForTimeout(500);
     if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'mm-home-' + role + '.png') });
     if (role === 'admin') {
       await p.click('#mmHome [data-go="req"]'); await p.waitForTimeout(500);
