@@ -193,6 +193,11 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleIcMode = toggleIcMode;
+  // 貿易条件の値を（イベントなしで）差し替えたあと、全行の適用（貿易条件・表示条件）だけ判定し直す（案ごとの貿易条件で出力するときに使う）
+  window.rowRefreshIncoterms = function () {
+    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => { syncIcUi(tr.id.replace('row-', '')); syncCnUi(tr.id.replace('row-', '')); });
+    recomputeRowValidity();   // 行の「適用期間外／貿易条件外／表示条件外」の印（dataset.outRange）を引き直す
+  };
   // 見積の貿易条件を変えたら、全行の適用を判定し直す
   document.addEventListener('change', e => {
     if (e.target && e.target.id === 'cond-incoterms') {

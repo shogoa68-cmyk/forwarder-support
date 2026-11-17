@@ -10246,6 +10246,67 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 #tab-quote-make .cmdbar-qpat .qpat-sw { display: inline-block; width: 22px; height: 11px; vertical-align: middle; margin: 0 var(--sp-3) 0 var(--sp-8); border-radius: var(--r-2); }
 #tab-quote-make .cmdbar-qpat .qpat-sw.is-linked { background: #f4f8ec; box-shadow: 0 0 0 1px var(--green-leaf) inset; }
 #tab-quote-make .cmdbar-qpat .qpat-sw.is-check { background: var(--amber-94); box-shadow: 0 0 0 1px #c98a1f inset; }
+/* ===== 案（パターン）をブラウザのタブのように並べる（2026-11）：常に表示・名前のダブルクリックで改名・ドラッグで並べ替え・× で削除・「＋」で追加・色はモード（FCL＝緑／LCL＝青／AIR＝紫／指定なし＝茶） ===== */
+#tab-quote-make { --qpat-air: #7a55a8; }
+#tab-quote-make[data-qpat="air"] { --qpat-color: var(--qpat-air); }
+#tab-quote-make .cmdbar-qpat .qpat-tabs { display: flex; align-items: flex-end; gap: 2px; min-width: 0; }
+#tab-quote-make .cmdbar-qpat .qpat-chip {
+  position: relative; display: inline-flex; align-items: center; gap: var(--sp-4); height: 30px; max-width: 260px; padding: 0 var(--sp-8) 0 var(--sp-10);
+  font-family: inherit; font-size: var(--fs-12); font-weight: 400; cursor: pointer; user-select: none;
+  border: 1px solid var(--border-md); border-bottom: 0; border-radius: 9px 9px 0 0; margin-bottom: 0;
+  background: color-mix(in srgb, var(--text) 6%, var(--surface)); color: var(--text-md);
+}
+#tab-quote-make .cmdbar-qpat .qpat-chip:hover { background: color-mix(in srgb, var(--text) 3%, var(--surface)); color: var(--text); border-color: var(--border-md); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active {
+  background: var(--surface); color: var(--text); font-weight: 700; border-color: var(--border-md); border-top: 3px solid var(--qpat-other);
+  height: 32px; box-shadow: 0 1px 0 var(--surface);
+}
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-fcl { border-top-color: var(--qpat-fcl); background: var(--surface); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-lcl { border-top-color: var(--qpat-lcl); background: var(--surface); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-air { border-top-color: var(--qpat-air); background: var(--surface); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-air .qpat-mode { background: var(--qpat-air); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active .qpat-mode { background: var(--qpat-other); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-fcl .qpat-mode { background: var(--qpat-fcl); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-lcl .qpat-mode { background: var(--qpat-lcl); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-air .qpat-mode { background: var(--qpat-air); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-hidden-from-quote .qpat-name { text-decoration: underline dotted; text-underline-offset: 3px; }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-dragging { opacity: .45; }
+#tab-quote-make .cmdbar-qpat .qpat-chip .qpat-mode { color: #fff; }
+#tab-quote-make .cmdbar-qpat .qpat-chip .qpat-more, #tab-quote-make .cmdbar-qpat .qpat-chip .qpat-x {
+  flex: none; width: 20px; height: 20px; padding: 0; line-height: 1; font-family: inherit; font-size: var(--fs-14); cursor: pointer;
+  border: 0; border-radius: 50%; background: transparent; color: var(--text-md);
+}
+#tab-quote-make .cmdbar-qpat .qpat-chip .qpat-more:hover, #tab-quote-make .cmdbar-qpat .qpat-chip .qpat-x:hover { background: color-mix(in srgb, var(--text) 12%, transparent); color: var(--text); }
+#tab-quote-make .cmdbar-qpat .qpat-chip:not(.is-active) .qpat-x { opacity: 0; }
+#tab-quote-make .cmdbar-qpat .qpat-chip:hover .qpat-x, #tab-quote-make .cmdbar-qpat .qpat-chip:focus-within .qpat-x { opacity: 1; }
+#tab-quote-make .cmdbar-qpat .qpat-edit {
+  width: 140px; height: 22px; padding: 0 var(--sp-4); font-family: inherit; font-size: var(--fs-12); font-weight: 700;
+  border: 1px solid var(--accent-dk, var(--text-md)); border-radius: var(--r-3); background: var(--surface); color: var(--text);
+}
+#tab-quote-make .cmdbar-qpat .qpat-add {
+  flex: none; width: 28px; height: 28px; margin: 0 0 1px var(--sp-4); padding: 0; font-family: inherit; font-size: var(--fs-16); line-height: 1; cursor: pointer;
+  border: 1px dashed var(--border-md); border-radius: 50%; background: transparent; color: var(--text-md);
+}
+#tab-quote-make .cmdbar-qpat .qpat-add:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); border-style: solid; }
+@media (max-width: 680px) { #tab-quote-make .cmdbar-qpat .qpat-tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; } #tab-quote-make .cmdbar-qpat .qpat-tabs::-webkit-scrollbar { display: none; } }
+#tab-quote-make .save-toolbar > .cmdbar-qpat { align-self: flex-end; }
+#tab-quote-make .save-toolbar > .cmdbar-qpat .qpat-chip { height: 30px; }
+#tab-quote-make .save-toolbar > .cmdbar-qpat .qpat-chip.is-active { height: 32px; }
+#tab-quote-make .save-toolbar > .cmdbar-qpat .qpat-need { height: 24px; align-self: center; }
+#tab-quote-make .cmdbar-qpat .qpat-chip:focus-visible, #tab-quote-make .cmdbar-qpat .qpat-add:focus-visible { outline: 2px solid var(--accent-dk, #2f5fb3); outline-offset: 1px; }
+/* 「＋」と「⋯」のメニュー（body 直下に出すためクラス名だけで指定） */
+.qpat-pop { position: fixed; z-index: 3000; min-width: 272px; max-width: 320px; padding: 6px; border: 1px solid var(--border-md, #ccc); border-radius: 10px; background: var(--surface, #fff); color: var(--text, #222); box-shadow: 0 8px 28px rgba(0,0,0,.18); font-size: var(--text-sm, 13px); }
+.qpat-pop-h { padding: 4px 8px 6px; font-size: var(--text-xs, 12px); font-weight: 700; color: var(--text-md, #666); }
+.qpat-pop-sub { padding: 6px 8px 2px; font-size: var(--text-xs, 12px); color: var(--text-md, #666); }
+.qpat-pop-sep { height: 1px; margin: 4px 0; background: var(--border-md, #ddd); }
+.qpat-pop-item { display: block; width: 100%; padding: 7px 10px; text-align: left; font: inherit; color: inherit; cursor: pointer; border: 0; border-radius: 7px; background: transparent; }
+.qpat-pop-item:hover, .qpat-pop-item:focus-visible { background: color-mix(in srgb, var(--text, #222) 8%, transparent); outline: none; }
+.qpat-pop-item b { display: block; font-weight: 700; }
+.qpat-pop-item small { display: block; margin-top: 1px; font-size: var(--text-xs, 12px); color: var(--text-md, #666); }
+.qpat-pop-item.is-danger { color: #b3261e; }
+.qpat-pop-modes { display: flex; gap: 4px; padding: 2px 4px 6px; }
+.qpat-pop-modes .qpat-pop-mode { width: auto; flex: 1 1 0; padding: 6px 4px; text-align: center; border: 1px solid var(--border-md, #ccc); }
+.qpat-pop-modes .qpat-pop-mode.is-on { background: color-mix(in srgb, var(--text, #222) 10%, transparent); font-weight: 700; }
 /* 表の上端の線と、数量の列見出しに、編集中のパターンの色 */
 #tab-quote-make[data-qpat] #tableScrollWrap { border-top: 3px solid var(--qpat-color); }
 #tab-quote-make[data-qpat] #quoteTable th.hd-qty { box-shadow: inset 0 -3px 0 var(--qpat-color); }
