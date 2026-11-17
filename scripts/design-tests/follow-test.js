@@ -20,11 +20,12 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const ok = (n, c, d) => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' → ' + JSON.stringify(d))); };
   const W = parseInt(process.env.W || '1400', 10);
 
-  async function open() {
+  async function open(opts) {
+    opts = opts || {};
     const ctx = await b.newContext({ viewport: { width: W, height: 1000 }, locale: 'ja-JP' });
     if (process.env.CLASSIC) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: false, doc: false })); } catch (e) {} });
     await ctx.addInitScript(() => {
-      try { localStorage.setItem('fwd.uiMode', 'detail'); } catch (e) {}
+      try { localStorage.setItem('fwd.uiMode', 'detail'); if (!window.__followOff) localStorage.setItem('fwd.follow', '1'); } catch (e) {}
       const iso = d => { const t = new Date(); t.setDate(t.getDate() + d); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); };
       const mk = (id, ct, status, follower, extra) => Object.assign({
         id, name: '案件' + id, status, customer: 'X社', created_by: 'tanaka@x.com', owner_email: 'tanaka@x.com',
@@ -89,6 +90,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
       };
       window.supabase = { createClient: () => client };
     });
+    if (opts.off) await ctx.addInitScript(() => { try { localStorage.removeItem('fwd.follow'); } catch (e) {} });   // 表示を止めている既定の状態
     await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
     const p = await ctx.newPage();
     const errs = [];
@@ -113,6 +115,34 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.waitForTimeout(500);
   };
   const fieldOf = (p, id, k) => p.evaluate(([id, k]) => { const r = window.__db.quote_presets.find(x => x.id === id); return r && r.data.fields[k]; }, [id, k]);
+
+  // ===== 既定は非表示（機能は残し、フラグ fwd.follow=1 か ?follow=1 で出す）=====
+  {
+    const { ctx, p, errs } = await open({ off: true });
+    const ui = await p.evaluate(() => ({
+      chip: document.querySelectorAll('#qpdListWrap .cc3-follow').length,
+      strip: (() => { const e = document.getElementById('dtFollow'); return !e || e.hidden || !e.children.length; })(),
+      menu: [...document.querySelectorAll('#qpdListWrap .cloud-menu-item')].filter(x => /フォローする|担当を渡す|フォローを外す|担当を引き継ぐ/.test(x.textContent)).length,
+      summary: typeof window.cloudFollowSummary === 'function' ? window.cloudFollowSummary() : 'none',
+    }));
+    ok('既定では、カードに担当の表示がない', ui.chip === 0, ui);
+    ok('既定では、上部の「担当」の帯が出ない', ui.strip === true, ui);
+    ok('既定では、「⋯」メニューにフォロー関係の項目がない', ui.menu === 0, ui);
+    ok('既定では、持ち件数の集計も止まっている（null）', ui.summary === null, ui);
+    // 新規保存・コピーでも担当を書かない
+    await p.evaluate(() => window.qpNewQuote()); await p.waitForTimeout(600);
+    const info = await p.evaluate(() => { const e = document.getElementById('qfFollowInfo'); return !e || e.hidden; });
+    ok('既定では、編集画面に担当の表示がない', info === true, info);
+    await p.evaluate(() => { const e = document.getElementById('qf-customer'); e.value = '非表示客'; e.dispatchEvent(new Event('input', { bubbles: true })); });
+    await p.evaluate(() => window.cloudSaveCurrent()); await p.waitForTimeout(1200);
+    const f = await p.evaluate(() => { const r = window.__db.quote_presets.find(x => x.customer === '非表示客'); return r ? (r.data.fields['qf-follower'] || '') : null; });
+    ok('既定では、新規保存しても担当を書かない', f === '', f);
+    await p.evaluate(() => window.cloudDuplicatePreset('A2')); await p.waitForTimeout(1500);
+    const d = await p.evaluate(() => { const r = window.__db.quote_presets.find(x => /のコピー/.test(x.name)); return r ? (r.data.fields['qf-follower'] || '') : null; });
+    ok('既定では、コピーしても担当を書かない（コピー元の担当も引き継がない）', d === '', d);
+    ok('エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
 
   // ===== カードの表示 =====
   {

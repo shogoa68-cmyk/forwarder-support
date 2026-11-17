@@ -1404,7 +1404,7 @@
               (lockedBy
                 ? '<button class="btn-preset-del is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません">🔒</button>'
                 : '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>') +
-              _cardMenuHtml(idAttr, lockedBy, { hold: holdToggle ? { off: holdOff } : null, follow: _isActiveCase(r) ? { has: !!_followerOf(r), mine: _followerOf(r) === ((_cloudUser && _cloudUser.email) || '') } : null }) +
+              _cardMenuHtml(idAttr, lockedBy, { hold: holdToggle ? { off: holdOff } : null, follow: (_followOn() && _isActiveCase(r)) ? { has: !!_followerOf(r), mine: _followerOf(r) === ((_cloudUser && _cloudUser.email) || '') } : null }) +
             '</div>' +
           '</div>' +
           '</div>' +
@@ -2714,6 +2714,11 @@
   // 「誰がこの案件を見ているか」を口頭ではなくアプリで宣言する。案件データ fields の qf-follower（メール・空＝未フォロー）と
   // qf-follow-log（引き継ぎの履歴・新しい順・最大 30 件）に持つ＝SQL 不要。評価・集計ではなく、割り振りの目安のための表示。
   // ※ 「🔔 要フォロー」（料金フォロー＝価格の更新確認）とは別の概念。
+  // 画面への表示は今は止めている（機能・データの扱いは残してある）。出すとき：localStorage `fwd.follow`＝'1'、または URL に ?follow=1、
+  // 恒久的に出すなら下の関数を `return true` にする。止めている間は、保存・コピーでも担当を書かない（表示を戻した時に過去分が食い違わないように）
+  function _followOn() {
+    try { return localStorage.getItem('fwd.follow') === '1' || /[?&]follow=1(&|$)/.test(location.search); } catch (e) { return false; }
+  }
   const FOLLOW_ENDED = ['受注', '失注', '辞退', '保留'];
   const FOLLOW_LOG_MAX = 30;
   function _followerOf(r) {
@@ -2736,6 +2741,7 @@
     return Array.from(set).filter(Boolean).sort((a, b) => _nameFor(a).localeCompare(_nameFor(b), 'ja'));
   }
   function _followChipHtml(r, lockedBy) {
+    if (!_followOn()) return '';
     const f = _followerOf(r), me = (_cloudUser && _cloudUser.email) || '';
     const ended = !_isActiveCase(r);
     const idAttr = encodeURIComponent(r.id).replace(/'/g, '%27');
@@ -2866,7 +2872,7 @@
     if (!box) return;
     const f = ((document.getElementById('qf-follower') || {}).value || '').trim();
     const me = (_cloudUser && _cloudUser.email) || '';
-    if (!_cloudUser) { box.hidden = true; return; }
+    if (!_cloudUser || !_followOn()) { box.hidden = true; return; }
     box.hidden = false;
     if (!_loadedCloudId) { box.innerHTML = '<span class="fl-i-l">担当</span><span class="fl-i-t">保存すると、あなたがフォロー担当になります</span>'; return; }
     const id = encodeURIComponent(_loadedCloudId).replace(/'/g, '%27');
@@ -2879,6 +2885,7 @@
   window.cloudRenderFollowInfo = _renderFollowInfo;
   // ダッシュボード上部の「人ごとの持ち件数」（js/quote/dash-top.js）。数と期限が近い件数だけ（順位や色の判定は付けない）
   window.cloudFollowSummary = function () {
+    if (!_followOn()) return null;
     const me = (_cloudUser && _cloudUser.email) || '';
     const today = _todayStart(), per = {};
     let none = 0;
@@ -3093,7 +3100,7 @@
       if (!resp.error) { _loadedCloudId = exId; _loadedCloudTs = nowIso; }  // 自分の保存を基準時刻に更新
     } else {
       // 新しく作った案件は、作った人が最初のフォロー担当（自由入力の保管だけは「未フォロー」のまま＝割り振り待ち）
-      if (!opts || !opts.noFollow) {
+      if (_followOn() && (!opts || !opts.noFollow)) {
         data.fields = data.fields || {};
         if (!String(data.fields['qf-follower'] || '').trim()) data.fields['qf-follower'] = _cloudUser.email;
       }
@@ -4234,7 +4241,7 @@
     delete newData.fields['qf-first-presented'];   // 初回の提示日時（回答スピード）もコピー元のもの
     delete newData.fields['qf-recv-time'];   // 受信時刻も元の依頼に固有
     delete newData.fields['qf-versions'];   // 提示履歴（版）はコピー元の案件のものなので引き継がない
-    newData.fields['qf-follower'] = (_cloudUser && _cloudUser.email) || '';   // フォロー担当はコピーした人から（引き継ぎ履歴はコピー元のものなので消す）
+    if (_followOn()) newData.fields['qf-follower'] = (_cloudUser && _cloudUser.email) || ''; else delete newData.fields['qf-follower'];   // フォロー担当はコピーした人から（引き継ぎ履歴はコピー元のものなので消す）
     delete newData.fields['qf-follow-log'];
     delete newData.fields['qf-related-data'];   // 関連番号・メール件名も元の引き合いに固有のため引き継がない
     const existingNames = _cloudRows.map(r => r.name).concat(opts.usedNames ? Array.from(opts.usedNames) : []);
