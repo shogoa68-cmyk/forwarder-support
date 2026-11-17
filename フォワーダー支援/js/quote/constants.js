@@ -13,6 +13,38 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
   const CURRENCIES = ['JPY','USD','EUR','CNY','KRW','SGD','HKD','GBP','AUD','TWD','THB','VND','MYR','IDR','PHP','INR'];
   const UNITS = ['', 'B/L', 'CNTR', 'CBM', 'R/T', 'CW', 'kg', 'TON', 'pcs', '件', '式', 'set', 'shipment', 'CTN', 'PLT', '時間', '日', 'HOUR', 'DAY'];
 
+  // 単位の表記ゆれの吸収（物量の「→見積」「反映」で、R/T・C/W・W/M などの書き方の違いを同じ単位として扱う・2026-11）
+  // 全角→半角・大文字小文字・空白・スラッシュ・ピリオド・ハイフンなどを無視して照合する。
+  //   rt：RT／R/T／R.T／R T／W/M／WM／Revenue Ton／運賃トン　cw：CW／C/W／C.W／Chargeable Weight／課金重量
+  //   kg：KG／KGS／KGM／キロ　cbm：CBM／M3／m³／㎥／CU.M／立米　pcs：PCS／PC／PIECES／個
+  // 戻り値：'rt'|'cw'|'kg'|'cbm'|'pcs'|null（該当なし）。単位マスターの別名があれば代表名でも判定する。
+  const _UNIT_KIND_TABLE = {
+    rt:  ['RT', 'WM', 'RTON', 'REVENUETON', 'REVENUETONS', 'REVTON', 'FREIGHTTON', 'FRTTON', '運賃トン'],
+    cw:  ['CW', 'CHARGEABLEWEIGHT', 'CHARGEWEIGHT', 'CHGWT', 'CHWT', 'CHGWEIGHT', '課金重量'],
+    kg:  ['KG', 'KGS', 'KGM', 'KILO', 'KILOS', 'キロ', 'キログラム'],
+    cbm: ['CBM', 'M3', 'CUM', 'CUBM', 'CUBICMETER', 'CUBICMETRE', 'CUBICMETERS', '立米', '立方メートル'],
+    pcs: ['PCS', 'PC', 'PIECE', 'PIECES', '個'],
+  };
+  const _UNIT_KIND_MAP = (() => { const m = new Map(); Object.keys(_UNIT_KIND_TABLE).forEach(k => _UNIT_KIND_TABLE[k].forEach(a => m.set(a, k))); return m; })();
+  function _unitNorm(raw) {
+    let v = String(raw == null ? '' : raw);
+    try { v = v.normalize('NFKC'); } catch (e) {}
+    return v.toUpperCase().replace(/[\s./\\_・,，()（）\[\]［］^*\-]/g, '');
+  }
+  window.quoteUnitKind = function (raw) {
+    const n = _unitNorm(raw);
+    if (!n) return null;
+    if (_UNIT_KIND_MAP.has(n)) return _UNIT_KIND_MAP.get(n);
+    // 単位マスターの別名（例：「ﾗﾎﾞ」→「R/T」）。代表名にそろえて判定する
+    try {
+      if (typeof window.nameCanon === 'function') {
+        const c = _unitNorm(window.nameCanon('un', String(raw).trim()));
+        if (c && _UNIT_KIND_MAP.has(c)) return _UNIT_KIND_MAP.get(c);
+      }
+    } catch (e) {}
+    return null;
+  };
+
   const CATEGORIES = [
     { value: '',           label: '— カテゴリ —',         cls: '' },
     { value: 'domestic',   label: '🏠 国内作業',           cls: 'cat-domestic'   },

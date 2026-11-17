@@ -107,7 +107,7 @@
           name: r.name || '', qty, unit: r.un || '', ccy: r.bc || 'JPY',
           price, minText: (() => { const rg = (typeof rowRange === 'function') ? rowRange(price, r.bphi) : null; return rg ? fmtNum(rg.lo, r.bc) + '〜' + fmtNum(rg.hi, r.bc) + ' ' + (r.bc || 'JPY') + (r.un ? '/' + r.un : '') : null; })() || ((minPriceText(price, r.bpmin, r.bc || 'JPY', r.un || '', qty) || '')) || null, amount: sub, note: r.note || '', taxed: !!r.taxed, cat: r.cat || '',
           pt: (r.pt || '').trim(),   // パターン（スポット/年間契約 等）。小見出しに使う
-          actual: isActual, cond: isCond, ref: isRef, estimate: !!r._estimate,
+          actual: isActual, cond: isCond, ref: isRef, estimate: !!r._estimate, insInv: r.insInv || null,
         });
       }
     });
@@ -264,7 +264,8 @@
   function _itemLabel(it) {
     return (it.taxed ? '*' : '') + it.name
       + (it.cond ? '（発生時のみ）' : '')
-      + (it.ref  ? '（参考）' : '');
+      + (it.ref  ? '（参考）' : '')
+      + (it.insInv && typeof window.insInvoiceText === 'function' ? '（' + window.insInvoiceText(it.insInv, false) + '）' : '');
   }
 
   // 明細行は「項目名 | 通貨 | 単価 | 単位」をパイプで区切って並べる。

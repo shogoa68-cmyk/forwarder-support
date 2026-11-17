@@ -1934,6 +1934,7 @@
     if (insBtn) insBtn.onclick = () => toggleInsMode(id);
     { const g = frag.querySelector('.ins-group');
       if (g) { g.querySelectorAll('.ins-v,.ins-k,.ins-r,.ins-m').forEach(e => { e.oninput = () => _calcIns(id); });
+      g.querySelectorAll('.ins-iv').forEach(e => { e.onchange = () => { _calcIns(id); }; });
                const c = g.querySelector('.ins-c'); if (c) { c.innerHTML = curOpts(initCur); c.onchange = () => _calcIns(id); } } }
     ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => { calc(id); _recalcPctDependents(id); }; });   // 売の最低料金が変わると、この行を基準にした % 行も変わる
     const rangeBtn = frag.querySelector('.range-mode-btn');
@@ -2552,6 +2553,26 @@
     try { const o = JSON.parse(raw); return (o && typeof o === 'object') ? o : null; } catch (e) { return null; }
   }
   window.rowInsGet = rowInsGet;
+  // 御見積書に表記する「インボイス価格」（保険料の計算がONで、貨物価額が入っていて、表記がONの行だけ）。{ c:通貨, v:金額 } か null
+  function rowInsInvoice(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr || !tr.classList.contains('row-ins-mode')) return null;
+    const o = rowInsGet(id);
+    if (!o || o.iv === 0 || o.iv === '0' || o.iv === false) return null;
+    const v = parseFloat(o.v);
+    if (!(v > 0)) return null;
+    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    return { c: o.c || pc, v };
+  }
+  window.rowInsInvoice = rowInsInvoice;
+  // 表記の文面：「インボイス価格 5,000,000円として」「インボイス価格 USD 50,000として」／英語「Based on invoice value of USD 50,000」
+  window.insInvoiceText = function (inv, en) {
+    if (!inv) return '';
+    const n = (inv.c === 'JPY' ? Math.round(inv.v) : Math.round(inv.v * 100) / 100)
+      .toLocaleString(en ? 'en-US' : 'ja-JP', { maximumFractionDigits: inv.c === 'JPY' ? 0 : 2 });
+    if (en) return `Based on invoice value of ${inv.c} ${n}`;
+    return inv.c === 'JPY' ? `インボイス価格 ${n}円として` : `インボイス価格 ${inv.c} ${n}として`;
+  };
   function _insRoundPremium(x, ccy) {
     // 保険料は 1 円（外貨は小数 2 桁）の端数を切り上げる（計算タブの「保険料計算」と同じ慣行）
     return ccy === 'JPY' ? Math.ceil(x - 1e-9) : Math.ceil(x * 100 - 1e-9) / 100;
@@ -2583,7 +2604,7 @@
     const tr = document.getElementById(`row-${id}`);
     if (!tr) return null;
     const g = sel => tr.querySelector(sel);
-    const o = { v: g('.ins-v')?.value ?? '', c: g('.ins-c')?.value || '', k: g('.ins-k')?.value ?? '', r: g('.ins-r')?.value ?? '', m: g('.ins-m')?.value ?? '' };
+    const o = { v: g('.ins-v')?.value ?? '', c: g('.ins-c')?.value || '', k: g('.ins-k')?.value ?? '', r: g('.ins-r')?.value ?? '', m: g('.ins-m')?.value ?? '', iv: g('.ins-iv')?.checked === false ? 0 : 1 };
     const el = document.getElementById(`ins-${id}`);
     if (el) el.value = JSON.stringify(o);
     return o;
@@ -2632,6 +2653,7 @@
     if (o && !tr._insFilled) {
       const set = (sel, v) => { const e = g(sel); if (e && v !== undefined && v !== null && document.activeElement !== e) e.value = v; };
       set('.ins-v', o.v); set('.ins-k', (o.k === '' || o.k === undefined) ? 110 : o.k); set('.ins-r', o.r); set('.ins-m', o.m);
+      { const iv = g('.ins-iv'); if (iv) iv.checked = !(o.iv === 0 || o.iv === '0' || o.iv === false); }   // 見積書にインボイス価格を表記（保存値が無い旧データは ON）
       const c = g('.ins-c'); if (c && o.c) { if (![...c.options].some(op => op.value === o.c)) c.add(new Option(o.c, o.c)); c.value = o.c; }
       tr._insFilled = true;
     }
