@@ -4483,6 +4483,16 @@
     return { customer: d.customerGroups, sv: d.svGroups, port: d.portGroups, nm: d.nmGroups, un: d.unGroups };
   };
   window.statsNormalizeKey = _normalize;
+  // マスター一覧のカード用：この名前に表記ゆれ（同じ読みで別の綴り）があるか。読み取りだけ・30 秒使い回す（Design 29 ③の［ゆらぎ ▸ 直す］）
+  let _driftCache = null;
+  window.statsMasterHasDrift = function (field, name) {
+    try {
+      if (!_driftCache || Date.now() - _driftCache.t > 30000) _driftCache = { t: Date.now(), d: window.statsDriftInput() };
+      const gs = _driftCache.d[field]; if (!gs) return false;
+      return gs.some(g => g.variants.length > 1 && g.variants.some(v => v.value === name));
+    } catch (e) { return false; }
+  };
+  window.statsMasterFieldFilter = () => _masterFieldFilter;
   window.statsMastersReady = () => _cloud() && _cvMap !== null;
 
   window.statsRefresh = async function () {

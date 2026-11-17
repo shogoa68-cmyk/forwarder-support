@@ -47,3 +47,7 @@
 #statsPane-master td.stats-val:not(.mm-open) .mm-hide { display: none !important; }
 .mm-more { border: 1px dashed var(--border, #d0d5dd); background: transparent; border-radius: 999px; padding: 2px 10px; font-size: var(--text-xs); cursor: pointer; color: var(--text-muted, #667085); margin-left: 4px; }
 @media (max-width: 600px) { .mm-more { min-height: 44px; } }
+
+/* ③ ゆらぎのあるマスターの［ゆらぎ ▸ 直す］ */
+.mm-fix { border: 1px solid #f0c98b; background: #fdecc8; color: #8a5a00; border-radius: 999px; padding: 2px 10px; font-size: var(--text-xs, 12px); cursor: pointer; margin-left: 4px; }
+@media (max-width: 600px) { .mm-fix { min-height: 44px; } }
