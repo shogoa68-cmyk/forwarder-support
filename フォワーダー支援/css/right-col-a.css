@@ -18,3 +18,31 @@ html.editor-v2 #e2Total [data-e2d].is-open, html.editor-v2 #e2Total [data-e2q].i
   #tab-quote-make .qrc-rail-btn { flex: 0 0 auto; min-height: 44px; }
   #tab-quote-make .qrc-rail::after { content: ''; position: sticky; right: 0; flex: 0 0 14px; align-self: stretch; background: linear-gradient(90deg, transparent, rgba(16,24,40,.12)); }
 }
+
+/* ---- 見出しは 1 本：中の「📋 費用テーブル」行は 13px の件数行に下げる（要素は消さない） ---- */
+#tab-quote-make .qrc-drawer-body .qsp-dig-row { padding: 4px 12px; min-height: 0; background: transparent; border: 0; border-bottom: 1px solid var(--border, #e4e7ec); border-radius: 0; cursor: default; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-row .qsp-dig-name { display: none; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-row .qsp-dig-sum { font-size: var(--text-sm, 13px); color: var(--text-muted, #667085); }
+
+/* ---- 費用ツリー：1 行＝名前｜売（太字 13px・右揃え 86px）、仕入・粗利は 2 行目。［⋯］相当の操作は乗せたとき／焦点で出す（スマホは常時） ---- */
+#tab-quote-make .qrc-drawer-body .qsp-dig-grp-item.is-row { padding-left: 28px; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail { display: grid; grid-template-columns: minmax(0, 1fr) 86px; column-gap: 8px; align-items: baseline; text-align: left; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail .qsp-dig-row-nm { grid-column: 1; grid-row: 1; font-size: var(--text-sm, 13px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail .qsp-dig-row-price { display: contents; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail .qsp-dig-grp-sum { grid-column: 2; grid-row: 1; justify-self: end; font-size: var(--text-sm, 13px); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail .qsp-dig-row-meta { grid-column: 1 / -1; grid-row: 2; display: flex; gap: 12px; font-size: var(--text-xs, 12px); color: var(--text-muted, #667085); }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail .qsp-dig-row-mg { color: #1e7a4a; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail .qsp-dig-row-mg.is-neg { color: #b42318; }
+@media (hover: hover) {
+  #tab-quote-make .qrc-drawer-body .qsp-dig-grp-item.is-row > :is(.qsp-dig-row-grip, .qsp-dig-row-hide, .qsp-dig-row-copy) { opacity: 0; }
+  #tab-quote-make .qrc-drawer-body .qsp-dig-grp-item.is-row:is(:hover, :focus-within) > :is(.qsp-dig-row-grip, .qsp-dig-row-hide, .qsp-dig-row-copy) { opacity: 1; }
+}
+@media (max-width: 600px) {
+  #tab-quote-make .qrc-drawer-body .qsp-dig-grp-item.is-row > :is(.qsp-dig-row-hide, .qsp-dig-row-copy) { min-width: 44px; min-height: 44px; }
+}
+
+/* ---- FCL比較：幅 400px 以上は入力欄を 2 列に（ラベル＋入力 × 2） ---- */
+#tab-quote-make .qrc-drawer { container-type: inline-size; }
+@container (min-width: 400px) {
+  #tab-quote-make .fl-grid { grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr); }
+}
