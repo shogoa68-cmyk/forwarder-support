@@ -1,0 +1,35 @@
+/* 統計タブ（PC）の分析の見直し（Design 29・案B 段階 ⑤）。601px 以上だけ。 */
+@media (min-width: 601px) {
+  /* 数字カード 6 枚は使わない（押しても進めない飾りだったため） */
+  #tab-stats .stats-summary-cards { display: none; }
+  /* 左にグループ分けのメニュー・右に本体 */
+  #tab-stats:not(.sm-on) { display: grid; grid-template-columns: 200px minmax(0, 1fr); column-gap: 20px; align-items: start; }
+  #tab-stats:not(.active) { display: none; }
+  #tab-stats > .stats-toolbar, #tab-stats > #statsHelpPanel, #tab-stats > #statsMovedNote { grid-column: 1 / -1; }
+  #tab-stats > .stats-tabs { grid-column: 1; grid-row: 3 / span 30; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 2px; position: sticky; top: calc(var(--nav-cat-h, 56px) + 8px); border: 0; padding: 0; }
+  #tab-stats > .stats-pane, #tab-stats > [id^="statsPane-"] { grid-column: 2; min-width: 0; }
+  #tab-stats > .stats-tabs .stats-tab-btn { justify-content: flex-start; text-align: left; width: 100%; border-radius: 8px; white-space: normal; }
+  #tab-stats .sa-group { margin: 12px 8px 4px; font-size: var(--text-xs, 12px); font-weight: 700; letter-spacing: .04em; color: var(--text-muted, #667085); }
+  #tab-stats .sa-group:first-child { margin-top: 0; }
+  /* 受注分析 */
+  #saHead { margin: 0 0 16px; }
+  .sa-big { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .sa-big > div { padding: 14px 18px; border: 1px solid var(--border, #d9dee5); border-radius: 12px; background: var(--surface, #fff); display: flex; flex-direction: column; gap: 2px; }
+  .sa-big i { font-style: normal; font-size: var(--text-sm, 13px); color: var(--text-muted, #667085); }
+  .sa-big b { font-size: 36px; line-height: 1.15; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .sa-big small { font-size: var(--text-xs, 12px); color: var(--text-muted, #667085); }
+  .sa-notes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .sa-note { padding: 6px 12px; border: 1px solid #f0c98b; border-radius: 999px; background: #fdecc8; color: #8a5a00; font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; }
+  .sa-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 40px 16px; border: 1px dashed var(--border, #c8cfd9); border-radius: 12px; text-align: center; color: var(--text-md, #475467); }
+  .sa-empty b { font-size: var(--text-lg, 16px); }
+  .sa-empty button { margin-top: 8px; min-height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--accent-dk, #2c455d); background: var(--accent-dk, #2c455d); color: #fff; font: inherit; cursor: pointer; }
+  #statsPane-winrate .sa-info { float: right; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border, #c8cfd9); background: var(--surface, #fff); cursor: pointer; font: inherit; }
+  #statsPane-winrate .sa-hint:not(.is-open) { display: none; }
+  .sa-ratecell { white-space: nowrap; }
+  .sa-bar { display: inline-block; width: 120px; height: 10px; margin-right: 8px; border-radius: 5px; background: var(--border, #e4e7ec); vertical-align: middle; overflow: hidden; }
+  .sa-bar i { display: block; height: 100%; background: #3f9a5a; }
+  tr.sa-flash { outline: 2px solid #f0a030; outline-offset: -2px; }
+  /* 分析の表：一番大事な数字は太字・右寄せ・等幅 */
+  #tab-stats .stats-table .stats-num-col { font-variant-numeric: tabular-nums; text-align: right; }
+  #tab-stats .stats-table td:last-child.stats-num-col { font-weight: 700; }
+}

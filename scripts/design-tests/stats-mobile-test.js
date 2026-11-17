@@ -33,7 +33,11 @@ srv.listen(0, async () => {
   // ---- PC：変わらない ----
   { const { ctx, p } = await open(1400); await openStats(p);
     ok('PC: 14 タブが見える', await vis(p, '#tab-stats .stats-tabs'));
-    ok('PC: 数字カードが見える', await vis(p, '#tab-stats .stats-summary-cards'));
+    ok('[分析] PC: 数字カード 6 枚は出ない', !(await vis(p, '#tab-stats .stats-summary-cards')));
+    ok('[分析] PC: 左のメニューが 3 グループ', await p.evaluate(() => document.querySelectorAll('#tab-stats .sa-group').length === 3 && document.querySelector('#tab-stats > .stats-tabs').getBoundingClientRect().width < 260));
+    ok('[分析] PC: 受注分析に大きな数字 3 枚', await p.evaluate(() => document.querySelectorAll('#saHead .sa-big > div').length === 3 && /受注率/.test(document.getElementById('saHead').textContent)));
+    ok('[分析] PC: 粗利率の帯に横棒がある', await p.evaluate(() => document.querySelectorAll('#statsPane-winrate .sa-bar').length >= 1));
+    ok('[分析] PC: 説明帯は［ⓘ］で開く', await p.evaluate(() => { const h = document.querySelector('#statsPane-winrate .sa-hint'), b = document.querySelector('#statsPane-winrate .sa-info'); if (!h || !b) return false; const closed = getComputedStyle(h).display === 'none'; b.click(); return closed && getComputedStyle(h).display !== 'none'; }));
     ok('PC: 今日の確認は出ない', !(await vis(p, '#smHome')) && !(await vis(p, '#smBar')));
     ok('PC: sm-on が付かない', await p.evaluate(() => !document.getElementById('tab-stats').classList.contains('sm-on')));
     await ctx.close(); }
@@ -67,8 +71,8 @@ srv.listen(0, async () => {
     ok('SP: 閉じるでシートが消える', !(await vis(p, '#smSheet')));
     // 書き込みの確認シート（☆登録）
     await p.click('#smPick'); await p.click('#smSheet [data-pane="sv"]'); await p.waitForTimeout(800);
-    const btn = await p.$('#statsPane-sv .stats-vote-btn'); ok('SP: 名寄せの ☆登録 ボタンがある', !!btn);
-    if (btn) {
+    const btn = await p.$('#statsPane-sv .stats-vote-btn'); /* 名寄せはマスター管理へ移設（Design 29） */
+    if (btn && await btn.isVisible()) {
       await btn.scrollIntoViewIfNeeded(); await btn.click(); await p.waitForTimeout(300);
       ok('SP: ☆登録は確認シートが出る（何を・どう変わる）', await vis(p, '#smSheet.sm-sheet-wrap') || await vis(p, '#smSheet .sm-sheet'));
       const t = await p.textContent('#smSheet .sm-sheet'); ok('SP: 確認シートの文言', /をマスターに登録しますか/.test(t) && /過去の案件は変わりません/.test(t), t);
@@ -133,7 +137,7 @@ srv.listen(0, async () => {
     ok('SP: 粗利率の基準を変える入口がある', await vis(p, '#smHome') || true);
     // PC 幅に戻すと元の画面
     await p.setViewportSize({ width: 1400, height: 900 }); await p.waitForTimeout(400);
-    ok('SP→PC: タブ・カードが戻り、今日の確認は消える', await vis(p, '#tab-stats .stats-tabs') && await vis(p, '#tab-stats .stats-summary-cards') && !(await vis(p, '#smBar')) && !(await vis(p, '#smHome')));
+    ok('SP→PC: 左のメニューが戻り（カードは廃止）、今日の確認は消える', await vis(p, '#tab-stats .stats-tabs') && !(await vis(p, '#tab-stats .stats-summary-cards')) && !(await vis(p, '#smBar')) && !(await vis(p, '#smHome')));
     await ctx.close(); }
 
   ok('JS エラーなし', errs.length === 0, errs);
