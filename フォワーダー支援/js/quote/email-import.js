@@ -805,10 +805,10 @@
     let html = '';
     // ヘッダー項目
     html += '<div class="ei-fields">' +
-      '<label>お客様 <input type="text" id="eiF-customer" value="' + _esc(fields.customer || '') + '"></label>' +
-      '<label>REF# <input type="text" id="eiF-ref" value="' + _esc(fields.ref || '') + '"></label>' +
-      '<label>有効期限 <input type="date" id="eiF-valid" value="' + _esc(fields.validUntil || '') + '"></label>' +
-      '<label>サブコン一括設定 <input type="text" id="eiBulkSv" list="svSuggestions" placeholder="例）〇〇物流">' +
+      '<label class="ei-f-meta">お客様 <input type="text" id="eiF-customer" value="' + _esc(fields.customer || '') + '"></label>' +
+      '<label class="ei-f-meta">REF# <input type="text" id="eiF-ref" value="' + _esc(fields.ref || '') + '"></label>' +
+      '<label class="ei-f-meta">有効期限 <input type="date" id="eiF-valid" value="' + _esc(fields.validUntil || '') + '"></label>' +
+      '<label>サブコン一括設定 <input type="text" id="eiBulkSv" list="svSuggestions" value="' + _esc(_svCtx ? _svCtx.canon : '') + '" placeholder="例）〇〇物流">' +
         '<button type="button" class="ei-bulk-sv-btn" onclick="eiApplyBulkSv()" title="入力したサブコン名を全行に反映します（個別に直したい行は挿入前に上書き可能）">全行に設定</button></label>' +
       '<label class="ei-sellmode-label" title="既存システムからの移植等、取り込む単価が「売値」しか分からない場合向け。チェックすると、取り込んだ単価は売単価として登録され、仕入単価は空欄になります。挿入後に見積テーブルで行ごとに「仕入単価」を入力すると、乗せ幅が自動で算出されます（売単価－仕入単価）。">' +
         '<input type="checkbox" id="eiSellMode"> 💰 単価を売値として取り込む（仕入を後で入力→乗せ幅を自動算出）</label>' +
@@ -847,7 +847,10 @@
     html += _remarksHtml(items, rems);
     html += '<datalist id="eiCcyList">' + CCY_LIST.map(c => `<option value="${c}">`).join('') + '</datalist>';
     if (_svCtx && items.length) html += '<div class="ei-learn"><button type="button" class="ei-learn-btn" onclick="eiLearnFromCorrections()" title="品名・カテゴリ・単位を直した行を、このサブコンの「呼び名の置き換え」ルールに追加します（チーム共有）">🧠 修正をこのサブコンのルールとして覚える</button><span>品名・カテゴリ・単位を直した行が、次回から自動で直ります</span></div>';
-    html += '<p class="ei-hint">💡 通常は単価が仕入・売の両方に入ります（粗利0）。仕入額が分かる場合は挿入後に修正してください。「💰 単価を売値として取り込む」をONにすると、単価は売値としてのみ登録され、挿入後に仕入単価を入力すれば乗せ幅が自動算出されます。「課税」列は本文の語（[課税]・課税対象・税別・非課税・免税 等）から判定した結果です。違う行はチェックで直してください。「要確認」行は品名・金額を必ず確認。</p>';
+    // 「単価を売値として取り込む」はサブコン専用の取込では出さないので、その説明もそのときは外す
+    html += '<p class="ei-hint">💡 通常は単価が仕入・売の両方に入ります（粗利0）。仕入額が分かる場合は挿入後に修正してください。' +
+      (_svCtx ? '' : '「💰 単価を売値として取り込む」をONにすると、単価は売値としてのみ登録され、挿入後に仕入単価を入力すれば乗せ幅が自動算出されます。') +
+      '「課税」列は本文の語（[課税]・課税対象・税別・非課税・免税 等）から判定した結果です。違う行はチェックで直してください。「要確認」行は品名・金額を必ず確認。</p>';
     wrap.innerHTML = html;
     document.getElementById('eiActions').hidden = false;
     _updateInsertTarget();

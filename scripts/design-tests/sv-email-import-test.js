@@ -204,6 +204,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // 通常の取込（ヘッダーの入口）は従来どおり：サブコン専用の表示が残らない
     await p.evaluate(() => { window.closeEmailImport(); window.openEmailImport(); }); await p.waitForTimeout(200);
     const plain = await p.evaluate(() => ({ ctx: document.getElementById('emailImportBox').classList.contains('ei-sv-ctx'), box: document.getElementById('eiSvCtx').hidden, title: document.getElementById('eiTitle').textContent }));
+    await p.evaluate(() => { document.getElementById('eiText').value = '海上運賃 USD 1,200 /20GP'; window.eiParse(); }); await p.waitForTimeout(300);
+    ok('通常のメール取込の説明文には、従来どおり「売値として取り込む」の説明がある', await p.evaluate(() => /売値として取り込む/.test(document.querySelector('#eiReviewWrap .ei-hint').textContent)), null);
+    ok('通常のメール取込では、お客様・REF#・有効期限・「単価を売値として取り込む」も従来どおり表示される', await p.evaluate(() => ['#eiF-customer', '#eiF-ref', '#eiF-valid', '#eiSellMode'].every(s => { const e = document.querySelector(s); return !!e && e.offsetParent !== null; })), null);
+    ok('通常のメール取込（サブコンを決めない入口）では、一括設定の欄は空のまま', await p.evaluate(() => document.getElementById('eiBulkSv').value === ''), await p.evaluate(() => document.getElementById('eiBulkSv').value));
     ok('通常のメール取込を開き直すと、サブコン専用の表示は残らない', !plain.ctx && plain.box && !/テスト運送/.test(plain.title), plain);
     ok('画面のエラーが出ていない', errs.length === 0, errs);
     if (process.env.SHOT) { await p.evaluate(() => { window.closeEmailImport(); document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); }); await p.waitForTimeout(300); await p.screenshot({ path: process.env.SHOT }); }
@@ -334,6 +338,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(t => { document.getElementById('eiText').value = t; window.eiParse(); }, TXT); await p.waitForTimeout(400);
     let rows = await p.evaluate(() => [...document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')].map(tr => ({ name: tr.querySelector('.ei-name').value, unit: tr.querySelector('.ei-unit').value, ccy: tr.querySelector('.ei-ccy').value, price: tr.querySelector('.ei-price').value, note: tr.querySelector('.ei-note').value, sv: tr.querySelector('.ei-sv').value })));
     ok('「抽出できませんでした」だった文面が、4 行の明細として読める（サブコンも入る）', rows.length === 4 && rows.every(r => r.ccy === 'JPY' && r.sv === 'テスト運送') && rows[0].unit === 'M3/期' && rows[0].price === '850' && /Min/.test(rows[1].note), rows);
+    ok('サブコン専用の取込では、「サブコン一括設定」の欄にもサブコン名が最初から入る（各行と同じ）', await p.evaluate(() => document.getElementById('eiBulkSv').value === 'テスト運送' && [...document.querySelectorAll('#eiReviewWrap .ei-sv')].every(i => i.value === 'テスト運送')), await p.evaluate(() => document.getElementById('eiBulkSv').value));
+    const vis = sel => p.evaluate(s => { const e = document.querySelector(s); return !!e && e.offsetParent !== null; }, sel);
+    ok('サブコン専用の取込では、お客様・REF#・有効期限・「単価を売値として取り込む」は表示しない（サブコン一括設定は出す）', !(await vis('#eiF-customer')) && !(await vis('#eiF-ref')) && !(await vis('#eiF-valid')) && !(await vis('#eiSellMode')) && await vis('#eiBulkSv'), [await vis('#eiF-customer'), await vis('#eiSellMode'), await vis('#eiBulkSv')]);
+    ok('サブコン専用の取込の説明文には、非表示にした「売値として取り込む」の説明が残らない', await p.evaluate(() => { const h = document.querySelector('#eiReviewWrap .ei-hint').textContent; return !/売値として取り込む/.test(h) && /課税/.test(h); }), await p.evaluate(() => document.querySelector('#eiReviewWrap .ei-hint').textContent));
     ok('読み取れなかった行の案内は出ない（すべて読めたため）', await p.evaluate(() => !document.querySelector('#eiReviewWrap .ei-unread')), null);
 
     // 直して覚える → 次回から自動
