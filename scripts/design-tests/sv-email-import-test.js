@@ -1,4 +1,4 @@
-// サブコン別メール取込：サブコン見出しの「📩 メール取込」→ そのサブコン専用の取込 → 修正を「覚える」→ 次回から自動で直る（チーム共有＝マスター詳細に保存）。
+// サブコン別メール取込：サブコン見出しの「📥 取り込み」→ そのサブコン専用の取込 → 修正を「覚える」→ 次回から自動で直る（チーム共有＝マスター詳細に保存）。
 // 偽の Supabase（メモリ上の表）を使う。実サーバーには接続しない。
 //   node scripts/design-tests/sv-email-import-test.js           （THEME=1 で Industry・SHOT=パス で「BOOKMARK」を開いた画面を保存）
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
@@ -168,7 +168,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await setSv(p, 'テスト運送');
 
     // ルールを先に保存（既定の通貨 USD・既定の単位）→ 通貨のない数字も読める
-    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click()); await p.waitForTimeout(400);
+    await p.evaluate(() => { document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); window.icChoose('text'); }); await p.waitForTimeout(400);
     const m = await p.evaluate(() => ({ open: document.getElementById('emailImportModal').classList.contains('open'), ctx: document.getElementById('emailImportBox').classList.contains('ei-sv-ctx'), title: document.getElementById('eiTitle').textContent, rules: !document.getElementById('eiSvCtx').hidden, newBtnHidden: getComputedStyle(document.querySelector('.ei-act-new')).display === 'none' }));
     ok('押すとそのサブコン専用の取込ダイアログが開く（タイトルにサブコン名・「新規案件として展開」は出さない）', m.open && m.ctx && /テスト運送/.test(m.title) && m.rules && m.newBtnHidden, m);
     await p.evaluate(() => { document.getElementById('eiRuleCcy').value = 'USD'; window.eiRuleSaveDefaults(); }); await p.waitForTimeout(500);
@@ -196,7 +196,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('挿入すると、そのサブコン（テスト運送）の明細として入り、グループは 1 つのまま', after.n === before + 1 && after.last.length === 1 && after.last[0].sv === 'テスト運送' && after.groups.filter(g => g === 'テスト運送').length === 1, after);
 
     // ルールの削除
-    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click()); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); window.icChoose('text'); }); await p.waitForTimeout(300);
     await p.evaluate(() => window.eiRuleDel(0)); await p.waitForTimeout(500);
     const left = await p.evaluate(() => window.__db.master_details.find(r => r.field === 'sv' && r.value === 'テスト運送').details.importRules.aliases.length);
     ok('ルールを一覧から外せる', left === 0, left);
@@ -209,6 +209,35 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('通常のメール取込では、お客様・REF#・有効期限・「単価を売値として取り込む」も従来どおり表示される', await p.evaluate(() => ['#eiF-customer', '#eiF-ref', '#eiF-valid', '#eiSellMode'].every(s => { const e = document.querySelector(s); return !!e && e.offsetParent !== null; })), null);
     ok('通常のメール取込（サブコンを決めない入口）では、一括設定の欄は空のまま', await p.evaluate(() => document.getElementById('eiBulkSv').value === ''), await p.evaluate(() => document.getElementById('eiBulkSv').value));
     ok('通常のメール取込を開き直すと、サブコン専用の表示は残らない', !plain.ctx && plain.box && !/テスト運送/.test(plain.title), plain);
+
+    // ===== 取り込みの入口（テキスト／PDF／荷姿） =====
+    await p.evaluate(() => { window.closeEmailImport(); window.openImportChooser(); }); await p.waitForTimeout(200);
+    const ch1 = await p.evaluate(() => ({ open: document.getElementById('importChooser').classList.contains('open'), n: document.querySelectorAll('#importChooser .ic-opt').length, pk: !document.getElementById('icPacking').hidden }));
+    ok('「取り込み」で選択画面が開き、テキスト・PDF・荷姿の3択が出る', ch1.open && ch1.n === 3 && ch1.pk, ch1);
+    await p.evaluate(() => window.icChoose('text')); await p.waitForTimeout(200);
+    const ch2 = await p.evaluate(() => ({ ch: document.getElementById('importChooser').classList.contains('open'), ei: document.getElementById('emailImportModal').classList.contains('open'), ctx: document.getElementById('emailImportBox').classList.contains('ei-sv-ctx') }));
+    ok('「テキストで取り込む」で選択画面が閉じ、通常のメール取込が開く', !ch2.ch && ch2.ei && !ch2.ctx, ch2);
+    await p.evaluate(() => { window.closeEmailImport(); window.openImportChooser('テスト運送'); }); await p.waitForTimeout(200);
+    const ch3 = await p.evaluate(() => ({ pk: document.getElementById('icPacking').hidden, sub: document.getElementById('icSub').textContent }));
+    ok('サブコンの入口では荷姿の選択肢を隠し、サブコン名を案内する', ch3.pk && /テスト運送/.test(ch3.sub), ch3);
+    // PDF：文字の取り出しは差し替え（PDF.js は外部CDN）。取り出した行が解析まで流れ、サブコン専用の状態で開く
+    await p.evaluate(() => {
+      window.__realExtract = window.pkiExtractPdfLines;
+      window.pkiExtractPdfLines = async () => ({ lines: [['海上運賃', '1', "20'GP", 'USD 200'], ['THC', '1', "20'GP", 'USD 50']] });
+      const inp = document.getElementById('icPdfFile');
+      Object.defineProperty(inp, 'files', { value: [new File(['x'], 'q.pdf', { type: 'application/pdf' })], configurable: true });
+      window.icPdfSelected(inp);
+    }); await p.waitForTimeout(800);
+    const ch4 = await p.evaluate(() => ({ ch: document.getElementById('importChooser').classList.contains('open'), ei: document.getElementById('emailImportModal').classList.contains('open'), ctx: document.getElementById('emailImportBox').classList.contains('ei-sv-ctx'), tabs: /\t/.test(document.getElementById('eiText').value), rows: document.querySelectorAll('#eiReviewWrap tbody tr').length }));
+    ok('PDFを選ぶと文字が取り出され、サブコン専用の取込で解析まで進む（確認画面に明細が出る）', !ch4.ch && ch4.ei && ch4.ctx && ch4.tabs && ch4.rows >= 2, ch4);
+    await p.evaluate(() => { window.closeEmailImport(); window.openImportChooser();
+      window.pkiExtractPdfLines = async () => ({ error: 'このPDFから文字を取り出せませんでした。画像（スキャン）のPDFの可能性があります' });
+      const inp = document.getElementById('icPdfFile');
+      Object.defineProperty(inp, 'files', { value: [new File(['x'], 'q.pdf')], configurable: true });
+      window.icPdfSelected(inp); }); await p.waitForTimeout(500);
+    const ch5 = await p.evaluate(() => ({ ch: document.getElementById('importChooser').classList.contains('open'), ei: document.getElementById('emailImportModal').classList.contains('open') }));
+    ok('文字を取り出せないPDFは、選択画面のまま止まって取込画面は開かない', ch5.ch && !ch5.ei, ch5);
+    await p.evaluate(() => { window.closeImportChooser(); window.pkiExtractPdfLines = window.__realExtract; });
     ok('画面のエラーが出ていない', errs.length === 0, errs);
     if (process.env.SHOT) { await p.evaluate(() => { window.closeEmailImport(); document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); }); await p.waitForTimeout(300); await p.screenshot({ path: process.env.SHOT }); }
     await ctx.close();
@@ -278,7 +307,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
 
     // 1) 取り込んで挿入すると、当たったルールの使用回数・最終使用日が記録される（挿入は待たない）
     await setSv(p, 'テスト運送');
-    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click()); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); window.icChoose('text'); }); await p.waitForTimeout(300);
     await p.evaluate(() => { document.getElementById('eiText').value = 'ドキュメント料 USD 50\nTHC USD 300'; window.eiParse(); }); await p.waitForTimeout(300);
     await p.evaluate(() => window.eiInsertRows()); await p.waitForTimeout(900);
     let r = await rules(), a = r.aliases.find(x => x.from === 'ドキュメント料');
@@ -311,7 +340,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
 
     // 5) 「数量付きの金額は単価」の癖が、取込で効く
     await p.evaluate(() => window.statsCloseMasterDetail());
-    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click()); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); window.icChoose('text'); }); await p.waitForTimeout(300);
     await p.evaluate(() => { document.getElementById('eiText').value = '陸送費 3 台 ¥10,000'; window.eiParse(); }); await p.waitForTimeout(300);
     let row = await p.evaluate(() => { const tr = document.querySelector('#eiReviewWrap .ei-table tbody tr'); return { qty: tr.querySelector('.ei-qty').value, price: tr.querySelector('.ei-price').value, unit: tr.querySelector('.ei-unit').value }; });
     ok('癖「数量付きの金額は単価」が取込で効く（3 台 ¥10,000 → 単価 10,000）', row.qty === '3' && row.price === '10000', row);
@@ -333,7 +362,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member' });
     await setSv(p, 'テスト運送');
-    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click()); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); window.icChoose('text'); }); await p.waitForTimeout(300);
     const TXT = '倉庫料金\n定温庫保管料：\\850/M3/期\n入出庫バンニング作業：\\2,600/M3 min:\\45,000 ※フォークリフト作業可条件\nショアリング作業(簡易)：\\15,000/VAN\n\n倉庫〜東京CY搬入\nショートドレー20F：\\36,000/VAN';
     await p.evaluate(t => { document.getElementById('eiText').value = t; window.eiParse(); }, TXT); await p.waitForTimeout(400);
     let rows = await p.evaluate(() => [...document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')].map(tr => ({ name: tr.querySelector('.ei-name').value, unit: tr.querySelector('.ei-unit').value, ccy: tr.querySelector('.ei-ccy').value, price: tr.querySelector('.ei-price').value, note: tr.querySelector('.ei-note').value, sv: tr.querySelector('.ei-sv').value })));
@@ -364,7 +393,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member' });
     const calls = () => p.evaluate(() => (window.__rpc || []).filter(c => c.name === 'email_unread_record'));
     await setSv(p, 'テスト運送');
-    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click()); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); window.icChoose('text'); }); await p.waitForTimeout(300);
     const mask = await p.evaluate(() => ({ a: window.eiMaskLine('定温庫保管料：\\850/M3/期'), b: window.eiMaskLine('連絡先 taro@example.com 03-1234-5678'), c: window.eiMaskLine('見積 https://example.com/q?id=12345 ＿１２３'), d: window.eiMaskLine('  特殊作業   ABC123  ') }));
     ok('伏せ字：数字は 9 に（半角・全角とも）・メールアドレスと URL は置き換え・空白はそろえる', mask.a === '定温庫保管料：\\999/M9/期' && mask.b === '連絡先 <mail> 99-9999-9999' && mask.c === '見積 <url> ＿999' && mask.d === '特殊作業 ABC999', mask);
 
@@ -400,7 +429,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member', unreadMissing: true });
     await setSv(p, 'テスト運送');
-    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click()); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); window.icChoose('text'); }); await p.waitForTimeout(300);
     await p.evaluate(() => { document.getElementById('eiText').value = '特殊作業 ABC123 XYZ 999 要相談'; window.eiParse(); }); await p.waitForTimeout(500);
     await p.evaluate(() => { document.getElementById('eiText').value = '別件作業 QQQ 4567 要相談'; window.eiParse(); }); await p.waitForTimeout(500);
     const n = await p.evaluate(() => (window.__rpc || []).filter(c => c.name === 'email_unread_record').length);

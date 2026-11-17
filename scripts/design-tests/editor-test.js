@@ -63,8 +63,8 @@ fs.mkdirSync(OUT,{recursive:true});
  await p.fill('#qf-scope','輸出通関、海上スペース手配');await p.click('#section-scope .section-toggle-head');await sleep(900);
  ok('畳むと要約が出る',await p.evaluate(()=>/輸出通関/.test(document.getElementById('sumScope').textContent)&&document.getElementById('sumScope').offsetParent!==null));
  // i. ツールバー「⋯」
- await p.evaluate(()=>{window.__c=[];window.openEmailImport=()=>window.__c.push('mail');window.openSubconRequestMail=()=>window.__c.push('sub')});
- await p.click('#saveToolbar .tb-menu button.save-btn-menu');await p.locator('#tbMenuMore .tb-menu-item',{hasText:'メール取込'}).click();
+ await p.evaluate(()=>{window.__c=[];window.openImportChooser=()=>window.__c.push('mail');window.openSubconRequestMail=()=>window.__c.push('sub')});
+ await p.click('#saveToolbar .tb-menu button.save-btn-menu');await p.locator('#tbMenuMore .tb-menu-item',{hasText:'取り込み'}).click();
  await p.click('#saveToolbar .tb-menu button.save-btn-menu');await p.locator('#tbMenuMore .tb-menu-item',{hasText:'サブコン依頼メール'}).click();
  ok('⋯メニューの項目が元と同じ処理を呼ぶ',JSON.stringify(await p.evaluate(()=>window.__c))==='["mail","sub"]');
  // j. 道しるべ

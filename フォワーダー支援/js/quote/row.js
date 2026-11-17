@@ -4235,7 +4235,7 @@
             `<button type="button" class="sv-master-chip" hidden></button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-detail" hidden>📇 詳細</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-bm" hidden>🔖 BOOKMARK</button>` +
-            `<button type="button" class="sv-hdr-btn sv-hdr-import" hidden>📩 メール取込</button>` +
+            `<button type="button" class="sv-hdr-btn sv-hdr-import" hidden>📥 取り込み</button>` +
             // 客先表示名・サブコン別リマークの入力は、この見出しの行内に置く（以前はグループ末尾の小計行にあった）
             `<span class="hdr-notes">` +
               `<span class="hdr-note hdr-note-remark" title="このサブコンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF）にも表示されます。">` +
@@ -4276,7 +4276,7 @@
         hdr.querySelector('.sv-hdr-import').addEventListener('click', e => {
           e.stopPropagation();
           const canon = e.currentTarget.dataset.canon;
-          if (canon && typeof window.eiOpenForSubcon === 'function') window.eiOpenForSubcon(canon);
+          if (canon && typeof window.openImportChooser === 'function') window.openImportChooser(canon);
         });
         hdr.querySelector('.sv-hdr-bm').addEventListener('click', e => {
           e.stopPropagation();

@@ -491,6 +491,44 @@
     return parsed;
   }
 
+  // ====== 📥 取り込みの入口（テキスト／PDF／荷姿を選ぶ） ======
+  let _chooserCanon = '';
+  function openImportChooser(canon) {
+    canon = String(canon || '').trim();
+    if (_isViewMode()) { if (window.quoteShowToast) quoteShowToast('🔒 閲覧モードです。「✏️ 編集」を押してから取り込んでください', 'warn'); return; }
+    _chooserCanon = canon;
+    const m = document.getElementById('importChooser'); if (!m) return;
+    const sub = document.getElementById('icSub');
+    if (sub) sub.textContent = canon ? '「' + canon + '」の明細グループに取り込みます（読み取りルールが自動で使われます）' : '取り込み方を選んでください';
+    const pk = document.getElementById('icPacking'); if (pk) pk.hidden = !!canon;
+    m.classList.add('open');
+  }
+  function closeImportChooser() { document.getElementById('importChooser')?.classList.remove('open'); }
+  function icChoose(kind) {
+    const canon = _chooserCanon;
+    if (kind === 'pdf') { document.getElementById('icPdfFile')?.click(); return; }   // 選択画面は、ファイルを選んだあとに閉じる
+    closeImportChooser();
+    if (kind === 'text') { if (canon) eiOpenForSubcon(canon); else openEmailImport(); }
+    else if (kind === 'packing' && typeof window.openPackingImport === 'function') window.openPackingImport();
+  }
+  async function icPdfSelected(input) {
+    const file = input && input.files && input.files[0];
+    if (!file) return;
+    const canon = _chooserCanon;
+    try {
+      const fn = window.pkiExtractPdfLines;
+      const r = typeof fn === 'function' ? await fn(file) : { error: 'PDFの取り込み機能が読み込まれていません' };
+      if (r.error) { if (window.quoteShowToast) quoteShowToast('⚠️ ' + r.error, 'warn', 7000); return; }
+      closeImportChooser();
+      if (canon) eiOpenForSubcon(canon); else openEmailImport();
+      const t = document.getElementById('eiText'); if (!t) return;
+      // 表の列は Tab でつなぐ（表として読む解析にそのまま渡せる）
+      t.value = r.lines.map(cells => cells.join('\t')).join('\n');
+      eiParse();
+      if (window.quoteShowToast) quoteShowToast('📄 PDFの文字を取り出して解析しました。内容を確認してから挿入してください（表の崩れは文字を直すか、AI整形用プロンプトをお使いください）', 'success', 6000);
+    } finally { input.value = ''; }
+  }
+
   function openEmailImport() {
     _svCtx = null; _renderSvCtx();
     _setStoreOnly(false);
@@ -1384,7 +1422,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
   Object.assign(window, {
     eiPendingOf, eiFreeEntriesOf, eiMakeEntry, eiRefreshPendingBanner, eiOpenStoreFromDashboard, eiOpenStoreForCard, eiOpenStoreForCurrent,
     eiOpenStored, eiStoreRaw, eiFeImport, eiFeView, eiFeToggle, eiFeDelete,
-    openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiToggleAllTax, eiInsertRows, eiApplyAsNew,
+    openImportChooser, closeImportChooser, icChoose, icPdfSelected, openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiToggleAllTax, eiInsertRows, eiApplyAsNew,
     eiSaveGroupAsPattern, eiApplyBulkSv, eiCopyAiPrompt,
     eiCopyUnread, eiMaskLine, eiOpenForSubcon, eiRuleSaveDefaults, eiRuleDel, eiLearnFromCorrections, eiMountRulesPanel,
     eiApplyRules: _applyRules,   // テスト用
