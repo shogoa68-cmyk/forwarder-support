@@ -12417,3 +12417,28 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make .ei-unread li { margin: 2px 0; word-break: break-all; }
 #tab-quote-make .ei-unread p { margin: 6px 0 0; font-size: var(--text-xs, 12px); color: #57606a; line-height: 1.6; }
 #tab-quote-make .ei-unread .ei-unread-copy { margin-top: 8px; padding: 5px 12px; border: 1px solid #d4a72c; border-radius: 6px; background: #fff; color: #7d4e00; cursor: pointer; font-size: var(--text-sm, 13px); }
+
+/* 保険料の計算（保険カテゴリの行）：ボタンは青緑系。ON の行だけ、貨物価額・保険価額率・保険料率の入力欄を出す（Industry は「その他 ▾」の中）。
+   計算結果は仕入単価（読み取り専用）に入る。売単価は仕入＋乗せ幅、最低保険料は仕入の MIN */
+#tab-quote-make .ins-mode-btn {
+  display: inline-block; margin-top: var(--sp-3); padding: 1px var(--sp-6);
+  font-size: var(--fs-10); line-height: 1.5; border: 1px solid var(--border-md); border-radius: var(--r-3);
+  background: transparent; color: var(--border-md); cursor: pointer; font-family: inherit;
+  transition: all 0.15s; white-space: nowrap;
+}
+#tab-quote-make .ins-mode-btn:hover { border-color: #1a7f6e; color: #1a7f6e; }
+#tab-quote-make .ins-mode-btn.is-on { background: #e6f5f1; border-color: #3aa392; color: #1a7f6e; font-weight: 700; }
+#tab-quote-make .ins-group { display: none; align-items: center; gap: var(--sp-4); flex-wrap: wrap; margin-top: var(--sp-3); }
+#tab-quote-make tr.row-ins-mode .ins-group { display: flex; }
+#tab-quote-make .ins-group .ins-lbl { font-size: var(--fs-10); font-weight: 700; color: #1a7f6e; }
+#tab-quote-make .ins-group .ins-ctrl { display: inline-flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3); }
+#tab-quote-make .ins-group select, #tab-quote-make .ins-group input {
+  font-size: var(--fs-11); font-family: inherit; padding: 1px var(--sp-4); height: auto; width: auto; min-width: 0;
+  border: 1px solid var(--border-md); border-radius: var(--r-3); background: var(--surface); color: var(--text);
+}
+#tab-quote-make .ins-group input.ins-v { width: 150px; }
+#tab-quote-make .ins-group input.ins-k { width: 56px; }
+#tab-quote-make .ins-group input.ins-r { width: 70px; }
+#tab-quote-make .ins-group .ins-x, #tab-quote-make .ins-group .ins-u { font-size: var(--fs-10); color: var(--text-md); }
+#tab-quote-make .ins-group .ins-hint { flex-basis: 100%; font-size: var(--fs-10); color: var(--text-md); white-space: normal; overflow-wrap: anywhere; }
+#tab-quote-make .ins-group .ins-hint.is-warn { color: #b45309; font-weight: 700; }

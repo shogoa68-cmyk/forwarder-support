@@ -1703,7 +1703,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi','ins'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -1906,7 +1906,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi','ins']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -1930,6 +1930,11 @@
     if (icBtn) icBtn.onclick = () => toggleIcMode(id);
     const cnBtn = frag.querySelector('.cn-mode-btn');
     if (cnBtn) cnBtn.onclick = () => toggleCnMode(id);
+    const insBtn = frag.querySelector('.ins-mode-btn');
+    if (insBtn) insBtn.onclick = () => toggleInsMode(id);
+    { const g = frag.querySelector('.ins-group');
+      if (g) { g.querySelectorAll('.ins-v,.ins-k,.ins-r').forEach(e => { e.oninput = () => _calcIns(id); });
+               const c = g.querySelector('.ins-c'); if (c) { c.innerHTML = curOpts(initCur); c.onchange = () => _calcIns(id); } } }
     ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => { calc(id); _recalcPctDependents(id); }; });   // 売の最低料金が変わると、この行を基準にした % 行も変わる
     const rangeBtn = frag.querySelector('.range-mode-btn');
     if (rangeBtn) rangeBtn.onclick = () => toggleRangeMode(id);
@@ -1974,7 +1979,7 @@
     if (initSv) q('sv').value = initSv;
 
     // Event handlers
-    q('cat').onchange  = () => { onCatChange(id); updateTotals(); };  // 期間外判定・合計を即反映
+    q('cat').onchange  = () => { onCatChange(id); updateTotals(); _insAutoOn(id); };  // 期間外判定・合計を即反映
     // ユーザーが課税チェックを直接操作したら、以後はマスターの既定課税区分による自動追従をしない
     q('tx').onchange   = () => { const r = document.getElementById(`row-${id}`); if (r) r.dataset.txUserSet = '1'; toggleTax(id); };
     q('tx').onkeydown  = e  => { if (e.key === 'Enter') { e.preventDefault(); e.target.checked = !e.target.checked; const r = document.getElementById(`row-${id}`); if (r) r.dataset.txUserSet = '1'; toggleTax(id); } };
@@ -1982,7 +1987,7 @@
     // 他の行を基準にした % 行は、基準額がこの行の数量・仕入通貨しだいで変わる（参照行の金額 ÷ この行の数量・通貨換算）ため計算し直す
     const _isRefPct = () => !!document.getElementById(`ppref-${id}`)?.value && document.getElementById(`row-${id}`)?.classList.contains('row-pct-mode');
     q('pq').oninput    = () => { _recordPatternQty(id); if (_isRefPct()) _calcPct(id); else onPay(id); };
-    q('pc').onchange   = () => { if (_isRefPct()) _calcPct(id); else onPay(id); };
+    q('pc').onchange   = () => { if (_isRefPct()) _calcPct(id); else if (document.getElementById(`row-${id}`)?.classList.contains('row-ins-mode')) _calcIns(id); else onPay(id); };
     q('pp').oninput    = () => {
       if (_isSellMode(id)) { _calcFromSell(id); _recalcPctDependents(id); return; }   // 売値ベース：仕入入力→乗せ幅を算出
       onPay(id);
@@ -2255,6 +2260,7 @@
       const trM = document.getElementById(`row-${id}`);
       syncIcUi(id);   // 適用する貿易条件の見た目（復元した行・貿易条件を変えた直後も）
       syncCnUi(id);   // 表示条件の見た目・判定の説明
+      syncInsUi(id);  // 保険料の計算の見た目・説明
       const hasMin = (parseFloat(document.getElementById(`ppmin-${id}`)?.value) || 0) > 0 ||
                      (parseFloat(document.getElementById(`bpmin-${id}`)?.value) || 0) > 0;
       if (trM) {
@@ -2536,9 +2542,150 @@
   window.toggleRangeMode = toggleRangeMode;
 
   // ========== % 計算モード ==========
+  // ========== 保険料の計算（保険カテゴリの行・2026-11） ==========
+  // 保険料 ＝ 貨物価額（インボイス金額・通貨を選べる）× 保険価額率（既定 110%）× 保険料率（%）
+  // 結果をこの行の仕入単価（pp・仕入通貨）に入れる。売単価は従来どおり 仕入＋乗せ幅。最低保険料は仕入の MIN（ppmin）。
+  // 入力値は行の隠し欄 ins-<id> に JSON {v:貨物価額, c:通貨, k:保険価額率, r:料率} で持つ（保存・複製・貼り付けは他の欄と同じ）。
+  function rowInsGet(id) {
+    const raw = document.getElementById(`ins-${id}`)?.value || '';
+    if (!raw) return null;
+    try { const o = JSON.parse(raw); return (o && typeof o === 'object') ? o : null; } catch (e) { return null; }
+  }
+  window.rowInsGet = rowInsGet;
+  function _insRoundPremium(x, ccy) {
+    // 保険料は 1 円（外貨は小数 2 桁）の端数を切り上げる（計算タブの「保険料計算」と同じ慣行）
+    return ccy === 'JPY' ? Math.ceil(x - 1e-9) : Math.ceil(x * 100 - 1e-9) / 100;
+  }
+  // 計算：{ insured（保険価額・貨物価額の通貨）, premium（仕入通貨）, premSrc（貨物価額の通貨のままの保険料）, ok, reason }
+  function _insCompute(id) {
+    const o = rowInsGet(id) || {};
+    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    const v = parseFloat(o.v), r = parseFloat(o.r);
+    const k = (o.k === '' || o.k === undefined || o.k === null) ? 110 : parseFloat(o.k);
+    const c = o.c || pc;
+    if (!(v > 0) || !(r > 0) || !(k > 0)) return { ok: false, reason: 'incomplete', c, pc, v, k, r };
+    const insured = v * k / 100;
+    const premSrc = insured * r / 100;
+    const conv = _convCur(premSrc, c, pc);
+    if (!isFinite(conv)) return { ok: false, reason: 'fx', c, pc, v, k, r, insured, premSrc };
+    return { ok: true, c, pc, v, k, r, insured, premSrc, premium: _insRoundPremium(conv, pc) };
+  }
+  function _insFmt(x, ccy) {
+    const n = ccy === 'JPY' ? Math.round(x) : Math.round(x * 100) / 100;
+    return n.toLocaleString('ja-JP', { maximumFractionDigits: ccy === 'JPY' ? 0 : 2 });
+  }
+  function _insReadUi(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return null;
+    const g = sel => tr.querySelector(sel);
+    const o = { v: g('.ins-v')?.value ?? '', c: g('.ins-c')?.value || '', k: g('.ins-k')?.value ?? '', r: g('.ins-r')?.value ?? '' };
+    const el = document.getElementById(`ins-${id}`);
+    if (el) el.value = JSON.stringify(o);
+    return o;
+  }
+  // 入力のたびに計算して仕入単価に入れる（入力が足りないあいだは仕入単価を上書きしない）
+  function _calcIns(id) {
+    _insReadUi(id);
+    const res = _insCompute(id);
+    if (res.ok) {
+      const ppEl = document.getElementById(`pp-${id}`);
+      if (ppEl) ppEl.value = res.premium;
+      onPay(id);     // calc → syncInsUi（説明を更新）
+    } else {
+      syncInsUi(id);
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.rowInsCalc = _calcIns;
+  // 行の見た目（ボタンの ON/OFF・仕入単価の読み取り専用・説明）を値に合わせる。復元・複製・値の変更のたびに呼ばれる（軽い処理・値は計算しない）
+  function syncInsUi(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const o = rowInsGet(id);
+    if (o) tr.classList.add('row-ins-mode');
+    const on = tr.classList.contains('row-ins-mode');
+    tr.querySelector('.ins-mode-btn')?.classList.toggle('is-on', on);
+    const ppEl = document.getElementById(`pp-${id}`);
+    if (ppEl) {
+      const lock = on && !tr.classList.contains('row-pct-mode');
+      if (ppEl.dataset.insLocked === '1' && !lock) { ppEl.readOnly = false; ppEl.setAttribute('data-col', '4'); delete ppEl.dataset.insLocked; }
+      if (lock) { ppEl.readOnly = true; ppEl.removeAttribute('data-col'); ppEl.dataset.insLocked = '1'; }
+    }
+    if (!on) return;
+    const g = sel => tr.querySelector(sel);
+    // 復元した行：保存された値を入力欄へ（入力中の欄は触らない）
+    if (o && !tr._insFilled) {
+      const set = (sel, v) => { const e = g(sel); if (e && v !== undefined && v !== null && document.activeElement !== e) e.value = v; };
+      set('.ins-v', o.v); set('.ins-k', (o.k === '' || o.k === undefined) ? 110 : o.k); set('.ins-r', o.r);
+      const c = g('.ins-c'); if (c && o.c) { if (![...c.options].some(op => op.value === o.c)) c.add(new Option(o.c, o.c)); c.value = o.c; }
+      tr._insFilled = true;
+    }
+    const hint = g('.ins-hint');
+    if (hint) {
+      const res = _insCompute(id);
+      let txt = '', warn = false;
+      if (res.ok) {
+        txt = `保険価額 ${res.c} ${_insFmt(res.insured, res.c)}（貨物価額 ${_insFmt(res.v, res.c)} × ${res.k}%）→ 保険料 ${res.c} ${_insFmt(res.premSrc, res.c)}（${res.r}%）`;
+        if (res.c !== res.pc) txt += ` ≈ ${res.pc} ${_insFmt(res.premium, res.pc)}（仕入単価に反映）`;
+        else txt += '　→ 仕入単価に反映';
+      } else if (res.reason === 'fx') { txt = '⚠ 為替レートが未取得のため通貨を換算できません（仕入単価は変えていません）'; warn = true; }
+      else { txt = '貨物価額と保険料率を入れると、保険料を仕入単価に自動で入れます（解除は「🛡️ 保険料」をもう一度押す）'; }
+      if (hint.textContent !== txt) hint.textContent = txt;
+      hint.classList.toggle('is-warn', warn);
+    }
+  }
+  window.syncInsUi = syncInsUi;
+  function toggleInsMode(id, force) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const on = (force === undefined) ? !tr.classList.contains('row-ins-mode') : !!force;
+    if (on === tr.classList.contains('row-ins-mode')) return;
+    if (on && (tr.classList.contains('row-pct-mode') || _isSellMode(id))) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('「%」または「売値ベース」がONのため、保険料の計算は使えません。先に解除してください', 'warning');
+      return;
+    }
+    tr.classList.toggle('row-ins-mode', on);
+    const el = document.getElementById(`ins-${id}`);
+    if (!on) {
+      if (el) el.value = '';
+      delete tr._insFilled;
+    } else {
+      // 通貨は仕入通貨を初期値に。保険価額率は 110%
+      const c = tr.querySelector('.ins-c');
+      if (c && !c.value) c.value = document.getElementById(`pc-${id}`)?.value || 'JPY';
+      const k = tr.querySelector('.ins-k'); if (k && k.value === '') k.value = 110;
+      _insReadUi(id);
+      tr._insFilled = true;
+    }
+    syncInsUi(id);
+    if (on) {
+      if (window.rowDetailToggle && !tr.querySelector('.ins-group')?.offsetParent) window.rowDetailToggle(tr, true);
+      setTimeout(() => { const v = tr.querySelector('.ins-v'); if (v && v.offsetParent) v.focus(); }, 0);
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleInsMode = toggleInsMode;
+  // 保険料カテゴリを選んだとき（手で変えたときだけ・復元では呼ばない）：仕入単価が未入力で、他のモードを使っていなければ保険料の計算を ON にして入力欄を出す
+  function _insAutoOn(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr || document.getElementById(`cat-${id}`)?.value !== 'insurance') return;
+    if (tr.classList.contains('row-ins-mode') || tr.classList.contains('row-pct-mode') || _isSellMode(id)) return;
+    if ((parseFloat(document.getElementById(`pp-${id}`)?.value) || 0) > 0) return;
+    toggleInsMode(id, true);
+  }
+  // 為替レートを変えたとき・仕入通貨を変えたとき、保険料の行を計算し直す（入力が揃っている行だけ）
+  function recalcInsRows() {
+    document.querySelectorAll('#tableBody tr.row-ins-mode[id^="row-"]:not([data-virtual])').forEach(tr => {
+      const rid = tr.id.replace('row-', '');
+      if (_insCompute(rid).ok) _calcIns(rid); else syncInsUi(rid);
+    });
+  }
+  window.recalcInsRows = recalcInsRows;
+
   function togglePctMode(id) {
     const tr = document.getElementById(`row-${id}`);
     if (!tr) return;
+    if (!tr.classList.contains('row-pct-mode') && tr.classList.contains('row-ins-mode')) { if (typeof quoteShowToast === 'function') quoteShowToast('「保険料の計算」がONのため、%計算は使えません。先に解除してください', 'warning'); return; }
     const on = !tr.classList.contains('row-pct-mode');
     _setPctModeUI(id, on);
     const ppmode = document.getElementById(`ppmode-${id}`);
@@ -2624,6 +2771,7 @@
   }
   // 為替レートを変えたとき、他の行を基準にしている % 行を計算し直す（外から呼ぶ）
   window.recalcPctRows = function () {
+    recalcInsRows();   // 保険料の行（貨物価額の通貨 → 仕入通貨）も為替の変更に追従
     document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-virtual])').forEach(tr => {
       const rid = tr.id.replace('row-', '');
       if (document.getElementById(`ppref-${rid}`)?.value && tr.classList.contains('row-pct-mode')) _calcPct(rid);
@@ -2703,6 +2851,7 @@
     const modeEl = document.getElementById(`ppmode-${id}`);
     if (!tr || !modeEl) return;
     const toast = (m, t) => { if (typeof quoteShowToast === 'function') quoteShowToast(m, t || 'info', 4500); };
+    if (!_isSellMode(id) && tr.classList.contains('row-ins-mode')) { toast('「保険料の計算」がONのため、売値ベースは使えません。先に解除してください', 'warning'); return; }
     if (_isSellMode(id)) {
       const ppEl = document.getElementById(`pp-${id}`);
       const mkEl = document.getElementById(`mk-${id}`);
@@ -4970,7 +5119,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi','ins'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -4990,7 +5139,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi','ins'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });
