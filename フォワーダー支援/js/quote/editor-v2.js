@@ -10,7 +10,8 @@
   const $ = id => document.getElementById(id);
   const SECS = { 1: ['section-ref', 'section-scope'], 2: ['section-cond'], 3: ['section-cargo', 'section-volume'], 4: ['section-table'], 5: ['section-remark'] };
   const NAMES = { 1: '基本', 2: 'ルート', 3: '貨物・物量', 4: '費用', 5: 'リマーク・出力' };
-  let step = 1, built = false, dockHome = null;
+  let step = 1, built = false, dockHome = null, railOpen = false;
+  const visited = {};   // 開いたことのあるステップ（必須が欠けた「!」の印はここだけに出す＝順番は強制しない）
 
   const isOn = () => root.classList.contains('editor-v2');
   const val = id => { const e = $(id); return e ? String(e.value || '').trim() : ''; };
@@ -91,6 +92,23 @@
     const t = document.createElement('div'); t.id = 'e2Title';
     t.innerHTML = '<b id="e2tName"></b><span id="e2tStatus"></span><span id="e2tSave"></span>';
     const grp = $('qmGroup'); tb.insertBefore(t, grp ? grp.nextSibling : tb.firstChild);
+    const back = $('qmDash'); if (back) back.setAttribute('aria-label', 'ダッシュボードに戻る');
+    // 作業状態の札（1 つだけ・題名の右）。長い説明は押したときのポップアップに
+    const st = document.createElement('button'); st.type = 'button'; st.id = 'e2State'; st.setAttribute('aria-haspopup', 'true');
+    const pop = document.createElement('div'); pop.id = 'e2StatePop'; pop.hidden = true;
+    st.addEventListener('click', e => { e.stopPropagation(); pop.hidden = !pop.hidden; });
+    document.addEventListener('click', e => { if (!pop.hidden && !pop.contains(e.target)) pop.hidden = true; });
+    t.after(st); st.after(pop);
+    // 数量パターン（2 つ以上のときだけ「数量：FCL案 ▾ N案」）
+    const pat = document.createElement('div'); pat.id = 'e2Pat'; pat.hidden = true;
+    pat.innerHTML = '<button type="button" id="e2PatBtn" aria-haspopup="true"></button><div id="e2PatMenu" hidden></div>';
+    pop.after(pat);
+    const need = document.createElement('button'); need.type = 'button'; need.id = 'e2PatNeed'; need.hidden = true;
+    need.addEventListener('click', () => { if (typeof window.jumpToQtyNeedsCheck === 'function') window.jumpToQtyNeedsCheck(); });
+    pat.after(need);
+    $('e2PatBtn').addEventListener('click', e => { e.stopPropagation(); $('e2PatMenu').hidden = !$('e2PatMenu').hidden; });
+    $('e2PatMenu').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; $('e2PatMenu').hidden = true; if (typeof window.switchPackingPattern === 'function') window.switchPackingPattern(+b.dataset.i); });
+    document.addEventListener('click', e => { const m = $('e2PatMenu'); if (m && !m.hidden && !$('e2Pat').contains(e.target)) m.hidden = true; });
   }
   function refreshTitle() {
     const n = $('e2tName'); if (!n) return;
@@ -101,6 +119,31 @@
     const sa = $('e2tSave'), q = ($('qmBanner') && $('qmBanner').textContent || '').trim();
     const sat = /編集中|閲覧モード/.test(q) ? '' : q;   // 「編集中（あなたが作業中）」はツールバー側のチップに出ているので重ねて出さない
     if (sa && sa.textContent !== sat) sa.textContent = sat;
+    refreshState(q); refreshPat();
+  }
+  // 作業状態の札：閲覧中／編集中（未保存なら足す）／ロック（他の人が編集中＝この画面では判定できないため、押したときの案内に出る）
+  function refreshState(q) {
+    const b = $('e2State'); if (!b) return;
+    const view = /閲覧モード/.test(q || ''), edit = /編集中/.test(q || '');
+    const dirty = !!(window.quoteIsDirty && window.quoteIsDirty());
+    const t = view ? '👁 閲覧中' : edit ? '✏️ 編集中' + (dirty ? '　● 未保存' : '') : '';
+    b.hidden = !t; if (b.textContent !== t) b.textContent = t;
+    b.className = view ? 'is-view' : edit ? 'is-edit' : '';
+    const pop = $('e2StatePop'); if (pop && pop.textContent !== (q || '')) pop.textContent = q || '';
+    b.title = q || '';
+  }
+  function refreshPat() {
+    const chips = [].slice.call(document.querySelectorAll('#qtyPatternBar .qpat-chip'));
+    const box = $('e2Pat'); if (!box) return;
+    const multi = chips.length >= 2; box.hidden = !multi;
+    const need = $('e2PatNeed'), nb = document.querySelector('#qtyPatternBar .qpat-need');
+    if (need) { need.hidden = !(multi && nb); if (nb) { const t = nb.textContent.trim(); if (need.textContent !== t) need.textContent = t; } }
+    if (!multi) return;
+    const nm = c => (c.querySelector('.qpat-name') || c).textContent.trim();
+    const act = chips.find(c => c.classList.contains('is-active')) || chips[0];
+    const bt = '数量：' + nm(act) + ' ▾ ' + chips.length + '案'; const btn = $('e2PatBtn'); if (btn.textContent !== bt) btn.textContent = bt;
+    const html = chips.map((c, i) => '<button type="button" data-i="' + i + '"' + (c === act ? ' class="is-on"' : '') + '>' + nm(c).replace(/</g, '&lt;') + (c.querySelector('.qpat-mode') ? ' <small>' + c.querySelector('.qpat-mode').textContent + '</small>' : '') + '</button>').join('');
+    const m = $('e2PatMenu'); if (m.dataset.h !== html) { m.dataset.h = html; m.innerHTML = html; }
   }
 
   // 「⋯」メニューを「案件」「その他」の 2 区分に（出力の PDF／プレビューは上部ツールバーにあるため置かない）。見出しに印を付けるだけで、並べ替え・見出し名は CSS（order・::after）
@@ -124,6 +167,7 @@
     const ws = document.querySelector('#tab-quote-make .quote-workspace'); if (!ws) return;
     const steps = document.createElement('nav'); steps.id = 'e2Steps'; steps.setAttribute('aria-label', '見積入力のステップ');
     ws.parentNode.insertBefore(steps, ws);
+    const head = document.createElement('div'); head.id = 'e2Head'; ws.parentNode.insertBefore(head, ws);
     const foot = document.createElement('div'); foot.id = 'e2Nav';
     foot.innerHTML = '<button type="button" id="e2Prev">← 戻る</button><button type="button" id="e2Next">次へ →</button>';
     const main = ws.querySelector('.quote-main'); (main || ws).appendChild(foot);
@@ -131,7 +175,18 @@
     tot.innerHTML = '<div class="e2t-amts"><span><i>売</i><b id="e2tSell">—</b></span><span><i>仕入</i><b id="e2tCost">—</b></span><span><i>粗利</i><b id="e2tProfit">—</b></span></div>' +
       '<div class="e2t-btns"><button type="button" data-e2q="1" title="単位ごとの数量をまとめて登録・変更する">数量登録</button><button type="button" data-e2p="1" title="数量パターン（FCL案／LCL案など）を追加する">パターン登録</button><button type="button" data-e2d="digest">費用の内訳 ▸</button><button type="button" data-e2d="ref">参考 ▸</button></div>';
     document.getElementById('tab-quote-make').appendChild(tot);
-    steps.addEventListener('click', e => { const b = e.target.closest('[data-e2s]'); if (b) go(+b.dataset.e2s); });
+    steps.addEventListener('click', e => {
+      if (e.target.closest('.e2-rail-toggle')) { setRail(!railOpen); return; }
+      const b = e.target.closest('[data-e2s]'); if (!b) return;
+      go(+b.dataset.e2s);
+      if (railOpen) setRail(false);   // 開いて選んだら自動でしまう（しまったまま押したときは開かず、切替だけ）
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key !== '[' || e.ctrlKey || e.metaKey || e.altKey || !isOn() || phone()) return;
+      const a = document.activeElement; if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || (a && a.isContentEditable)) return;
+      const tab = $('tab-quote-make'); if (!tab || !tab.classList.contains('active') && tab.classList.contains('qp-dash')) return;
+      e.preventDefault(); setRail(!railOpen);
+    });
     foot.addEventListener('click', e => { if (e.target.id === 'e2Prev') go(step - 1); if (e.target.id === 'e2Next') go(step + 1); });
     tot.addEventListener('click', e => {
       if (e.target.closest('[data-e2q]')) toggleDrawer('scenario');
@@ -153,8 +208,11 @@
     if (!isOn() || !built) return;
     refreshBasics(); refreshTitle(); tagRows(); buildChips(); refreshChips();
     const s = summaries(), box = $('e2Steps'); if (!box) return;
-    const html = [1, 2, 3, 4, 5].map(n => '<button type="button" data-e2s="' + n + '" class="' + (n === step ? 'is-on' : '') + (s[n].ok ? ' is-ok' : '') + '"><i>' + (s[n].ok ? '✓' : n) + '</i><b>' + NAMES[n] + '</b><small>' + s[n].s.replace(/</g, '&lt;') + '</small></button>').join('');
+    const REQ = { 1: 1, 2: 1, 4: 1 };
+    const toggle = '<button type="button" class="e2-rail-toggle" aria-expanded="' + railOpen + '" title="' + (railOpen ? 'ステップをしまう（[ キー）' : 'ステップを開く（[ キー）') + '"><i>' + (railOpen ? '«' : '»') + '</i><b>しまう</b></button>';
+    const html = toggle + [1, 2, 3, 4, 5].map(n => { const warn = !s[n].ok && REQ[n] && visited[n] && n !== step; const mark = s[n].ok ? '✓' : warn ? '!' : n; const sm = s[n].s.replace(/</g, '&lt;'); return '<button type="button" data-e2s="' + n + '" title="' + NAMES[n] + '：' + sm + '" class="' + (n === step ? 'is-on' : '') + (s[n].ok ? ' is-ok' : '') + (warn ? ' is-warn' : '') + '"><i>' + mark + '</i><b>' + NAMES[n] + '</b><small>' + sm + '</small></button>'; }).join('');
     if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
+    const hd = $('e2Head'); if (hd) { const ht = '<b>' + step + ' ' + NAMES[step] + '</b><span>' + s[step].s.replace(/</g, '&lt;') + '</span>'; if (hd.dataset.h !== ht) { hd.dataset.h = ht; hd.innerHTML = ht; } }
     $('e2Prev').disabled = step <= 1; $('e2Next').disabled = step >= 5;
     const nx = $('e2Next'), nt = step < 5 ? '次へ：' + NAMES[step + 1] + ' →' : '次へ'; if (nx.textContent !== nt) nx.textContent = nt;
     const t = (id, to) => { const a = $(id), b = $(to); if (!a || !b) return; const v = a.textContent.replace(/\s+/g, ' ').replace(/^粗利\s*/, '').replace(/\s*粗利\s*/, '  ').trim() || '—'; if (b.textContent !== v) b.textContent = v; };
@@ -169,9 +227,10 @@
     if (btn && !btn.classList.contains('is-on')) btn.click();   // レールの選択を切り替える（パネルの出し分け・読み込みは右レール側）
     document.body.classList.add('e2-drawer'); document.body.dataset.e2drawer = mod;
   }
+  function setRail(on) { railOpen = !!on; const tab = $('tab-quote-make'); if (tab) tab.classList.toggle('e2-rail-open', railOpen); refresh(); }
   function go(n, quiet) {
     if (n < 1 || n > 5) return;
-    step = n;
+    step = n; visited[n] = true;
     const tab = $('tab-quote-make'); if (tab) tab.dataset.e2 = String(n);
     [].concat.apply([], Object.values(SECS)).forEach(id => { const s = $(id); if (s) s.classList.remove('e2-show'); });
     SECS[n].forEach(id => { const s = $(id); if (!s) return; s.classList.add('e2-show'); if (s.classList.contains('collapsed') && typeof window.toggleQuoteSection === 'function') { try { window.toggleQuoteSection(id); } catch (e) {} } });
@@ -195,11 +254,27 @@
   }
   // 右下の固定ボタン（PDF／プレビュー／保存）を上部ツールバーへ。切り戻すときは元の場所へ
   const phone = () => window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
+  // ［プレビュー ▾］：▾ の中に［PDF 出力］（元のボタンを要素ごと移すだけ。id・onclick は不変。旧画面へ戻すときは元の位置へ返す）
+  function pvMenu(dock, on) {
+    const pdf = dock.querySelector('.qad-pdf'), pv = dock.querySelector('.qad-preview'); if (!pdf || !pv) return;
+    if (on) {
+      if ($('e2PvMore')) return;
+      const more = document.createElement('button'); more.type = 'button'; more.id = 'e2PvMore'; more.textContent = '▾'; more.setAttribute('aria-label', 'PDF 出力などのメニュー'); more.setAttribute('aria-haspopup', 'true');
+      const menu = document.createElement('div'); menu.id = 'e2PvMenu'; menu.hidden = true;
+      pv.after(more); more.after(menu); menu.appendChild(pdf);
+      more.addEventListener('click', e => { e.stopPropagation(); menu.hidden = !menu.hidden; });
+      menu.addEventListener('click', () => { menu.hidden = true; });
+      document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) menu.hidden = true; });
+    } else {
+      const m = $('e2PvMenu'); if (m) { const p = m.querySelector('.qad-pdf'); if (p) dock.insertBefore(p, dock.firstChild); m.remove(); }
+      const mo = $('e2PvMore'); if (mo) mo.remove();
+    }
+  }
   function moveDock(on) {
     if (on && phone()) on = false;   // スマホ幅は旧来のドック（下の固定ボタン）のまま
     const dock = $('quoteActionDock'), tb = $('saveToolbar'); if (!dock || !tb) return;
-    if (on) { if (!dockHome) dockHome = { p: dock.parentNode, n: dock.nextSibling }; tb.appendChild(dock); dock.classList.add('e2-in-toolbar'); }
-    else if (dockHome) { dock.classList.remove('e2-in-toolbar'); dockHome.p.insertBefore(dock, dockHome.n); dockHome = null; }
+    if (on) { if (!dockHome) dockHome = { p: dock.parentNode, n: dock.nextSibling }; tb.appendChild(dock); dock.classList.add('e2-in-toolbar'); pvMenu(dock, true); }
+    else { pvMenu(dock, false); if (dockHome) { dock.classList.remove('e2-in-toolbar'); dockHome.p.insertBefore(dock, dockHome.n); dockHome = null; } }
   }
 
   function apply(on) {
