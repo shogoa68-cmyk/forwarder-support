@@ -3864,6 +3864,7 @@
     try {
       const sent = _wrCases(source), lost = _wrCases(source, true).filter(c => c.status === '失注');
       out.win.sent = sent.length; out.win.won = sent.filter(c => c.status === '受注').length; out.win.rate = _winRatePct(out.win.won, sent.length);
+      { const ms = sent.filter(c => c.margin != null).map(c => c.margin); out.win.avgMargin = ms.length ? ms.reduce((x, y) => x + y, 0) / ms.length : null; }
       out.win.lost = lost.length; out.win.pending = sent.filter(c => c.status !== '受注' && c.status !== '失注').length;
       const cnt = {}; lost.forEach(c => { if (c.reason) cnt[c.reason] = (cnt[c.reason] || 0) + 1; });
       const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
@@ -4483,6 +4484,16 @@
     return { customer: d.customerGroups, sv: d.svGroups, port: d.portGroups, nm: d.nmGroups, un: d.unGroups };
   };
   window.statsNormalizeKey = _normalize;
+  // マスター一覧のカード用：この名前に表記ゆれ（同じ読みで別の綴り）があるか。読み取りだけ・30 秒使い回す（Design 29 ③の［ゆらぎ ▸ 直す］）
+  let _driftCache = null;
+  window.statsMasterHasDrift = function (field, name) {
+    try {
+      if (!_driftCache || Date.now() - _driftCache.t > 30000) _driftCache = { t: Date.now(), d: window.statsDriftInput() };
+      const gs = _driftCache.d[field]; if (!gs) return false;
+      return gs.some(g => g.variants.length > 1 && g.variants.some(v => v.value === name));
+    } catch (e) { return false; }
+  };
+  window.statsMasterFieldFilter = () => _masterFieldFilter;
   window.statsMastersReady = () => _cloud() && _cvMap !== null;
 
   window.statsRefresh = async function () {

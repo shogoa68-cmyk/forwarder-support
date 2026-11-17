@@ -194,10 +194,10 @@ html.editor-v2 #e2PvMenu .qad-pdf { display: flex !important; width: 100%; min-h
   html.editor-v2 #e2Steps button i { flex: 0 0 26px; width: 26px; height: 26px; line-height: 26px; text-align: center; border-radius: 50%; background: #e4e7ec; color: #475467; font-style: normal; font-weight: 700; font-size: var(--text-xs, 12px); }
   html.editor-v2 #e2Steps button b, html.editor-v2 #e2Steps button small { display: none; }
   html.editor-v2 #tab-quote-make.e2-rail-open #e2Steps button b { display: inline; font-size: var(--text-sm, 13px); font-weight: 500; white-space: nowrap; }
-  html.editor-v2 #tab-quote-make.e2-rail-open #e2Steps button.is-on small { display: -webkit-box; flex-basis: 100%; padding-left: 34px; font-size: 11px; color: #667085; white-space: normal; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; max-width: none; word-break: break-all; }
+  html.editor-v2 #tab-quote-make.e2-rail-open #e2Steps button.is-on small { display: -webkit-box; flex-basis: 100%; padding-left: 34px; font-size: 11px; color: #5a6475; white-space: normal; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; max-width: none; word-break: break-all; }
   /* 印は 3 種（まだ＝番号／入力済み＝✓／必須の欠け＝!）。「いま見ている」は印ではなく左の太い線＋薄い背景＋太字で示す */
   html.editor-v2 #e2Steps button.is-ok i { background: #dcf3e4; color: #1e7a4a; }
-  html.editor-v2 #e2Steps button.is-warn i { background: #fdebd3; color: #b45309; }
+  html.editor-v2 #e2Steps button.is-warn i { background: #fdebd3; color: #9a4a06; }
   html.editor-v2 #e2Steps button.is-on { border-left-color: #2f5fb3; background: #eef3fb; color: inherit; box-shadow: none; }
   html.editor-v2 #e2Steps button.is-on b { font-weight: 700 !important; }
   html.editor-v2 #e2Steps button:hover:not(.is-on) { background: var(--bg-soft, #f2f4f7); }

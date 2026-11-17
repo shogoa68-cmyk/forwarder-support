@@ -83,6 +83,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('[T3] 暗幕を押すと閉じる', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 56);
     ok('[T3] 選択中の印は番号／✓／!のまま（✓の黒丸にしない）', await p.evaluate(() => { const on = document.querySelector('#e2Steps button.is-on i'); return !!on && getComputedStyle(on).backgroundColor !== 'rgb(44, 69, 93)'; }));
     ok('[T3] 本文の左端はレールと重ならない', await p.evaluate(() => document.querySelector('#tab-quote-make .quote-workspace').getBoundingClientRect().left >= 56));
+    // ロック中（他の人が編集中）：札が「🔒 ○○さんが編集中」・主ボタンが［🔒 閲覧のみ］（押せない）。外れたら元に戻る
+    await p.evaluate(() => { document.getElementById('qmBanner').textContent = '🔒 閲覧モード — 編集するには「✏️ 編集」'; window.__qlb = window.quoteLockedByOther; window.quoteLockedByOther = () => ({ email: 't@x.com', name: '田中' }); document.getElementById('qf-case-name').dispatchEvent(new Event('input', { bubbles: true })); });
+    await p.waitForTimeout(300);
+    ok('[T3] ロック中：札が「🔒 田中さんが編集中」・主ボタンは［🔒 閲覧のみ］で押せない', await p.evaluate(() => { const b = document.getElementById('e2State'), m = document.getElementById('qadMode'); return /田中さんが編集中/.test(b.textContent) && b.classList.contains('is-lock') && m.disabled && /閲覧のみ/.test(m.textContent); }));
+    await p.evaluate(() => { window.quoteLockedByOther = window.__qlb || (() => null); window.quoteLockedByOther = () => null; document.getElementById('qf-case-name').dispatchEvent(new Event('input', { bubbles: true })); });
+    await p.waitForTimeout(300);
+    ok('[T3] ロックが外れたら主ボタンが［✏️ 編集］に戻る', await p.evaluate(() => { const m = document.getElementById('qadMode'); return !m.disabled && /編集/.test(m.textContent); }));
     ok('[T3] 題名は 1 行（最大幅 380px）', await p.evaluate(() => { const b = document.getElementById('e2tName'); return b.getBoundingClientRect().width <= 381 && getComputedStyle(b).whiteSpace === 'nowrap'; }));
   }
   if (out) await p.screenshot({ path: path.join(out, 'e2-top.png') });

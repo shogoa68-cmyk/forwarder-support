@@ -5261,6 +5261,13 @@
   window.cloudCreateSubPreset = cloudCreateSubPreset;
   window.cloudListPresets    = cloudListPresets;
   window.cloudGetAllRows     = () => (_cloudRows || []).slice();
+  // 開いている案件を、ほかのメンバーが編集ロック中なら {email, name}（一覧の読み込み時点の情報＝目安）。見積入力の新画面の「🔒 ○○さんが編集中」の札が読む
+  window.quoteLockedByOther = function () {
+    try {
+      const r = (_cloudRows || []).find(x => String(x.id) === String(_loadedCloudId)); const by = r && _lockedByOther(r);
+      return by ? { email: by, name: _nameFor(by) } : null;
+    } catch (e) { return null; }
+  };
   window.cloudGetClient      = _getClient;
   window.cloudCurrentUser    = () => _cloudUser;
   window.cloudOnPresetMgrOpen = cloudOnPresetMgrOpen;
