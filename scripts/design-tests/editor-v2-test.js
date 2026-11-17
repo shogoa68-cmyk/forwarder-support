@@ -53,6 +53,38 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok(mobile ? 'スマホ幅は旧来のドックのまま（ツールバーへ移さない）' : 'PDF／プレビュー／保存が上部ツールバーの中', await p.evaluate(m => !!document.querySelector('#saveToolbar #quoteActionDock') !== m, mobile));
   ok('左ナビ・右下ドックの旧位置は使わない', !(await vis('#qSecNav')));
   ok('その他の情報（日付・受信日・関連番号）は最初は畳まれ、お客様・担当者・案件名は見える', !(await vis('#qf-date')) && !(await vis('#qf-received')) && await vis('#qf-customer') && await vis('#qf-person') && await vis('#qf-case-name'));
+  // ===== Design 31・案T3：ツールバー 1 段（48px）＋左の開閉レール =====
+  if (mobile) {
+    ok('[T3スマホ] 上のバーに題名・⋯が 1 段目、状態札が 2 段目に出る', await p.evaluate(() => { const r = id => { const e = document.getElementById(id) || document.querySelector(id); return e ? e.getBoundingClientRect() : null; }; const t = r('e2tName'), m = r('#saveToolbar .tb-menu'), s = r('e2State'); return !!t && t.width > 40 && !!m && !!s && s.top > t.bottom - 4 && Math.abs(m.top - t.top) < 30; }));
+    ok('[T3スマホ] 下に［プレビュー ▾］と主ボタンが固定（高さ 56px 前後）', await p.evaluate(() => { const d = document.getElementById('quoteActionDock').getBoundingClientRect(); return Math.abs(d.bottom - innerHeight) < 2 && d.height >= 54 && !!document.getElementById('e2PvMore'); }));
+  }
+  if (!mobile) {
+    const g = (sel, f) => p.evaluate(([s, fn]) => { const e = document.querySelector(s); return e ? new Function('e', 'return ' + fn)(e) : null; }, [sel, f]);
+    ok('[T3] ツールバーの高さは 48px', (await g('#saveToolbar', 'Math.round(e.getBoundingClientRect().height)')) === 48, await g('#saveToolbar', 'e.getBoundingClientRect().height'));
+    ok('[T3] 旧いステップのカード行はなく、レールはしまった状態（幅 56px）', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 56);
+    ok('[T3] 見出しにステップ名と要約が出る', /1 基本/.test((await p.textContent('#e2Head')) || ''));
+    ok('[T3] 作業状態の札は 1 つ（閲覧中／編集中）', /閲覧中|編集中/.test((await p.textContent('#e2State')) || '') && (await p.$$('#e2State')).length === 1);
+    ok('[T3] ［PDF出力］は［プレビュー ▾］の中に移り、元のボタン（onclick）が残る', await p.evaluate(() => { const m = document.getElementById('e2PvMenu'), b = m && m.querySelector('.qad-pdf'); return !!b && /quickQuotePdf/.test(b.getAttribute('onclick')) && getComputedStyle(document.querySelector('#quoteActionDock .qad-preview')).display !== 'none'; }));
+    await p.click('#e2PvMore'); await p.waitForTimeout(150);
+    ok('[T3] ▾ を押すと PDF 出力が出る', await vis('#e2PvMenu .qad-pdf'));
+    await p.keyboard.press('Escape'); await p.evaluate(() => document.body.click()); await p.waitForTimeout(100);
+    ok('[T3] 数量パターンが 1 つ以下なら出ない', !(await vis('#e2Pat')));
+    await p.click('#e2Steps .e2-rail-toggle'); await p.waitForTimeout(300);
+    ok('[T3] ［»］で開くと幅 200px・暗幕・ステップ名が出る', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 200 && await vis('#e2Steps [data-e2s="2"] b') && await vis('#e2Scrim'));
+    await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(400);
+    ok('[T3] 開いて選ぶと切り替わり、自動でしまう', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 56 && await vis('#section-cond') && /2 ルート/.test((await p.textContent('#e2Head')) || ''));
+    await p.click('#e2Steps [data-e2s="1"]'); await p.waitForTimeout(300);
+    ok('[T3] しまったまま押しても開かない（切替だけ）', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 56 && await vis('#section-ref'));
+    await p.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur()); await p.keyboard.press('['); await p.waitForTimeout(250);
+    ok('[T3] ［ キーで開閉できる', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 200);
+    await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+    ok('[T3] Esc で閉じる（暗幕も消える）', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 56 && !(await vis('#e2Scrim')));
+    await p.keyboard.press('['); await p.waitForTimeout(250); await p.mouse.click(900, 500); await p.waitForTimeout(250);
+    ok('[T3] 暗幕を押すと閉じる', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 56);
+    ok('[T3] 選択中の印は番号／✓／!のまま（✓の黒丸にしない）', await p.evaluate(() => { const on = document.querySelector('#e2Steps button.is-on i'); return !!on && getComputedStyle(on).backgroundColor !== 'rgb(44, 69, 93)'; }));
+    ok('[T3] 本文の左端はレールと重ならない', await p.evaluate(() => document.querySelector('#tab-quote-make .quote-workspace').getBoundingClientRect().left >= 56));
+    ok('[T3] 題名は 1 行（最大幅 380px）', await p.evaluate(() => { const b = document.getElementById('e2tName'); return b.getBoundingClientRect().width <= 381 && getComputedStyle(b).whiteSpace === 'nowrap'; }));
+  }
   if (out) await p.screenshot({ path: path.join(out, 'e2-top.png') });
   await p.click('#e2MoreBtn'); await p.waitForTimeout(250);
   ok('［その他の情報］を開くと日付が出る', mobile || (await vis('#qf-date') && await vis('#qf-received')));
@@ -128,6 +160,18 @@ const http = require('http'), fs = require('fs'), path = require('path');
   d1 = await dr();
   ok('「数量登録」で「単位で数量を一括変更」が開く', d1.open && d1.mod === 'scenario' && d1.vis.includes('scPanel'), d1);
   if (out) await p.screenshot({ path: path.join(out, 'e2-drawer.png') });
+  // 明細 1 行：使っていない「その他 ▾」は行に乗せるまで隠す
+  if (!mobile) {
+    await p.evaluate(() => { document.querySelector('[data-e2s="4"]').click(); window.addRow(); }); await p.waitForTimeout(400);
+    await p.mouse.move(5, 5); await p.evaluate(() => document.activeElement && document.activeElement.blur()); await p.waitForTimeout(200);
+    const vis = await p.evaluate(() => { const r = document.querySelector('#tableBody tr:not([data-virtual])'); const bb = r && r.querySelector('.row-detail-btn'); window.__d = r && [r.matches(':hover'), r.matches(':focus-within'), bb && bb.matches(':has(.used-badge:not([data-n="0"]))'), bb && bb.getAttribute('aria-expanded'), document.documentElement.className]; const b = r && r.querySelector('.row-detail-btn'); return b ? getComputedStyle(b).visibility : 'none'; });
+    ok('使っていない「その他 ▾」は行に乗せるまで隠れる', vis === 'hidden' || vis === 'none', [vis, await p.evaluate(() => window.__d)]);
+  }
+  if (!mobile) {   // サブコン見出しの注記入力は、空のあいだ見出しに乗せるまで隠す
+    await p.mouse.move(5, 5); await p.evaluate(() => document.activeElement && document.activeElement.blur()); await p.waitForTimeout(200);
+    const hn = await p.evaluate(() => { const h = document.querySelector('#tableBody .subcon-group-header .hdr-notes'); return h ? getComputedStyle(h).display : 'none'; });
+    ok('サブコン見出しの注記入力は、空のあいだ隠れる', hn === 'none', hn);
+  }
   await p.evaluate(() => window.editorV2Set(false)); await p.waitForTimeout(500);
   ok('旧画面へ戻る：全セクションが出る・ドックは元の場所・ステップは消える', await vis('#section-ref') && await vis('#section-cond') && await vis('#section-table') && await p.evaluate(() => !document.querySelector('#saveToolbar #quoteActionDock')) && !(await vis('#e2Steps')) && !(await vis('#e2Total')));
   if (out) await p.screenshot({ path: path.join(out, 'e2-back-to-v1.png') });

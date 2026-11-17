@@ -251,6 +251,28 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const html = await p.evaluate(() => document.getElementById('statsPane-master')?.innerHTML || '');
     ok(L + '承認待ちの一覧（承認・却下）', html.includes('承認待ち 1 件') && html.includes('承認待ち費用') && html.includes('statsApproveRequest'), html.slice(0, 300));
     if (process.env.OUT) { await p.evaluate(() => window.scrollTo(0, 0)); await p.screenshot({ path: path.join(process.env.OUT, 'master-approval.png') }); }
+    // 📋 今日やること（Design 29 ②）：お知らせを 1 枚に・承認待ちがあれば開いて始まる・畳める
+    const td = await p.evaluate(() => { const t = document.getElementById('mhTodo'); const b = t && t.querySelector('.mh-todo-b'); return { has: !!t, open: !!t && !t.classList.contains('is-closed'), inside: !!b && !!b.querySelector('#driftCard') && !!b.querySelector('.stats-req-section'), n: t && t.querySelector('.mh-todo-n') && t.querySelector('.mh-todo-n').textContent }; });
+    ok(L + '[今日やること] 申請・ゆらぎチェックが 1 枚の中に入り、承認待ちがあるので開いている', td.has && td.open && td.inside && /承認待ち 1/.test(td.n || ''), td);
+    await p.evaluate(() => statsMhTodoToggle()); await p.waitForTimeout(100);
+    ok(L + '[今日やること] 押すと畳まれ、本文が隠れる', await p.evaluate(() => { const t = document.getElementById('mhTodo'); return t.classList.contains('is-closed') && getComputedStyle(t.querySelector('.mh-todo-b')).display === 'none'; }));
+    await p.evaluate(() => statsMhTodoToggle()); await p.waitForTimeout(100);
+    // ③ いまの条件のチップ行（Design 29）
+    ok(L + '[条件チップ] 条件がないときは出ない', await p.evaluate(() => { statsMasterClearCond(); return !document.getElementById('mhCond'); }));
+    await p.evaluate(() => { statsMasterSetFilter('port'); }); await p.waitForTimeout(200);
+    await p.evaluate(() => { statsMasterSetQuery('a'); }); await p.waitForTimeout(400);
+    ok(L + '[条件チップ] 種別・検索がチップで出る', await p.evaluate(() => { const c = document.getElementById('mhCond'); return !!c && c.querySelectorAll('.mc-chip').length === 2 && /港/.test(c.textContent) && !!c.querySelector('.mc-clear'); }));
+    await p.evaluate(() => document.querySelector('#mhCond .mc-chip[data-k="q"] .mc-x').click()); await p.waitForTimeout(300);
+    ok(L + '[条件チップ] ✕で検索だけ外れる', await p.evaluate(() => { const c = document.getElementById('mhCond'); return !!c && c.querySelectorAll('.mc-chip').length === 1; }));
+    await p.evaluate(() => document.querySelector('#mhCond .mc-clear').click()); await p.waitForTimeout(300);
+    ok(L + '[条件チップ] 条件をクリアで全部外れる', await p.evaluate(() => !document.getElementById('mhCond')));
+    await p.evaluate(() => statsMasterSetFilter('all')); await p.waitForTimeout(200);
+    ok(L + '[印] 3 つ以上の印は上位 2 つ＋「他 N」', await p.evaluate(() => {
+      const td = document.createElement('td'); td.className = 'stats-val'; td.innerHTML = '<span class="cr-chip">a</span><span class="mn-chip">b</span><span class="cc-chip">c</span><span class="stats-md-via">d</span>';
+      const t = document.createElement('table'); t.className = 'master-grid'; const tr = document.createElement('tr'); tr.appendChild(td); t.appendChild(tr);
+      document.getElementById('statsPane-master').appendChild(t); mmMarksEnhance();
+      const hidden = td.querySelectorAll('.mm-hide').length, btn = td.querySelector('.mm-more'); const ok1 = hidden === 2 && btn && btn.textContent === '他2' && getComputedStyle(td.querySelector('.mn-chip')).display === 'none';
+      btn.click(); const ok2 = td.classList.contains('mm-open') && btn.textContent === '閉じる'; t.remove(); return ok1 && ok2; }));
     await p.evaluate(() => statsApproveRequest('q1')); await p.waitForTimeout(500);
     await p.evaluate(() => { window.__db.master_requests.push({ id: 'qd1', field: 'customer', value: '詳細つき申請社', requested_by: 'm@example.com', status: 'pending', details: { location: '福岡市博多区', mainGoods: '雑貨' }, note: '急ぎです', created_at: new Date().toISOString() }); });
     await p.evaluate(async () => { await statsLoadMasterCache(); statsRerenderActive(); }); await p.waitForTimeout(400);
@@ -936,6 +958,23 @@ const http = require('http'), fs = require('fs'), path = require('path');
     if (process.env.OUT) await p.screenshot({ path: require('path').join(process.env.OUT, 'master-detail-modal.png') });
     await p.keyboard.press('Escape'); await p.waitForTimeout(200);
     ok(L + 'Esc で閉じる', await p.evaluate(() => !document.getElementById('mdDetailModal') && !document.body.classList.contains('md-modal-open')));
+    // 詳細は右からのドロワー（Design 29・④）：右寄せ・幅 560px 以下・高さいっぱい・「● 編集中（未保存）」・未保存で閉じる確認
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ポップ商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
+    const dg = await p.evaluate(() => { const b = document.querySelector('#mdDetailModal .md-modal').getBoundingClientRect(); const d = document.querySelector('#mdDetailModal .mt-dirty'); return { right: Math.round(b.right), w: Math.round(b.width), h: Math.round(b.height), vw: innerWidth, vh: innerHeight, dirtyHidden: !!d && d.hidden }; });
+    ok(L + '[ドロワー] 右から出る（右寄せ・幅 560px 以下・高さいっぱい）', dg.right === dg.vw && dg.w <= 560 && dg.h === dg.vh, dg);
+    ok(L + '[ドロワー] 開いた直後は「編集中」の印が出ない', dg.dirtyHidden);
+    await p.fill('#md_furigana', 'ぽっぷ'); await p.waitForTimeout(100);
+    ok(L + '[ドロワー] 入力すると「● 編集中（未保存）」が出る', await p.evaluate(() => { const d = document.querySelector('#mdDetailModal .mt-dirty'); return !!d && !d.hidden && /編集中/.test(d.textContent); }));
+    await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+    ok(L + '[ドロワー] 未保存で Esc → 確認が出て、閉じない', await p.evaluate(() => !!document.querySelector('.confirm-dialog') && !!document.getElementById('mdDetailModal')));
+    await p.evaluate(() => document.querySelector('.confirm-dialog .btn-cancel').click()); await p.waitForTimeout(200);
+    ok(L + '[ドロワー] 「やめる」でそのまま編集に戻る', await p.evaluate(() => !document.querySelector('.confirm-dialog') && !!document.getElementById('mdDetailModal')));
+    await p.evaluate(() => document.querySelector('#mdDetailModal .md-modal-close').click()); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('.confirm-dialog .btn-danger').click()); await p.waitForTimeout(300);
+    ok(L + '[ドロワー] 「破棄して閉じる」で閉じる', await p.evaluate(() => !document.getElementById('mdDetailModal') && !document.querySelector('.confirm-dialog')));
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ポップ商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    await p.evaluate(() => { const o = document.getElementById('mdDetailModal'); o.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); o.dispatchEvent(new MouseEvent('click', { bubbles: true })); }); await p.waitForTimeout(200);
+    ok(L + '[ドロワー] 背景（暗い所）クリックで閉じる（未保存なし）', await p.evaluate(() => !document.getElementById('mdDetailModal')));
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ポップ商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
     await p.fill('#md_furigana', 'ぽっぷしょうじ'); await p.click('.master-detail-save'); await p.waitForTimeout(800);
     ok(L + '保存すると保存されて閉じる', await p.evaluate(() => !document.getElementById('mdDetailModal') && window.__db.master_details.find(m => m.value === 'ポップ商事').details.furigana === 'ぽっぷしょうじ'));

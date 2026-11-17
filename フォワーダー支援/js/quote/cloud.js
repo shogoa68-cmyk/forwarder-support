@@ -2171,6 +2171,7 @@
   }
   // 作業中の見積があるか（保存済みの案件を開いている／未保存の入力がある）。ダッシュボードの「作業中の見積に戻る」の出し分け
   window.qpHasWorkingQuote = function () { return !!_loadedCloudId || !!_quoteDirty; };
+  window.quoteIsDirty = function () { return !!_quoteDirty; };   // 未保存の変更があるか（見積入力の新画面の作業状態の札が読む）
   function qpShowEditor() {
     document.getElementById('tab-quote-make')?.classList.remove('qp-dash');
     document.body.classList.remove('qp-dash-active');
