@@ -151,6 +151,9 @@ html.editor-v2 #tab-quote-make #quoteTable :is(.subcon-group-header, .subcon-sub
 /* ===== Design 31・案T3：ツールバー 1 段（48px）＋左の開閉レール（PC・601px〜） ===== */
 #e2Head, #e2State, #e2Pat, #e2PatNeed, #e2StatePop, #e2PvMore, #e2PvMenu, #e2Rail { display: none; }
 @media (min-width: 601px) {
+  /* 旧画面の左端ナビ用の余白（68px）は使わない：レールをカテゴリの行の左端にそろえる */
+  html.editor-v2 #tab-quote-make:not(.qp-dash) { padding-left: 0; }
+  html.editor-v2 #tab-quote-make:not(.qp-dash) > .save-toolbar { margin-left: 0; }
   /* ツールバー：高さ 48px・1 段。固定はこの 1 段だけ（操作バーの top は「カテゴリ + 48px」） */
   html.editor-v2 #tab-quote-make:not(.qp-dash) > .save-toolbar { height: 48px; min-height: 48px; max-height: 48px; flex-wrap: nowrap; padding: 0 12px; gap: 8px; overflow: visible; box-sizing: border-box; }
   html.editor-v2 #tab-quote-make .quote-cmdbar { top: calc(var(--nav-cat-h, 56px) + 48px); }
