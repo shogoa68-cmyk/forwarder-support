@@ -2870,11 +2870,80 @@
   };
   window.statsMasterClearQuery = function () { _masterQuery = ''; _renderMaster(); };
 
+  // ===== インデックスバー（あ か さ …／A B C …）：マスター一覧を頭文字で探す（2026-11）=====
+  // 頭文字は、詳細の「ふりがな」があればその読み、無ければ名前の先頭（株式会社などは飛ばす・カタカナはひらがなへ）。
+  // かな＝行（あ か さ た な は ま や ら わ）・英字＝A〜Z・数字＝0-9・漢字などで読みが無いもの＝他
+  const _IDX_ROWS = [['あ', 'ぁあぃいぅうぇえぉおゔ'], ['か', 'かがきぎくぐけげこご'], ['さ', 'さざしじすずせぜそぞ'], ['た', 'ただちぢっつづてでとど'], ['な', 'なにぬねの'],
+    ['は', 'はばぱひびぴふぶぷへべぺほぼぽ'], ['ま', 'まみむめも'], ['や', 'ゃやゅゆょよ'], ['ら', 'らりるれろ'], ['わ', 'ゎわゐゑをん']];
+  const _IDX_KANA = _IDX_ROWS.map(r => r[0]);
+  const _IDX_ORDER = _IDX_KANA.concat('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''), ['0-9', '他']);
+  function _idxReading(field, name) {
+    let d = null;
+    try { const r = typeof window.mdGet === 'function' ? window.mdGet(field, name) : null; d = r && r.details; } catch (e) { /* 無視 */ }
+    return String((d && d.furigana) || name || '');
+  }
+  function _idxKeyOfText(t) {
+    let x = String(t || '').normalize('NFKC').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+    x = x.replace(/^[\s()\[\]「」『』・.\-_/*]+/, '').replace(/^(株式会社|有限会社|合同会社|\(株\)|\(有\)|\(合\))[\s]*/, '').replace(/^[\s()\[\]「」『』・.\-_/*]+/, '');
+    const c = x.charAt(0);
+    if (!c) return '他';
+    const row = _IDX_ROWS.find(r => r[1].indexOf(c) >= 0);
+    if (row) return row[0];
+    if (/[a-zA-Z]/.test(c)) return c.toUpperCase();
+    if (/[0-9]/.test(c)) return '0-9';
+    return '他';
+  }
+  const _idxKey = (field, name) => _idxKeyOfText(_idxReading(field, name));
+  // 一覧の並び（名前順）：種別 → 頭文字の順 → 読み（ふりがな）／名前
+  function _idxCmp(a, b) {
+    const ka = _IDX_ORDER.indexOf(_idxKey(a.field, a.name)), kb = _IDX_ORDER.indexOf(_idxKey(b.field, b.name));
+    if (ka !== kb) return ka - kb;
+    return _idxReading(a.field, a.name).localeCompare(_idxReading(b.field, b.name), 'ja');
+  }
+  let _idxBubbleT = null;
+  function _idxJump(k, quiet) {
+    const row = document.querySelector('#statsPane-master table.master-table > tbody > tr[data-idx="' + k + '"]');
+    if (!row) return false;
+    row.scrollIntoView({ block: 'start', behavior: quiet ? 'auto' : 'smooth' });
+    row.classList.add('idx-flash'); setTimeout(() => row.classList.remove('idx-flash'), 1200);
+    return true;
+  }
+  window.statsMasterIndexJump = k => _idxJump(k);
+  function _applyIndexBar() {
+    const pane = document.getElementById('statsPane-master'); if (!pane) return;
+    const old = document.getElementById('masterIndexBar'); if (old) old.remove();
+    // 名前順のときだけ（グループごとのまとめ表示では、頭文字の順に並ばないため出さない）
+    if (_masterSort !== 'name') return;
+    const rows = Array.from(pane.querySelectorAll('table.master-table > tbody > tr[data-mvalue]'));
+    if (rows.length < 8) return;   // 少ないときは要らない
+    const have = new Set();
+    rows.forEach(tr => { const k = _idxKey(tr.dataset.mfield, tr.dataset.mvalue); tr.dataset.idx = k; have.add(k); });
+    const items = _IDX_ORDER.filter(k => _IDX_KANA.includes(k) || have.has(k));   // かなは常に（薄く）・英字・数字・他は、ある分だけ
+    const bar = document.createElement('div');
+    bar.id = 'masterIndexBar'; bar.className = 'master-index-bar'; bar.setAttribute('role', 'navigation'); bar.setAttribute('aria-label', '頭文字で探す');
+    bar.innerHTML = items.map(k => `<button type="button" class="mib-k${have.has(k) ? '' : ' is-off'}" data-k="${_eav(k)}" tabindex="${have.has(k) ? 0 : -1}" aria-label="${_eav(k + 'から始まるもの')}"${have.has(k) ? '' : ' aria-disabled="true"'}>${_esc(k)}</button>`).join('') +
+      '<div class="mib-bubble" id="masterIndexBubble" aria-hidden="true"></div>';
+    pane.appendChild(bar);
+    const bubble = bar.querySelector('#masterIndexBubble');
+    const show = k => { bubble.textContent = k; bubble.classList.add('on'); clearTimeout(_idxBubbleT); _idxBubbleT = setTimeout(() => bubble.classList.remove('on'), 700); };
+    const keyAt = (x, y) => { const el = document.elementFromPoint(x, y); const b = el && el.closest && el.closest('.mib-k'); return b && bar.contains(b) ? b.dataset.k : null; };
+    let drag = false, last = null;
+    const go = k => { if (!k || k === last) return; last = k; if (have.has(k)) { show(k); _idxJump(k, true); } };
+    bar.addEventListener('pointerdown', e => { if (!e.target.closest('.mib-k')) return; drag = true; last = null; try { bar.setPointerCapture(e.pointerId); } catch (x) { /* 無視 */ } go(keyAt(e.clientX, e.clientY)); e.preventDefault(); });
+    bar.addEventListener('pointermove', e => { if (drag) go(keyAt(e.clientX, e.clientY)); });
+    const end = () => { drag = false; last = null; };
+    bar.addEventListener('pointerup', end); bar.addEventListener('pointercancel', end);
+    bar.addEventListener('click', e => { const b = e.target.closest('.mib-k'); if (!b || b.classList.contains('is-off')) return; if (!drag) { show(b.dataset.k); _idxJump(b.dataset.k); } });
+    bar.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const b = e.target.closest('.mib-k'); if (b && !b.classList.contains('is-off')) { e.preventDefault(); _idxJump(b.dataset.k); } } });
+  }
+  window.statsMasterIndexKey = _idxKey;
+
   // 検索ボックスに入力中の描き直しでも、入力の位置を保つ
   function _renderMaster() {
     const act = document.activeElement;
     const keep = act && act.id === 'masterSearch' ? { s: act.selectionStart, e: act.selectionEnd } : null;
     _renderMasterInner();
+    _applyIndexBar();
     if (typeof window.driftRenderCard === 'function') window.driftRenderCard();   // 🔍 ゆらぎチェックのカード（js/drift-check.js）
     const inp = document.getElementById('masterSearch');
     if (inp && keep) { inp.focus(); try { inp.setSelectionRange(keep.s, keep.e); } catch (e) { /* 無視 */ } }
@@ -3046,7 +3115,7 @@
     let rowsAll = [
       ...entries.map(m => ({ kind: 'ind', field: m.field, name: m.value, m })),
       ...synFiltered.map(g => ({ kind: 'grp', field: g.field, name: g.canonical, g })),
-    ].sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.name || '').localeCompare(b.name || ''));
+    ].sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || _idxCmp(a, b));
     // 検索（種別の絞り込みのあとに、さらに絞る）
     const _terms = _qNorm(_masterQuery).split(/\s+/).filter(Boolean);
     _masterHitCount = null;
