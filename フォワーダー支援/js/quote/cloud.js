@@ -50,6 +50,7 @@
     return _cloudTagMode === 'or' ? _cloudFilterTags.some(t => have.includes(t)) : _cloudFilterTags.every(t => have.includes(t));
   }
   let _cloudFollowFilter  = false; // 🔔 料金更新フォロー（要フォロー）だけに絞り込む
+  let _cloudFilterFollower = '';   // 🙋 フォロー担当での絞り込み（メール／'__none'＝未フォロー）
   // 案件の範囲：全体／組織／チーム／自分（作成者の所属で絞る。見える範囲は変えない＝全員が全案件を見られる）。
   //   _cloudScopeSel＝組織・チームの id（空＝自分の所属）。選択は端末に覚える（qpdScope_v1）。組織とチームの所属は js/org-teams.js
   let _cloudScope = 'all';
@@ -523,6 +524,11 @@
     if (!_inScope(r, _cloudScope, _cloudScopeSel)) return false;   // 全体／組織／チーム／自分
     if (_cloudFollowFilter && !_priceFollow(r)) return false;   // 🔔 要フォローのみ
     if (_cloudPendingFilter && !_pendingImport(r)) return false; // 📩 未取込のみ
+    if (_cloudFilterFollower) {   // 🙋 フォロー担当：進行中の案件だけ（受注・失注・辞退・保留は割り振りの対象外）
+      if (!_isActiveCase(r)) return false;
+      const fo = _followerOf(r);
+      if (_cloudFilterFollower === '__none' ? !!fo : fo !== _cloudFilterFollower) return false;
+    }
     if (_cloudStatusFilter) {
       const st = _normalizeStatus(r.status) || CLOUD_STATUS_DEFAULT;
       const matchesStatus = (_cloudStatusFilter === DRAFT_GROUP_FILTER)
@@ -600,7 +606,7 @@
     // 絞り込み・並び替えが変わったときだけ先頭ページに戻す（ステータス変更や Presence 等の
     // 付随的な再描画では表示件数を保つ＝スクロール位置・展開状態を崩さない）
     const sig = JSON.stringify([_cloudSearch, _cloudStatusFilter, _cloudFilterCustomer, _cloudFilterTags.join('\u0001'), _cloudTagMode,
-      _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView, _cloudFollowFilter, _cloudPendingFilter, _cloudScope, _cloudScopeSel]);
+      _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView, _cloudFollowFilter, _cloudPendingFilter, _cloudFilterFollower, _cloudScope, _cloudScopeSel]);
     if (sig !== _dashFilterSig) { _dashFilterSig = sig; _dashLimit = DASH_PAGE; }
     _renderCloudList(rows);
     _renderTagChips();        // タグチップは現在の絞り込み（ステータス等）に連動して件数・顔ぶれを更新
@@ -618,7 +624,7 @@
   // 何らかの絞り込みが効いているか（「すべて解除」ボタンの出し分けに使う）
   function _anyFilterActive() {
     return !!(_cloudScope !== 'all' || _cloudSearch.trim() || _cloudStatusFilter || _cloudFilterCustomer || _cloudFilterTags.length ||
-              _cloudFilterMode || _cloudFilterInco || _cloudFollowFilter || _cloudPendingFilter ||
+              _cloudFilterMode || _cloudFilterInco || _cloudFollowFilter || _cloudPendingFilter || _cloudFilterFollower ||
               _cloudFilterPol.trim() || _cloudFilterPod.trim() || _cloudFilterCarrier.trim());
   }
   function _syncResetAllBtn() {
@@ -635,6 +641,7 @@
     _cloudFilterCustomer = '';
     _cloudFilterTags = [];
     _cloudFollowFilter = false;
+    _cloudFilterFollower = '';
     _cloudPendingFilter = false;
     _cloudScope = 'all'; _cloudScopeSel = ''; _saveScope();
     _cloudFilterMode = _cloudFilterInco = _cloudFilterPol = _cloudFilterPod = _cloudFilterCarrier = '';
@@ -1013,7 +1020,7 @@
     '</div>';
   }
   // 作業者の 1 行：作成者と更新した人（editors＝新しい順・最大 20 名）を全員並べる。丸いアイコン＋名前＋作成／更新（自分は「あなた」）
-  function _cc3Who(r) {
+  function _cc3Who(r, lockedBy) {
     const me = (_cloudUser && _cloudUser.email) || '';
     const people = [], idx = {};
     const add = (email, role) => {
@@ -1023,8 +1030,9 @@
     };
     add(r.created_by, '作成');
     _editorsOf(r).forEach(e => { if (e.email !== r.created_by) add(e.email, '更新'); });   // 名前ごとにラベルは 1 つだけ（作成者が更新もしていれば「作成」のみ）
-    if (!people.length) return '';
-    return '<div class="cc3-who"><span class="cc3-who-l">作業者</span>' + people.map(p => {
+    const flw = _followChipHtml(r, lockedBy);
+    if (!people.length && !flw) return '';
+    return '<div class="cc3-who">' + flw + (people.length ? '<span class="cc3-who-l">作業者</span>' : '') + people.map(p => {
       const nm = _nameFor(p.email) || p.email, a = _avatarFor(p.email, nm);
       return '<span class="cc3-p' + (p.email === me ? ' is-me' : '') + '" title="' + escHtml(p.email + (p.email === me ? '（あなた）' : '')) + '"><span class="cc3-av" style="background:' + a.color + '">' + escHtml(a.label || '?') + '</span>' +
         '<b>' + escHtml(nm) + '</b><small>' + escHtml(p.roles[0]) + '</small></span>';
@@ -1383,7 +1391,7 @@
           '</div>' +
           copiedFromHtml +
           linksSection +
-          _cc3Who(r) +
+          _cc3Who(r, lockedBy) +
           (sd ? '' : chatFooter) +
           '<div class="cloud-card-foot">' +
             '<span class="cloud-card-who" title="' + escHtml(_whoTitle(r)) + '">🕒 ' + ts + '</span>' +
@@ -1396,7 +1404,7 @@
               (lockedBy
                 ? '<button class="btn-preset-del is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません">🔒</button>'
                 : '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>') +
-              _cardMenuHtml(idAttr, lockedBy, { hold: holdToggle ? { off: holdOff } : null }) +
+              _cardMenuHtml(idAttr, lockedBy, { hold: holdToggle ? { off: holdOff } : null, follow: (_followOn() && _isActiveCase(r)) ? { has: !!_followerOf(r), mine: _followerOf(r) === ((_cloudUser && _cloudUser.email) || '') } : null }) +
             '</div>' +
           '</div>' +
           '</div>' +
@@ -1453,6 +1461,9 @@
         (opt.hold ? mi("cloudToggleHoldReminder(\'" + idAttr + "\'," + (!opt.hold.off) + ")", opt.hold.off ? '🔔 リマインドを再開' : '🔕 リマインド止める', 'cc3-mi') : '') +
         (lockedBy ? '' : mi("cloudEditFollow(\'" + idAttr + "\')", '🔔 料金フォロー', 'cc3-mi')) +
         mi("dashOpenCardChat(\'" + idAttr + "\')", '💬 申し送りを開く', 'cc3-mi') +
+        (opt.follow && !lockedBy ? sep + (opt.follow.mine ? '' : mi("cloudFollowMe(\'" + idAttr + "\')", opt.follow.has ? '🔁 担当を引き継ぐ' : '🙋 フォローする', 'cc3-mi')) +
+          mi("cloudFollowAssign(\'" + idAttr + "\')", '👥 担当を渡す…', 'cc3-mi') +
+          (opt.follow.has ? mi("cloudFollowRelease(\'" + idAttr + "\')", '🙌 フォローを外す', 'cc3-mi') : '') + sep : '') +
         mi("cloudPickPredecessor(\'" + idAttr + "\')", '🧬 代替わり元を設定…', '', '前の案件を選ぶ') +
         mi("eiOpenStoreForCard(\'" + idAttr + "\')", '📝 自由入力を追加', '', 'この案件に、提示した見積の原文を足す') +
         (lockedBy && window._myRole === 'admin' ? sep + mi("cloudAdminReleaseLock(\'" + idAttr + "\')", '🔓 強制解放（管理者）', 'cloud-menu-admin') : '') +
@@ -1984,6 +1995,7 @@
 
   function _applyShareMode(mode) {
     _shareMode = mode;
+    if (typeof _renderFollowInfo === 'function') _renderFollowInfo();   // 🙋 編集画面の担当表示（閲覧中は操作できないので文字だけ）
     const main = document.querySelector('#tab-quote-make .quote-main');
     if (main) main.inert = (mode === 'view');   // 閲覧中はフォーム全体を操作不可（マウス・キーボード）
     if (typeof window.rmsApplyMode === 'function') window.rmsApplyMode(mode === 'view');   // 画面下の全体リマーク（引き出し）も閲覧中は読むだけ
@@ -2664,7 +2676,7 @@
     if (fe && typeof window.eiMakeEntry === 'function') fe.value = JSON.stringify([window.eiMakeEntry({ text: o.rawText, label: o.memo })]);
     if (typeof window.eiRefreshPendingBanner === 'function') window.eiRefreshPendingBanner();
     const before = _loadedCloudId;
-    await cloudSaveCurrent({ toDashboard: true });
+    await cloudSaveCurrent({ toDashboard: true, noFollow: true });
     return !!_loadedCloudId && _loadedCloudId !== before;
   }
   // 既存の案件へ「保管した自由入力」を 1 件足す（案件は開かない・ダッシュボードのカードの「⋯」から）。
@@ -2696,6 +2708,207 @@
     cloudListPresets(true);
     return true;
   }
+  // ================================================================
+  // ========== 🙋 フォロー担当（案件ごとに 1 人・アプリ内で宣言／引き継ぎ） ==========
+  // ================================================================
+  // 「誰がこの案件を見ているか」を口頭ではなくアプリで宣言する。案件データ fields の qf-follower（メール・空＝未フォロー）と
+  // qf-follow-log（引き継ぎの履歴・新しい順・最大 30 件）に持つ＝SQL 不要。評価・集計ではなく、割り振りの目安のための表示。
+  // ※ 「🔔 要フォロー」（料金フォロー＝価格の更新確認）とは別の概念。
+  // 画面への表示は今は止めている（機能・データの扱いは残してある）。出すとき：localStorage `fwd.follow`＝'1'、または URL に ?follow=1、
+  // 恒久的に出すなら下の関数を `return true` にする。止めている間は、保存・コピーでも担当を書かない（表示を戻した時に過去分が食い違わないように）
+  function _followOn() {
+    try { return localStorage.getItem('fwd.follow') === '1' || /[?&]follow=1(&|$)/.test(location.search); } catch (e) { return false; }
+  }
+  const FOLLOW_ENDED = ['受注', '失注', '辞退', '保留'];
+  const FOLLOW_LOG_MAX = 30;
+  function _followerOf(r) {
+    const f = r && r.data && r.data.fields && r.data.fields['qf-follower'];
+    return (typeof f === 'string' && f.trim()) ? f.trim() : '';
+  }
+  function _followLogOf(r) {
+    try {
+      const v = JSON.parse((r && r.data && r.data.fields && r.data.fields['qf-follow-log']) || '[]');
+      return Array.isArray(v) ? v.filter(e => e && typeof e === 'object') : [];
+    } catch (e) { return []; }
+  }
+  // 進行中の案件（受注・失注・辞退・保留は担当の割り振り対象にしない）
+  function _isActiveCase(r) { return !FOLLOW_ENDED.includes(_normalizeStatus(r && r.status) || CLOUD_STATUS_DEFAULT); }
+  // 担当に選べる人（プロフィールのあるメンバー＋いま担当になっている人＋自分）
+  function _followMembers() {
+    const set = new Set(Object.keys(_profileMap).concat(Object.keys(_profileAv)));
+    _cloudRows.forEach(r => { const f = _followerOf(r); if (f) set.add(f); });
+    if (_cloudUser && _cloudUser.email) set.add(_cloudUser.email);
+    return Array.from(set).filter(Boolean).sort((a, b) => _nameFor(a).localeCompare(_nameFor(b), 'ja'));
+  }
+  function _followChipHtml(r, lockedBy) {
+    if (!_followOn()) return '';
+    const f = _followerOf(r), me = (_cloudUser && _cloudUser.email) || '';
+    const ended = !_isActiveCase(r);
+    const idAttr = encodeURIComponent(r.id).replace(/'/g, '%27');
+    if (!f) {
+      if (ended) return '';
+      return '<span class="cc3-follow is-none" title="まだ誰もフォローを宣言していません"><span class="cc3-fl-l">担当</span><b>未フォロー</b>' +
+        (lockedBy ? '' : '<button type="button" class="cc3-fl-btn" onclick="event.stopPropagation();cloudFollowMe(\'' + idAttr + '\')">🙋 フォローする</button>') + '</span>';
+    }
+    const nm = _nameFor(f), a = _avatarFor(f, nm), mine = f === me;
+    return '<span class="cc3-follow' + (mine ? ' is-me' : '') + (ended ? ' is-ended' : '') + '" title="' + escHtml(f + (mine ? '（あなた）' : '')) + '">' +
+      '<span class="cc3-fl-l">担当</span><span class="cc3-av" style="background:' + a.color + '">' + escHtml(a.label || '?') + '</span>' +
+      '<b>' + escHtml(nm) + (mine ? '・あなた' : '') + '</b><small>フォロー中</small>' +
+      ((ended || lockedBy || mine) ? '' : '<button type="button" class="cc3-fl-btn" onclick="event.stopPropagation();cloudFollowMe(\'' + idAttr + '\')">🔁 引き継ぐ</button>') +
+      '</span>';
+  }
+  // 申し送りへ自動で 1 行残す（失敗しても担当の変更は成功のまま）
+  async function _followPostComment(c, id, body) {
+    try { await c.from('quote_comments').insert({ preset_id: id, body, created_by: _cloudUser.email }); } catch (e) {}
+    delete _dashChatCache[id];
+  }
+  // 担当を書き換える本体。toEmail が空なら担当を外す。戻り値 true＝書けた
+  async function _followWrite(rawId, toEmail, note) {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return false; }
+    const id = decodeURIComponent(rawId);
+    const row = _cloudRows.find(r => r.id === id);
+    const lockedBy = row ? _lockedByOther(row) : null;
+    if (lockedBy) { quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません（作業が終わってからお試しください）', 'warn', 5000); return false; }
+    const base = await _freshRowData(id, row);
+    if (!base) { quoteShowToast('⚠️ 案件を読み込めませんでした', 'warn', 4000); return false; }
+    const fromEmail = _followerOf({ data: base });
+    toEmail = toEmail || '';
+    if (fromEmail === toEmail) return true;
+    const me = _cloudUser.email, nowIso = new Date().toISOString();
+    const log = _followLogOf({ data: base });
+    log.unshift({ from: fromEmail, to: toEmail, at: nowIso, by: me, note: note || '' });
+    if (log.length > FOLLOW_LOG_MAX) log.length = FOLLOW_LOG_MAX;
+    const newData = Object.assign({}, base, { fields: Object.assign({}, base.fields, { 'qf-follower': toEmail, 'qf-follow-log': JSON.stringify(log) }) });
+    const { data: upd, error } = await c.from(_table())
+      .update({ data: newData, owner_email: me, updated_at: nowIso }).eq('id', id).select('id');
+    if (error) { quoteShowToast('⚠️ フォローの変更に失敗：' + error.message, 'warn', 5000); return false; }
+    if (!upd || !upd.length) { quoteShowToast('🔒 他メンバーが編集中のため変更できません（作業が終わってからお試しください）', 'warn', 6000); return false; }
+    if (row) { row.data = newData; row.owner_email = me; row.updated_at = nowIso; }
+    _bodyCacheDrop(id);
+    if (_loadedCloudId === id) {   // 画面で開いている案件：編集画面側にも反映（あとの保存で戻さない）
+      const f1 = document.getElementById('qf-follower'), f2 = document.getElementById('qf-follow-log');
+      if (f1) f1.value = toEmail;
+      if (f2) f2.value = JSON.stringify(log);
+      _loadedCloudTs = nowIso;
+      _renderFollowInfo();
+    }
+    const who = _nameFor(me);
+    let msg;
+    if (!toEmail) msg = '🙌 ' + _nameFor(fromEmail) + ' さんがフォローを外しました' + (note ? '（' + note + '）' : '');
+    else if (!fromEmail) msg = toEmail === me ? '🙋 ' + who + ' さんがフォローします' : '🙋 ' + _nameFor(toEmail) + ' さんをフォロー担当にしました（' + who + ' さんが指定）' + (note ? '／' + note : '');
+    else msg = '🔁 ' + _nameFor(fromEmail) + ' → ' + _nameFor(toEmail) + ' に引き継ぎ' + (toEmail === me ? '' : '（' + who + ' さんが指定）') + (note ? '／' + note : '');
+    await _followPostComment(c, id, msg);
+    _applyCloudFilter();
+    return true;
+  }
+  // 確認画面に差し込む入力部品（引き継ぎ先の選択・ひと言メモ）
+  function _followDialogBody(opt) {
+    const box = document.createElement('div'); box.className = 'fl-dlg';
+    let sel = null;
+    if (opt.pick) {
+      const lab = document.createElement('label'); lab.textContent = '担当にする人';
+      sel = document.createElement('select'); sel.className = 'fl-dlg-sel';
+      _followMembers().forEach(em => { const o = document.createElement('option'); o.value = em; o.textContent = _nameFor(em) + (em === (_cloudUser && _cloudUser.email) ? '（あなた）' : ''); if (em === opt.pick) o.selected = true; sel.appendChild(o); });
+      lab.appendChild(sel); box.appendChild(lab);
+    }
+    const lab2 = document.createElement('label'); lab2.textContent = 'ひと言（任意・申し送りに残ります）';
+    const note = document.createElement('input'); note.type = 'text'; note.className = 'fl-dlg-note'; note.maxLength = 120; note.placeholder = '例：見積は作成済み。お客様の返答待ちです';
+    lab2.appendChild(note); box.appendChild(lab2);
+    return { el: box, sel, note };
+  }
+  async function _followConfirm(opts) {
+    if (typeof window.uiConfirm !== 'function') return { ok: true, note: '', to: opts.pick || '' };
+    const b = _followDialogBody(opts);
+    const ok = await window.uiConfirm({ title: opts.title, lines: opts.lines, okLabel: opts.okLabel, content: b.el });
+    return { ok, note: (b.note.value || '').trim(), to: b.sel ? b.sel.value : '' };
+  }
+  // 確認画面を出す前に、編集ロック中（他メンバーが作業中）なら止める（入力してから拒否されないように）
+  function _followBlocked(rawId) {
+    const id = decodeURIComponent(rawId), row = _cloudRows.find(r => r.id === id);
+    const lb = row ? _lockedByOther(row) : null;
+    if (lb) quoteShowToast('🔒 ' + _nameFor(lb) + ' さんが作業中のため変更できません（作業が終わってからお試しください）', 'warn', 5000);
+    return !!lb;
+  }
+  // 「フォローする」：誰も担当でなければその場で宣言／ほかの人が担当なら引き継ぐ（ひと言つき）
+  async function cloudFollowMe(rawId) {
+    if (!_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
+    const id = decodeURIComponent(rawId), row = _cloudRows.find(r => r.id === id);
+    if (_followBlocked(rawId)) return;
+    const cur = row ? _followerOf(row) : '', me = _cloudUser.email;
+    if (cur === me) { quoteShowToast('ℹ️ すでにあなたがフォロー中です', 'info', 2500); return; }
+    if (!cur) {
+      if (await _followWrite(rawId, me, '')) quoteShowToast('🙋 この案件をフォローします', 'success', 3000);
+      return;
+    }
+    const r = await _followConfirm({ title: '担当を引き継ぎますか？', lines: ['いまは ' + _nameFor(cur) + ' さんがフォローしています。あなたが引き継ぎます（申し送りに記録されます）。'], okLabel: '引き継ぐ' });
+    if (!r.ok) return;
+    if (await _followWrite(rawId, me, r.note)) quoteShowToast('🔁 ' + _nameFor(cur) + ' さんから引き継ぎました', 'success', 3000);
+  }
+  // 「担当を渡す…」：メンバーを選んで担当にする（未フォローの案件を割り振るときにも）
+  async function cloudFollowAssign(rawId) {
+    if (!_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
+    const id = decodeURIComponent(rawId), row = _cloudRows.find(r => r.id === id);
+    if (_followBlocked(rawId)) return;
+    const cur = row ? _followerOf(row) : '';
+    const r = await _followConfirm({ title: '担当を割り当てますか？', lines: [cur ? 'いまの担当は ' + _nameFor(cur) + ' さんです。' : 'いまは誰もフォローしていません。'], okLabel: '担当にする', pick: cur || _cloudUser.email });
+    if (!r.ok || !r.to) return;
+    if (r.to === cur) { quoteShowToast('ℹ️ すでにその人が担当です', 'info', 2500); return; }
+    if (await _followWrite(rawId, r.to, r.note)) quoteShowToast('🙋 ' + _nameFor(r.to) + ' さんを担当にしました', 'success', 3000);
+  }
+  async function cloudFollowRelease(rawId) {
+    if (!_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
+    const id = decodeURIComponent(rawId), row = _cloudRows.find(r => r.id === id);
+    if (_followBlocked(rawId)) return;
+    const cur = row ? _followerOf(row) : '';
+    if (!cur) return;
+    const r = await _followConfirm({ title: 'フォローを外しますか？', lines: [_nameFor(cur) + ' さんの担当を外し、「未フォロー」に戻します。'], okLabel: '外す' });
+    if (!r.ok) return;
+    if (await _followWrite(rawId, '', r.note)) quoteShowToast('🙌 フォローを外しました', 'success', 3000, { label: '元に戻す', fn: () => _followWrite(rawId, cur, '') });
+  }
+  // 編集画面の「担当」表示（案件名の下）。未保存の新規案件は「保存するとあなたが担当になります」
+  function _renderFollowInfo() {
+    const box = document.getElementById('qfFollowInfo');
+    if (!box) return;
+    const f = ((document.getElementById('qf-follower') || {}).value || '').trim();
+    const me = (_cloudUser && _cloudUser.email) || '';
+    if (!_cloudUser || !_followOn()) { box.hidden = true; return; }
+    box.hidden = false;
+    if (!_loadedCloudId) { box.innerHTML = '<span class="fl-i-l">担当</span><span class="fl-i-t">保存すると、あなたがフォロー担当になります</span>'; return; }
+    const id = encodeURIComponent(_loadedCloudId).replace(/'/g, '%27');
+    const canAct = _shareMode !== 'view';   // 閲覧中はフォーム全体が操作不可（inert）なので、ボタンは編集中だけ（ダッシュボードのカードからも変えられる）
+    if (!f) { box.innerHTML = '<span class="fl-i-l">担当</span><b class="fl-i-none">未フォロー</b>' + (canAct ? '<button type="button" class="fl-i-btn" onclick="cloudFollowMe(\'' + id + '\')">🙋 フォローする</button>' : ''); return; }
+    const nm = _nameFor(f), a = _avatarFor(f, nm);
+    box.innerHTML = '<span class="fl-i-l">担当</span><span class="cc3-av" style="background:' + a.color + '">' + escHtml(a.label || '?') + '</span><b>' + escHtml(nm) + (f === me ? '・あなた' : '') + '</b><small>フォロー中</small>' +
+      (!canAct ? '' : f === me ? '<button type="button" class="fl-i-btn" onclick="cloudFollowAssign(\'' + id + '\')">担当を渡す…</button>' : '<button type="button" class="fl-i-btn" onclick="cloudFollowMe(\'' + id + '\')">🔁 引き継ぐ</button>');
+  }
+  window.cloudRenderFollowInfo = _renderFollowInfo;
+  // ダッシュボード上部の「人ごとの持ち件数」（js/quote/dash-top.js）。数と期限が近い件数だけ（順位や色の判定は付けない）
+  window.cloudFollowSummary = function () {
+    if (!_followOn()) return null;
+    const me = (_cloudUser && _cloudUser.email) || '';
+    const today = _todayStart(), per = {};
+    let none = 0;
+    _followMembers().forEach(em => { per[em] = { email: em, name: _nameFor(em), n: 0, soon: 0, me: em === me }; });
+    _cloudRows.forEach(r => {
+      if (!_isActiveCase(r)) return;
+      const f = _followerOf(r);
+      if (!f) { none++; return; }
+      const p = per[f] || (per[f] = { email: f, name: _nameFor(f), n: 0, soon: 0, me: f === me });
+      p.n++;
+      const due = r.data && r.data.fields && r.data.fields['qf-due'];
+      if (due) { const d = new Date(due); if (!isNaN(d.getTime()) && Math.round((d.getTime() - today) / 86400000) <= 1) p.soon++; }
+    });
+    const people = Object.keys(per).map(k => per[k]).sort((a, b) => (b.me - a.me) || (b.n - a.n) || a.name.localeCompare(b.name, 'ja'));
+    return { people, none, filter: _cloudFilterFollower };
+  };
+  // 担当での絞り込み：メール＝その人／'__none' ＝未フォロー（進行中のみ）。同じものをもう一度押すと解除
+  function cloudFilterFollower(v) {
+    v = v || '';
+    _cloudFilterFollower = (_cloudFilterFollower === v) ? '' : v;
+    _applyCloudFilter();
+  }
+
   // ダッシュボードの「📩 未取込」から、その案件を開いて保管した原文の取り込みを始める
   async function cloudOpenPendingImport(rawId) {
     if (!(await _confirmLeaveUnsaved('別の案件を開く'))) return;
@@ -2886,6 +3099,11 @@
       }
       if (!resp.error) { _loadedCloudId = exId; _loadedCloudTs = nowIso; }  // 自分の保存を基準時刻に更新
     } else {
+      // 新しく作った案件は、作った人が最初のフォロー担当（自由入力の保管だけは「未フォロー」のまま＝割り振り待ち）
+      if (_followOn() && (!opts || !opts.noFollow)) {
+        data.fields = data.fields || {};
+        if (!String(data.fields['qf-follower'] || '').trim()) data.fields['qf-follower'] = _cloudUser.email;
+      }
       resp = await _withOptionalCols(['ref', 'tags'], excluded => c.from(_table())
         .insert(Object.assign(
           { name, data, subcons, status, customer, person, incoterms, transport_mode, pol, pod, carrier,
@@ -4023,6 +4241,8 @@
     delete newData.fields['qf-first-presented'];   // 初回の提示日時（回答スピード）もコピー元のもの
     delete newData.fields['qf-recv-time'];   // 受信時刻も元の依頼に固有
     delete newData.fields['qf-versions'];   // 提示履歴（版）はコピー元の案件のものなので引き継がない
+    if (_followOn()) newData.fields['qf-follower'] = (_cloudUser && _cloudUser.email) || ''; else delete newData.fields['qf-follower'];   // フォロー担当はコピーした人から（引き継ぎ履歴はコピー元のものなので消す）
+    delete newData.fields['qf-follow-log'];
     delete newData.fields['qf-related-data'];   // 関連番号・メール件名も元の引き合いに固有のため引き継がない
     const existingNames = _cloudRows.map(r => r.name).concat(opts.usedNames ? Array.from(opts.usedNames) : []);
     let baseName = src.name + (asSub ? ' のサブ' : ' のコピー');
@@ -5060,6 +5280,10 @@
   window.cloudIsLoggedIn = () => !!_cloudUser;
   window.cloudConfirmLeaveUnsaved = _confirmLeaveUnsaved;
   window.cloudAddFreeEntry = cloudAddFreeEntry;
+  window.cloudFollowMe = cloudFollowMe;
+  window.cloudFollowAssign = cloudFollowAssign;
+  window.cloudFollowRelease = cloudFollowRelease;
+  window.cloudFilterFollower = cloudFilterFollower;
   window.cloudCurrentEmail = () => (_cloudUser && _cloudUser.email) || '';
   window.cloudNameFor = e => _nameFor(e);
   window.toggleCloudAdvSearch  = toggleCloudAdvSearch;

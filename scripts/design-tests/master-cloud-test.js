@@ -1396,6 +1396,34 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== インデックスバー（頭文字で探す） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true, role: 'admin' });
+    const L = '[インデックスバー] ';
+    await p.evaluate(async () => {
+      const V = (f, v) => window.__db.master_votes.push({ field: f, value: v, voter_email: 's@example.com' });
+      ['ABC Logistics', 'Zeta Trading', 'Beta Corp', '株式会社あおぞら運輸', '田中運輸', 'カワサキ通運', '123商事', 'さくら物産', 'Maersk Line', 'ヤマト運輸'].forEach(n => V('customer', n));
+      window.__db.master_details.push({ field: 'customer', value: '田中運輸', details: { furigana: 'たなかうんゆ' } });
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(400);
+    ok(L + '頭文字の判定（かな・カタカナ→ひらがな・株式会社を飛ばす・英字・数字・ふりがな）', await p.evaluate(() => { const k = (n) => statsMasterIndexKey('customer', n); return ['株式会社あおぞら運輸', 'カワサキ通運', '田中運輸', 'ABC Logistics', '123商事', 'ヤマト運輸', '無読み漢字'].map(k).join(''); }) === 'あかたA0-9や他', await p.evaluate(() => ['株式会社あおぞら運輸', 'カワサキ通運', '田中運輸', 'ABC Logistics', '123商事', 'ヤマト運輸', '無読み漢字'].map(n => statsMasterIndexKey('customer', n)).join(',')));
+    ok(L + 'インデックスバーが出る（かな 10 行は常に・英字はある分だけ・ない行は薄い）', await p.evaluate(() => { const b = document.getElementById('masterIndexBar'); if (!b) return false; const ks = [...b.querySelectorAll('.mib-k')].map(x => x.dataset.k); const off = [...b.querySelectorAll('.mib-k.is-off')].map(x => x.dataset.k); return ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ'].every(k => ks.includes(k)) && ks.includes('A') && ks.includes('Z') && !ks.includes('Q') && off.includes('は') && !off.includes('あ'); }));
+    ok(L + '名前順は頭文字の順（かな→英字→数字）で並ぶ', await p.evaluate(() => { const o = [...document.querySelectorAll('#statsPane-master table.master-table > tbody > tr[data-mvalue]')].map(r => r.dataset.idx); const iA = o.indexOf('A'), iあ = o.indexOf('あ'), i0 = o.indexOf('0-9'); return iあ < iA && iA < i0 && o.indexOf('Z') > o.indexOf('B'); }));
+    await p.evaluate(() => window.scrollTo(0, 0));
+    if (process.env.OUT) await p.screenshot({ path: require('path').join(process.env.OUT, 'master-index.png') });
+    await p.click('#masterIndexBar .mib-k[data-k="Z"]'); await p.waitForTimeout(900);
+    ok(L + '押すとその頭文字の最初のカードへ移動する', await p.evaluate(() => { const r = document.querySelector('#statsPane-master tr[data-idx="Z"]').getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight; }));
+    ok(L + '薄い行（該当なし）は押しても何も起きない', await p.evaluate(() => { const y = window.scrollY; document.querySelector('#masterIndexBar .mib-k[data-k="は"]').click(); return Math.abs(window.scrollY - y) < 2; }));
+    await p.evaluate(() => statsMasterSetSort('tag')); await p.waitForTimeout(300);
+    ok(L + 'グループごとのまとめ表示では出さない', await p.evaluate(() => !document.getElementById('masterIndexBar')));
+    await p.evaluate(() => statsMasterSetSort('name')); await p.waitForTimeout(300);
+    ok(L + '名前順に戻すと出る', await p.evaluate(() => !!document.getElementById('masterIndexBar')));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 取引形態「乙仲」・契約形態（業務委託） =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });

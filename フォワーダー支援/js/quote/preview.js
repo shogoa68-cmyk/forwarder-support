@@ -192,7 +192,7 @@
       // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（PROFIT SHARE も客先には出さない）。
       // 適用期間外は「参考」指定があれば例外的に出力する（金額は括弧書き・合計外のまま、客先へ参考提示したい場合）
       const _hideQuote  = _hideManual || (_outRange && !_ref) || _ps;
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), bphi: val(`bphi-${id}`), note, sv, pt, vf, vt, zc, uid, _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange, _outReason });
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), bphi: val(`bphi-${id}`), note, sv, pt, vf, vt, zc, uid, insInv: (typeof window.rowInsInvoice === 'function' ? window.rowInsInvoice(id) : null), _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange, _outReason });
     });
     return rows;
   }
@@ -884,7 +884,7 @@
       html += `<tr class="${(d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : '')}${_hqCls}${d._outRange ? ' pv-row-out-range' : ''}${_ac ? ' pv-row-actual' : ''}${d._cond ? ' pv-row-cond' : ''}${d._ref ? ' pv-row-ref' : ''}">
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
-        <td class="${nameCls}">${_hqBadge}${escHtml(d.name)}${_condNote}${_refNote}${_pvValidityBadge(d.vf, d.vt)}</td>
+        <td class="${nameCls}">${_hqBadge}${escHtml(d.name)}${_condNote}${_refNote}${_pvValidityBadge(d.vf, d.vt)}${d.insInv ? `<div class="pv-ins-inv">${escHtml(window.insInvoiceText(d.insInv, false))}</div>` : ''}</td>
         <td class="pv-num">${fmtRaw(d.pq)}</td><td>${escHtml(d.un || '')}</td><td>${escHtml(d.pc)}</td>
         <td class="pv-num">${ppCell}</td>
         <td class="pv-cd pv-num">${cdCell}</td>

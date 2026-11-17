@@ -270,7 +270,7 @@
   // _applyCells が undefined セルをスキップするため互換。順序は末尾以外変更しないこと。
   // 注意：'lu'（行ごとの最終更新日）は 2026-11 に廃止（入力完了の「日時・ユーザー名」に置き換え）。保存データの cells は位置で持つため、
   //       枠（'lu'）は外さない（外すと後ろの項目がずれる）。画面に入力欄はなく、読み込んでも無視される（_applyCells は欄が無ければ飛ばす）。
-  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin','ic','cn','bphi'];
+  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin','ic','cn','bphi','ins'];
 
   function _applyCells(tr, cells) {
     // cells[0] = 選択チェック、cells[1..] = ROW_CELL_FIELDS 順（DOM 列順に依存しない）
@@ -1219,6 +1219,10 @@
   window._initMemoFloat = _initMemoFloat;
 
   function gatherAllData() {
+    // 物量パターンの紐付け（数量・表示/非表示・除外・航路）は、数量欄の入力などで「メモリ上」だけ更新される。
+    // 保存の直前に必ず隠し項目（cond-packing-patterns）へ書き出す（これが古いまま保存されると、開き直したときに
+    // 古い紐付けの数量が書き戻され、「一括変更した数量が元に戻る」不具合になる）
+    try { if (typeof _syncPackingPatternsData === 'function') _syncPackingPatternsData(); } catch (e) {}
     // フォーム値
     const fields = {};
     document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
@@ -2061,9 +2065,15 @@
   // アクティブ index と全パターン分のスナップショットをまとめて書き出すだけでよい。
   // 輸送モード（FCL/LCL）を持つパターンは、コンテナの種類・本数もパターンごとに記憶する
   // （FCL案は20'GP×1、LCL案はコンテナなし、のように切替で入れ替えるため）
+  let _qpatSwitching = false;   // 案を切り替えている間は、画面の貿易条件を「切替先の案の値」として控えない（切替先の値を反映する前に上書きしてしまうため）
   function _syncActivePatternContainers() {
     const act = _packingPatterns[_packingActiveIdx];
-    if (act && act.mode) act.containers = (_containerEntries || []).map(e => ({ ...e }));
+    if (act && (act.mode === 'fcl' || act.mode === 'lcl')) act.containers = (_containerEntries || []).map(e => ({ ...e }));
+    // 貿易条件（インコタームズ）も案ごとに持つ：複数の案があるとき、いまの案に現在の値を控える（保存の直前・案の切替の直前に呼ばれる）
+    if (act && _packingPatterns.length >= 2 && !_qpatSwitching) {
+      const inco = document.getElementById('cond-incoterms');
+      if (inco) act.incoterms = inco.value;
+    }
   }
 
   function _syncPackingPatternsData() {
@@ -2074,7 +2084,8 @@
   }
 
   function _renderPackingPatternTabs() {
-    renderQtyPatternBar();   // 見積もりテーブルの上の切替（編集中のパターンの表示）も合わせて更新
+    renderQtyPatternBar();
+    const _allBtn = document.getElementById('cdCopyAllBtn'); if (_allBtn) _allBtn.style.display = _packingPatterns.length > 1 ? '' : 'none';   // 全パターンのコピーは複数あるときだけ   // 見積もりテーブルの上の切替（編集中のパターンの表示）も合わせて更新
     const wrap = document.getElementById('cdPatternTabs');
     if (!wrap) return;
     // パターンが1件だけ（かつ無名）なら、まだ複数パターンを使っていない案件なので
@@ -2102,29 +2113,45 @@
 
   // アクティブなパターンの輸送モード（FCL/LCL）指定と、FCL/LCL比較案のワンクリック作成
   function _patternModeControlsHtml() {
-    if (_currentTransport === 'air' || _currentTransport === 'domestic') return '';
+    if (_currentTransport === 'domestic') return '';
     const act = _packingPatterns[_packingActiveIdx] || {};
     const anyMode = _packingPatterns.some(pt => pt.mode);
     const sel = `<label class="cd-pattern-mode-wrap" title="このパターンを開いたとき、輸送モード（FCL/LCL）・コンテナ指定を自動で切り替えます。「FCL案」「LCL案」を並べて比較・併記したいときに指定します">` +
       `<span>輸送モード</span><select class="cd-pattern-mode-sel" onchange="setPackingPatternMode(this.value)">` +
       `<option value=""${act.mode ? '' : ' selected'}>指定なし</option>` +
       `<option value="fcl"${act.mode === 'fcl' ? ' selected' : ''}>FCL</option>` +
-      `<option value="lcl"${act.mode === 'lcl' ? ' selected' : ''}>LCL</option></select></label>`;
+      `<option value="lcl"${act.mode === 'lcl' ? ' selected' : ''}>LCL</option>` +
+      `<option value="air"${act.mode === 'air' ? ' selected' : ''}>AIR</option></select></label>`;
     const mk = anyMode ? '' :
       `<button type="button" class="cd-pattern-add-btn cd-pattern-fcllcl-btn" onclick="createFclLclPatterns()" title="今の内容を土台に「FCL案」「LCL案」の2パターンを作ります。LCL案では航路（NVOCC）や費用行を切り替えて、両案を比較・お客様へ併記できます">🆚 FCL/LCL比較案を作成</button>`;
     return mk + sel;
   }
 
-  // パターンの輸送モードを反映（モード切替＋コンテナ指定の入れ替え）
+  // パターンの輸送モードを反映（モード切替＋コンテナ指定の入れ替え）。FCL／LCL／AIR に対応（国内手配のみの案件では何もしない）
   function _applyPatternMode(i) {
     const pat = _packingPatterns[i];
     if (!pat || !pat.mode) return;
-    if (_currentTransport === 'air' || _currentTransport === 'domestic') return;
-    if (_currentTransport !== 'sea' || _currentSeaSub !== pat.mode) setTransport(pat.mode);
-    if (pat.mode === 'lcl') _containerEntries = Array.isArray(pat.containers) ? pat.containers.map(e => ({ ...e })) : [];
-    else if (Array.isArray(pat.containers)) _containerEntries = pat.containers.map(e => ({ ...e }));
+    if (_currentTransport === 'domestic') return;
+    if (pat.mode === 'air') {
+      if (_currentTransport !== 'air') setTransport('air');
+      _containerEntries = [];   // 航空はコンテナを使わない
+    } else {
+      if (_currentTransport !== 'sea' || _currentSeaSub !== pat.mode) setTransport(pat.mode);
+      if (pat.mode === 'lcl') _containerEntries = Array.isArray(pat.containers) ? pat.containers.map(e => ({ ...e })) : [];
+      else if (Array.isArray(pat.containers)) _containerEntries = pat.containers.map(e => ({ ...e }));
+    }
     _renderContainerEntries();
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
+  }
+
+  // 案ごとの貿易条件を反映（値を持つ案だけ。持っていない案は、いまの値のまま触らない）。change を発火して行の「適用する貿易条件」・ヒント・要約も追従させる
+  function _applyPatternIncoterms(i) {
+    const pat = _packingPatterns[i];
+    const sel = document.getElementById('cond-incoterms');
+    if (!pat || !sel || pat.incoterms === undefined || pat.incoterms === null) return;
+    if (sel.value === pat.incoterms) return;
+    sel.value = pat.incoterms;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   // ===== パターン併記出力（御見積書に FCL案／LCL案 を並べる） =====
@@ -2137,7 +2164,8 @@
     if (flag === '0' || _packingPatterns.length < 2) return null;
     const cands = _packingPatterns.map((pt, i) => ({ pt, i })).filter(({ pt }) => pt.showInQuote !== false);
     if (cands.length < 2) return null;
-    if (flag !== '1' && !(cands.some(c => c.pt.mode === 'fcl') && cands.some(c => c.pt.mode === 'lcl'))) return null;
+    // 自動：輸送モード（FCL／LCL／AIR）が異なる案が 2 つ以上あるときだけ併記する
+    if (flag !== '1' && new Set(cands.map(c => c.pt.mode).filter(Boolean)).size < 2) return null;
     return cands.map(({ pt, i }) => ({ idx: i, name: pt.name || `パターン${i + 1}`, mode: pt.mode || '' }));
   };
 
@@ -2152,15 +2180,27 @@
       cont: _containerEntries, mode: sel ? sel.value : '', routes: (_routeEntries || []).map(r => r.enabled),
       view: window._outputPatternView,
     };
+    const incoSel = document.getElementById('cond-incoterms');
+    const savedInco = incoSel ? incoSel.value : '';
+    let incoSwapped = false;
     try {
       _packingActiveIdx = i;
       _packingEntries = pat.entries;
-      if (pat.mode && _currentTransport !== 'air' && _currentTransport !== 'domestic') {
+      if (pat.mode === 'air' && _currentTransport !== 'domestic') {
+        _currentTransport = 'air';
+        if (sel) sel.value = '航空（AIR）';
+        _containerEntries = [];
+      } else if (pat.mode && _currentTransport !== 'domestic') {
         _currentTransport = 'sea';
         _currentSeaSub = pat.mode;
         const LABELS = { fcl: '海上（FCL）', lcl: '海上（LCL）' };
         if (sel) sel.value = LABELS[pat.mode];
         _containerEntries = pat.mode === 'lcl' ? [] : (Array.isArray(pat.containers) ? pat.containers : _containerEntries);
+      }
+      // 案ごとの貿易条件：行の「適用する貿易条件」の判定も、その案の値で引き直す（イベントは出さず、行の判定だけ更新）
+      if (incoSel && pat.incoterms !== undefined && pat.incoterms !== null && pat.incoterms !== incoSel.value) {
+        incoSel.value = pat.incoterms; incoSwapped = true;
+        if (typeof window.rowRefreshIncoterms === 'function') window.rowRefreshIncoterms();
       }
       const links = pat.routeLinks || {};
       (_routeEntries || []).forEach(r => {
@@ -2174,15 +2214,16 @@
       _currentTransport = saved.transport; _currentSeaSub = saved.sub; _containerEntries = saved.cont;
       if (sel) sel.value = saved.mode;
       (_routeEntries || []).forEach((r, k) => { r.enabled = saved.routes[k]; });
+      if (incoSwapped && incoSel) { incoSel.value = savedInco; if (typeof window.rowRefreshIncoterms === 'function') window.rowRefreshIncoterms(); }
     }
   };
 
   window.setPackingPatternMode = function (mode) {
     const pat = _packingPatterns[_packingActiveIdx];
     if (!pat) return;
-    mode = (mode === 'fcl' || mode === 'lcl') ? mode : '';
+    mode = (mode === 'fcl' || mode === 'lcl' || mode === 'air') ? mode : '';
     pat.mode = mode || undefined;
-    if (!mode) delete pat.containers;
+    if (!mode || mode === 'air') delete pat.containers;
     else pat.containers = (_containerEntries || []).map(e => ({ ...e }));
     if (mode) _applyPatternMode(_packingActiveIdx);
     _renderPackingPatternTabs();
@@ -2215,6 +2256,7 @@
       groupExcludeLinks: { ...(src.groupExcludeLinks || {}) },
       routeLinks: { ...(src.routeLinks || {}) },
       mode: otherMode,
+      incoterms: src.incoterms,
       containers: otherMode === 'lcl' ? [] : (src.containers || []).map(e => ({ ...e })),
     };
     _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);
@@ -2231,7 +2273,11 @@
     _syncActivePatternContainers();   // 離れるパターンのコンテナ指定を確定
     _packingActiveIdx = i;
     _packingEntries = _packingPatterns[i].entries;
-    _applyPatternMode(i);             // FCL/LCL 指定があれば輸送モード・コンテナを切替
+    _qpatSwitching = true;
+    try {
+      _applyPatternIncoterms(i);        // 案ごとの貿易条件
+      _applyPatternMode(i);             // FCL/LCL/AIR 指定があれば輸送モード・コンテナを切替
+    } finally { _qpatSwitching = false; }
     _renderPackingEntries();
     _applyPatternQtyLinks(i);
     _applyPatternRouteLinks(i);
@@ -2324,24 +2370,196 @@
     const hd  = document.getElementById('hdQtyPat');
     if (!bar) return;
     const multi = _packingPatterns.length >= 2;
-    bar.hidden = !multi;
+    bar.hidden = false;   // 1 つだけのときも常に出す（「＋」から案を足せる入口）
     const act = _packingPatterns[_packingActiveIdx] || {};
     const label = p => p.name || `パターン${_packingPatterns.indexOf(p) + 1}`;
-    if (tab) tab.dataset.qpat = multi ? (act.mode === 'fcl' || act.mode === 'lcl' ? act.mode : 'other') : '';
-    if (hd) { hd.hidden = !multi; hd.textContent = multi ? label(act) : ''; hd.title = multi ? '編集中の数量パターン：' + label(act) : ''; }
-    if (!multi) { bar.innerHTML = ''; return; }
-    const chips = _packingPatterns.map((pt, i) => {
+    const modeOf = p => (p && (p.mode === 'fcl' || p.mode === 'lcl' || p.mode === 'air')) ? p.mode : '';
+    if (tab) tab.dataset.qpat = multi ? (modeOf(act) || 'other') : '';
+    if (hd) { hd.hidden = !multi; hd.textContent = multi ? label(act) : ''; hd.title = multi ? '編集中のパターン：' + label(act) : ''; }
+    // ブラウザのタブのように並べる（名前のダブルクリックで改名・ドラッグで並べ替え・× で削除・「＋」で追加）
+    const tabs = _packingPatterns.map((pt, i) => {
       const on = i === _packingActiveIdx;
-      const mode = pt.mode === 'fcl' || pt.mode === 'lcl' ? pt.mode : '';
-      return `<button type="button" class="qpat-chip${on ? ' is-active' : ''}${mode ? ' is-' + mode : ''}" aria-pressed="${on}" onclick="switchPackingPattern(${i})" ` +
-        `title="${_escMulti(label(pt))}（${on ? '編集中の数量パターン' : 'クリックでこのパターンに切り替えて編集'}）">` +
-        (mode ? `<span class="qpat-mode">${mode.toUpperCase()}</span>` : '') + `<span class="qpat-name">${_escMulti(label(pt))}</span></button>`;
+      const mode = modeOf(pt);
+      const shown = pt.showInQuote !== false;   // 「見積書に出さない」を明示したときだけ印を付ける
+      return `<div class="qpat-chip${on ? ' is-active' : ''}${mode ? ' is-' + mode : ''}${shown ? '' : ' is-hidden-from-quote'}" role="tab" aria-selected="${on}" tabindex="0" draggable="true" data-i="${i}" ` +
+        `onclick="switchPackingPattern(${i})" ondblclick="qpatRename(${i}, event)" ` +
+        `ondragstart="qpatDragStart(event, ${i})" ondragover="qpatDragOver(event)" ondrop="qpatDrop(event, ${i})" ondragend="qpatDragEnd()" ` +
+        `onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchPackingPattern(${i});}" ` +
+        `title="${_escMulti(label(pt))}（${on ? '編集中・ダブルクリックで名前を変更・ドラッグで並べ替え' : 'クリックで切り替え'}）${shown ? '' : '／見積書には出さない設定'}">` +
+        (mode ? `<span class="qpat-mode">${mode.toUpperCase()}</span>` : '') +
+        `<span class="qpat-name">${_escMulti(label(pt))}</span>` +
+        (on ? `<button type="button" class="qpat-more" aria-label="この案のメニュー" onclick="event.stopPropagation();qpatMenu(this, ${i})" title="この案のメニュー（名前・モード・複製・見積書への表示・削除）">⋯</button>` : '') +
+        (multi ? `<button type="button" class="qpat-x" aria-label="この案を削除" onclick="event.stopPropagation();removePackingPattern(${i})" title="この案を削除">×</button>` : '') +
+        `</div>`;
     }).join('');
     const need = document.querySelectorAll('#tableBody .pq-pattern-needs-check').length;
-    bar.innerHTML = `<span class="qpat-lbl" title="見積もりテーブルの数量は、パターンごとに記憶されます。枠線の見方：緑＝このパターン専用の数量／橙＝他のパターンだけに設定あり">📦 数量パターン</span>${chips}` +
-      (need ? `<button type="button" class="qpat-need" onclick="jumpToQtyNeedsCheck()" title="他のパターンでは数量が設定されているのに、このパターンでは未設定の行（値は自動では変わらないので、必要なら入れ直してください）。クリックで最初の行へ">⚠ 要確認 ${need} 行</button>` : '') +
-      `<span class="qpat-legend"><i class="qpat-sw is-linked"></i>このパターン専用の数量<i class="qpat-sw is-check"></i>他のパターンだけに設定あり</span>`;
+    bar.innerHTML = `<div class="qpat-tabs" role="tablist" aria-label="案（パターン）">${tabs}` +
+      `<button type="button" class="qpat-add" onclick="qpatAddMenu(this)" aria-label="案を追加" title="案を追加（FCL案・LCL案・AIR案・現在の案のコピー・空の案）">＋</button></div>` +
+      (multi && need ? `<button type="button" class="qpat-need" onclick="jumpToQtyNeedsCheck()" title="他の案では数量が設定されているのに、この案では未設定の行（値は自動では変わりません）。クリックで最初の行へ移動します">⚠ 要確認 ${need} 行</button>` : '') +
+      (multi ? `<span class="qpat-legend"><i class="qpat-sw is-linked"></i>この案専用の数量<i class="qpat-sw is-check"></i>他の案だけに設定あり</span>` : '');
+    // 編集中のタブが見切れないように、横スクロールを合わせる（ページ自体はスクロールさせない）
+    [bar, bar.querySelector('.qpat-tabs')].forEach(sc => {
+      const on = sc && bar.querySelector('.qpat-chip.is-active');
+      if (!on || sc.scrollWidth <= sc.clientWidth + 1) return;
+      const a = on.getBoundingClientRect(), c = sc.getBoundingClientRect();
+      if (a.right > c.right) sc.scrollLeft += a.right - c.right + 8;
+      else if (a.left < c.left) sc.scrollLeft -= c.left - a.left + 8;
+    });
   }
+
+  // ----- 案のタブ操作（名前変更・並べ替え・追加・メニュー） -----
+  function _qpatClosePop() { const el = document.getElementById('qpatPop'); if (el) el.remove(); document.removeEventListener('mousedown', _qpatOutside, true); document.removeEventListener('keydown', _qpatEsc, true); }
+  function _qpatOutside(e) { const el = document.getElementById('qpatPop'); if (el && !el.contains(e.target)) _qpatClosePop(); }
+  function _qpatEsc(e) { if (e.key === 'Escape') _qpatClosePop(); }
+  function _qpatOpenPop(anchor, html) {
+    _qpatClosePop();
+    const pop = document.createElement('div');
+    pop.id = 'qpatPop'; pop.className = 'qpat-pop'; pop.setAttribute('role', 'menu');
+    pop.innerHTML = html;
+    document.body.appendChild(pop);
+    const r = anchor.getBoundingClientRect();
+    pop.style.top = Math.round(r.bottom + 4) + 'px';
+    pop.style.left = Math.max(8, Math.min(Math.round(r.left), window.innerWidth - pop.offsetWidth - 8)) + 'px';
+    setTimeout(() => { document.addEventListener('mousedown', _qpatOutside, true); document.addEventListener('keydown', _qpatEsc, true); }, 0);
+    pop.addEventListener('click', e => { if (e.target.closest('[data-qpat-act]')) setTimeout(_qpatClosePop, 0); });
+  }
+  window.qpatAddMenu = function (anchor) {
+    const item = (act, ico, t, d) => `<button type="button" role="menuitem" class="qpat-pop-item" data-qpat-act="${act}" onclick="qpatAddAct('${act}')"><b>${ico} ${t}</b><small>${d}</small></button>`;
+    _qpatOpenPop(anchor,
+      `<div class="qpat-pop-h">案を追加</div>` +
+      item('fcl', '🚢', 'FCL案', '今の内容をコピーして、海上（FCL）の案にする') +
+      item('lcl', '📦', 'LCL案', '今の内容をコピーして、海上（LCL）の案にする') +
+      item('air', '✈️', 'AIR案', '今の内容をコピーして、航空（AIR）の案にする') +
+      `<div class="qpat-pop-sep"></div>` +
+      item('copy', '⧉', '今の案をコピー', '名前を付けて、そのままコピー（モードも引き継ぐ）') +
+      item('blank', '＋', '空の案', '荷姿が空の新しい案（数量・表示は今のものを引き継ぐ）'));
+  };
+  window.qpatAddAct = function (act) {
+    if (act === 'copy') return window.duplicatePackingPattern();
+    if (act === 'blank') return window.addPackingPattern();
+    return window.addModePattern(act);
+  };
+  // 今の案をコピーして、輸送モードを指定した新しい案（FCL案／LCL案／AIR案）を作り、その案へ切り替える
+  window.addModePattern = function (mode) {
+    if (mode !== 'fcl' && mode !== 'lcl' && mode !== 'air') return;
+    _syncActivePatternContainers();
+    _packingPatterns.forEach((pt, i) => { if (!pt.name) pt.name = `パターン${i + 1}`; });
+    const src = _packingPatterns[_packingActiveIdx];
+    _snapshotAllQtyIntoPattern(_packingActiveIdx);
+    // 元の案にモードが無ければ、いまの輸送モードを元の案のモードとして控える（片方だけモードが無い状態にしない）
+    if (!src.mode && _currentTransport !== 'domestic') {
+      src.mode = _currentTransport === 'air' ? 'air' : (_currentSeaSub === 'lcl' ? 'lcl' : 'fcl');
+      if (src.mode !== 'air') src.containers = (_containerEntries || []).map(e => ({ ...e }));
+      if (/^パターン\d+$/.test(src.name) && _packingPatterns.length === 1) src.name = src.mode.toUpperCase() + '案';
+    }
+    const base = mode.toUpperCase() + '案';
+    let nm = base, k = 2;
+    while (_packingPatterns.some(pt => pt.name === nm)) nm = base + k++;
+    const cloned = {
+      name: nm,
+      entries: (src.entries || []).map(e => ({ ...e })),
+      showInQuote: src.showInQuote,
+      qtyLinks: { ...(src.qtyLinks || {}) },
+      excludedUnits: [...(src.excludedUnits || [])],
+      hideLinks: { ...(src.hideLinks || {}) },
+      groupExcludeLinks: { ...(src.groupExcludeLinks || {}) },
+      routeLinks: { ...(src.routeLinks || {}) },
+      mode,
+      incoterms: src.incoterms,
+      containers: mode === 'fcl' ? (Array.isArray(src.containers) ? src.containers.map(e => ({ ...e })) : (_containerEntries || []).map(e => ({ ...e }))) : undefined,
+    };
+    _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);
+    _packingActiveIdx += 1;
+    _packingEntries = _packingPatterns[_packingActiveIdx].entries;
+    _qpatSwitching = true;
+    try { _applyPatternMode(_packingActiveIdx); } finally { _qpatSwitching = false; }
+    _renderPackingEntries();
+    _applyPatternQtyLinks(_packingActiveIdx);
+    _applyPatternRouteLinks(_packingActiveIdx);
+    _renderRouteEntries();
+    renderQtyPatternBar();
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast(`「${nm}」を追加しました。航路と費用行（表示/非表示・数量）をこの案に合わせて調整してください`, 'success', 3500);
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+  window.qpatMenu = function (anchor, i) {
+    const pt = _packingPatterns[i]; if (!pt) return;
+    const m = pt.mode || '';
+    const shown = _isPatternVisibleInQuote(pt, i);
+    const modeBtn = (v, t) => `<button type="button" role="menuitemradio" aria-checked="${m === v}" class="qpat-pop-item qpat-pop-mode${m === v ? ' is-on' : ''}" data-qpat-act="mode" onclick="qpatMenuAct('mode','${v}')">${m === v ? '✓ ' : ''}${t}</button>`;
+    const only1 = _packingPatterns.length <= 1;
+    _qpatOpenPop(anchor,
+      `<div class="qpat-pop-h">${_escMulti(pt.name || `パターン${i + 1}`)}</div>` +
+      `<button type="button" role="menuitem" class="qpat-pop-item" data-qpat-act="rename" onclick="qpatMenuAct('rename')"><b>✎ 名前を変更</b></button>` +
+      `<div class="qpat-pop-sub">輸送モード</div>` +
+      `<div class="qpat-pop-modes">${modeBtn('', '指定なし')}${modeBtn('fcl', 'FCL')}${modeBtn('lcl', 'LCL')}${modeBtn('air', 'AIR')}</div>` +
+      `<button type="button" role="menuitem" class="qpat-pop-item" data-qpat-act="dup" onclick="qpatMenuAct('dup')"><b>⧉ 複製</b></button>` +
+      `<button type="button" role="menuitem" class="qpat-pop-item" data-qpat-act="vis" onclick="qpatMenuAct('vis')"><b>${shown ? '🔒 見積書に出さない' : '👁 見積書に出す'}</b><small>画面の案としては残ります</small></button>` +
+      (only1 ? '' : `<div class="qpat-pop-sep"></div><button type="button" role="menuitem" class="qpat-pop-item is-danger" data-qpat-act="del" onclick="qpatMenuAct('del')"><b>🗑 この案を削除</b></button>`));
+    window._qpatMenuIdx = i;
+  };
+  window.qpatMenuAct = function (act, v) {
+    const i = window._qpatMenuIdx;
+    if (act === 'rename') return setTimeout(() => window.qpatRename(i), 0);
+    if (act === 'mode') return window.setPackingPatternMode(v);
+    if (act === 'dup') return window.duplicatePackingPattern();
+    if (act === 'vis') return window.togglePackingPatternVisibility(i);
+    if (act === 'del') return window.removePackingPattern(i);
+  };
+  // 名前をその場で変更（ダブルクリック／メニュー）：入力欄に置き換え、Enter か欄を離れると確定・Esc で取り消し
+  window.qpatRename = function (i, ev) {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    const chip = document.querySelector(`#qtyPatternBar .qpat-chip[data-i="${i}"]`);
+    const pt = _packingPatterns[i];
+    if (!chip || !pt) return;
+    const nameEl = chip.querySelector('.qpat-name');
+    if (!nameEl || chip.querySelector('.qpat-edit')) return;
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.className = 'qpat-edit'; inp.value = pt.name || `パターン${i + 1}`; inp.maxLength = 40;
+    chip.draggable = false;
+    nameEl.replaceWith(inp);
+    inp.focus(); inp.select();
+    let done = false;
+    const finish = ok => {
+      if (done) return; done = true;
+      if (ok) {
+        const v = inp.value.trim();
+        if (v) pt.name = v;
+        _renderPackingPatternTabs();
+        _syncPackingPatternsData();
+        if (typeof window.udRefresh === 'function') window.udRefresh();
+        if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+        if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+      } else renderQtyPatternBar();
+    };
+    inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); finish(true); } else if (e.key === 'Escape') { e.preventDefault(); finish(false); } });
+    inp.addEventListener('click', e => e.stopPropagation());
+    inp.addEventListener('dblclick', e => e.stopPropagation());
+    inp.addEventListener('blur', () => finish(true));
+  };
+  // ドラッグで並べ替え（中身はそのまま・順番だけ入れ替える。編集中の案は動かしても編集中のまま）
+  let _qpatDragFrom = -1;
+  window.qpatDragStart = function (ev, i) { _qpatDragFrom = i; try { ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain', String(i)); } catch (e) {} ev.currentTarget.classList.add('is-dragging'); };
+  window.qpatDragOver = function (ev) { if (_qpatDragFrom < 0) return; ev.preventDefault(); try { ev.dataTransfer.dropEffect = 'move'; } catch (e) {} };
+  window.qpatDragEnd = function () { _qpatDragFrom = -1; document.querySelectorAll('#qtyPatternBar .qpat-chip.is-dragging').forEach(c => c.classList.remove('is-dragging')); };
+  window.qpatDrop = function (ev, to) {
+    ev.preventDefault();
+    const from = _qpatDragFrom; _qpatDragFrom = -1;
+    if (from < 0 || from === to || !_packingPatterns[from] || !_packingPatterns[to]) { window.qpatDragEnd(); return; }
+    window.qpatReorder(from, to);
+  };
+  window.qpatReorder = function (from, to) {
+    const act = _packingPatterns[_packingActiveIdx];
+    const [mv] = _packingPatterns.splice(from, 1);
+    _packingPatterns.splice(to, 0, mv);
+    _packingActiveIdx = Math.max(0, _packingPatterns.indexOf(act));
+    _packingEntries = _packingPatterns[_packingActiveIdx].entries;
+    _renderPackingPatternTabs();
+    _syncPackingPatternsData();
+    if (typeof window.udRefresh === 'function') window.udRefresh();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
   window.renderQtyPatternBar = renderQtyPatternBar;
   // 数量パターンのバーは、画面が広いとき上部ツールバー（「⋯」の左の空き）に置き、狭い画面（ツールバーが static になる 680px 以下）では表の操作バーの先頭に戻す。
   // 要素は 1 つのまま移すだけ（id・中身の描画・onclick は不変）
@@ -2432,6 +2650,7 @@
     if (!pat) return;
     if (!pat.qtyLinks) pat.qtyLinks = {};
     if (!pat.hideLinks) pat.hideLinks = {};
+    { const inco = document.getElementById('cond-incoterms'); if (inco) pat.incoterms = inco.value; }   // 貿易条件も、この案の値として確定
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
       if (tr.dataset.type || tr.dataset.virtual) return;
       const id = tr.id.replace('row-', '');
@@ -2489,7 +2708,7 @@
     // これをしないと、複数パターンを使い始める前に入力した数量がどのパターンにも
     // 属さないまま扱われ、後で他パターンへ切替→戻すと値が引き継がれない不具合になる
     _snapshotAllQtyIntoPattern(_packingActiveIdx);
-    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {}, routeLinks: {} });
+    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {}, routeLinks: {}, incoterms: (document.getElementById('cond-incoterms') || {}).value });
     _packingActiveIdx = _packingPatterns.length - 1;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
@@ -2518,7 +2737,8 @@
       hideLinks: { ...(src.hideLinks || {}) },   // 見積書表示/非表示の紐付けも複製元を引き継ぐ
       groupExcludeLinks: { ...(src.groupExcludeLinks || {}) },   // サブコン・サブコン×パターン見出しの含む/除外も複製元を引き継ぐ
       routeLinks: { ...(src.routeLinks || {}) },   // 航路の有効/無効も複製元を引き継ぐ
-      mode: src.mode,                              // 輸送モード（FCL/LCL）・コンテナ指定も引き継ぐ
+      mode: src.mode,                              // 輸送モード（FCL/LCL/AIR）・コンテナ指定も引き継ぐ
+      incoterms: src.incoterms,                    // 貿易条件も引き継ぐ
       containers: Array.isArray(src.containers) ? src.containers.map(e => ({ ...e })) : undefined,
     };
     _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);   // 複製元の直後に挿入
@@ -2552,7 +2772,11 @@
     if (_packingActiveIdx >= _packingPatterns.length) _packingActiveIdx = _packingPatterns.length - 1;
     else if (i < _packingActiveIdx) _packingActiveIdx--;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
-    _applyPatternMode(_packingActiveIdx);
+    _qpatSwitching = true;
+    try {
+      _applyPatternIncoterms(_packingActiveIdx);
+      _applyPatternMode(_packingActiveIdx);
+    } finally { _qpatSwitching = false; }
     _renderPackingEntries();
     _applyPatternQtyLinks(_packingActiveIdx);   // 1件だけになった場合はハイライトを消す
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -2792,6 +3016,76 @@
       return `【${name}】\n${treeLines.join('\n')}`;
     }).filter(Boolean);
     return blocks.join('\n\n');
+  };
+
+  // ===== 物量情報を「メール本文に貼り付けられるテキスト」にしてコピー =====
+  // 荷姿・貨物明細（荷姿 × 個数 × サイズ・重量・容積・段積み）＋合計（個数・CBM・重量）＋
+  // 輸送モードに応じた課金重量（LCL＝R/T・航空＝CW）＋コンテナ（種別×本数）。
+  // scope: 'active'＝いま編集中のパターンだけ／'all'＝すべてのパターン。
+  // 複数パターンのある案件は【パターン名】を前置きする。サイズ・重量が不明の案件はその旨だけ。
+  function _cargoCopyBlock(pt, mode) {
+    const rows = (pt.entries || []).filter(e => e && (e.pkg || e.l || e.w || e.h || e.kg));
+    if (!rows.length) return '';
+    const lines = rows.map(e => {
+      const parts = [e.pkg || '荷姿未設定', `${e.qty || 1}個`];
+      if ([e.l, e.w, e.h].every(x => parseFloat(x) > 0)) parts.push(`${e.l}×${e.w}×${e.h}cm`);
+      if (parseFloat(e.kg) > 0) parts.push(`${e.kg}kg/個`);
+      const c = _rowCbm(e);
+      if (c > 0) parts.push(`${c.toFixed(3)}CBM`);
+      if (e.stack === '不可') parts.push('段積み不可'); else if (e.stack === '可') parts.push('段積み可');
+      return '・' + parts.join('　');
+    });
+    const qty = rows.reduce((a, e) => a + (parseInt(e.qty, 10) || 0), 0);
+    const { kg, cbm, rt, cw } = _patternWeightCbm(pt.entries);
+    const tot = [];
+    if (qty > 0) tot.push(`${qty}個`);
+    if (cbm > 0) tot.push(`${cbm.toFixed(3)} CBM`);
+    if (kg > 0) tot.push(`${(+kg.toFixed(2)).toLocaleString()} kg`);
+    if (tot.length) lines.push('合計：' + tot.join('　'));
+    if (/LCL/i.test(mode) && (cbm > 0 || kg > 0)) lines.push(`R/T：${rt.toFixed(3)}`);
+    else if (/航空|AIR/i.test(mode) && cw > 0) {
+      const cwTxt = (typeof SharedCalc !== 'undefined' && SharedCalc.fmtCw) ? SharedCalc.fmtCw(cw) : String(Math.round(cw));
+      lines.push(`CW（課金重量）：${cwTxt} kg`);
+    }
+    return lines.join('\n');
+  }
+
+  window.getCargoCopyText = function (scope) {
+    const out = ['【物量情報】'];
+    const m = window.getCargoMetrics ? window.getCargoMetrics() : {};
+    if (m.container) out.push('コンテナ：' + m.container);
+    if (window.isCargoSizeUnknown()) {
+      const note = (document.getElementById('cond-cargo-unknown-note')?.value || '').trim();
+      out.push('サイズ・重量：不明（引き合い時点では未確定）' + (note ? '　' + note : ''));
+    } else {
+      const mode = document.getElementById('cond-mode')?.value || '';
+      const multi = (_packingPatterns || []).length > 1;
+      const list = scope === 'all' ? _packingPatterns.map((pt, i) => ({ pt, i })) : [{ pt: _packingPatterns[_packingActiveIdx], i: _packingActiveIdx }];
+      list.forEach(({ pt, i }) => {
+        if (!pt) return;
+        const body = _cargoCopyBlock(pt, mode);
+        if (!body) return;
+        out.push(multi ? `■${pt.name || `パターン${i + 1}`}\n${body}` : body);
+      });
+    }
+    return out.length > 1 ? out.join('\n') : '';
+  };
+
+  window.copyCargoText = function (scope) {
+    const text = window.getCargoCopyText(scope === 'all' ? 'all' : 'active');
+    const toast = (msg, type) => { if (typeof quoteShowToast === 'function') quoteShowToast(msg, type); };
+    if (!text) { toast('コピーできる物量情報がありません（荷姿・貨物明細を入力してください）', 'warning'); return; }
+    const done = () => toast('📋 物量情報をテキストでコピーしました（メール本文に貼り付けできます）', 'success');
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      ok ? done() : toast('コピーできませんでした', 'error');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
   };
 
   // 複数パターンを使っている案件で、現在アクティブなパターン名を返す（PDF等の出力
@@ -3053,7 +3347,8 @@
         hideLinks: (pt && pt.hideLinks && typeof pt.hideLinks === 'object') ? pt.hideLinks : {},
         groupExcludeLinks: (pt && pt.groupExcludeLinks && typeof pt.groupExcludeLinks === 'object') ? pt.groupExcludeLinks : {},
         routeLinks: (pt && pt.routeLinks && typeof pt.routeLinks === 'object') ? pt.routeLinks : {},
-        mode: (pt && (pt.mode === 'fcl' || pt.mode === 'lcl')) ? pt.mode : undefined,
+        mode: (pt && (pt.mode === 'fcl' || pt.mode === 'lcl' || pt.mode === 'air')) ? pt.mode : undefined,
+        incoterms: (pt && typeof pt.incoterms === 'string') ? pt.incoterms : undefined,
         containers: (pt && Array.isArray(pt.containers)) ? pt.containers : undefined,
       }));
       _packingActiveIdx = (Number.isInteger(restoredPt.activeIdx) && _packingPatterns[restoredPt.activeIdx]) ? restoredPt.activeIdx : 0;
@@ -4075,9 +4370,10 @@ window.reflectToQuote = function(key) {
   }
   const round3 = v => String(Math.round(v * 1000) / 1000);
   const config = {
-    rt:  { value: m.rt > 0 ? Math.max(m.rt, 1) : m.rt, label: 'R/T',  fmt: round3,  units: ['RT', 'R/T'] },
-    cw:  { value: m.cw,  label: 'CW',   fmt: String,   units: ['KG', 'CW'] },
-    cbm: { value: m.cbm, label: 'CBM',  fmt: round3,  units: ['M3', 'CBM', 'M³'] },
+    // kinds：単位の表記ゆれ（R/T・RT・W/M・C/W・m³ など）は quoteUnitKind() で同じ単位として判定する
+    rt:  { value: m.rt > 0 ? Math.max(m.rt, 1) : m.rt, label: 'R/T',  fmt: round3,  units: ['RT', 'R/T', 'W/M'],        kinds: ['rt'] },
+    cw:  { value: m.cw,  label: 'CW',   fmt: String,   units: ['KG', 'CW', 'C/W'],                          kinds: ['cw', 'kg'] },
+    cbm: { value: m.cbm, label: 'CBM',  fmt: round3,  units: ['M3', 'CBM', 'M³'],                          kinds: ['cbm'] },
   };
   const cfg = config[key];
   if (!cfg || !cfg.value) {
@@ -4090,7 +4386,10 @@ window.reflectToQuote = function(key) {
   document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
     const id = tr.id.replace('row-', '');
     const unEl = document.getElementById('un-' + id);
-    if (!unEl || !targetsUpper.includes((unEl.value || '').trim().toUpperCase())) return;
+    if (!unEl) return;
+    const _uv = (unEl.value || '').trim();
+    const _kind = (typeof window.quoteUnitKind === 'function') ? window.quoteUnitKind(_uv) : null;
+    if (!(_kind ? cfg.kinds.includes(_kind) : targetsUpper.includes(_uv.toUpperCase()))) return;
     const pqEl = document.getElementById('pq-' + id);
     if (pqEl) {
       pqEl.value = displayVal;

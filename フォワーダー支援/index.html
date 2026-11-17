@@ -2841,6 +2841,7 @@
           <datalist id="adminCreatorNewList"></datalist>
         </div>
         <div id="qfCopiedFromInfo" class="qf-copied-from-info" hidden></div>
+        <div id="qfFollowInfo" class="qf-follow-info" hidden></div>
         <div class="quote-header ci-layout" data-opt-host-id="refBody">
           <!-- ステータス（常時表示。下書き中／提示済み／その他 ▾） -->
           <div class="ci-block ci-status-block">
@@ -2878,6 +2879,8 @@
             </div>
             <input type="hidden" id="qf-status" value="下書き中" />
             <input type="hidden" id="qf-versions" value="[]" />
+            <input type="hidden" id="qf-follower" value="" />
+            <input type="hidden" id="qf-follow-log" value="[]" />
             <div class="qv-panel" id="qvPanel" hidden></div>
             <input type="hidden" id="qf-revision-baseline" />
           </div>
@@ -3883,6 +3886,8 @@
                 <div class="cargo-detail-actions">
                   <button type="button" class="me-add-btn" onclick="addPackingRow()">＋ 荷姿を追加</button>
                   <button type="button" class="me-add-btn pki-open-btn" hidden onclick="openPackingImport()" title="お客様から提供された物量表（パッキングリスト等）を貼り付けて一括登録">📋 貼り付けで一括登録</button>
+                  <button type="button" class="me-add-btn cd-copy-btn" id="cdCopyBtn" onclick="copyCargoText('active')" title="物量情報（荷姿・個数・サイズ・重量・合計）を、メール本文に貼り付けられるテキストとしてコピーします">📋 テキストでコピー</button>
+                  <button type="button" class="me-add-btn cd-copy-btn" id="cdCopyAllBtn" style="display:none" onclick="copyCargoText('all')" title="すべての物量パターンをまとめてテキストでコピーします">📋 全パターンをコピー</button>
                   <button type="button" class="me-add-btn van-jump-btn" onclick="jumpToVanningSimulator()" title="計算タブのバンニングシミュレーター（3D積み付けプレビュー）を開きます。戻るボタンでこの画面に戻れます">🧊 バンニングシミュレーターへ</button>
                   <button type="button" class="me-add-btn pal-jump-btn" onclick="jumpToPalletizeSimulator()" title="計算タブのパレタイズシミュレーター（3D積み付けプレビュー）を開きます。戻るボタンでこの画面に戻れます">🔲 パレタイズシミュレーターへ</button>
                 </div>
@@ -4633,6 +4638,7 @@
           <div class="rd-group wide"><div class="rd-title">単価のオプション</div><div class="rd-slot" data-rd-slot="mode"></div><div class="rd-slot" data-rd-slot="pct"></div><div class="rd-slot" data-rd-slot="min"></div></div>
           <div class="rd-group wide"><div class="rd-title">適用する貿易条件</div><div class="rd-slot" data-rd-slot="ic"></div></div>
           <div class="rd-group wide"><div class="rd-title">表示する条件</div><div class="rd-slot" data-rd-slot="cn"></div></div>
+          <div class="rd-group wide"><div class="rd-title">保険料の計算</div><div class="rd-slot" data-rd-slot="ins"></div></div>
           <div class="rd-group rd-cd-group"><div class="rd-title">CD（通貨差調整値）</div><div class="rd-slot" data-rd-slot="cd"></div></div>
           <div class="rd-group"><div class="rd-title">金額の内訳</div><dl class="rd-breakdown"></dl></div>
         </div>
@@ -4678,6 +4684,7 @@
         <input type="hidden" data-field="es" value="">
         <input type="hidden" data-field="ic" value="">
         <input type="hidden" data-field="cn" value="">
+        <input type="hidden" data-field="ins" value="">
         <div class="row-mode-btns">
           <button type="button" class="zero-confirm-btn" tabindex="-1" title="あえて0円にする（0円であることを確認済みの目印。もう一度クリックで解除）">あえて¥0</button>
           <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
@@ -4688,6 +4695,7 @@
           <button type="button" class="sell-mode-btn" tabindex="-1" title="売値ベース：売単価を先に決め、仕入単価を入力すると乗せ幅（売−仕入）が自動算出されます。もう一度クリックで通常（仕入＋乗せ幅＝売値）に戻ります。">売値ベース</button>
           <button type="button" class="pct-mode-btn" tabindex="-1" title="仕入単価を「○○の何%」として計算（%率と基準額を入力）。もう一度クリックで直接入力に戻す。">%</button>
           <button type="button" class="ic-mode-btn" tabindex="-1" title="適用する貿易条件：選んだ貿易条件（インコタームズ）のときだけ、この行を見積書・合計に含めます（例：EXW・FCA のときだけ有効）。いまの貿易条件に合わない行は画面に薄く残り、客先向けの出力と合計から外れます。もう一度クリックで解除。">貿易条件</button>
+          <button type="button" class="ins-mode-btn" tabindex="-1" title="保険料の計算：貨物価額（インボイス金額）× 保険価額率（既定 110%）× 保険料率 から、仕入単価の保険料を自動計算します。売値は乗せ幅で上乗せします。もう一度クリックで解除（金額はそのまま残ります）。">🛡️ 保険料</button>
           <button type="button" class="cn-mode-btn" tabindex="-1" title="表示条件：数量・総個数・コンテナ本数・輸送モード・貿易条件などが条件に合うときだけ、この行を見積書・合計に含めます（例：数量 20 以上 40 以下のときだけ有効）。合わない行は画面に薄く残り、客先向けの出力と合計から外れます。もう一度クリックで解除。">表示条件</button>
           <button type="button" class="min-mode-btn" tabindex="-1" title="ミニマム（最低料金）：金額を「数量 × 単価」と最低料金の高いほうにします（例：Min. $28.00 or $0.15/kg）。もう一度クリックで解除。">MIN</button>
           <button type="button" class="range-mode-btn" tabindex="-1" title="幅（金額の範囲）：売単価を「1,000〜2,500」のように幅で示します（上限を入力）。客先向けの出力は単価・金額を「〜」で表示し、合計・小計は売単価で計算します。もう一度クリックで解除。">幅</button>
@@ -4712,6 +4720,25 @@
           <span class="cn-lbl">表示する条件</span>
           <span class="cn-ctrl"></span>
           <span class="cn-hint"></span>
+        </span>
+        <span class="ins-group" title="保険料 ＝ 貨物価額 × 保険価額率 × 保険料率。計算結果を、この行の仕入単価（仕入通貨）に入れます。売単価は仕入単価＋乗せ幅です。最低保険料は「MIN（最低料金）」で設定できます。">
+          <span class="ins-lbl">🛡️ 保険料の計算</span>
+          <span class="ins-ctrl">
+            <input type="number" class="ins-v" min="0" step="any" placeholder="貨物価額（インボイス金額）" title="貨物価額（インボイス金額）。CIF 相当（運賃込み）の金額を入れてください" />
+            <select class="ins-c" title="貨物価額の通貨（仕入通貨と違うときは、為替レートで換算します）"></select>
+            <span class="ins-x">×</span>
+            <input type="number" class="ins-k" min="0" step="1" value="110" title="保険価額率（％）。慣行は貨物価額の 110%（10% の希望利益を上乗せ）" /><span class="ins-u">%</span>
+            <span class="ins-x">×</span>
+            <input type="number" class="ins-r" min="0" step="0.001" placeholder="料率" title="保険料率（％）。例：0.3 → 0.3%" /><span class="ins-u">%</span>
+          </span>
+          <span class="ins-mg" title="マージン率（実際の保険料に対する％）。入れると、実際の保険料をそのまま売単価にし、その何％かを乗せ幅（マージン）、残りを仕入単価にします（例：保険料 1,000 円・10% → 売 1,000／マージン 100／仕入 900）。空欄または 0 なら、実際の保険料を仕入単価にして、乗せ幅は手入力です。">
+            <span class="ins-mg-lbl">マージン</span>
+            <input type="number" class="ins-m" min="0" max="100" step="0.1" placeholder="0" /><span class="ins-u">%</span>
+          </span>
+          <label class="ins-iv-wrap" title="ONにすると、御見積書・プレビュー・メール本文の保険料の明細に「インボイス価格 ○○円として」と表記します（貨物価額が入っているとき）。">
+            <input type="checkbox" class="ins-iv" checked /> 見積書にインボイス価格を表記
+          </label>
+          <span class="ins-hint"></span>
         </span>
         <span class="actual-cost-badge" aria-hidden="true">実費</span>
       </td>

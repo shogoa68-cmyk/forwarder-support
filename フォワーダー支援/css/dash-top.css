@@ -171,3 +171,20 @@
 
 /* ダッシュボードの「作業中の見積に戻る」は廃止（要素は残し、常に隠す） */
 #qpDashboard .qpd-resume { display: none !important; }
+
+/* ===== 🙋 担当（フォロー）の帯：人ごとの進行中の件数（評価ではなく割り振りの目安・順位や色の判定は付けない）===== */
+#qpDashboard.dt-on .dt-follow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
+#qpDashboard.dt-on .dt-follow[hidden] { display: none; }
+#qpDashboard.dt-on .dt-fl-l { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); font-weight: 700; margin-right: 2px; cursor: help; flex: none; white-space: nowrap; }
+#qpDashboard.dt-on .dt-fl { min-height: 36px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border, #d9dee5); border-radius: 20px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-sm, 13px); font-weight: 600; cursor: pointer; white-space: nowrap; }
+#qpDashboard.dt-on .dt-fl b { font-weight: 700; }
+#qpDashboard.dt-on .dt-fl small { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
+#qpDashboard.dt-on .dt-fl.is-me { border-color: #2f5fb3; }
+#qpDashboard.dt-on .dt-fl.is-on { background: var(--accent-dk, #2c455d); border-color: var(--accent-dk, #2c455d); color: #fff; }
+#qpDashboard.dt-on .dt-fl.is-on small { color: #dfe6ee; }
+#qpDashboard.dt-on .dt-fl-none { border-style: dashed; }
+#qpDashboard.dt-on .dt-fl-none.has-n:not(.is-on) { background: #fff8e6; border-color: #e0a33a; }
+@media (max-width: 600px) {
+  #qpDashboard.dt-on .dt-fl { min-height: 44px; }
+  #qpDashboard.dt-on .dt-follow { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+}

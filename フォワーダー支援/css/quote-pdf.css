@@ -211,6 +211,7 @@
 .qd-desc, .qd-conv { color: var(--doc-text-faint); font-size: var(--doc-fs-caption); }
 .qd-tax { color: var(--doc-tax); font-weight: 700; }
 .qd-est-tag { color: var(--doc-estimate); font-weight: 700; font-size: var(--doc-fs-tiny-lg); }
+.qd-ins-inv { font-size: var(--doc-fs-tiny); color: var(--doc-text-muted); margin-top: 2px; font-weight: 400; }
 .qd-validity { font-size: var(--doc-fs-tiny); color: var(--doc-text-muted); margin-left: 4px; white-space: nowrap; }
 .qd-items .qd-sub td { background: var(--doc-subtotal-bg); font-weight: 700; }
 /* ===== ツリー階層：サブコン(0) › パターン(1) › カテゴリー(2) › 明細/リマーク(3) =====
