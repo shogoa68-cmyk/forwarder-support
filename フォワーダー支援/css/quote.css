@@ -12439,6 +12439,9 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make .ins-group input.ins-v { width: 150px; }
 #tab-quote-make .ins-group input.ins-k { width: 56px; }
 #tab-quote-make .ins-group input.ins-r { width: 70px; }
+#tab-quote-make .ins-group input.ins-m { width: 56px; }
+#tab-quote-make .ins-group .ins-mg { display: inline-flex; align-items: center; gap: var(--sp-3); }
+#tab-quote-make .ins-group .ins-mg-lbl { font-size: var(--fs-10); font-weight: 700; color: #1a7f6e; }
 #tab-quote-make .ins-group .ins-x, #tab-quote-make .ins-group .ins-u { font-size: var(--fs-10); color: var(--text-md); }
 #tab-quote-make .ins-group .ins-hint { flex-basis: 100%; font-size: var(--fs-10); color: var(--text-md); white-space: normal; overflow-wrap: anywhere; }
 #tab-quote-make .ins-group .ins-hint.is-warn { color: #b45309; font-weight: 700; }

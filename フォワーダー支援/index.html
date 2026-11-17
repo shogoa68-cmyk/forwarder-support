@@ -4726,6 +4726,10 @@
             <span class="ins-x">×</span>
             <input type="number" class="ins-r" min="0" step="0.001" placeholder="料率" title="保険料率（％）。例：0.3 → 0.3%" /><span class="ins-u">%</span>
           </span>
+          <span class="ins-mg" title="マージン率（実際の保険料に対する％）。入れると、実際の保険料をそのまま売単価にし、その何％かを乗せ幅（マージン）、残りを仕入単価にします（例：保険料 1,000 円・10% → 売 1,000／マージン 100／仕入 900）。空欄または 0 なら、実際の保険料を仕入単価にして、乗せ幅は手入力です。">
+            <span class="ins-mg-lbl">マージン</span>
+            <input type="number" class="ins-m" min="0" max="100" step="0.1" placeholder="0" /><span class="ins-u">%</span>
+          </span>
           <span class="ins-hint"></span>
         </span>
         <span class="actual-cost-badge" aria-hidden="true">実費</span>
