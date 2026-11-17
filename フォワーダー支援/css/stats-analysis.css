@@ -13,7 +13,7 @@
   #tab-stats .sa-group:first-child { margin-top: 0; }
   /* 受注分析 */
   #saHead { margin: 0 0 16px; }
-  .sa-big { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .sa-big { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
   .sa-big > div { padding: 14px 18px; border: 1px solid var(--border, #d9dee5); border-radius: 12px; background: var(--surface, #fff); display: flex; flex-direction: column; gap: 2px; }
   .sa-big i { font-style: normal; font-size: var(--text-sm, 13px); color: var(--text-muted, #667085); }
   .sa-big b { font-size: 36px; line-height: 1.15; font-weight: 700; font-variant-numeric: tabular-nums; }

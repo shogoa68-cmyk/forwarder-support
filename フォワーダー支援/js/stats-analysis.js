@@ -54,6 +54,17 @@
         c.classList.add('sa-ratecell'); c.insertBefore(bar, c.firstChild);
       });
     }
+    // お客様別の歩留まり：受注率の横棒（受注率は 6 列目）
+    var ch = [].slice.call(pane.querySelectorAll('h3')).filter(function (h) { return /お客様別/.test(h.textContent); })[0];
+    var ct = ch && ch.parentNode.querySelector('table.stats-table');
+    if (ct && ct.dataset.saBars !== '1') {
+      ct.dataset.saBars = '1';
+      [].forEach.call(ct.tBodies[0].rows, function (r) {
+        var c = r.cells[5], p = num(c && c.textContent); if (p == null) return;
+        var bar = document.createElement('span'); bar.className = 'sa-bar'; var i = document.createElement('i'); i.style.width = Math.max(0, Math.min(100, p)) + '%'; bar.appendChild(i);
+        c.classList.add('sa-ratecell'); c.insertBefore(bar, c.firstChild);
+      });
+    }
     // 大きな数字・気づきの札（先頭に 1 回だけ作り、描き直しのたびに更新）
     var s = typeof window.statsTodaySummary === 'function' ? window.statsTodaySummary() : null; var w = s && s.win;
     var head = document.getElementById('saHead');
@@ -65,6 +76,7 @@
       var pend = Math.max(0, w.sent - w.won - (w.lost || 0));
       html = '<div class="sa-big"><div><i>受注率</i><b>' + (w.rate == null ? '—' : w.rate + '%') + '</b><small>' + w.won + ' / ' + w.sent + ' 件</small></div>' +
              '<div><i>結果待ち</i><b>' + pend + '</b><small>提示済み・提出済みなど</small></div>' +
+             '<div><i>平均粗利率</i><b>' + (w.avgMargin == null ? '—' : w.avgMargin.toFixed(1) + '%') + '</b><small>提示後の案件</small></div>' +
              '<div><i>失注</i><b>' + (w.lost || 0) + '</b><small>' + (w.topReason ? '最多：' + w.topReason : '理由の記録なし') + '</small></div></div>';
       var watch = [].slice.call(pane.querySelectorAll('.stats-variant-badge')).filter(function (b) { return /歩留まり/.test(b.textContent); });
       if (watch.length) {

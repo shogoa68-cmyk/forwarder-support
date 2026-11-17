@@ -128,11 +128,12 @@
     const view = /閲覧モード/.test(q || ''), edit = /編集中/.test(q || '');
     const dirty = !!(window.quoteIsDirty && window.quoteIsDirty());
     const lk = view && typeof window.quoteLockedByOther === 'function' ? window.quoteLockedByOther() : null;   // 他の人が編集中（一覧の情報＝目安）
-    const t = lk ? '🔒 ' + lk.name + 'さんが編集中' : view ? '👁 閲覧中' : edit ? '✏️ 編集中' + (dirty ? '　● 未保存' : '') : '';
+    const ro = window._myRole === 'viewer';   // 閲覧のみ権限（チーム管理のロール）
+    const t = ro ? '🔒 閲覧のみ（権限）' : lk ? '🔒 ' + lk.name + 'さんが編集中' : view ? '👁 閲覧中' : edit ? '✏️ 編集中' + (dirty ? '　● 未保存' : '') : '';
     b.hidden = !t; if (b.textContent !== t) b.textContent = t;
-    b.className = lk ? 'is-lock' : view ? 'is-view' : edit ? 'is-edit' : '';
+    b.className = (lk || ro) ? 'is-lock' : view ? 'is-view' : edit ? 'is-edit' : '';
     const mb = $('qadMode');   // ロック中は主ボタンを［🔒 閲覧のみ］（押せない）に。ロックが外れたら（一覧の再読み込みで）元に戻る
-    if (mb) { if (lk) { mb.dataset.e2lock = '1'; mb.disabled = true; if (mb.textContent !== '🔒 閲覧のみ') mb.textContent = '🔒 閲覧のみ'; } else if (mb.dataset.e2lock === '1') { delete mb.dataset.e2lock; mb.disabled = false; mb.textContent = view ? '✏️ 編集' : '💾 保存'; } }
+    if (mb) { if (lk || ro) { mb.dataset.e2lock = '1'; mb.disabled = true; if (mb.textContent !== '🔒 閲覧のみ') mb.textContent = '🔒 閲覧のみ'; } else if (mb.dataset.e2lock === '1') { delete mb.dataset.e2lock; mb.disabled = false; mb.textContent = view ? '✏️ 編集' : '💾 保存'; } }
     const pop = $('e2StatePop'); if (pop && pop.textContent !== (q || '')) pop.textContent = q || '';
     b.title = q || '';
   }

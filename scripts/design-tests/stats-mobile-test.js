@@ -35,8 +35,9 @@ srv.listen(0, async () => {
     ok('PC: 14 タブが見える', await vis(p, '#tab-stats .stats-tabs'));
     ok('[分析] PC: 数字カード 6 枚は出ない', !(await vis(p, '#tab-stats .stats-summary-cards')));
     ok('[分析] PC: 左のメニューが 3 グループ', await p.evaluate(() => document.querySelectorAll('#tab-stats .sa-group').length === 3 && document.querySelector('#tab-stats > .stats-tabs').getBoundingClientRect().width < 260));
-    ok('[分析] PC: 受注分析に大きな数字 3 枚', await p.evaluate(() => document.querySelectorAll('#saHead .sa-big > div').length === 3 && /受注率/.test(document.getElementById('saHead').textContent)));
+    ok('[分析] PC: 受注分析に大きな数字 4 枚（平均粗利率つき）', await p.evaluate(() => document.querySelectorAll('#saHead .sa-big > div').length === 4 && /平均粗利率/.test(document.getElementById('saHead').textContent) && /受注率/.test(document.getElementById('saHead').textContent)));
     ok('[分析] PC: 粗利率の帯に横棒がある', await p.evaluate(() => document.querySelectorAll('#statsPane-winrate .sa-bar').length >= 1));
+    ok('[分析] PC: お客様別にも受注率の横棒がある', await p.evaluate(() => { const h = [].slice.call(document.querySelectorAll('#statsPane-winrate h3')).filter(x => /お客様別/.test(x.textContent))[0]; const t = h && h.parentNode.querySelector('table.stats-table'); return !!t && t.querySelectorAll('.sa-bar').length >= 1; }));
     ok('[分析] PC: 説明帯は［ⓘ］で開く', await p.evaluate(() => { const h = document.querySelector('#statsPane-winrate .sa-hint'), b = document.querySelector('#statsPane-winrate .sa-info'); if (!h || !b) return false; const closed = getComputedStyle(h).display === 'none'; b.click(); return closed && getComputedStyle(h).display !== 'none'; }));
     ok('PC: 今日の確認は出ない', !(await vis(p, '#smHome')) && !(await vis(p, '#smBar')));
     ok('PC: sm-on が付かない', await p.evaluate(() => !document.getElementById('tab-stats').classList.contains('sm-on')));
