@@ -2459,7 +2459,7 @@
       <span class="save-toolbar-sep toolbar-extra"></span>
 
       <!-- 📩 メール取込：開いている見積へ行を挿入 or 新規展開 -->
-      <button type="button" class="save-btn save-btn-import toolbar-extra" onclick="openEmailImport()" title="メール本文を貼り付けて、この見積に行を挿入（または新規案件として展開）">📩 メール取込</button>
+      <button type="button" class="save-btn save-btn-import toolbar-extra" onclick="openImportChooser()" title="メール本文（テキスト）やPDFから、この見積に行を挿入（または新規案件として展開）">📥 取り込み</button>
       <button type="button" class="save-btn save-btn-import toolbar-extra" onclick="openSubconRequestMail()" title="この見積の案件情報と、選んだサブコン宛ての明細から、見積・作業の依頼メール（定型文）を作成します。仕入単価・備考は載せません">✉️ サブコン依頼メール</button>
 
       <span class="save-status" id="saveStatus"></span>
@@ -2500,8 +2500,8 @@
             <span class="tb-mi-icon">📝</span><span class="tb-mi-body"><span class="tb-mi-title">社内メモ（付箋）を開く／閉じる</span><span class="tb-mi-sub">案件名欄の「📝 社内メモ」と同じ</span></span>
           </button>
                     <div class="tb-menu-group tb-mi-simple">取り込み・送る</div>
-          <button type="button" class="tb-menu-item tb-mi-simple" onclick="openEmailImport(); closeTbMenus()">
-            <span class="tb-mi-icon">📩</span><span class="tb-mi-body"><span class="tb-mi-title">メール取込</span><span class="tb-mi-sub">メール本文から見積の行を作る</span></span>
+          <button type="button" class="tb-menu-item tb-mi-simple" onclick="openImportChooser(); closeTbMenus()">
+            <span class="tb-mi-icon">📥</span><span class="tb-mi-body"><span class="tb-mi-title">取り込み</span><span class="tb-mi-sub">メール本文・PDFから見積の行を作る</span></span>
           </button>
           <button type="button" class="tb-menu-item tb-mi-simple" onclick="eiOpenStoreForCurrent(); closeTbMenus()">
             <span class="tb-mi-icon">📝</span><span class="tb-mi-body"><span class="tb-mi-title">自由入力を保管</span><span class="tb-mi-sub">提示した見積の原文をこの案件に残す（あとで取り込む）</span></span>
@@ -4353,6 +4353,17 @@
       </div>
     </div>
 
+    <!-- 📥 取り込みの入口（テキスト／PDF／荷姿を選ぶ） -->
+    <div id="importChooser" onclick="if(event.target===this)closeImportChooser()">
+      <div class="ic-box">
+        <div class="ei-head"><h3>📥 取り込み</h3><button type="button" class="ei-close" onclick="closeImportChooser()" title="閉じる">✕</button></div>
+        <p class="ic-sub" id="icSub">取り込み方を選んでください</p>
+        <button type="button" class="ic-opt" onclick="icChoose('text')"><span class="ic-ico">📝</span><span><b>テキストで取り込む</b><small>メール本文などを貼り付けて、見積の行にします</small></span></button>
+        <button type="button" class="ic-opt" onclick="icChoose('pdf')"><span class="ic-ico">📄</span><span><b>PDFで取り込む</b><small>文字が入ったPDFから文字を取り出して解析します（スキャン画像のPDFは非対応）</small></span></button>
+        <button type="button" class="ic-opt" id="icPacking" onclick="icChoose('packing')"><span class="ic-ico">📦</span><span><b>荷姿・貨物明細を取り込む</b><small>見積の明細ではなく、貨物の寸法・個数などが入ります</small></span></button>
+        <input type="file" id="icPdfFile" accept="application/pdf,.pdf" hidden onchange="icPdfSelected(this)">
+      </div>
+    </div>
     <!-- 📩 メール取込モーダル（貼り付け→解析→レビュー→挿入/新規展開） -->
     <div id="emailImportModal" onclick="if(event.target===this)closeEmailImport()">
       <div id="emailImportBox">
