@@ -270,7 +270,7 @@
   // _applyCells が undefined セルをスキップするため互換。順序は末尾以外変更しないこと。
   // 注意：'lu'（行ごとの最終更新日）は 2026-11 に廃止（入力完了の「日時・ユーザー名」に置き換え）。保存データの cells は位置で持つため、
   //       枠（'lu'）は外さない（外すと後ろの項目がずれる）。画面に入力欄はなく、読み込んでも無視される（_applyCells は欄が無ければ飛ばす）。
-  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin','ic','cn','bphi'];
+  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin','ic','cn','bphi','ins'];
 
   function _applyCells(tr, cells) {
     // cells[0] = 選択チェック、cells[1..] = ROW_CELL_FIELDS 順（DOM 列順に依存しない）

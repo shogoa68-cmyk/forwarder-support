@@ -19,7 +19,7 @@
   const fv = (id, f) => document.getElementById(`${f}-${id}`)?.value || '';
 
   // ===== 1. 要素の置き場所（Industry のときだけパネルへ） =====
-  const MOVES = [['.w-valid', 'valid'], ['.row-mode-btns', 'mode'], ['.pct-group', 'pct'], ['.min-group', 'min'], ['.range-group', 'min'], ['.ic-group', 'ic'], ['.cn-group', 'cn'], ['.row-cd', 'cd']];
+  const MOVES = [['.w-valid', 'valid'], ['.row-mode-btns', 'mode'], ['.pct-group', 'pct'], ['.min-group', 'min'], ['.range-group', 'min'], ['.ic-group', 'ic'], ['.cn-group', 'cn'], ['.ins-group', 'ins'], ['.row-cd', 'cd']];
 
   // 有効期間（.w-valid）：期間が入っている行・サーチャージの行は、「その他 ▾」を開かなくても見て直せるよう、行の中（品名セルの 3 段目の上）に出す。
   // それ以外の行は、従来どおりパネルの中。classic は常に元の場所（syncPlacement が戻す）
@@ -156,6 +156,7 @@
     if (fv(id, 'ppmode')) n++;
     if (fv(id, 'ic')) n++;
     if (fv(id, 'cn')) n++;
+    if (fv(id, 'ins')) n++;
     if ((parseFloat(fv(id, 'ppmin')) || 0) > 0 || (parseFloat(fv(id, 'bpmin')) || 0) > 0) n++;
     if ((parseFloat(fv(id, 'bphi')) || 0) > 0) n++;
     if (diff && cdv) n++;
