@@ -251,6 +251,28 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const html = await p.evaluate(() => document.getElementById('statsPane-master')?.innerHTML || '');
     ok(L + '承認待ちの一覧（承認・却下）', html.includes('承認待ち 1 件') && html.includes('承認待ち費用') && html.includes('statsApproveRequest'), html.slice(0, 300));
     if (process.env.OUT) { await p.evaluate(() => window.scrollTo(0, 0)); await p.screenshot({ path: path.join(process.env.OUT, 'master-approval.png') }); }
+    // 📋 今日やること（Design 29 ②）：お知らせを 1 枚に・承認待ちがあれば開いて始まる・畳める
+    const td = await p.evaluate(() => { const t = document.getElementById('mhTodo'); const b = t && t.querySelector('.mh-todo-b'); return { has: !!t, open: !!t && !t.classList.contains('is-closed'), inside: !!b && !!b.querySelector('#driftCard') && !!b.querySelector('.stats-req-section'), n: t && t.querySelector('.mh-todo-n') && t.querySelector('.mh-todo-n').textContent }; });
+    ok(L + '[今日やること] 申請・ゆらぎチェックが 1 枚の中に入り、承認待ちがあるので開いている', td.has && td.open && td.inside && /承認待ち 1/.test(td.n || ''), td);
+    await p.evaluate(() => statsMhTodoToggle()); await p.waitForTimeout(100);
+    ok(L + '[今日やること] 押すと畳まれ、本文が隠れる', await p.evaluate(() => { const t = document.getElementById('mhTodo'); return t.classList.contains('is-closed') && getComputedStyle(t.querySelector('.mh-todo-b')).display === 'none'; }));
+    await p.evaluate(() => statsMhTodoToggle()); await p.waitForTimeout(100);
+    // ③ いまの条件のチップ行（Design 29）
+    ok(L + '[条件チップ] 条件がないときは出ない', await p.evaluate(() => { statsMasterClearCond(); return !document.getElementById('mhCond'); }));
+    await p.evaluate(() => { statsMasterSetFilter('port'); }); await p.waitForTimeout(200);
+    await p.evaluate(() => { statsMasterSetQuery('a'); }); await p.waitForTimeout(400);
+    ok(L + '[条件チップ] 種別・検索がチップで出る', await p.evaluate(() => { const c = document.getElementById('mhCond'); return !!c && c.querySelectorAll('.mc-chip').length === 2 && /港/.test(c.textContent) && !!c.querySelector('.mc-clear'); }));
+    await p.evaluate(() => document.querySelector('#mhCond .mc-chip[data-k="q"] .mc-x').click()); await p.waitForTimeout(300);
+    ok(L + '[条件チップ] ✕で検索だけ外れる', await p.evaluate(() => { const c = document.getElementById('mhCond'); return !!c && c.querySelectorAll('.mc-chip').length === 1; }));
+    await p.evaluate(() => document.querySelector('#mhCond .mc-clear').click()); await p.waitForTimeout(300);
+    ok(L + '[条件チップ] 条件をクリアで全部外れる', await p.evaluate(() => !document.getElementById('mhCond')));
+    await p.evaluate(() => statsMasterSetFilter('all')); await p.waitForTimeout(200);
+    ok(L + '[印] 3 つ以上の印は上位 2 つ＋「他 N」', await p.evaluate(() => {
+      const td = document.createElement('td'); td.className = 'stats-val'; td.innerHTML = '<span class="cr-chip">a</span><span class="mn-chip">b</span><span class="cc-chip">c</span><span class="stats-md-via">d</span>';
+      const t = document.createElement('table'); t.className = 'master-grid'; const tr = document.createElement('tr'); tr.appendChild(td); t.appendChild(tr);
+      document.getElementById('statsPane-master').appendChild(t); mmMarksEnhance();
+      const hidden = td.querySelectorAll('.mm-hide').length, btn = td.querySelector('.mm-more'); const ok1 = hidden === 2 && btn && btn.textContent === '他2' && getComputedStyle(td.querySelector('.mn-chip')).display === 'none';
+      btn.click(); const ok2 = td.classList.contains('mm-open') && btn.textContent === '閉じる'; t.remove(); return ok1 && ok2; }));
     await p.evaluate(() => statsApproveRequest('q1')); await p.waitForTimeout(500);
     await p.evaluate(() => { window.__db.master_requests.push({ id: 'qd1', field: 'customer', value: '詳細つき申請社', requested_by: 'm@example.com', status: 'pending', details: { location: '福岡市博多区', mainGoods: '雑貨' }, note: '急ぎです', created_at: new Date().toISOString() }); });
     await p.evaluate(async () => { await statsLoadMasterCache(); statsRerenderActive(); }); await p.waitForTimeout(400);
@@ -936,6 +958,23 @@ const http = require('http'), fs = require('fs'), path = require('path');
     if (process.env.OUT) await p.screenshot({ path: require('path').join(process.env.OUT, 'master-detail-modal.png') });
     await p.keyboard.press('Escape'); await p.waitForTimeout(200);
     ok(L + 'Esc で閉じる', await p.evaluate(() => !document.getElementById('mdDetailModal') && !document.body.classList.contains('md-modal-open')));
+    // 詳細は右からのドロワー（Design 29・④）：右寄せ・幅 560px 以下・高さいっぱい・「● 編集中（未保存）」・未保存で閉じる確認
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ポップ商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
+    const dg = await p.evaluate(() => { const b = document.querySelector('#mdDetailModal .md-modal').getBoundingClientRect(); const d = document.querySelector('#mdDetailModal .mt-dirty'); return { right: Math.round(b.right), w: Math.round(b.width), h: Math.round(b.height), vw: innerWidth, vh: innerHeight, dirtyHidden: !!d && d.hidden }; });
+    ok(L + '[ドロワー] 右から出る（右寄せ・幅 560px 以下・高さいっぱい）', dg.right === dg.vw && dg.w <= 560 && dg.h === dg.vh, dg);
+    ok(L + '[ドロワー] 開いた直後は「編集中」の印が出ない', dg.dirtyHidden);
+    await p.fill('#md_furigana', 'ぽっぷ'); await p.waitForTimeout(100);
+    ok(L + '[ドロワー] 入力すると「● 編集中（未保存）」が出る', await p.evaluate(() => { const d = document.querySelector('#mdDetailModal .mt-dirty'); return !!d && !d.hidden && /編集中/.test(d.textContent); }));
+    await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+    ok(L + '[ドロワー] 未保存で Esc → 確認が出て、閉じない', await p.evaluate(() => !!document.querySelector('.confirm-dialog') && !!document.getElementById('mdDetailModal')));
+    await p.evaluate(() => document.querySelector('.confirm-dialog .btn-cancel').click()); await p.waitForTimeout(200);
+    ok(L + '[ドロワー] 「やめる」でそのまま編集に戻る', await p.evaluate(() => !document.querySelector('.confirm-dialog') && !!document.getElementById('mdDetailModal')));
+    await p.evaluate(() => document.querySelector('#mdDetailModal .md-modal-close').click()); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('.confirm-dialog .btn-danger').click()); await p.waitForTimeout(300);
+    ok(L + '[ドロワー] 「破棄して閉じる」で閉じる', await p.evaluate(() => !document.getElementById('mdDetailModal') && !document.querySelector('.confirm-dialog')));
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ポップ商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    await p.evaluate(() => { const o = document.getElementById('mdDetailModal'); o.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); o.dispatchEvent(new MouseEvent('click', { bubbles: true })); }); await p.waitForTimeout(200);
+    ok(L + '[ドロワー] 背景（暗い所）クリックで閉じる（未保存なし）', await p.evaluate(() => !document.getElementById('mdDetailModal')));
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ポップ商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
     await p.fill('#md_furigana', 'ぽっぷしょうじ'); await p.click('.master-detail-save'); await p.waitForTimeout(800);
     ok(L + '保存すると保存されて閉じる', await p.evaluate(() => !document.getElementById('mdDetailModal') && window.__db.master_details.find(m => m.value === 'ポップ商事').details.furigana === 'ぽっぷしょうじ'));
@@ -1353,6 +1392,34 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ABC Agency"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
     ok(L + '海外代理店にも「先のお客様」の欄が出る', await p.evaluate(() => { const h = document.querySelector('.master-detail-via'); return !!h && !h.hidden; }));
     await p.evaluate(() => statsCloseMasterDetail());
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== インデックスバー（頭文字で探す） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true, role: 'admin' });
+    const L = '[インデックスバー] ';
+    await p.evaluate(async () => {
+      const V = (f, v) => window.__db.master_votes.push({ field: f, value: v, voter_email: 's@example.com' });
+      ['ABC Logistics', 'Zeta Trading', 'Beta Corp', '株式会社あおぞら運輸', '田中運輸', 'カワサキ通運', '123商事', 'さくら物産', 'Maersk Line', 'ヤマト運輸'].forEach(n => V('customer', n));
+      window.__db.master_details.push({ field: 'customer', value: '田中運輸', details: { furigana: 'たなかうんゆ' } });
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(400);
+    ok(L + '頭文字の判定（かな・カタカナ→ひらがな・株式会社を飛ばす・英字・数字・ふりがな）', await p.evaluate(() => { const k = (n) => statsMasterIndexKey('customer', n); return ['株式会社あおぞら運輸', 'カワサキ通運', '田中運輸', 'ABC Logistics', '123商事', 'ヤマト運輸', '無読み漢字'].map(k).join(''); }) === 'あかたA0-9や他', await p.evaluate(() => ['株式会社あおぞら運輸', 'カワサキ通運', '田中運輸', 'ABC Logistics', '123商事', 'ヤマト運輸', '無読み漢字'].map(n => statsMasterIndexKey('customer', n)).join(',')));
+    ok(L + 'インデックスバーが出る（かな 10 行は常に・英字はある分だけ・ない行は薄い）', await p.evaluate(() => { const b = document.getElementById('masterIndexBar'); if (!b) return false; const ks = [...b.querySelectorAll('.mib-k')].map(x => x.dataset.k); const off = [...b.querySelectorAll('.mib-k.is-off')].map(x => x.dataset.k); return ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ'].every(k => ks.includes(k)) && ks.includes('A') && ks.includes('Z') && !ks.includes('Q') && off.includes('は') && !off.includes('あ'); }));
+    ok(L + '名前順は頭文字の順（かな→英字→数字）で並ぶ', await p.evaluate(() => { const o = [...document.querySelectorAll('#statsPane-master table.master-table > tbody > tr[data-mvalue]')].map(r => r.dataset.idx); const iA = o.indexOf('A'), iあ = o.indexOf('あ'), i0 = o.indexOf('0-9'); return iあ < iA && iA < i0 && o.indexOf('Z') > o.indexOf('B'); }));
+    await p.evaluate(() => window.scrollTo(0, 0));
+    if (process.env.OUT) await p.screenshot({ path: require('path').join(process.env.OUT, 'master-index.png') });
+    await p.click('#masterIndexBar .mib-k[data-k="Z"]'); await p.waitForTimeout(900);
+    ok(L + '押すとその頭文字の最初のカードへ移動する', await p.evaluate(() => { const r = document.querySelector('#statsPane-master tr[data-idx="Z"]').getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight; }));
+    ok(L + '薄い行（該当なし）は押しても何も起きない', await p.evaluate(() => { const y = window.scrollY; document.querySelector('#masterIndexBar .mib-k[data-k="は"]').click(); return Math.abs(window.scrollY - y) < 2; }));
+    await p.evaluate(() => statsMasterSetSort('tag')); await p.waitForTimeout(300);
+    ok(L + 'グループごとのまとめ表示では出さない', await p.evaluate(() => !document.getElementById('masterIndexBar')));
+    await p.evaluate(() => statsMasterSetSort('name')); await p.waitForTimeout(300);
+    ok(L + '名前順に戻すと出る', await p.evaluate(() => !!document.getElementById('masterIndexBar')));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

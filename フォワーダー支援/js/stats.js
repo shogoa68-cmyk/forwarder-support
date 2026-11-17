@@ -2870,16 +2870,117 @@
   };
   window.statsMasterClearQuery = function () { _masterQuery = ''; _renderMaster(); };
 
+  // ===== インデックスバー（あ か さ …／A B C …）：マスター一覧を頭文字で探す（2026-11）=====
+  // 頭文字は、詳細の「ふりがな」があればその読み、無ければ名前の先頭（株式会社などは飛ばす・カタカナはひらがなへ）。
+  // かな＝行（あ か さ た な は ま や ら わ）・英字＝A〜Z・数字＝0-9・漢字などで読みが無いもの＝他
+  const _IDX_ROWS = [['あ', 'ぁあぃいぅうぇえぉおゔ'], ['か', 'かがきぎくぐけげこご'], ['さ', 'さざしじすずせぜそぞ'], ['た', 'ただちぢっつづてでとど'], ['な', 'なにぬねの'],
+    ['は', 'はばぱひびぴふぶぷへべぺほぼぽ'], ['ま', 'まみむめも'], ['や', 'ゃやゅゆょよ'], ['ら', 'らりるれろ'], ['わ', 'ゎわゐゑをん']];
+  const _IDX_KANA = _IDX_ROWS.map(r => r[0]);
+  const _IDX_ORDER = _IDX_KANA.concat('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''), ['0-9', '他']);
+  function _idxReading(field, name) {
+    let d = null;
+    try { const r = typeof window.mdGet === 'function' ? window.mdGet(field, name) : null; d = r && r.details; } catch (e) { /* 無視 */ }
+    return String((d && d.furigana) || name || '');
+  }
+  function _idxKeyOfText(t) {
+    let x = String(t || '').normalize('NFKC').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+    x = x.replace(/^[\s()\[\]「」『』・.\-_/*]+/, '').replace(/^(株式会社|有限会社|合同会社|\(株\)|\(有\)|\(合\))[\s]*/, '').replace(/^[\s()\[\]「」『』・.\-_/*]+/, '');
+    const c = x.charAt(0);
+    if (!c) return '他';
+    const row = _IDX_ROWS.find(r => r[1].indexOf(c) >= 0);
+    if (row) return row[0];
+    if (/[a-zA-Z]/.test(c)) return c.toUpperCase();
+    if (/[0-9]/.test(c)) return '0-9';
+    return '他';
+  }
+  const _idxKey = (field, name) => _idxKeyOfText(_idxReading(field, name));
+  // 一覧の並び（名前順）：種別 → 頭文字の順 → 読み（ふりがな）／名前
+  function _idxCmp(a, b) {
+    const ka = _IDX_ORDER.indexOf(_idxKey(a.field, a.name)), kb = _IDX_ORDER.indexOf(_idxKey(b.field, b.name));
+    if (ka !== kb) return ka - kb;
+    return _idxReading(a.field, a.name).localeCompare(_idxReading(b.field, b.name), 'ja');
+  }
+  let _idxBubbleT = null;
+  function _idxJump(k, quiet) {
+    const row = document.querySelector('#statsPane-master table.master-table > tbody > tr[data-idx="' + k + '"]');
+    if (!row) return false;
+    row.scrollIntoView({ block: 'start', behavior: quiet ? 'auto' : 'smooth' });
+    row.classList.add('idx-flash'); setTimeout(() => row.classList.remove('idx-flash'), 1200);
+    return true;
+  }
+  window.statsMasterIndexJump = k => _idxJump(k);
+  function _applyIndexBar() {
+    const pane = document.getElementById('statsPane-master'); if (!pane) return;
+    const old = document.getElementById('masterIndexBar'); if (old) old.remove();
+    // 名前順のときだけ（グループごとのまとめ表示では、頭文字の順に並ばないため出さない）
+    if (_masterSort !== 'name') return;
+    const rows = Array.from(pane.querySelectorAll('table.master-table > tbody > tr[data-mvalue]'));
+    if (rows.length < 8) return;   // 少ないときは要らない
+    const have = new Set();
+    rows.forEach(tr => { const k = _idxKey(tr.dataset.mfield, tr.dataset.mvalue); tr.dataset.idx = k; have.add(k); });
+    const items = _IDX_ORDER.filter(k => _IDX_KANA.includes(k) || have.has(k));   // かなは常に（薄く）・英字・数字・他は、ある分だけ
+    const bar = document.createElement('div');
+    bar.id = 'masterIndexBar'; bar.className = 'master-index-bar'; bar.setAttribute('role', 'navigation'); bar.setAttribute('aria-label', '頭文字で探す');
+    bar.innerHTML = items.map(k => `<button type="button" class="mib-k${have.has(k) ? '' : ' is-off'}" data-k="${_eav(k)}" tabindex="${have.has(k) ? 0 : -1}" aria-label="${_eav(k + 'から始まるもの')}"${have.has(k) ? '' : ' aria-disabled="true"'}>${_esc(k)}</button>`).join('') +
+      '<div class="mib-bubble" id="masterIndexBubble" aria-hidden="true"></div>';
+    pane.appendChild(bar);
+    const bubble = bar.querySelector('#masterIndexBubble');
+    const show = k => { bubble.textContent = k; bubble.classList.add('on'); clearTimeout(_idxBubbleT); _idxBubbleT = setTimeout(() => bubble.classList.remove('on'), 700); };
+    const keyAt = (x, y) => { const el = document.elementFromPoint(x, y); const b = el && el.closest && el.closest('.mib-k'); return b && bar.contains(b) ? b.dataset.k : null; };
+    let drag = false, last = null;
+    const go = k => { if (!k || k === last) return; last = k; if (have.has(k)) { show(k); _idxJump(k, true); } };
+    bar.addEventListener('pointerdown', e => { if (!e.target.closest('.mib-k')) return; drag = true; last = null; try { bar.setPointerCapture(e.pointerId); } catch (x) { /* 無視 */ } go(keyAt(e.clientX, e.clientY)); e.preventDefault(); });
+    bar.addEventListener('pointermove', e => { if (drag) go(keyAt(e.clientX, e.clientY)); });
+    const end = () => { drag = false; last = null; };
+    bar.addEventListener('pointerup', end); bar.addEventListener('pointercancel', end);
+    bar.addEventListener('click', e => { const b = e.target.closest('.mib-k'); if (!b || b.classList.contains('is-off')) return; if (!drag) { show(b.dataset.k); _idxJump(b.dataset.k); } });
+    bar.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const b = e.target.closest('.mib-k'); if (b && !b.classList.contains('is-off')) { e.preventDefault(); _idxJump(b.dataset.k); } } });
+  }
+  window.statsMasterIndexKey = _idxKey;
+
   // 検索ボックスに入力中の描き直しでも、入力の位置を保つ
+  let _todoOpen = null;   // 「今日やること」の開閉（null＝承認待ちがあれば開く）
+  window.statsMhTodoToggle = function () {
+    _todoOpen = !(_todoOpen === null ? false : _todoOpen);
+    const t = document.getElementById('mhTodo'); if (!t) return;
+    t.classList.toggle('is-closed', !_todoOpen);
+    const h = t.querySelector('.mh-todo-h'); if (h) { h.setAttribute('aria-expanded', _todoOpen); const c = h.querySelector('.mh-todo-c'); if (c) c.textContent = _todoOpen ? '▲ 閉じる' : '▼ 開く（ゆらぎチェック・申請・お知らせ）'; }
+  };
   function _renderMaster() {
     const act = document.activeElement;
     const keep = act && act.id === 'masterSearch' ? { s: act.selectionStart, e: act.selectionEnd } : null;
     _renderMasterInner();
+    _applyIndexBar();
     if (typeof window.driftRenderCard === 'function') window.driftRenderCard();   // 🔍 ゆらぎチェックのカード（js/drift-check.js）
     const inp = document.getElementById('masterSearch');
     if (inp && keep) { inp.focus(); try { inp.setSelectionRange(keep.s, keep.e); } catch (e) { /* 無視 */ } }
     const c = document.getElementById('masterSearchCount');
     if (c) c.textContent = _masterQuery.trim() && _masterHitCount != null ? '　' + _masterHitCount + ' 件ヒット' : '';
+  }
+  // 「いまの条件」のチップ行（Design 29・案B ③）：種別・検索・地域・種別/タグ・エリア・並び順を 1 行にまとめ、✕で個別に外せる／［条件をクリア］で一括解除。
+  window.statsMasterClearCond = function (k) {
+    if (!k || k === 'all') { _masterFieldFilter = 'all'; _masterQuery = ''; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = ''; _masterSort = 'name'; }
+    else if (k === 'field') { _masterFieldFilter = 'all'; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = ''; _masterSort = 'name'; }
+    else if (k === 'q') _masterQuery = '';
+    else if (k === 'region') { _masterRegion = ''; _masterSub = ''; }
+    else if (k === 'sub') _masterSub = '';
+    else if (k === 'type') _masterSvType = '';
+    else if (k === 'area') { _masterAreaKind = ''; _masterArea = ''; }
+    else if (k === 'sort') _masterSort = 'name';
+    _renderMaster();
+  };
+  function _condHtml() {
+    const list = [];
+    const add = (k, label, val) => list.push('<span class="mc-chip" data-k="' + k + '"><b>' + _esc(label) + '</b>' + _esc(val) + '<button type="button" class="mc-x" aria-label="' + _esc(label) + 'の条件を外す" onclick="statsMasterClearCond(\'' + k + '\')">✕</button></span>');
+    if (_masterFieldFilter !== 'all') { const f = _REG_FIELDS.find(x => x[0] === _masterFieldFilter); add('field', '種別', f ? f[1] : _masterFieldFilter); }
+    if (_masterQuery.trim()) add('q', '検索', _masterQuery.trim());
+    if (_masterRegion) add('region', '地域', _masterRegion);
+    if (_masterSub) add('sub', '小地域', _masterSub);
+    if (_masterSvType) add('type', _SUB_FILTER[_masterFieldFilter] ? _SUB_FILTER[_masterFieldFilter].label : '絞り込み', _masterSvType === _SV_NONE ? '未設定' : _subLabel(_masterFieldFilter, _masterSvType));
+    if (_masterAreaKind || _masterArea) add('area', '得意エリア', _masterArea ? (_masterArea === _SV_NONE ? '未設定' : (typeof window.areaLabel === 'function' ? window.areaLabel(_masterArea) : _masterArea)) : (_masterAreaKind === 'DOM' ? '国内' : _masterAreaKind === 'OVS' ? '海外' : '未設定'));
+    if (_masterSort !== 'name') add('sort', '並び', { tag: '種別・タグごと', group: '所属グループごと', area: '得意エリアごと', deal: '取引形態ごと' }[_masterSort] || _masterSort);
+    if (!list.length) return '';
+    return '<div class="mc-bar" id="mhCond"><span class="mc-label">いまの条件</span>' + list.join('') + '<button type="button" class="mc-clear" onclick="statsMasterClearCond()">条件をクリア</button></div>';
   }
   function _renderMasterInner() {
     const e = document.getElementById('statsPane-master');
@@ -2934,7 +3035,7 @@
     const chip = (f, label, n) =>
       `<button class="master-filter-chip${_masterFieldFilter === f ? ' is-active' : ''}" ` +
       `onclick="statsMasterSetFilter('${f}')">${label}<span class="master-filter-count">${n}</span></button>`;
-    let chipsH = _masterSearchHtml() + '<div class="master-filter-chips">' +
+    let chipsH = _masterSearchHtml() + _condHtml() + '<div class="master-filter-chips">' +
       chip('all', 'すべて', totalCount) +
       fieldOrder.filter(f => counts[f] > 0 || f === 'port' || f === 'icd').map(f => chip(f, labels[f], counts[f])).join('') +
       '</div>';
@@ -3046,7 +3147,7 @@
     let rowsAll = [
       ...entries.map(m => ({ kind: 'ind', field: m.field, name: m.value, m })),
       ...synFiltered.map(g => ({ kind: 'grp', field: g.field, name: g.canonical, g })),
-    ].sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.name || '').localeCompare(b.name || ''));
+    ].sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || _idxCmp(a, b));
     // 検索（種別の絞り込みのあとに、さらに絞る）
     const _terms = _qNorm(_masterQuery).split(/\s+/).filter(Boolean);
     _masterHitCount = null;
@@ -3055,7 +3156,13 @@
       _masterHitCount = rowsAll.length;
     }
 
-    const headH = _masterHeadHtml(totalCount, allSyn.length) + '<div id="driftCard" class="drift-card"></div>' + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
+    // 画面の上に縦に積んでいたお知らせ（ゆらぎチェック・取引ルールの再確認・移行の案内・申請）を「📋 今日やること」の 1 枚にまとめる（Design 29・案B ②）。
+    // 件数のタイルは上に残し、本体は開閉できる（承認待ちがあるときは開いて始まる・選んだ開閉は覚える）。DOM・id（#driftCard など）は不変。
+    const _todoBody = '<div id="driftCard" class="drift-card"></div>' + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
+    const _pendN = _approvalOn() ? (_isAdmin() ? _reqs.filter(r => r.status === 'pending').length : _reqs.filter(r => r.requested_by === _me() && r.status === 'pending').length) : 0;
+    if (_todoOpen === null) _todoOpen = _pendN > 0;
+    const headH = _masterHeadHtml(totalCount, allSyn.length) +
+      '<div id="mhTodo" class="mh-todo' + (_todoOpen ? '' : ' is-closed') + '"><button type="button" class="mh-todo-h" aria-expanded="' + _todoOpen + '" onclick="statsMhTodoToggle()">📋 今日やること' + (_pendN ? ' <span class="mh-todo-n">' + (_isAdmin() ? '承認待ち ' : '申請中 ') + _pendN + '</span>' : '') + '<span class="mh-todo-c">' + (_todoOpen ? '▲ 閉じる' : '▼ 開く（ゆらぎチェック・申請・お知らせ）') + '</span></button><div class="mh-todo-b">' + _todoBody + '</div></div>';
     if (!rowsAll.length) {
       e.innerHTML = headH + formH + chipsH + (_terms.length
         ? '<p class="stats-empty">「' + _esc(_masterQuery.trim()) + '」に一致するマスターはありません。<br><button type="button" class="master-type-preset" onclick="statsMasterClearQuery()">検索をクリア</button>（種別の絞り込みも確認してください）</p>'
@@ -3957,7 +4064,9 @@
   }
 
   function _renderActivePane() {
-    const active = document.querySelector('#tab-stats .stats-pane.is-active');
+    const _fixOn = document.querySelector('#statsPane-fix.is-active');
+    const active = (_fixOn && document.getElementById('tab-master')?.classList.contains('active'))
+      ? _fixOn.querySelector('.stats-pane.is-active') : document.querySelector('#tab-stats .stats-pane.is-active');
     if (!active) return;
     const id = active.id.replace('statsPane-', '');
     if (id === 'pattern') { _renderPattern(); return; }
@@ -3982,10 +4091,43 @@
 
   // === サブタブ切替 ===
 
+  // 名寄せ 6 種（サブコン／キャリア／お客様／品名／単位／チャージ）は「🗂 マスター管理 → 🔧 ゆらぎ・未登録」へ移設した（Design 29・案B）。
+  // 統計から呼ばれても（statsSetPane('sv') など）マスター管理のその種別を開く。
+  const _FIX_KINDS = ['sv', 'carrier', 'customer', 'nm', 'un', 'charges'];
+  const _FIX_LABEL = { sv: '🏢 サブコン', carrier: '🚢 キャリア', customer: '👤 お客様', nm: '📝 品名', un: '📐 単位', charges: '💰 チャージ' };
+  let _fixKind = 'sv';
+  function _fixChips() {
+    const box = document.getElementById('fixChips'); if (!box) return;
+    box.innerHTML = _FIX_KINDS.map(k => '<button type="button" class="fix-chip' + (k === _fixKind ? ' is-on' : '') + '" role="tab" aria-selected="' + (k === _fixKind) + '" data-fix="' + k + '" onclick="fixSetKind(\'' + k + '\')">' + _FIX_LABEL[k] + '</button>').join('');
+  }
+  function fixSetKind(kind) {
+    if (!_FIX_KINDS.includes(kind)) kind = 'sv';
+    _fixKind = kind; _listLimit = {};
+    document.querySelectorAll('#statsPane-fix .stats-pane').forEach(p => { p.classList.remove('is-active'); p.innerHTML = ''; });
+    document.getElementById('statsPane-' + kind)?.classList.add('is-active');
+    if (!_data) { _data = _build(document.getElementById('statsSource')?.value || 'both'); _updateSummary(); }
+    _fixChips();
+    if      (kind === 'sv')       _renderSv();
+    else if (kind === 'carrier')  _renderCarrier();
+    else if (kind === 'customer') _renderCustomer();
+    else if (kind === 'nm')       _renderNm();
+    else if (kind === 'un')       _renderUn();
+    else if (kind === 'charges')  _renderCharges();
+  }
+  window.fixSetKind = fixSetKind;
+  function _openFix(kind) {
+    _fixKind = _FIX_KINDS.includes(kind) ? kind : 'sv';
+    const tab = document.getElementById('tab-master');
+    if (tab && tab.classList.contains('active')) { masterSetPane('fix'); return; }
+    window.__masterWant = 'fix';
+    const btn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
+    if (typeof window.switchCategory === 'function') window.switchCategory('master', btn);
+  }
   function statsSetPane(paneId) {
+    if (_FIX_KINDS.includes(paneId)) { _openFix(paneId); return; }
     // 存在しないタブ ID（廃止したダッシュボード等）が渡されても、本文が空白になりタブが
     // どれも選択されない状態にならないよう、先頭のサブタブへ退避する。
-    if (!document.getElementById('statsTabBtn-' + paneId) && !document.getElementById('statsPane-' + paneId)) paneId = 'sv';
+    if (!document.getElementById('statsTabBtn-' + paneId) && !document.getElementById('statsPane-' + paneId)) paneId = 'winrate';
     _listLimit = {};
     document.querySelectorAll('#tab-stats .stats-tab-btn').forEach(b => {
       b.classList.remove('is-active');
@@ -4051,7 +4193,7 @@
     _data  = _build(source);
     _updateSummary();
     _renderCloud();
-    statsSetPane('sv');
+    statsSetPane('winrate');
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     if (_cloud()) {
       await _loadCloudVotes();
@@ -4079,11 +4221,13 @@
     document.getElementById('statsPane-' + paneId)?.classList.add('is-active');
     if      (paneId === 'master') _renderMaster();
     else if (paneId === 'alias')  _renderAlias();
+    else if (paneId === 'fix')    fixSetKind(_fixKind);
   }
   window.masterSetPane = masterSetPane;
 
   window.initMasterTab = async function () {
-    masterSetPane('master');
+    const _want = window.__masterWant === 'fix' ? 'fix' : 'master'; window.__masterWant = null;
+    masterSetPane(_want);
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     if (_cloud()) {
       _cvMap = null;
@@ -4094,7 +4238,7 @@
       if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();   // 読み込んだクラウドのマスターを入力補完へ
       // アクティブなマスタータブのペインを再描画
       const active = document.querySelector('#tab-master .stats-pane.is-active');
-      if (active && active.id === 'statsPane-alias') _renderAlias(); else _renderMaster();
+      if (active && active.id === 'statsPane-alias') _renderAlias(); else if (active && active.id === 'statsPane-fix') fixSetKind(_fixKind); else _renderMaster();
     }
   };
 

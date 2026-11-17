@@ -188,3 +188,18 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card.cloud-card-labeled.
   html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-who { order: -2; padding: 10px 16px 0; }
   html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-title { order: -1; padding-top: 2px; }
 }
+
+/* ===== 🙋 フォロー担当（2026-11）：作業者の行の先頭に「担当：○○ フォロー中」／「未フォロー」＋ボタン ===== */
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 6px 0 10px; border-radius: 999px; background: var(--surface, #fff); border: 1px solid var(--border-md, #c8cfd9); white-space: nowrap; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow .cc3-fl-l { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); font-weight: 600; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow b { font-size: var(--text-sm, 13px); }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow small { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow.is-me { box-shadow: 0 0 0 2px #2f5fb3; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow.is-none { border-style: dashed; background: #fff8e6; border-color: #e0a33a; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow.is-ended { opacity: .7; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-fl-btn { min-height: 28px; padding: 0 10px; border: 1px solid var(--accent-dk, #2c455d); border-radius: 999px; background: var(--accent-dk, #2c455d); color: #fff; font: inherit; font-size: var(--text-xs, 12px); font-weight: 700; cursor: pointer; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow:not(.is-none) .cc3-fl-btn { background: var(--surface, #fff); color: var(--accent-dk, #2c455d); }
+@media (max-width: 600px) {
+  #tab-quote-make #qpDashboard #qpdListWrap .cc3-fl-btn { min-height: 44px; padding: 0 14px; font-size: var(--text-sm, 14px); }
+  #tab-quote-make #qpDashboard #qpdListWrap .cc3-follow { min-height: 44px; flex-wrap: wrap; row-gap: 4px; white-space: normal; }
+}

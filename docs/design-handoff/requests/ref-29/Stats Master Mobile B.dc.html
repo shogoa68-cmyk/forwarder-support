@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>統計・マスター スマホ案B</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--q-canvas:#f6f7f9;--q-sunken:#f1f3f6;--q-line:#e2e6ec;--q-line-strong:#c8cfd9;--q-ink:#101828;--q-ink-2:#475467;--q-ink-3:#667085;--q-accent:#2f5fb3;--q-accent-50:#eef3fb;--q-warn:#8a5a2b;--q-warn-bg:#fbf4e6;--q-warn-line:#e6d3ae}
+body{margin:0;background:var(--q-canvas);font-family:'Inter','Noto Sans JP',sans-serif;color:var(--q-ink);font-size:14px;line-height:1.5}
+button,input{font-family:inherit;color:inherit}
+.k-tab{all:unset;box-sizing:border-box;cursor:pointer;height:42px;padding:0 15px;display:inline-flex;align-items:center;border-radius:8px;border:1px solid var(--q-line-strong);background:#fff;font:600 14px 'Noto Sans JP',sans-serif}
+.k-tab[aria-pressed="true"]{background:var(--q-ink);color:#fff;border-color:var(--q-ink)}
+.k-ph{position:relative;width:360px;height:720px;flex:none;background:#f6f7f9;border:6px solid #101828;border-radius:28px;overflow:hidden;transform:translateZ(0);display:flex;flex-direction:column}
+.k-top{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#fff;border-bottom:1px solid var(--q-line);height:52px;box-sizing:border-box;flex:none}
+.k-b{all:unset;box-sizing:border-box;cursor:pointer;min-width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;font:600 14px 'Noto Sans JP',sans-serif;padding:0 12px;white-space:nowrap}
+.k-b.o{border:1px solid var(--q-line-strong);background:#fff}.k-b.p{background:#101828;color:#fff}.k-b.a{background:var(--q-accent);color:#fff}.k-b.d{border:1px solid #f3b7b0;color:#b42318;background:#fff}
+.k-body{flex:1;overflow:auto;padding:10px 12px 80px;display:flex;flex-direction:column;gap:10px}
+.k-card{background:#fff;border:1px solid var(--q-line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.k-chip{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border-radius:999px;border:1px solid var(--q-line-strong);background:#fff;font:600 12px 'Noto Sans JP',sans-serif;color:var(--q-ink-2);white-space:nowrap;flex:none}
+.k-chip.w{background:var(--q-warn-bg);border-color:var(--q-warn-line);color:var(--q-warn)}.k-chip.r{background:#fdecea;border-color:#f3b7b0;color:#b42318}.k-chip.g{background:#eaf6ef;border-color:#a9d3bc;color:#1e7a4a}.k-chip.b{background:var(--q-accent-50);border-color:#bcd0ee;color:#234a8f}
+.k-fc{all:unset;box-sizing:border-box;cursor:pointer;flex:none;height:36px;padding:0 14px;display:inline-flex;align-items:center;border-radius:999px;border:1px solid var(--q-line-strong);background:#fff;font:600 13px 'Noto Sans JP',sans-serif;color:var(--q-ink-2)}
+.k-fc[aria-pressed="true"]{background:var(--q-accent-50);border-color:var(--q-accent);color:#234a8f}
+.k-in{box-sizing:border-box;width:100%;height:44px;border:1px solid var(--q-line-strong);border-radius:8px;padding:0 12px;font:14px 'Inter','Noto Sans JP',sans-serif;background:#fff}
+.k-lab{font:600 12px 'Noto Sans JP',sans-serif;color:var(--q-ink-3);display:block;margin-bottom:3px}
+.k-big{font:700 28px 'Inter',sans-serif;line-height:1.1}
+.k-bar{height:10px;border-radius:5px;background:#e8ebf0;overflow:hidden;flex:1}.k-bar i{display:block;height:100%;border-radius:5px}
+.k-nav{position:absolute;left:0;right:0;bottom:0;height:60px;background:#fff;border-top:1px solid var(--q-line);display:flex;z-index:3}
+.k-nb{all:unset;box-sizing:border-box;cursor:pointer;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;font:600 11px 'Noto Sans JP',sans-serif;color:var(--q-ink-3);position:relative}
+.k-nb.on{color:#101828}.k-nb.on:after{content:'';position:absolute;top:0;left:25%;right:25%;height:3px;background:#101828;border-radius:0 0 3px 3px}
+.k-dim{position:absolute;inset:0;background:rgba(16,24,40,.35);z-index:6}
+.k-sheet{position:absolute;left:0;right:0;bottom:0;z-index:7;background:#fff;border-radius:16px 16px 0 0;box-shadow:0 -8px 24px rgba(16,24,40,.2);padding:8px 14px 16px;display:flex;flex-direction:column;gap:10px;max-height:82%;overflow:auto}
+.k-toast{position:absolute;left:10px;right:10px;bottom:70px;z-index:8;background:#101828;color:#fff;border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:10px;font:600 13px 'Noto Sans JP',sans-serif}
+.k-note{border:1px solid var(--q-line);border-radius:10px;background:#fff;padding:14px}
+.k-cap{font:600 12px 'Noto Sans JP',sans-serif;color:var(--q-ink-3);margin-bottom:6px}
+</style>
+</helmet>
+<div style="max-width:1000px;margin:0 auto;padding:22px 16px 64px;display:flex;flex-direction:column;gap:14px">
+  <div>
+    <h1 style="margin:0 0 4px;font:700 22px 'Noto Sans JP',sans-serif">統計・マスター スマホ版（PC案Bに合わせた形）</h1>
+    <p style="margin:0;color:var(--q-ink-2)">PCの案B（「マスター・名寄せ」ハブ＋「分析」）と同じ考え方で、スマホを作りました。左の画面は<b>押して動きます</b>（今日 → 名寄せ → まとめる、マスター → 詳細、分析）。右は、ほかの場面（絞り込み・メンバー表示）です。数字・名前は見本です。</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ who }}" as="o" hint-placeholder-count="2"><button type="button" class="k-tab" onClick="{{ o.pick }}" aria-pressed="{{ o.on }}">{{ o.label }}</button></sc-for></div>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;background:#e9ecf0;border-radius:12px;padding:20px">
+    <div><div class="k-cap">操作できる画面</div>
+      <div class="k-ph">
+        <!-- ホーム -->
+        <sc-if value="{{ vHome }}" hint-placeholder-val="{{ true }}"><div style="display:flex;flex-direction:column;flex:1;min-height:0"><div class="k-top"><b style="flex:1;font-size:16px">🗂 マスター・名寄せ</b><span class="k-chip" style="background:#101828;color:#fff;border-color:#101828">{{ roleLabel }}</span></div>
+          <div class="k-body"><b style="font-size:15px">今日やること</b>
+            <button type="button" style="all:unset;box-sizing:border-box;cursor:pointer;background:#fff;border:1px solid #e6d3ae;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px" onClick="{{ goNay }}"><span class="k-big" style="color:#b45309">{{ left }}</span><span style="flex:1"><b>ゆらぎ・未登録</b><br><span style="font-size:12px;color:var(--q-ink-3)">サブコン・お客様の名前をそろえる</span></span><span>›</span></button>
+            <button type="button" style="all:unset;box-sizing:border-box;cursor:pointer;background:#fff;border:1px solid #e6d3ae;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px" onClick="{{ goReq }}"><span class="k-big" style="color:#b45309">{{ req }}</span><span style="flex:1"><b>{{ reqTitle }}</b><br><span style="font-size:12px;color:var(--q-ink-3)">{{ reqSub }}</span></span><span>›</span></button>
+            <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ true }}"><div class="k-card" style="background:#fbf4e6;border-color:#e6d3ae"><b>📦 このブラウザのデータ 5件</b><span style="font-size:12px;color:var(--q-ink-2)">チームへ移すと、ほかの人の入力候補にも出ます。</span><div style="display:flex;gap:8px"><button type="button" class="k-b p" style="flex:1">チームへ移す</button><button type="button" class="k-b o">移さない…</button></div></div></sc-if>
+            <b style="font-size:15px;margin-top:4px">マスターを探す</b>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="k-fc" onClick="{{ goList }}">サブコン 2</button><button type="button" class="k-fc" onClick="{{ goList }}">お客様 2</button><button type="button" class="k-fc" onClick="{{ goList }}">品名・港・単位 1</button></div>
+            <button type="button" class="k-b o" style="justify-content:space-between">🔀 エイリアス是正（過去データを一括で直す）<span>›</span></button></div></div></sc-if>
+        <!-- 名寄せ -->
+        <sc-if value="{{ vNay }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;flex:1;min-height:0"><div class="k-top"><button type="button" class="k-b" onClick="{{ goHome }}">←</button><b style="flex:1;font-size:16px">ゆらぎ・未登録</b><span class="k-chip">残り {{ left }}</span></div>
+          <div style="display:flex;gap:8px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--q-line);overflow:auto"><span class="k-fc" aria-pressed="true">すべて</span><span class="k-fc">サブコン</span><span class="k-fc">お客様</span></div>
+          <div class="k-body"><sc-if value="{{ allDone }}" hint-placeholder-val="{{ false }}"><div class="k-card" style="align-items:center;padding:30px"><span style="font-size:30px">✅</span><b>いま直すものはありません</b></div></sc-if>
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="4"><div class="k-card" style="opacity:{{ r.op }}"><div style="display:flex;align-items:center;gap:8px"><b style="font-size:16px;flex:1">{{ r.name }}</b><span class="k-chip {{ r.sc }}">{{ r.st }}</span></div><span style="font-size:12px;color:var(--q-ink-3)">{{ r.kind }} ・ {{ r.cnt }}件 ・ {{ r.vtxt }}</span><div style="display:flex;gap:8px"><button type="button" class="k-b p" style="flex:1" onClick="{{ r.ask }}">{{ r.main }}</button><button type="button" class="k-b o" onClick="{{ r.more }}">⋯</button></div></div></sc-for></div></div></sc-if>
+        <!-- 一覧 -->
+        <sc-if value="{{ vList }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;flex:1;min-height:0"><div class="k-top"><button type="button" class="k-b" onClick="{{ goHome }}">←</button><b style="flex:1;font-size:16px">マスター</b><button type="button" class="k-b a">{{ newLabel }}</button></div>
+          <div style="padding:8px 12px;background:#fff;border-bottom:1px solid var(--q-line);display:flex;flex-direction:column;gap:8px"><input class="k-in" placeholder="🔍 名前・別名・詳細で検索"><div style="display:flex;gap:8px;overflow:auto"><span class="k-fc" aria-pressed="true">すべて 4</span><span class="k-fc">サブコン 2</span><span class="k-fc">お客様 2</span><span class="k-fc">品名</span></div><div style="display:flex;gap:8px;align-items:center"><button type="button" class="k-b o" style="height:36px" onClick="{{ openFilter }}">🔎 絞り込み <span class="k-chip b" style="height:20px">1</span></button><span class="k-chip b">取引形態：荷主 ✕</span><span style="flex:1"></span><span style="font-size:12px;color:var(--q-ink-3)">4件</span></div></div>
+          <div class="k-body"><sc-for list="{{ mcards }}" as="m" hint-placeholder-count="4"><button type="button" style="all:unset;box-sizing:border-box;cursor:pointer;background:{{ m.bg }};border:1px solid {{ m.bd }};border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px" onClick="{{ m.open }}"><div style="display:flex;align-items:center;gap:6px"><b style="font-size:16px;flex:1">{{ m.n }}</b><span class="k-chip" style="background:{{ m.sc }};color:#fff;border-color:{{ m.sc }}">{{ m.k }}</span></div><span style="font-size:12px;color:var(--q-ink-2)">{{ m.d }}</span><div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ m.marks }}" as="x" hint-placeholder-count="2"><span class="k-chip {{ x.c }}">{{ x.t }}</span></sc-for><sc-if value="{{ m.drift }}" hint-placeholder-val="{{ false }}"><span class="k-chip w">ゆらぎ ▸</span></sc-if></div></button></sc-for></div></div></sc-if>
+        <!-- 詳細 -->
+        <sc-if value="{{ vDetail }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;flex:1;min-height:0"><div class="k-top"><button type="button" class="k-b" onClick="{{ goList }}">←</button><b style="flex:1;font-size:16px">{{ dm.n }}</b><span class="k-chip w">● 編集中</span></div>
+          <div style="display:flex;gap:6px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--q-line);overflow:auto"><span class="k-fc" aria-pressed="true">担当者 2</span><span class="k-fc">会社の詳細</span><span class="k-fc">取引ルール 3</span><span class="k-fc">ニュース 4</span><span class="k-fc">メモ・添付</span></div>
+          <div class="k-body" style="padding-bottom:100px"><div><span class="k-lab">ふりがな</span><input class="k-in" value="{{ dm.f }}"></div><div><span class="k-lab">取引形態</span><input class="k-in" value="{{ dm.k }}"></div><div class="k-card"><b>山田 太郎 様</b><span style="font-size:12px;color:var(--q-ink-3)">営業部 ・ 課長 ・ 03-1234-5678</span></div><div class="k-card"><b>佐藤 花子 様</b><span style="font-size:12px;color:var(--q-ink-3)">経理 ・ 03-1234-5679</span></div><button type="button" class="k-b o">＋ 担当者を追加</button></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--q-line-strong);padding:8px 12px;display:flex;gap:8px;z-index:4"><button type="button" class="k-b o" onClick="{{ goList }}">閉じる</button><button type="button" class="k-b a" style="flex:1" onClick="{{ goList }}">{{ saveLabel }}</button></div></div></sc-if>
+        <!-- 分析 -->
+        <sc-if value="{{ vAna }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;flex:1;min-height:0"><div class="k-top"><b style="flex:1;font-size:16px">📊 分析</b><button type="button" class="k-b o" style="height:38px">受注分析 ▾</button></div>
+          <div class="k-body"><div style="display:flex;gap:8px;overflow:auto"><span class="k-fc" aria-pressed="true">全期間</span><span class="k-fc">今年度</span><span class="k-fc">3ヶ月</span><span class="k-fc">今月</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="k-card"><span class="k-lab">受注率</span><span class="k-big" style="color:#1e7a4a">50%</span><span style="font-size:12px;color:var(--q-ink-3)">3 / 6件</span></div><div class="k-card"><span class="k-lab">平均の粗利率</span><span class="k-big">14.2%</span><span style="font-size:12px;color:var(--q-ink-3)">結果待ち 2</span></div></div>
+            <div class="k-card" style="background:#fbf4e6;border-color:#e6d3ae"><b>⚠ 要注意：乙物産</b><span style="font-size:12px;color:#8a5a2b">提示3件・受注率33%</span><button type="button" class="k-b o" style="height:38px">見積を見る ›</button></div>
+            <div class="k-card"><b>粗利率の帯ごとの受注率</b><sc-for list="{{ bands }}" as="b" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:8px;opacity:{{ b.op }}"><span style="width:90px;font-size:12px">{{ b.l }}</span><div class="k-bar"><i style="width:{{ b.w }};background:{{ b.c }}"></i></div><b style="width:36px;text-align:right;font-size:13px">{{ b.p }}</b></div></sc-for></div>
+            <div class="k-card"><b>お客様別の歩留まり</b><sc-for list="{{ custs }}" as="c" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:8px"><b style="width:66px;font-size:13px">{{ c.n }}</b><div class="k-bar"><i style="width:{{ c.w }};background:{{ c.c }}"></i></div><b style="width:36px;text-align:right;font-size:13px">{{ c.p }}</b></div></sc-for></div></div></div></sc-if>
+
+        <!-- 下のナビ -->
+        <div class="k-nav"><button type="button" class="k-nb {{ nHome }}" onClick="{{ goHome }}"><span style="font-size:18px">☑</span>今日やること</button><button type="button" class="k-nb {{ nList }}" onClick="{{ goList }}"><span style="font-size:18px">🗂</span>マスター</button><button type="button" class="k-nb {{ nAna }}" onClick="{{ goAna }}"><span style="font-size:18px">📊</span>分析</button></div>
+
+        <!-- シート -->
+        <sc-if value="{{ sheet }}" hint-placeholder-val="{{ false }}"><div class="k-dim" onClick="{{ closeSheet }}"></div><div class="k-sheet"><div style="width:40px;height:4px;border-radius:2px;background:var(--q-line-strong);margin:0 auto"></div>
+          <sc-if value="{{ shMerge }}" hint-placeholder-val="{{ true }}"><div style="display:flex;flex-direction:column;gap:10px"><b style="font-size:17px">{{ mTitle }}</b><div class="k-card" style="background:#f6f7f9"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><sc-for list="{{ mVars }}" as="v" hint-placeholder-count="2"><span class="k-chip">{{ v.t }}</span></sc-for></div><span style="text-align:center">↓</span><span class="k-chip b" style="height:32px;font-size:14px;width:fit-content">{{ mName }}</span><span style="font-size:12px;color:var(--q-ink-3)">集計が {{ mCnt }}件 → 1行に合算。元の入力は変わりません。あとから「元に戻す」できます。</span></div><div style="display:flex;gap:8px"><button type="button" class="k-b o" onClick="{{ closeSheet }}">キャンセル</button><button type="button" class="k-b a" style="flex:1" onClick="{{ doMerge }}">{{ mOk }}</button></div></div></sc-if>
+          <sc-if value="{{ shMore }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column"><b style="font-size:16px;padding-bottom:6px">{{ mName }}</b><div style="padding:12px 4px;border-top:1px solid var(--q-line)">☆ 登録（この表記を使う）</div><div style="padding:12px 4px;border-top:1px solid var(--q-line)">→ 別名にする…</div><div style="padding:12px 4px;border-top:1px solid var(--q-line)">≠ 別物として残す</div></div></sc-if>
+          <sc-if value="{{ shFilter }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:center"><b style="font-size:17px;flex:1">絞り込み</b><span style="color:var(--q-ink-3)">リセット</span></div><div><span class="k-lab">取引形態</span><div style="display:flex;gap:6px;flex-wrap:wrap"><span class="k-fc" aria-pressed="true">荷主</span><span class="k-fc">同業者</span><span class="k-fc">海外代理店</span><span class="k-fc">乙仲</span></div></div><div><span class="k-lab">タグ</span><div style="display:flex;gap:6px;flex-wrap:wrap"><span class="k-fc">至急</span><span class="k-fc">リピート</span><span class="k-fc">欧州</span></div></div><div><span class="k-lab">並び順</span><div style="display:flex;gap:6px;flex-wrap:wrap"><span class="k-fc" aria-pressed="true">名前順</span><span class="k-fc">取引形態ごと</span></div></div><button type="button" class="k-b p" onClick="{{ closeSheet }}">4 件を見る</button></div></sc-if></div></sc-if>
+        <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}"><div class="k-toast"><span style="flex:1">{{ toastText }}</span><button type="button" class="k-b" style="height:30px;min-width:0;color:#7ee0a6;padding:0 6px" onClick="{{ undo }}">元に戻す</button></div></sc-if>
+      </div></div>
+
+    <div><div class="k-cap">右：承認待ち（管理者）／ メンバーの自分の申請</div>
+      <div class="k-ph"><div class="k-top"><button type="button" class="k-b">←</button><b style="flex:1;font-size:16px">承認待ち</b><span class="k-chip w">1</span></div><div class="k-body"><div class="k-card"><div style="display:flex;gap:6px;align-items:center"><span class="k-chip">品名</span><b>承認待ち費用</b></div><span style="font-size:12px;color:var(--q-ink-3)">申請者 m ・ 11/16 09:12</span><div style="display:flex;gap:8px"><button type="button" class="k-b p" style="flex:1">承認</button><button type="button" class="k-b d">却下…</button></div></div><span style="font-size:12px;color:var(--q-ink-3)">承認はすぐ反映（下のバーで元に戻せる）。却下は理由の入力つき。</span><b style="margin-top:8px">メンバーの場合：自分の申請</b><div class="k-card"><div style="display:flex;gap:6px;align-items:center"><span class="k-chip">品名</span><b>承認待ち費用</b></div><span class="k-chip w" style="width:fit-content">○ 承認待ち（管理者の確認中）</span></div></div>
+        <div class="k-nav"><div class="k-nb on"><span style="font-size:18px">☑</span>今日やること</div><div class="k-nb"><span style="font-size:18px">🗂</span>マスター</div><div class="k-nb"><span style="font-size:18px">📊</span>分析</div></div></div></div>
+  </div>
+  <div class="k-note"><b style="font-size:16px">スマホの決めごと</b><p style="margin:6px 0 0;color:var(--q-ink-2)">下の3つのタブ（今日やること／マスター／分析）。名寄せは<b>1件1カード＋主ボタン1つ</b>（管理者＝まとめる／メンバー＝申請）で、☆登録・別名・≠別物は［⋯］のシート。まとめる前に確認シート、実行後は下のバーで「元に戻す」。マスター一覧は検索・種別チップ・［🔎絞り込み］（下から出るシート）で、「いまの条件」をチップで見せます。詳細は全画面・下に保存バー・「● 編集中」の印。分析は大きな数字 → 気づき → 横棒。押す所は44px以上、下に72pxの余白。</p></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { scr: 'home', role: 'admin', done: {}, sheet: '', cur: 0, toast: '', uk: '', mopen: 0 };
+  renderVals() {
+    const s = this.state, adm = s.role === 'admin';
+    const R = [
+      { id: 0, name: 'ABC運輸', kind: 'サブコン', cnt: 3, st: 'ゆらぎ 2種', sc: 'w', d: true, v: [{ t: 'ABC運輸 ×2' }, { t: 'ABC 運輸 ×1' }] },
+      { id: 1, name: 'GHI倉庫', kind: 'サブコン', cnt: 2, st: 'ゆらぎ 2種', sc: 'w', d: true, v: [{ t: 'GHI倉庫 ×1' }, { t: 'GHI 倉庫 ×1' }] },
+      { id: 2, name: '乙物産', kind: 'お客様', cnt: 3, st: '未登録', sc: 'b', d: false, v: [{ t: '乙物産 ×3' }] },
+      { id: 3, name: '丙商会', kind: 'お客様', cnt: 2, st: '未登録', sc: 'b', d: false, v: [{ t: '丙商会 ×2' }] }
+    ];
+    const left = R.filter(r => !s.done[r.id]).length;
+    const rows = R.map(r => { const dn = !!s.done[r.id]; return { name: r.name, kind: r.kind, cnt: r.cnt, st: dn ? '完了' : r.st, sc: dn ? 'g' : r.sc, op: dn ? 0.5 : 1, vtxt: r.v.map(x => x.t).join(' / '), main: adm ? (r.d ? 'この名前にまとめる' : '☆ マスターに登録') : (r.d ? 'まとめるを申請' : '登録を申請'), ask: () => this.setState({ sheet: 'merge', cur: r.id }), more: () => this.setState({ sheet: 'more', cur: r.id }) }; });
+    const c = R[s.cur];
+    const KIND = { 荷主: ['#eaf1fc', '#bcd0ee', '#2f5fb3'], 同業者: ['#fdf0e1', '#efcfa6', '#d9822b'], サブコン: ['#f1f3f6', '#d0d5dd', '#667085'] };
+    const M = [
+      { n: 'ABC運輸', k: 'サブコン', d: '通関・陸送 ／ 得意：関東', f: 'えーびーしーうんゆ', marks: [{ t: '📌 ルール 2', c: 'w' }, { t: '🗂 事例 1', c: '' }], drift: true },
+      { n: '乙物産', k: '荷主', d: '東京 ／ 担当 山田 様', f: 'おつぶっさん', marks: [{ t: '📌⛔ 厳守 1', c: 'r' }, { t: '他 1', c: '' }], drift: false },
+      { n: '丙商会', k: '同業者', d: '大阪 ／ 担当 佐藤 様', f: 'へいしょうかい', marks: [{ t: '🔗 先 1', c: 'b' }, { t: '他 2', c: '' }], drift: false },
+      { n: 'GHI倉庫', k: 'サブコン', d: '倉庫 ／ 川崎', f: 'じーえいちあいそうこ', marks: [{ t: '🔁 互恵', c: '' }], drift: true }
+    ];
+    const mcards = M.map((m, i) => { const k = KIND[m.k]; return { ...m, bg: k[0], bd: k[1], sc: k[2], open: () => this.setState({ scr: 'detail', mopen: i }) }; });
+    const dm = M[s.mopen];
+    const dmk = KIND[dm.k];
+    const bands = [{ l: '12〜15%', p: '0%', w: '4%', c: '#d9822b', op: .8 }, { l: '15%以上', p: '60%', w: '60%', c: '#2f5fb3', op: 1 }, { l: '8〜12%', p: '—', w: '0%', c: '#c8cfd9', op: .5 }];
+    const custs = [{ n: '乙物産', p: '33%', w: '33%', c: '#d9822b' }, { n: '丙商会', p: '50%', w: '50%', c: '#2f5fb3' }, { n: '甲商事', p: '100%', w: '100%', c: '#1e7a4a' }];
+    const sc = s.scr;
+    return {
+      who: [['admin', '管理者で見る'], ['member', 'メンバーで見る']].map(a => ({ label: a[1], on: s.role === a[0], pick: () => this.setState({ role: a[0] }) })),
+      isAdmin: adm, roleLabel: adm ? '管理者' : 'メンバー', left, req: 1, reqTitle: adm ? '承認待ち' : '自分の申請', reqSub: adm ? '品名「承認待ち費用」（申請者 m）' : '品名「承認待ち費用」が確認中', newLabel: adm ? '＋ 登録' : '＋ 申請', saveLabel: adm ? '保存' : '申請する',
+      vHome: sc === 'home', vNay: sc === 'nay', vList: sc === 'list', vDetail: sc === 'detail', vAna: sc === 'ana',
+      nHome: sc === 'home' || sc === 'nay' ? 'on' : '', nList: sc === 'list' || sc === 'detail' ? 'on' : '', nAna: sc === 'ana' ? 'on' : '',
+      goHome: () => this.setState({ scr: 'home' }), goNay: () => this.setState({ scr: 'nay' }), goReq: () => this.setState({ scr: 'home' }), goList: () => this.setState({ scr: 'list' }), goAna: () => this.setState({ scr: 'ana' }),
+      rows, allDone: left === 0, mcards, dm: { ...dm, k: dm.k }, mdk: dmk,
+      sheet: s.sheet !== '', shMerge: s.sheet === 'merge', shMore: s.sheet === 'more', shFilter: s.sheet === 'filter', closeSheet: () => this.setState({ sheet: '' }), openFilter: () => this.setState({ sheet: 'filter' }),
+      mTitle: adm ? 'この名前にまとめますか？' : 'まとめる操作を申請しますか？', mVars: c.v, mName: c.name, mCnt: c.cnt, mOk: adm ? 'まとめる' : '申請する',
+      doMerge: () => this.setState({ sheet: '', done: { ...s.done, [c.id]: true }, toast: adm ? '「' + c.name + '」にまとめました' : '申請しました', uk: String(c.id) }),
+      toast: s.toast !== '', toastText: s.toast, undo: () => { const d = { ...s.done }; delete d[Number(s.uk)]; this.setState({ done: d, toast: '' }); },
+      bands, custs
+    };
+  }
+}
+</script>
+</body>
+</html>

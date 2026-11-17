@@ -69,11 +69,51 @@
     // 厳守の取引ルールがあるときは「取引ルール」タブを開いて見せる（取りこぼし防止）
     setTimeout(() => { if (strictInit()) show('rules'); refresh(); }, 600);
   }
+
+  // ---- 詳細ドロワー（Design 29・④）：「● 編集中（未保存）」の印と、未保存で閉じるときの確認・背景クリックで閉じる ----
+  function dirtyHook() {
+    const close0 = window.statsCloseMasterDetail;
+    if (typeof close0 !== 'function' || close0.__mtd) return false;
+    const closeG = function (opt) {
+      const m = document.getElementById('mdDetailModal');
+      if (!m || !m.dataset.mtDirty || m.dataset.mtSkip || (opt && opt.force) || typeof window.uiConfirm !== 'function') return close0.apply(this, arguments);
+      if (m.dataset.mtAsking) return;
+      m.dataset.mtAsking = '1';
+      window.uiConfirm({ title: '保存していない変更があります', lines: ['このまま閉じると、入力した内容は失われます。', m.dataset.mtDirty ? '変更：' + m.dataset.mtDirty : ''].filter(Boolean), okLabel: '破棄して閉じる', danger: true }).then(ok => {
+        delete m.dataset.mtAsking; if (ok) close0.call(window);
+      });
+    };
+    closeG.__mtd = true; window.statsCloseMasterDetail = closeG;
+    ['statsSaveMasterDetail', 'statsDeleteMasterDetail'].forEach(n => {   // 保存・削除のあとの閉じるは確認なし
+      const f = window[n]; if (typeof f !== 'function' || f.__mtd) return;
+      const w = function () { const m = document.getElementById('mdDetailModal'); if (m) m.dataset.mtSkip = '1'; try { return f.apply(this, arguments); } finally { if (m) setTimeout(() => { delete m.dataset.mtSkip; }, 15000); } };
+      w.__mtd = true; window[n] = w;
+    });
+    return true;
+  }
+  function setupDrawer(m) {
+    if (!m || m.dataset.mtDrawer) return; m.dataset.mtDrawer = '1';
+    const head = m.querySelector('.md-modal-head'), closeBtn = head && head.querySelector('.md-modal-close');
+    if (head) { const d = document.createElement('span'); d.className = 'mt-dirty'; d.hidden = true; d.textContent = '● 編集中（未保存）'; head.insertBefore(d, closeBtn); }
+    const names = new Set();
+    const mark = (e) => {
+      const t = e.target; if (!t || !/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName) || t.type === 'file' || !t.closest('.master-detail-form, .mt-basic, .mt-panel')) return;
+      if (t.closest('#crPanel, #ccPanel, #mnPanel')) return;   // ルール・カルテ・ニュースは、それぞれの画面で保存するため対象外
+      const lb = t.closest('.master-detail-label, .master-detail-contacts, .master-detail-tags, .master-detail-areas, .master-detail-via'); const nm = lb ? (lb.textContent || '').trim().split(/[\n：:]/)[0].slice(0, 12) : '';
+      if (nm) names.add(nm); m.dataset.mtDirty = [...names].join('・') || '入力あり';
+      const d = m.querySelector('.mt-dirty'); if (d) { d.hidden = false; d.title = '変更：' + m.dataset.mtDirty; }
+    };
+    m.addEventListener('input', mark); m.addEventListener('change', mark);
+    m.addEventListener('mousedown', e => { if (e.target === m) m.dataset.mtBd = '1'; else delete m.dataset.mtBd; });
+    m.addEventListener('click', e => { if (e.target === m && m.dataset.mtBd) { delete m.dataset.mtBd; window.statsCloseMasterDetail(); } });
+  }
+
   function hook() {
     const orig = window.statsToggleMasterDetail;
     if (typeof orig !== 'function' || orig.__mt) return false;
     const w = function (field, value, btn) {
       const r = orig.apply(this, arguments);
+      dirtyHook(); setupDrawer(document.getElementById('mdDetailModal'));
       if (field === 'customer' || field === 'sv') { const m = document.getElementById('mdDetailModal'); if (m) { m.dataset.mtField = field; organize(m); } }
       return r;
     };
