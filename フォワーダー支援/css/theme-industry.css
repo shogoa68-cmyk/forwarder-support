@@ -10566,3 +10566,46 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-cust {
   font-size: var(--text-xl);
 }
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  width: 100%;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-lbl {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-ctrl {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group select {
+  height: 32px;
+  text-align: right;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-v {
+  width: 170px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group select.ins-c {
+  width: 84px !important;
+  text-align: left;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-k {
+  width: 70px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-r {
+  width: 90px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-x,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-u {
+  font-size: var(--text-sm, 13px);
+  color: var(--text-md);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-hint {
+  flex-basis: 100%;
+  font-size: var(--text-xs, 12px);
+}
