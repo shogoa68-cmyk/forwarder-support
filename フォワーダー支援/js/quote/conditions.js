@@ -1219,6 +1219,10 @@
   window._initMemoFloat = _initMemoFloat;
 
   function gatherAllData() {
+    // 物量パターンの紐付け（数量・表示/非表示・除外・航路）は、数量欄の入力などで「メモリ上」だけ更新される。
+    // 保存の直前に必ず隠し項目（cond-packing-patterns）へ書き出す（これが古いまま保存されると、開き直したときに
+    // 古い紐付けの数量が書き戻され、「一括変更した数量が元に戻る」不具合になる）
+    try { if (typeof _syncPackingPatternsData === 'function') _syncPackingPatternsData(); } catch (e) {}
     // フォーム値
     const fields = {};
     document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
