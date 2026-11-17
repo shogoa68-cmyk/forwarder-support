@@ -23,7 +23,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(900);
   await p.evaluate(() => window.qpShowEditor && window.qpShowEditor()); await p.waitForTimeout(1200);
   const rowIds = () => p.evaluate(() => [...document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])')].map(t => t.id.replace('row-', '')));
-  const A = (await rowIds())[0];
+  let A = (await rowIds())[0];
   const set = (f, id, v) => p.evaluate(([i, v]) => { const el = document.getElementById(i); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }, [f + '-' + id, String(v)]);
   const get = (f, id) => p.evaluate(i => document.getElementById(i)?.value, f + '-' + id);
   const ui = (id, sel, v) => p.evaluate(([id, sel, v]) => { const el = document.querySelector('#row-' + id + ' ' + sel); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }, [id, sel, String(v)]);
@@ -43,40 +43,65 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('貨物価額の通貨の初期値は仕入通貨（JPY）', (await p.evaluate(i => document.querySelector('#row-' + i + ' .ins-c').value, A)) === 'JPY');
   ok('入力が足りないあいだは説明だけ・仕入単価は 0 のまま', /貨物価額と保険料率を入れると/.test(await hint(A)) && (await pp(A)) === 0);
 
-  // 2) 円：1,000,000 × 110% × 0.3% = 3,300
+  // 1b) マージン方式（既定 10%）：実際の保険料＝売、保険料の 10%＝乗せ幅、仕入＝保険料−マージン
+  const mk0 = id => p.evaluate(i => parseFloat(document.getElementById('mk-' + i).value), id);
+  const bp0 = id => p.evaluate(i => parseFloat(document.getElementById('bp-' + i).value), id);
+  ok('マージン率の初期値は 10%', (await p.evaluate(i => document.querySelector('#row-' + i + ' .ins-m').value, A)) === '10');
   await ui(A, '.ins-v', 1000000); await ui(A, '.ins-r', 0.3); await p.waitForTimeout(200);
-  ok('貨物価額 1,000,000 円 × 110% × 0.3% ＝ 仕入単価 3,300', (await pp(A)) === 3300, await pp(A));
-  ok('仕入単価は読み取り専用（計算結果）', await p.evaluate(i => document.getElementById('pp-' + i).readOnly, A));
-  ok('説明に保険価額・保険料が出る', /保険価額 JPY 1,100,000/.test(await hint(A)) && /保険料 JPY 3,300/.test(await hint(A)), await hint(A));
+  ok('実際の保険料 3,300 ＝ 売単価', (await bp0(A)) === 3300, await bp0(A));
+  ok('マージン＝保険料の 10%（330）＝乗せ幅', (await mk0(A)) === 330, await mk0(A));
+  ok('仕入単価＝保険料−マージン（2,970）', (await pp(A)) === 2970, await pp(A));
+  ok('マージン方式のあいだ、乗せ幅も読み取り専用', await p.evaluate(i => document.getElementById('mk-' + i).readOnly, A));
+  ok('説明に「売／マージン／仕入」が出る', /売 JPY 3,300／マージン 10% JPY 330／仕入 JPY 2,970/.test(await hint(A)), await hint(A));
+  await ui(A, '.ins-m', 15); await p.waitForTimeout(150);
+  ok('マージン 15% → 乗せ幅 495・仕入 2,805・売は 3,300 のまま', (await mk0(A)) === 495 && (await pp(A)) === 2805 && (await bp0(A)) === 3300, { mk: await mk0(A), pp: await pp(A), bp: await bp0(A) });
+  // 端数：1,234,567 × 1.1 × 0.25% = 3,396（切り上げ）→ マージン 10% = 339.6 → 340・仕入 3,056
+  await ui(A, '.ins-v', 1234567); await ui(A, '.ins-r', 0.25); await ui(A, '.ins-m', 10); await p.waitForTimeout(150);
+  ok('端数：保険料 3,396 → マージン 340（四捨五入）・仕入 3,056・売 3,396', (await mk0(A)) === 340 && (await pp(A)) === 3056 && (await bp0(A)) === 3396, { mk: await mk0(A), pp: await pp(A), bp: await bp0(A) });
+  // 保存→復元
+  await p.evaluate(() => { const d = JSON.parse(JSON.stringify(gatherAllData())); _applyQuoteData(d); }); await p.waitForTimeout(800);
+  const AM = (await rowIds())[0];
+  ok('マージン方式も保存→復元で残る（率・乗せ幅・仕入・売）', (await p.evaluate(i => document.querySelector('#row-' + i + ' .ins-m').value, AM)) === '10' && (await mk0(AM)) === 340 && (await pp(AM)) === 3056 && (await bp0(AM)) === 3396 && await p.evaluate(i => document.getElementById('mk-' + i).readOnly, AM));
+  // マージン率を空にすると従来方式（仕入＝保険料・乗せ幅は手入力に戻る）
+  await ui(AM, '.ins-m', ''); await p.waitForTimeout(150);
+  ok('マージン率を空にすると従来方式（仕入＝保険料 3,396・乗せ幅は編集できる）', (await pp(AM)) === 3396 && !(await p.evaluate(i => document.getElementById('mk-' + i).readOnly, AM)), { pp: await pp(AM) });
+  A = AM;   // 復元で行の番号が変わるため、以降の（従来方式の）確認はこの行で続ける
+  await set('mk', AM, 0); await ui(AM, '.ins-v', 1000000); await ui(AM, '.ins-r', 0.3); await p.waitForTimeout(150);
+
+  // 2) 円：1,000,000 × 110% × 0.3% = 3,300
+  await ui(AM, '.ins-v', 1000000); await ui(AM, '.ins-r', 0.3); await p.waitForTimeout(200);
+  ok('貨物価額 1,000,000 円 × 110% × 0.3% ＝ 仕入単価 3,300', (await pp(AM)) === 3300, await pp(AM));
+  ok('仕入単価は読み取り専用（計算結果）', await p.evaluate(i => document.getElementById('pp-' + i).readOnly, AM));
+  ok('説明に保険価額・保険料が出る', /保険価額 JPY 1,100,000/.test(await hint(AM)) && /保険料 JPY 3,300/.test(await hint(AM)), await hint(AM));
   // 端数は切り上げ：1,234,567 × 1.1 × 0.25% = 3,395.06 → 3,396
-  await ui(A, '.ins-v', 1234567); await ui(A, '.ins-r', 0.25); await p.waitForTimeout(150);
-  ok('端数は 1 円単位で切り上げ（3,395.06 → 3,396）', (await pp(A)) === 3396, await pp(A));
+  await ui(AM, '.ins-v', 1234567); await ui(AM, '.ins-r', 0.25); await p.waitForTimeout(150);
+  ok('端数は 1 円単位で切り上げ（3,395.06 → 3,396）', (await pp(AM)) === 3396, await pp(AM));
   // 保険価額率を変える：100%
-  await ui(A, '.ins-k', 100); await p.waitForTimeout(150);
-  ok('保険価額率を 100% にすると 1,234,567 × 0.25% ＝ 3,087 に（3,086.4 → 3,087）', (await pp(A)) === 3087, await pp(A));
-  await ui(A, '.ins-k', 110); await p.waitForTimeout(100);
+  await ui(AM, '.ins-k', 100); await p.waitForTimeout(150);
+  ok('保険価額率を 100% にすると 1,234,567 × 0.25% ＝ 3,087 に（3,086.4 → 3,087）', (await pp(AM)) === 3087, await pp(AM));
+  await ui(AM, '.ins-k', 110); await p.waitForTimeout(100);
 
   // 3) 売値は乗せ幅で上乗せ・最低保険料（仕入 MIN）
   await set('mk', A, 500); await p.waitForTimeout(150);
-  ok('売単価＝仕入単価＋乗せ幅（3,396＋500）', (await p.evaluate(i => parseFloat(document.getElementById('bp-' + i).value), A)) === 3896);
+  ok('売単価＝仕入単価＋乗せ幅（3,396＋500）', (await p.evaluate(i => parseFloat(document.getElementById('bp-' + i).value), AM)) === 3896);
   await set('ppmin', A, 5000); await p.waitForTimeout(150);
-  const prof = await p.evaluate(i => (document.querySelector('#pr-' + i + ' .pr-main') || document.getElementById('pr-' + i))?.textContent || '', A);
-  ok('最低保険料（仕入 MIN）を設定しても、保険料の計算は崩れない（仕入単価はそのまま）', (await pp(A)) === 3396);
+  const prof = await p.evaluate(i => (document.querySelector('#pr-' + i + ' .pr-main') || document.getElementById('pr-' + i))?.textContent || '', AM);
+  ok('最低保険料（仕入 MIN）を設定しても、保険料の計算は崩れない（仕入単価はそのまま）', (await pp(AM)) === 3396);
   await set('ppmin', A, ''); await p.waitForTimeout(100);
 
   // 4) 外貨：貨物価額 USD 10,000 → 保険料 USD 33 を円へ換算
   const usdJpy = await p.evaluate(() => toJPY(1, 'USD'));
-  await ui(A, '.ins-c', 'USD'); await ui(A, '.ins-v', 10000); await ui(A, '.ins-r', 0.3); await ui(A, '.ins-k', 110); await p.waitForTimeout(250);
+  await ui(AM, '.ins-c', 'USD'); await ui(AM, '.ins-v', 10000); await ui(AM, '.ins-r', 0.3); await ui(AM, '.ins-k', 110); await p.waitForTimeout(250);
   const expect = Math.ceil(33 * usdJpy - 1e-9);
-  ok('貨物価額が USD で仕入通貨が JPY のとき、換算して切り上げ（USD 33 → 円）', (await pp(A)) === expect, { got: await pp(A), expect, usdJpy });
-  ok('説明に換算後の円が出る', /≈ JPY/.test(await hint(A)) && /保険料 USD 33/.test(await hint(A)), await hint(A));
+  ok('貨物価額が USD で仕入通貨が JPY のとき、換算して切り上げ（USD 33 → 円）', (await pp(AM)) === expect, { got: await pp(AM), expect, usdJpy });
+  ok('説明に換算後の円が出る', /≈ JPY/.test(await hint(AM)) && /保険料 USD 33/.test(await hint(AM)), await hint(AM));
   // 為替レートを変えると追従（updateFxRate → recalcPctRows → 保険料の行も計算し直す）
   const rate0 = usdJpy;
   await p.evaluate(r => window.updateFxRate('USD', r), rate0 + 10); await p.waitForTimeout(250);
   const expect2 = Math.ceil(33 * (rate0 + 10) - 1e-9);
-  ok('為替レートを変えると、外貨の貨物価額の保険料（円）も計算し直される', (await pp(A)) === expect2, { got: await pp(A), expect2 });
+  ok('為替レートを変えると、外貨の貨物価額の保険料（円）も計算し直される', (await pp(AM)) === expect2, { got: await pp(AM), expect2 });
   await p.evaluate(r => window.updateFxRate('USD', r), rate0); await p.waitForTimeout(150);
-  await ui(A, '.ins-c', 'JPY'); await ui(A, '.ins-v', 1000000); await ui(A, '.ins-r', 0.3); await p.waitForTimeout(150);
+  await ui(AM, '.ins-c', 'JPY'); await ui(AM, '.ins-v', 1000000); await ui(AM, '.ins-r', 0.3); await p.waitForTimeout(150);
 
   // 5) 保存 → 復元
   await p.evaluate(() => { const d = JSON.parse(JSON.stringify(gatherAllData())); _applyQuoteData(d); }); await p.waitForTimeout(900);

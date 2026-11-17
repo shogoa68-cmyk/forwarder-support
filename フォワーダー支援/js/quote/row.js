@@ -1933,7 +1933,7 @@
     const insBtn = frag.querySelector('.ins-mode-btn');
     if (insBtn) insBtn.onclick = () => toggleInsMode(id);
     { const g = frag.querySelector('.ins-group');
-      if (g) { g.querySelectorAll('.ins-v,.ins-k,.ins-r').forEach(e => { e.oninput = () => _calcIns(id); });
+      if (g) { g.querySelectorAll('.ins-v,.ins-k,.ins-r,.ins-m').forEach(e => { e.oninput = () => _calcIns(id); });
                const c = g.querySelector('.ins-c'); if (c) { c.innerHTML = curOpts(initCur); c.onchange = () => _calcIns(id); } } }
     ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => { calc(id); _recalcPctDependents(id); }; });   // 売の最低料金が変わると、この行を基準にした % 行も変わる
     const rangeBtn = frag.querySelector('.range-mode-btn');
@@ -2568,7 +2568,12 @@
     const premSrc = insured * r / 100;
     const conv = _convCur(premSrc, c, pc);
     if (!isFinite(conv)) return { ok: false, reason: 'fx', c, pc, v, k, r, insured, premSrc };
-    return { ok: true, c, pc, v, k, r, insured, premSrc, premium: _insRoundPremium(conv, pc) };
+    const premium = _insRoundPremium(conv, pc);
+    // マージン方式：実際の保険料＝売、マージン（保険料の m%）＝乗せ幅、仕入＝保険料−マージン。m が空・0 なら従来どおり（仕入＝保険料）
+    const m = Math.min(Math.max(parseFloat(o.m) || 0, 0), 100);
+    const margin = m > 0 ? (pc === 'JPY' ? Math.round(premium * m / 100) : Math.round(premium * m) / 100) : 0;
+    const cost = (m > 0) ? Math.round((premium - margin) * 100) / 100 : premium;
+    return { ok: true, c, pc, v, k, r, m, insured, premSrc, premium, margin, cost };
   }
   function _insFmt(x, ccy) {
     const n = ccy === 'JPY' ? Math.round(x) : Math.round(x * 100) / 100;
@@ -2578,7 +2583,7 @@
     const tr = document.getElementById(`row-${id}`);
     if (!tr) return null;
     const g = sel => tr.querySelector(sel);
-    const o = { v: g('.ins-v')?.value ?? '', c: g('.ins-c')?.value || '', k: g('.ins-k')?.value ?? '', r: g('.ins-r')?.value ?? '' };
+    const o = { v: g('.ins-v')?.value ?? '', c: g('.ins-c')?.value || '', k: g('.ins-k')?.value ?? '', r: g('.ins-r')?.value ?? '', m: g('.ins-m')?.value ?? '' };
     const el = document.getElementById(`ins-${id}`);
     if (el) el.value = JSON.stringify(o);
     return o;
@@ -2589,7 +2594,8 @@
     const res = _insCompute(id);
     if (res.ok) {
       const ppEl = document.getElementById(`pp-${id}`);
-      if (ppEl) ppEl.value = res.premium;
+      if (ppEl) ppEl.value = res.cost;
+      if (res.m > 0) { const mkEl = document.getElementById(`mk-${id}`); if (mkEl) mkEl.value = res.margin; }   // マージン方式：乗せ幅も自動
       onPay(id);     // calc → syncInsUi（説明を更新）
     } else {
       syncInsUi(id);
@@ -2611,12 +2617,21 @@
       if (ppEl.dataset.insLocked === '1' && !lock) { ppEl.readOnly = false; ppEl.setAttribute('data-col', '4'); delete ppEl.dataset.insLocked; }
       if (lock) { ppEl.readOnly = true; ppEl.removeAttribute('data-col'); ppEl.dataset.insLocked = '1'; }
     }
+    // マージン方式（マージン率が入っているあいだ）は乗せ幅も計算結果なので読み取り専用にする。外れたら元に戻す
+    {
+      const mkEl = document.getElementById(`mk-${id}`);
+      if (mkEl) {
+        const lockMk = on && (parseFloat((o || {}).m) || 0) > 0;
+        if (lockMk) { mkEl.readOnly = true; mkEl.dataset.insLocked = '1'; }
+        else if (mkEl.dataset.insLocked === '1') { mkEl.readOnly = false; delete mkEl.dataset.insLocked; }
+      }
+    }
     if (!on) return;
     const g = sel => tr.querySelector(sel);
     // 復元した行：保存された値を入力欄へ（入力中の欄は触らない）
     if (o && !tr._insFilled) {
       const set = (sel, v) => { const e = g(sel); if (e && v !== undefined && v !== null && document.activeElement !== e) e.value = v; };
-      set('.ins-v', o.v); set('.ins-k', (o.k === '' || o.k === undefined) ? 110 : o.k); set('.ins-r', o.r);
+      set('.ins-v', o.v); set('.ins-k', (o.k === '' || o.k === undefined) ? 110 : o.k); set('.ins-r', o.r); set('.ins-m', o.m);
       const c = g('.ins-c'); if (c && o.c) { if (![...c.options].some(op => op.value === o.c)) c.add(new Option(o.c, o.c)); c.value = o.c; }
       tr._insFilled = true;
     }
@@ -2626,8 +2641,10 @@
       let txt = '', warn = false;
       if (res.ok) {
         txt = `保険価額 ${res.c} ${_insFmt(res.insured, res.c)}（貨物価額 ${_insFmt(res.v, res.c)} × ${res.k}%）→ 保険料 ${res.c} ${_insFmt(res.premSrc, res.c)}（${res.r}%）`;
-        if (res.c !== res.pc) txt += ` ≈ ${res.pc} ${_insFmt(res.premium, res.pc)}（仕入単価に反映）`;
-        else txt += '　→ 仕入単価に反映';
+        if (res.c !== res.pc) txt += ` ≈ ${res.pc} ${_insFmt(res.premium, res.pc)}`;
+        txt += res.m > 0
+          ? `　→ 売 ${res.pc} ${_insFmt(res.premium, res.pc)}／マージン ${res.m}% ${res.pc} ${_insFmt(res.margin, res.pc)}／仕入 ${res.pc} ${_insFmt(res.cost, res.pc)}`
+          : '　→ 仕入単価に反映';
       } else if (res.reason === 'fx') { txt = '⚠ 為替レートが未取得のため通貨を換算できません（仕入単価は変えていません）'; warn = true; }
       else { txt = '貨物価額と保険料率を入れると、保険料を仕入単価に自動で入れます（解除は「🛡️ 保険料」をもう一度押す）'; }
       if (hint.textContent !== txt) hint.textContent = txt;
@@ -2654,6 +2671,7 @@
       const c = tr.querySelector('.ins-c');
       if (c && !c.value) c.value = document.getElementById(`pc-${id}`)?.value || 'JPY';
       const k = tr.querySelector('.ins-k'); if (k && k.value === '') k.value = 110;
+      const mg = tr.querySelector('.ins-m'); if (mg && mg.value === '') mg.value = 10;   // マージン率の初期値（実際の保険料の 10%）
       _insReadUi(id);
       tr._insFilled = true;
     }
