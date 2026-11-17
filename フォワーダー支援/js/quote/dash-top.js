@@ -36,6 +36,9 @@
     // --- ステータスのチップ ---
     const chips = document.createElement('div'); chips.id = 'dtChips'; chips.className = 'dt-chips'; chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', 'ステータス');
     stats.before(chips);
+    // --- 担当（フォロー）の帯：人ごとの進行中の件数。押すとその人の案件だけ／「未フォロー」だけに絞る（順位や色の判定は付けない）---
+    const flw = document.createElement('div'); flw.id = 'dtFollow'; flw.className = 'dt-follow'; flw.setAttribute('role', 'group'); flw.setAttribute('aria-label', 'フォロー担当');
+    chips.after(flw);
 
     // --- 道具の 1 行 ---
     const bar = document.createElement('div'); bar.id = 'dtBar'; bar.className = 'dt-bar';
@@ -150,6 +153,10 @@
     $('dtChips').addEventListener('click', e => {
       const c = e.target.closest('[data-dt-st]'); if (!c) return;
       const tile = tileOf(c.dataset.dtSt); if (tile) tile.click();
+    });
+    $('dtFollow').addEventListener('click', e => {
+      const b = e.target.closest('[data-dt-fl]'); if (!b) return;
+      if (typeof window.cloudFilterFollower === 'function') window.cloudFilterFollower(b.dataset.dtFl);
     });
     $('dtBadges').addEventListener('click', e => {
       const c = e.target.closest('[data-dt-tile]'); if (!c) return;
@@ -268,6 +275,19 @@
     const keepOpen = $('dtChipMorePop') && !$('dtChipMorePop').hidden;
     $('dtChips').innerHTML = h;
     if (keepOpen) { $('dtChipMorePop').hidden = false; $('dtChipMoreBtn').setAttribute('aria-expanded', 'true'); }
+    // 担当の帯（進行中の件数・期限が近い件数だけ。ログインしていない・メンバーがいないときは出さない）
+    const fb = $('dtFollow');
+    if (fb) {
+      const fs = (typeof window.cloudFollowSummary === 'function') ? window.cloudFollowSummary() : null;
+      if (!fs || (!fs.people.length && !fs.none)) { fb.hidden = true; fb.innerHTML = ''; }
+      else {
+        fb.hidden = false;
+        fb.innerHTML = '<span class="dt-fl-l" title="進行中（受注・失注・辞退・保留を除く）の案件を、フォロー担当ごとに数えています。評価ではなく、割り振りの目安です">担当</span>' +
+          fs.people.map(p => '<button type="button" class="dt-fl' + (p.me ? ' is-me' : '') + (fs.filter === p.email ? ' is-on' : '') + '" data-dt-fl="' + esc(p.email) + '" aria-pressed="' + (fs.filter === p.email) + '" title="' + esc(p.name + ' さんの進行中 ' + p.n + ' 件' + (p.soon ? '（期限が明日までのもの ' + p.soon + ' 件）' : '')) + '">' +
+            esc(p.name) + (p.me ? '（あなた）' : '') + '<b>' + p.n + '</b>' + (p.soon ? '<small>期限間近 ' + p.soon + '</small>' : '') + '</button>').join('') +
+          '<button type="button" class="dt-fl dt-fl-none' + (fs.filter === '__none' ? ' is-on' : '') + (fs.none ? ' has-n' : '') + '" data-dt-fl="__none" aria-pressed="' + (fs.filter === '__none') + '" title="まだ誰もフォローを宣言していない進行中の案件">未フォロー<b>' + fs.none + '</b></button>';
+      }
+    }
     // 札（要フォロー・未取込：0 件なら出ない＝タイルが無い）
     const bd = [];
     const fl = tiles.find(t => t.classList.contains('qpd-stat--follow')), pe = tiles.find(t => t.classList.contains('qpd-stat--pend'));

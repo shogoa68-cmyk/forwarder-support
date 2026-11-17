@@ -6165,3 +6165,15 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) { .master-index-bar { right: 2px; padding: 2px 1px; max-height: calc(100vh - 220px); } .master-index-bar .mib-k { min-width: 24px; padding: 2px 3px; } }
 @media print { .master-index-bar { display: none; } }
 #statsPane-master:has(.master-index-bar) { padding-right: 38px; box-sizing: border-box; }
+
+/* ===== 🙋 フォロー担当：編集画面の「担当」表示／引き継ぎ・割り当ての確認に差し込む入力 ===== */
+.qf-follow-info { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 6px 0 2px; font-size: var(--text-sm, 13px); }
+.qf-follow-info[hidden] { display: none; }
+.qf-follow-info .fl-i-l { color: var(--text-muted, #667); font-weight: 600; font-size: var(--text-xs, 12px); }
+.qf-follow-info .fl-i-t, .qf-follow-info small { color: var(--text-muted, #667); font-size: var(--text-xs, 12px); }
+.qf-follow-info .fl-i-none { color: #8a5a00; }
+.qf-follow-info .cc3-av { width: 24px; height: 24px; border-radius: 50%; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-xs, 12px); font-weight: 700; }
+.qf-follow-info .fl-i-btn { min-height: 30px; padding: 0 12px; border: 1px solid var(--accent-dk, #2c455d); border-radius: 999px; background: var(--surface, #fff); color: var(--accent-dk, #2c455d); font: inherit; font-size: var(--text-xs, 12px); font-weight: 700; cursor: pointer; }
+.fl-dlg { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.fl-dlg label { display: block; font-size: var(--text-sm, 13px); font-weight: 600; }
+.fl-dlg input, .fl-dlg select { display: block; width: 100%; box-sizing: border-box; min-height: 40px; margin-top: 4px; padding: 0 10px; font: inherit; font-size: var(--text-base, 14px); }
