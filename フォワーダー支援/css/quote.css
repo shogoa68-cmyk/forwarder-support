@@ -12409,3 +12409,11 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make #eiSvCtx .ei-rule-list button { border: 0; background: none; cursor: pointer; color: var(--text-muted, #57606a); }
 #tab-quote-make .ei-learn { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0; font-size: var(--text-xs, 12px); color: var(--text-muted, #57606a); }
 #tab-quote-make .ei-learn-btn { padding: 6px 12px; border: 1px solid #2f8f83; color: #1f6f65; background: #eefaf8; border-radius: 6px; cursor: pointer; font-size: var(--text-sm, 13px); }
+
+/* 📩 メール取込：読み取れなかった行 */
+#tab-quote-make .ei-unread { margin: 10px 0; padding: 8px 12px; border: 1px solid #d4a72c; border-radius: 8px; background: #fff8c5; font-size: var(--text-sm, 13px); }
+#tab-quote-make .ei-unread > summary { cursor: pointer; font-weight: 600; color: #7d4e00; }
+#tab-quote-make .ei-unread ul { margin: 6px 0 0; padding-left: 18px; }
+#tab-quote-make .ei-unread li { margin: 2px 0; word-break: break-all; }
+#tab-quote-make .ei-unread p { margin: 6px 0 0; font-size: var(--text-xs, 12px); color: #57606a; line-height: 1.6; }
+#tab-quote-make .ei-unread .ei-unread-copy { margin-top: 8px; padding: 5px 12px; border: 1px solid #d4a72c; border-radius: 6px; background: #fff; color: #7d4e00; cursor: pointer; font-size: var(--text-sm, 13px); }

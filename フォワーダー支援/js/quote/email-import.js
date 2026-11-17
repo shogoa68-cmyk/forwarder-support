@@ -43,7 +43,8 @@
   function _fw(s) {
     return String(s == null ? '' : s)
       .replace(/[０-９Ａ-Ｚａ-ｚ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
-      .replace(/＄/g, '$').replace(/，/g, ',').replace(/．/g, '.').replace(/／/g, '/').replace(/＋/g, '+');
+      .replace(/＄/g, '$').replace(/，/g, ',').replace(/．/g, '.').replace(/／/g, '/').replace(/＋/g, '+')
+      .replace(/\\(?=\s?\d)/g, '¥');   // 円記号がバックスラッシュ（\850）で届くメール（日本語環境の ¥ は \ と同じ文字コード）
   }
 
   // ---- 金額の見つけ方（通貨記号・通貨コード・円／元、範囲「1,000〜1,200」に対応）----
@@ -95,9 +96,10 @@
 
   // ---- 単位・数量の見つけ方（「/20GP」「per 40HC」「(20GP)」「× 3台」「2×40'HC」）----
   // 20・40・45 は「'」かサイズ記号（GP/HC…）が付くときだけ単位（日付の「/20」などを単位と取り違えない）
-  const _UNIT_SRC = "(?:(?:20|40|45)(?:\\s*['’]\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU)?|\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU))|R\\/T|RT|CBM|M3|M³|㎥|KGS?|MT|CNTR|CTR|CNT|CONTAINER|B\\/L|BL|SHPT|SHIPMENT|SHP|VAN|JOB|PKG|PLT|PALLET|CTN|PCS?|SET|BOX|TEU|FEU|件|台|本|枚|式|梱|才|個|便|回|コンテナ|ロット|口|パレット|トン|立米|DAY)";
+  const _UNIT_SRC = "(?:(?:20|40|45)(?:\\s*['’]\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU)?|\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU))|R\\/T|RT|CBM|M3|M³|㎥|KGS?|MT|CNTR|CTR|CNT|CONTAINER|B\\/L|BL|SHPT|SHIPMENT|SHP|VAN|JOB|PKG|PLT|PALLET|CTN|PCS?|SET|BOX|TEU|FEU|件|台|本|枚|式|梱|才|個|便|回|コンテナ|ロット|口|パレット|トン|立米|DAY|WEEK|MONTH|YEAR|日|週|月|年|期)";
   const _UNIT_END = '(?![A-Za-z0-9])';
   const _PER_RE        = new RegExp('(?:\\/|\\bper\\b|あたり|につき|毎|@)\\s*(?:1\\s*)?(' + _UNIT_SRC + ')' + _UNIT_END, 'i');
+  const _PERIOD_RE     = new RegExp('(?:^|\\s)\\/\\s*(DAY|WEEK|MONTH|YEAR|日|週|月|年|期)' + _UNIT_END, 'i');
   const _PAREN_UNIT_RE = new RegExp('[（(]\\s*(' + _UNIT_SRC + ')\\s*[）)]', 'i');
   const _LEAD_X_RE     = new RegExp('^\\s*(\\d+(?:\\.\\d+)?)\\s*[×xX]\\s*(' + _UNIT_SRC + ')' + _UNIT_END + '\\s*', 'i');
   const _TRAIL_X_RE    = new RegExp('(?:×|(?:^|[\\s)）])x)\\s*(\\d+(?:\\.\\d+)?)\\s*(' + _UNIT_SRC + ')?' + _UNIT_END + '\\s*$', 'i');
@@ -130,6 +132,9 @@
       if (!unit) unit = m[1];
       rest = rest.slice(0, m.index) + ' ' + rest.slice(m.index + m[0].length);
       perUnit = true;
+      // 「/M3/期」「/CBM/月」のように、続けて期間の単位が付くときはつなげる（保管料など）
+      const pm = rest.match(_PERIOD_RE);
+      if (pm && unit === m[1]) { unit = unit + '/' + pm[1]; rest = rest.slice(0, pm.index) + ' ' + rest.slice(pm.index + pm[0].length); }
     } else if (!unit && (m = rest.match(_CNTR_TAIL_RE))) {
       unit = m[1]; rest = rest.slice(0, m.index); perUnit = true;
     }
@@ -272,6 +277,7 @@
     //  ・行頭が「※」の行＝直前の行が明細ならその明細へ、そうでなければ全体リマーク
     //  ・行末の「※備考」は従来どおり、その明細行の備考（remarks には入れない）
     const remarks = [];
+    const unread = [];   // 金額らしい数字を含むのに明細にできなかった行（画面で見せる）
     let inRemarks = false;
     let itemCount = 0;
     let lastItemIdx = -1;   // 直前の行が明細だったとき、その明細の番号
@@ -397,11 +403,13 @@
         if (inj) { body = inj; assumed = true; }
       }
       const segs = (_findMoneyAll(body).length >= 2 && /\s\+\s/.test(body)) ? body.split(/\s\+\s/) : [body];
+      let produced = 0;
       segs.forEach((seg, si) => {
         const r = _parseFreeSeg(seg, { qtyAsUnit: !!opts.qtyAsUnit });
         if (!r || !r.name || r.price == null) return;
         if (!/[A-Za-z぀-ヿ一-鿿]/.test(r.name)) return;   // 数字・記号だけの名前（日付・番号など）は項目にしない
         if (/^(以上|宜しく|よろしく|お願い|下記|毎度|拝啓|敬具)/.test(r.name)) return;
+        produced++;
         pushItem({
           _kind: 'item', conf: (isBullet && !assumed) ? 'mid' : 'low',
           name: r.name, qty: r.qty, unit: r.unit, ccy: r.ccy, price: r.price, priceHi: r.priceHi, ccyAssumed: assumed,
@@ -409,6 +417,9 @@
           note: [si === segs.length - 1 ? note : '', r.minNote].filter(Boolean).join(' / '),
         });
       });
+      // 数字（2 桁以上）を含むのに読めなかった行を控える（日付・電話・住所らしい行は除く）
+      if (!produced && /\d{2,}/.test(body) && body.length <= 120
+          && !/\d{4}[\/\-.年]\s?\d{1,2}|\d{2,5}-\d{2,4}-\d{3,4}|\d{3}-\d{4}|〒|^(tel|fax|http)/i.test(body.trim())) unread.push(t);
     });
 
     // 「品名：注記」の形のリマークは、その品名の明細へ付ける（品名は大文字小文字・空白の違いを無視して、含む・含まれるで照合）
@@ -424,7 +435,7 @@
       if (idx >= 0) { r.itemIdx = idx; r.text = mm[2].trim(); }
     });
 
-    return { fields, entries, remarks };
+    return { fields, entries, remarks, unread };
   }
 
   // ====== レビュー UI ======
@@ -763,6 +774,7 @@
     _parsed = parseQuoteEmail(text, { defaultCcy: rules && rules.ccy, qtyAsUnit: rules && rules.qtyAsUnit });
     if (rules) _applyRules(_parsed, rules);
     renderEiReview();
+    _recordUnread(_parsed.unread);   // 読めなかった行（数字を伏せた形）を、改善用に自動で記録する（待たない）
   }
 
   function _catOptions(sel) {
@@ -777,8 +789,13 @@
     const { fields, entries } = _parsed;
     const items = entries.filter(e => e._kind === 'item');
     const rems = _parsed.remarks || [];
+    const unread = _parsed.unread || [];
+    const unreadHtml = n => unread.length
+      ? '<details class="ei-unread"' + (n ? '' : ' open') + '><summary>⚠ 金額らしい数字を含むのに読み取れなかった行（' + unread.length + ' 件）</summary><ul>' +
+        unread.slice(0, 12).map(l => '<li>' + _esc(l) + '</li>').join('') + (unread.length > 12 ? '<li>ほか ' + (unread.length - 12) + ' 件</li>' : '') +
+        '</ul><p>通貨記号（¥・$・USD）や単位（/VAN など）の書き方が読み取れていない可能性があります。ログイン中は、<b>数字を 9 に伏せた形</b>が読み取りの改善用に自動で記録されます（金額・社名・メールアドレスは残りません）。</p><button type="button" class="ei-unread-copy" onclick="eiCopyUnread()">📋 改善用にコピー</button></details>' : '';
     if (!items.length && !rems.length) {
-      wrap.innerHTML = '<div class="preset-empty">明細行を抽出できませんでした。<br><small>金額（¥1,234 / 100 USD 等）を含む行が対象です。書式を確認してください。</small></div>';
+      wrap.innerHTML = '<div class="preset-empty">明細行を抽出できませんでした。<br><small>金額（¥1,234 / 100 USD 等）を含む行が対象です。書式を確認してください。</small></div>' + unreadHtml(0);
       document.getElementById('eiActions').hidden = true;
       return;
     }
@@ -796,6 +813,7 @@
       '<label class="ei-sellmode-label" title="既存システムからの移植等、取り込む単価が「売値」しか分からない場合向け。チェックすると、取り込んだ単価は売単価として登録され、仕入単価は空欄になります。挿入後に見積テーブルで行ごとに「仕入単価」を入力すると、乗せ幅が自動で算出されます（売単価－仕入単価）。">' +
         '<input type="checkbox" id="eiSellMode"> 💰 単価を売値として取り込む（仕入を後で入力→乗せ幅を自動算出）</label>' +
       '</div>';
+    html += unreadHtml(items.length);
     if (!items.length) html += '<div class="ei-rem-only">💡 明細行は抽出できませんでした。リマークだけを取り込めます（下のリマーク候補）。</div>';
     if (items.length) html += '<table class="ei-table"><thead><tr>' +
       '<th><input type="checkbox" id="eiChkAll" checked onchange="eiToggleAll(this.checked)"></th>' +
@@ -1070,6 +1088,43 @@
     });
   }
 
+  // ====== 読み取れなかった行の記録（解析パターンを増やすための材料）======
+  //  数字をすべて 9 に伏せた形だけを、チーム共有の表（email_import_unread・docs/sql/email-import-unread.sql）へ自動で記録する。
+  //  金額・社名・メールアドレス・URL・案件の情報は送らない。ログインしていないとき・SQL が未実行のときは何もしない
+  function eiMaskLine(line) {
+    return String(line == null ? '' : line).trim().replace(/\s+/g, ' ')
+      .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '<mail>')
+      .replace(/https?:\/\/\S+/gi, '<url>')
+      .replace(/[0-9０-９]/g, '9')
+      .slice(0, 160);
+  }
+  const _unreadSent = new Set();   // このページで送った形（同じ形を何度も送らない）
+  let _unreadOff = false;          // 表（関数）が無い環境では以後送らない
+  async function _recordUnread(lines) {
+    try {
+      if (_unreadOff || !lines || !lines.length) return;
+      const c = typeof window.cloudGetClient === 'function' ? window.cloudGetClient() : null;
+      const me = typeof window.cloudCurrentUser === 'function' ? window.cloudCurrentUser() : null;
+      if (!c || !me || !me.email) return;
+      const shapes = [...new Set(lines.map(eiMaskLine).filter(Boolean))].filter(x => !_unreadSent.has(x)).slice(0, 20);
+      if (!shapes.length) return;
+      shapes.forEach(x => _unreadSent.add(x));
+      const { error } = await c.rpc('email_unread_record', { shapes });
+      if (error && /PGRST202|42883|42P01|does not exist|could not find/i.test(String(error.code || '') + ' ' + String(error.message || ''))) _unreadOff = true;
+    } catch (e) { /* 記録できなくても取込は止めない */ }
+  }
+  function _copyText(text, done) {
+    const fb = () => { const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); done(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(fb); else fb();
+  }
+  // 「📋 改善用にコピー」：読めなかった行を、数字を 9 に伏せた形でコピーする（そのまま開発側へ貼れる）
+  function eiCopyUnread() {
+    const lines = [...new Set(((_parsed && _parsed.unread) || []).map(eiMaskLine).filter(Boolean))];
+    if (!lines.length) return;
+    _copyText('メール取込：読み取れなかった行（数字は 9 に伏せています）\n' + lines.map(l => '・' + l).join('\n'),
+      () => { if (window.quoteShowToast) quoteShowToast('📋 読み取れなかった ' + lines.length + ' 行をコピーしました（数字は 9 に伏せてあります）', 'success'); });
+  }
+
   // ====== 🤖 AI整形用プロンプト ======
   // 業者から受け取った見積（メール本文・PDFのテキスト・表など）を、Gemini/Copilot/
   // Claude/ChatGPT 等の汎用AIに渡して parseQuoteEmail() が高確度（ei-high）で読み取れる
@@ -1328,7 +1383,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     eiOpenStored, eiStoreRaw, eiFeImport, eiFeView, eiFeToggle, eiFeDelete,
     openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiToggleAllTax, eiInsertRows, eiApplyAsNew,
     eiSaveGroupAsPattern, eiApplyBulkSv, eiCopyAiPrompt,
-    eiOpenForSubcon, eiRuleSaveDefaults, eiRuleDel, eiLearnFromCorrections, eiMountRulesPanel,
+    eiCopyUnread, eiMaskLine, eiOpenForSubcon, eiRuleSaveDefaults, eiRuleDel, eiLearnFromCorrections, eiMountRulesPanel,
     eiApplyRules: _applyRules,   // テスト用
     parseQuoteEmail,   // テスト・将来の AI パーサー差し替え用に公開
   });
