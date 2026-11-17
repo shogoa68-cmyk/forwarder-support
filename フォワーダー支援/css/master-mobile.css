@@ -8,7 +8,9 @@
   #tab-master.mm-on.mm-view-home #statsPane-master,
   #tab-master.mm-on.mm-view-home #statsPane-alias { display: none !important; }
   #tab-master.mm-on.mm-view-work:not(.mm-wtab-drift) #statsPane-master { display: none !important; }
-  #tab-master.mm-on.mm-view-work.mm-wtab-drift #statsPane-master > :not(#driftCard) { display: none !important; }
+  #tab-master.mm-on.mm-view-work.mm-wtab-drift #statsPane-master > :not(#driftCard):not(#mhTodo) { display: none !important; }
+  #tab-master.mm-on.mm-view-work.mm-wtab-drift #mhTodo .mh-todo-b > :not(#driftCard) { display: none !important; }
+  #tab-master.mm-on.mm-view-list #mhTodo { display: none !important; }
   #tab-master.mm-on.mm-view-list #driftCard,
   #tab-master.mm-on.mm-view-list .master-head,
   #tab-master.mm-on.mm-view-list .master-kpis,

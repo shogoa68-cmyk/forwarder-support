@@ -2871,6 +2871,13 @@
   window.statsMasterClearQuery = function () { _masterQuery = ''; _renderMaster(); };
 
   // 検索ボックスに入力中の描き直しでも、入力の位置を保つ
+  let _todoOpen = null;   // 「今日やること」の開閉（null＝承認待ちがあれば開く）
+  window.statsMhTodoToggle = function () {
+    _todoOpen = !(_todoOpen === null ? false : _todoOpen);
+    const t = document.getElementById('mhTodo'); if (!t) return;
+    t.classList.toggle('is-closed', !_todoOpen);
+    const h = t.querySelector('.mh-todo-h'); if (h) { h.setAttribute('aria-expanded', _todoOpen); const c = h.querySelector('.mh-todo-c'); if (c) c.textContent = _todoOpen ? '▲ 閉じる' : '▼ 開く（ゆらぎチェック・申請・お知らせ）'; }
+  };
   function _renderMaster() {
     const act = document.activeElement;
     const keep = act && act.id === 'masterSearch' ? { s: act.selectionStart, e: act.selectionEnd } : null;
@@ -3055,7 +3062,13 @@
       _masterHitCount = rowsAll.length;
     }
 
-    const headH = _masterHeadHtml(totalCount, allSyn.length) + '<div id="driftCard" class="drift-card"></div>' + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
+    // 画面の上に縦に積んでいたお知らせ（ゆらぎチェック・取引ルールの再確認・移行の案内・申請）を「📋 今日やること」の 1 枚にまとめる（Design 29・案B ②）。
+    // 件数のタイルは上に残し、本体は開閉できる（承認待ちがあるときは開いて始まる・選んだ開閉は覚える）。DOM・id（#driftCard など）は不変。
+    const _todoBody = '<div id="driftCard" class="drift-card"></div>' + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
+    const _pendN = _approvalOn() ? (_isAdmin() ? _reqs.filter(r => r.status === 'pending').length : _reqs.filter(r => r.requested_by === _me() && r.status === 'pending').length) : 0;
+    if (_todoOpen === null) _todoOpen = _pendN > 0;
+    const headH = _masterHeadHtml(totalCount, allSyn.length) +
+      '<div id="mhTodo" class="mh-todo' + (_todoOpen ? '' : ' is-closed') + '"><button type="button" class="mh-todo-h" aria-expanded="' + _todoOpen + '" onclick="statsMhTodoToggle()">📋 今日やること' + (_pendN ? ' <span class="mh-todo-n">' + (_isAdmin() ? '承認待ち ' : '申請中 ') + _pendN + '</span>' : '') + '<span class="mh-todo-c">' + (_todoOpen ? '▲ 閉じる' : '▼ 開く（ゆらぎチェック・申請・お知らせ）') + '</span></button><div class="mh-todo-b">' + _todoBody + '</div></div>';
     if (!rowsAll.length) {
       e.innerHTML = headH + formH + chipsH + (_terms.length
         ? '<p class="stats-empty">「' + _esc(_masterQuery.trim()) + '」に一致するマスターはありません。<br><button type="button" class="master-type-preset" onclick="statsMasterClearQuery()">検索をクリア</button>（種別の絞り込みも確認してください）</p>'
