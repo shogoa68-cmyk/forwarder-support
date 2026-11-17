@@ -357,7 +357,7 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 #tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-cust { font-size: var(--text-xl); }
 
 /* 保険料の計算（保険カテゴリの行）：「その他 ▾」の中では、入力欄をほかのグループ（%・MIN）と同じ幅にして 1 行に並べる（以前は欄が全幅に伸びて縦に積まれた） */
-#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; width: 100%; }
+#tab-quote-make #quoteTable > tbody > tr.row-ins-mode:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; width: 100%; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-lbl { display: none; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-ctrl { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group select { height: 32px; text-align: right; }

@@ -10566,7 +10566,7 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-cust {
   font-size: var(--text-xl);
 }
-:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group {
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.row-ins-mode:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
