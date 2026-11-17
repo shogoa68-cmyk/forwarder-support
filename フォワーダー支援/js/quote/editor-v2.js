@@ -228,7 +228,18 @@
   }
 
   // 右の引き出し：右パネル（右レール）のモジュールを開く／同じものをもう一度押すと閉じる
+  // 合計バーのボタンを「押された見た目」に：費用の内訳＝費用・金額／参考＝比較など／数量登録＝数量
+  function syncDrawerBtns() {
+    const on = document.body.classList.contains('e2-drawer') ? (document.body.dataset.e2drawer || '') : '';
+    const g = { d: ['digest', 'fin'], s: ['similar', 'compare', 'fcllcl', 'bookmark', 'subcon', 'charges', 'chat'], q: ['scenario'] };
+    document.querySelectorAll('#e2Total [data-e2d]').forEach(b => b.classList.toggle('is-open', !!on && (b.dataset.e2d === 'digest' ? g.d : g.s).includes(on)));
+    document.querySelectorAll('#e2Total [data-e2q]').forEach(b => b.classList.toggle('is-open', !!on && g.q.includes(on)));
+  }
+  document.addEventListener('qrc:close', () => { document.body.classList.remove('e2-drawer'); syncDrawerBtns(); });
   function toggleDrawer(mod) {
+    toggleDrawer0(mod); syncDrawerBtns();
+  }
+  function toggleDrawer0(mod) {
     const open = document.body.classList.contains('e2-drawer'), same = document.body.dataset.e2drawer === mod;
     if (open && same) { document.body.classList.remove('e2-drawer'); return; }
     const btn = document.querySelector('#qrcRail .qrc-rail-btn[data-mod="' + mod + '"]');
