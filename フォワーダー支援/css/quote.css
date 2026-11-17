@@ -12416,3 +12416,4 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make .ei-unread ul { margin: 6px 0 0; padding-left: 18px; }
 #tab-quote-make .ei-unread li { margin: 2px 0; word-break: break-all; }
 #tab-quote-make .ei-unread p { margin: 6px 0 0; font-size: var(--text-xs, 12px); color: #57606a; line-height: 1.6; }
+#tab-quote-make .ei-unread .ei-unread-copy { margin-top: 8px; padding: 5px 12px; border: 1px solid #d4a72c; border-radius: 6px; background: #fff; color: #7d4e00; cursor: pointer; font-size: var(--text-sm, 13px); }

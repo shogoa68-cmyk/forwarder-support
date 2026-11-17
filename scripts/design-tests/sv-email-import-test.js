@@ -115,7 +115,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
       const ch = { on() { return ch; }, subscribe(cb) { cb && cb('SUBSCRIBED'); return ch; }, track() { return Promise.resolve(); }, untrack() { return Promise.resolve(); }, presenceState() { return {}; }, unsubscribe() { return Promise.resolve(); }, send() { return Promise.resolve(); } };
       const user = { email: ME, user_metadata: { full_name: 'S' } };
       const client = {
-        from: qb, rpc: name => Promise.resolve({ data: name === 'get_my_role' ? (opts.role || 'member') : null, error: null }), channel: () => ch, removeChannel() {}, storage: { from: () => ({}) },
+        from: qb, rpc: (name, args) => { (window.__rpc = window.__rpc || []).push({ name, args }); if (name === 'email_unread_record' && opts.unreadMissing) return Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.email_unread_record(shapes) in the schema cache' } }); return Promise.resolve({ data: name === 'get_my_role' ? (opts.role || 'member') : null, error: null }); }, channel: () => ch, removeChannel() {}, storage: { from: () => ({}) },
         auth: { getSession: () => Promise.resolve({ data: { session: { user } } }), onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; }, signOut: () => Promise.resolve({}), signInWithOAuth: () => Promise.resolve({}) },
       };
       window.supabase = { createClient: () => client };
@@ -349,6 +349,62 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('何も読めないときは、金額らしい数字があるのに読めなかった行を一覧で見せる（郵便番号の行は除く）', un.empty && un.list.length === 1 && /特殊作業/.test(un.list[0]) && un.open === true, un);
     ok('画面のエラーが出ていない', errs.length === 0, errs);
     if (process.env.SHOT2) { await p.screenshot({ path: process.env.SHOT2 }); }
+    await ctx.close();
+  }
+  // ===== 読み取れなかった行の自動記録（数字を 9 に伏せた形だけ）・改善用にコピー =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member' });
+    const calls = () => p.evaluate(() => (window.__rpc || []).filter(c => c.name === 'email_unread_record'));
+    await setSv(p, 'テスト運送');
+    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click()); await p.waitForTimeout(300);
+    const mask = await p.evaluate(() => ({ a: window.eiMaskLine('定温庫保管料：\\850/M3/期'), b: window.eiMaskLine('連絡先 taro@example.com 03-1234-5678'), c: window.eiMaskLine('見積 https://example.com/q?id=12345 ＿１２３'), d: window.eiMaskLine('  特殊作業   ABC123  ') }));
+    ok('伏せ字：数字は 9 に（半角・全角とも）・メールアドレスと URL は置き換え・空白はそろえる', mask.a === '定温庫保管料：\\999/M9/期' && mask.b === '連絡先 <mail> 99-9999-9999' && mask.c === '見積 <url> ＿999' && mask.d === '特殊作業 ABC999', mask);
+
+    // 読めなかった行がある文面 → 自動で記録される（伏せた形だけ）
+    await p.evaluate(() => { document.getElementById('eiText').value = '特殊作業 ABC123 XYZ 999 要相談\n倉庫保管 〒105-0023 港区\n海上運賃 USD 1,200 /20GP'; window.eiParse(); }); await p.waitForTimeout(500);
+    let c = await calls();
+    ok('読めなかった行が、数字を 9 に伏せた形で自動で記録される（読めた行・郵便番号の行は送らない）', c.length === 1 && JSON.stringify(c[0].args.shapes) === JSON.stringify(['特殊作業 ABC999 XYZ 999 要相談']), c);
+    const sent = JSON.stringify(c);
+    ok('送った内容に、本物の数字・サブコン名・メールアドレスが含まれない', !/[0-8]/.test(JSON.stringify(c[0].args.shapes)) && !/テスト運送|@|example/.test(sent), sent);
+    // 同じ形は、同じページでは何度も送らない
+    await p.evaluate(() => window.eiParse()); await p.waitForTimeout(400);
+    ok('同じ文面をもう一度解析しても、同じ形は再送しない', (await calls()).length === 1, await calls());
+    // 読めた文面では送らない
+    await p.evaluate(() => { document.getElementById('eiText').value = '海上運賃 USD 1,200 /20GP'; window.eiParse(); }); await p.waitForTimeout(300);
+    ok('すべて読めた文面では、何も送らない', (await calls()).length === 1, await calls());
+    // 新しい形は送る
+    await p.evaluate(() => { document.getElementById('eiText').value = '特殊作業 ABC123 XYZ 999 要相談\n別件作業 QQQ 4567 要相談'; window.eiParse(); }); await p.waitForTimeout(400);
+    c = await calls();
+    ok('新しい形だけが追加で送られる', c.length === 2 && JSON.stringify(c[1].args.shapes) === JSON.stringify(['別件作業 QQQ 9999 要相談']), c);
+
+    // 「改善用にコピー」：伏せた形がコピーされる
+    await p.evaluate(() => { window.__clip = ''; Object.defineProperty(navigator, 'clipboard', { value: { writeText: t => { window.__clip = t; return Promise.resolve(); } }, configurable: true }); });
+    await p.evaluate(() => { document.getElementById('eiText').value = '特殊作業 ABC123 XYZ 999 要相談'; window.eiParse(); }); await p.waitForTimeout(300);
+    const msg = await p.evaluate(() => document.querySelector('#eiReviewWrap .ei-unread p').textContent);
+    ok('黄色の案内に、自動で記録される旨（数字を 9 に伏せる・金額や社名は残らない）が書かれている', /数字を 9 に伏せた形/.test(msg) && /自動で記録/.test(msg) && /残りません/.test(msg), msg);
+    await p.evaluate(() => document.querySelector('#eiReviewWrap .ei-unread-copy').click()); await p.waitForTimeout(300);
+    const clip = await p.evaluate(() => window.__clip);
+    ok('「📋 改善用にコピー」で、数字を 9 に伏せた形がコピーされる', /数字は 9 に伏せています/.test(clip) && /・特殊作業 ABC999 XYZ 999 要相談/.test(clip) && !/[0-8]/.test(clip.split('\n').slice(1).join('')), clip);
+    ok('画面のエラーが出ていない', errs.length === 0, errs);
+    await ctx.close();
+  }
+  // 表（関数）が無い環境：エラーを出さず、取込は普通に動き、以後は送らない
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member', unreadMissing: true });
+    await setSv(p, 'テスト運送');
+    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click()); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.getElementById('eiText').value = '特殊作業 ABC123 XYZ 999 要相談'; window.eiParse(); }); await p.waitForTimeout(500);
+    await p.evaluate(() => { document.getElementById('eiText').value = '別件作業 QQQ 4567 要相談'; window.eiParse(); }); await p.waitForTimeout(500);
+    const n = await p.evaluate(() => (window.__rpc || []).filter(c => c.name === 'email_unread_record').length);
+    ok('SQL 未実行の環境：1 回試して、以後は送らない（取込の画面は普通に出る）', n === 1 && await p.evaluate(() => !!document.querySelector('#eiReviewWrap .ei-unread')), n);
+    ok('SQL 未実行の環境で、画面のエラーが出ない', errs.length === 0, errs);
+    await ctx.close();
+  }
+  // 未ログイン：何も送らない
+  {
+    const { ctx, p, errs } = await open(false, { legacy: {} });
+    await p.evaluate(() => { window.openEmailImport(); document.getElementById('eiText').value = '特殊作業 ABC123 XYZ 999 要相談'; window.eiParse(); }); await p.waitForTimeout(400);
+    ok('未ログインでは、記録しない（黄色の案内は出る・エラーなし）', await p.evaluate(() => !(window.__rpc || []).length && !!document.querySelector('#eiReviewWrap .ei-unread')) && errs.length === 0, errs);
     await ctx.close();
   }
   await b.close(); srv.close();
