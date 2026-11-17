@@ -2074,7 +2074,8 @@
   }
 
   function _renderPackingPatternTabs() {
-    renderQtyPatternBar();   // 見積もりテーブルの上の切替（編集中のパターンの表示）も合わせて更新
+    renderQtyPatternBar();
+    const _allBtn = document.getElementById('cdCopyAllBtn'); if (_allBtn) _allBtn.style.display = _packingPatterns.length > 1 ? '' : 'none';   // 全パターンのコピーは複数あるときだけ   // 見積もりテーブルの上の切替（編集中のパターンの表示）も合わせて更新
     const wrap = document.getElementById('cdPatternTabs');
     if (!wrap) return;
     // パターンが1件だけ（かつ無名）なら、まだ複数パターンを使っていない案件なので
@@ -2792,6 +2793,76 @@
       return `【${name}】\n${treeLines.join('\n')}`;
     }).filter(Boolean);
     return blocks.join('\n\n');
+  };
+
+  // ===== 物量情報を「メール本文に貼り付けられるテキスト」にしてコピー =====
+  // 荷姿・貨物明細（荷姿 × 個数 × サイズ・重量・容積・段積み）＋合計（個数・CBM・重量）＋
+  // 輸送モードに応じた課金重量（LCL＝R/T・航空＝CW）＋コンテナ（種別×本数）。
+  // scope: 'active'＝いま編集中のパターンだけ／'all'＝すべてのパターン。
+  // 複数パターンのある案件は【パターン名】を前置きする。サイズ・重量が不明の案件はその旨だけ。
+  function _cargoCopyBlock(pt, mode) {
+    const rows = (pt.entries || []).filter(e => e && (e.pkg || e.l || e.w || e.h || e.kg));
+    if (!rows.length) return '';
+    const lines = rows.map(e => {
+      const parts = [e.pkg || '荷姿未設定', `${e.qty || 1}個`];
+      if ([e.l, e.w, e.h].every(x => parseFloat(x) > 0)) parts.push(`${e.l}×${e.w}×${e.h}cm`);
+      if (parseFloat(e.kg) > 0) parts.push(`${e.kg}kg/個`);
+      const c = _rowCbm(e);
+      if (c > 0) parts.push(`${c.toFixed(3)}CBM`);
+      if (e.stack === '不可') parts.push('段積み不可'); else if (e.stack === '可') parts.push('段積み可');
+      return '・' + parts.join('　');
+    });
+    const qty = rows.reduce((a, e) => a + (parseInt(e.qty, 10) || 0), 0);
+    const { kg, cbm, rt, cw } = _patternWeightCbm(pt.entries);
+    const tot = [];
+    if (qty > 0) tot.push(`${qty}個`);
+    if (cbm > 0) tot.push(`${cbm.toFixed(3)} CBM`);
+    if (kg > 0) tot.push(`${(+kg.toFixed(2)).toLocaleString()} kg`);
+    if (tot.length) lines.push('合計：' + tot.join('　'));
+    if (/LCL/i.test(mode) && (cbm > 0 || kg > 0)) lines.push(`R/T：${rt.toFixed(3)}`);
+    else if (/航空|AIR/i.test(mode) && cw > 0) {
+      const cwTxt = (typeof SharedCalc !== 'undefined' && SharedCalc.fmtCw) ? SharedCalc.fmtCw(cw) : String(Math.round(cw));
+      lines.push(`CW（課金重量）：${cwTxt} kg`);
+    }
+    return lines.join('\n');
+  }
+
+  window.getCargoCopyText = function (scope) {
+    const out = ['【物量情報】'];
+    const m = window.getCargoMetrics ? window.getCargoMetrics() : {};
+    if (m.container) out.push('コンテナ：' + m.container);
+    if (window.isCargoSizeUnknown()) {
+      const note = (document.getElementById('cond-cargo-unknown-note')?.value || '').trim();
+      out.push('サイズ・重量：不明（引き合い時点では未確定）' + (note ? '　' + note : ''));
+    } else {
+      const mode = document.getElementById('cond-mode')?.value || '';
+      const multi = (_packingPatterns || []).length > 1;
+      const list = scope === 'all' ? _packingPatterns.map((pt, i) => ({ pt, i })) : [{ pt: _packingPatterns[_packingActiveIdx], i: _packingActiveIdx }];
+      list.forEach(({ pt, i }) => {
+        if (!pt) return;
+        const body = _cargoCopyBlock(pt, mode);
+        if (!body) return;
+        out.push(multi ? `■${pt.name || `パターン${i + 1}`}\n${body}` : body);
+      });
+    }
+    return out.length > 1 ? out.join('\n') : '';
+  };
+
+  window.copyCargoText = function (scope) {
+    const text = window.getCargoCopyText(scope === 'all' ? 'all' : 'active');
+    const toast = (msg, type) => { if (typeof quoteShowToast === 'function') quoteShowToast(msg, type); };
+    if (!text) { toast('コピーできる物量情報がありません（荷姿・貨物明細を入力してください）', 'warning'); return; }
+    const done = () => toast('📋 物量情報をテキストでコピーしました（メール本文に貼り付けできます）', 'success');
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      ok ? done() : toast('コピーできませんでした', 'error');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
   };
 
   // 複数パターンを使っている案件で、現在アクティブなパターン名を返す（PDF等の出力
