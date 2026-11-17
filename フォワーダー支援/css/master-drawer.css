@@ -32,3 +32,18 @@
 .mh-todo-b { padding: 0 16px 14px; }
 @media (min-width: 601px) { .mh-todo.is-closed .mh-todo-b { display: none; } }
 @media (max-width: 600px) { .mh-todo { border: 0; background: none; } .mh-todo-h { display: none; } .mh-todo-b { padding: 0; } }
+
+/* ③ いまの条件のチップ行（Design 29・案B） */
+.mc-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 8px 0; font-size: var(--text-sm); }
+.mc-label { color: var(--text-muted, #667085); font-size: var(--text-xs); }
+.mc-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border: 1px solid var(--border, #d0d5dd); border-radius: 999px; background: var(--surface, #fff); }
+.mc-chip b { font-weight: 600; color: var(--text-muted, #667085); }
+.mc-x { border: 0; background: transparent; cursor: pointer; width: 22px; height: 22px; border-radius: 50%; line-height: 1; color: inherit; }
+.mc-x:hover { background: rgba(0,0,0,.08); }
+.mc-clear { border: 0; background: transparent; color: var(--accent, #2f5fb3); cursor: pointer; text-decoration: underline; font-size: var(--text-sm); padding: 4px 6px; }
+@media (max-width: 600px) { .mc-x { width: 44px; height: 32px; } .mc-clear { min-height: 44px; } }
+
+/* ③ 印は上位 2 つ＋「他 N」 */
+#statsPane-master td.stats-val:not(.mm-open) .mm-hide { display: none !important; }
+.mm-more { border: 1px dashed var(--border, #d0d5dd); background: transparent; border-radius: 999px; padding: 2px 10px; font-size: var(--text-xs); cursor: pointer; color: var(--text-muted, #667085); margin-left: 4px; }
+@media (max-width: 600px) { .mm-more { min-height: 44px; } }

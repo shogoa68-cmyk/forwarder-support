@@ -2888,6 +2888,31 @@
     const c = document.getElementById('masterSearchCount');
     if (c) c.textContent = _masterQuery.trim() && _masterHitCount != null ? '　' + _masterHitCount + ' 件ヒット' : '';
   }
+  // 「いまの条件」のチップ行（Design 29・案B ③）：種別・検索・地域・種別/タグ・エリア・並び順を 1 行にまとめ、✕で個別に外せる／［条件をクリア］で一括解除。
+  window.statsMasterClearCond = function (k) {
+    if (!k || k === 'all') { _masterFieldFilter = 'all'; _masterQuery = ''; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = ''; _masterSort = 'name'; }
+    else if (k === 'field') { _masterFieldFilter = 'all'; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = ''; _masterSort = 'name'; }
+    else if (k === 'q') _masterQuery = '';
+    else if (k === 'region') { _masterRegion = ''; _masterSub = ''; }
+    else if (k === 'sub') _masterSub = '';
+    else if (k === 'type') _masterSvType = '';
+    else if (k === 'area') { _masterAreaKind = ''; _masterArea = ''; }
+    else if (k === 'sort') _masterSort = 'name';
+    _renderMaster();
+  };
+  function _condHtml() {
+    const list = [];
+    const add = (k, label, val) => list.push('<span class="mc-chip" data-k="' + k + '"><b>' + _esc(label) + '</b>' + _esc(val) + '<button type="button" class="mc-x" aria-label="' + _esc(label) + 'の条件を外す" onclick="statsMasterClearCond(\'' + k + '\')">✕</button></span>');
+    if (_masterFieldFilter !== 'all') { const f = _REG_FIELDS.find(x => x[0] === _masterFieldFilter); add('field', '種別', f ? f[1] : _masterFieldFilter); }
+    if (_masterQuery.trim()) add('q', '検索', _masterQuery.trim());
+    if (_masterRegion) add('region', '地域', _masterRegion);
+    if (_masterSub) add('sub', '小地域', _masterSub);
+    if (_masterSvType) add('type', _SUB_FILTER[_masterFieldFilter] ? _SUB_FILTER[_masterFieldFilter].label : '絞り込み', _masterSvType === _SV_NONE ? '未設定' : _subLabel(_masterFieldFilter, _masterSvType));
+    if (_masterAreaKind || _masterArea) add('area', '得意エリア', _masterArea ? (_masterArea === _SV_NONE ? '未設定' : (typeof window.areaLabel === 'function' ? window.areaLabel(_masterArea) : _masterArea)) : (_masterAreaKind === 'DOM' ? '国内' : _masterAreaKind === 'OVS' ? '海外' : '未設定'));
+    if (_masterSort !== 'name') add('sort', '並び', { tag: '種別・タグごと', group: '所属グループごと', area: '得意エリアごと', deal: '取引形態ごと' }[_masterSort] || _masterSort);
+    if (!list.length) return '';
+    return '<div class="mc-bar" id="mhCond"><span class="mc-label">いまの条件</span>' + list.join('') + '<button type="button" class="mc-clear" onclick="statsMasterClearCond()">条件をクリア</button></div>';
+  }
   function _renderMasterInner() {
     const e = document.getElementById('statsPane-master');
     if (!e) return;
@@ -2941,7 +2966,7 @@
     const chip = (f, label, n) =>
       `<button class="master-filter-chip${_masterFieldFilter === f ? ' is-active' : ''}" ` +
       `onclick="statsMasterSetFilter('${f}')">${label}<span class="master-filter-count">${n}</span></button>`;
-    let chipsH = _masterSearchHtml() + '<div class="master-filter-chips">' +
+    let chipsH = _masterSearchHtml() + _condHtml() + '<div class="master-filter-chips">' +
       chip('all', 'すべて', totalCount) +
       fieldOrder.filter(f => counts[f] > 0 || f === 'port' || f === 'icd').map(f => chip(f, labels[f], counts[f])).join('') +
       '</div>';

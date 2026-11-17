@@ -257,6 +257,22 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => statsMhTodoToggle()); await p.waitForTimeout(100);
     ok(L + '[今日やること] 押すと畳まれ、本文が隠れる', await p.evaluate(() => { const t = document.getElementById('mhTodo'); return t.classList.contains('is-closed') && getComputedStyle(t.querySelector('.mh-todo-b')).display === 'none'; }));
     await p.evaluate(() => statsMhTodoToggle()); await p.waitForTimeout(100);
+    // ③ いまの条件のチップ行（Design 29）
+    ok(L + '[条件チップ] 条件がないときは出ない', await p.evaluate(() => { statsMasterClearCond(); return !document.getElementById('mhCond'); }));
+    await p.evaluate(() => { statsMasterSetFilter('port'); }); await p.waitForTimeout(200);
+    await p.evaluate(() => { statsMasterSetQuery('a'); }); await p.waitForTimeout(400);
+    ok(L + '[条件チップ] 種別・検索がチップで出る', await p.evaluate(() => { const c = document.getElementById('mhCond'); return !!c && c.querySelectorAll('.mc-chip').length === 2 && /港/.test(c.textContent) && !!c.querySelector('.mc-clear'); }));
+    await p.evaluate(() => document.querySelector('#mhCond .mc-chip[data-k="q"] .mc-x').click()); await p.waitForTimeout(300);
+    ok(L + '[条件チップ] ✕で検索だけ外れる', await p.evaluate(() => { const c = document.getElementById('mhCond'); return !!c && c.querySelectorAll('.mc-chip').length === 1; }));
+    await p.evaluate(() => document.querySelector('#mhCond .mc-clear').click()); await p.waitForTimeout(300);
+    ok(L + '[条件チップ] 条件をクリアで全部外れる', await p.evaluate(() => !document.getElementById('mhCond')));
+    await p.evaluate(() => statsMasterSetFilter('all')); await p.waitForTimeout(200);
+    ok(L + '[印] 3 つ以上の印は上位 2 つ＋「他 N」', await p.evaluate(() => {
+      const td = document.createElement('td'); td.className = 'stats-val'; td.innerHTML = '<span class="cr-chip">a</span><span class="mn-chip">b</span><span class="cc-chip">c</span><span class="stats-md-via">d</span>';
+      const t = document.createElement('table'); t.className = 'master-grid'; const tr = document.createElement('tr'); tr.appendChild(td); t.appendChild(tr);
+      document.getElementById('statsPane-master').appendChild(t); mmMarksEnhance();
+      const hidden = td.querySelectorAll('.mm-hide').length, btn = td.querySelector('.mm-more'); const ok1 = hidden === 2 && btn && btn.textContent === '他2' && getComputedStyle(td.querySelector('.mn-chip')).display === 'none';
+      btn.click(); const ok2 = td.classList.contains('mm-open') && btn.textContent === '閉じる'; t.remove(); return ok1 && ok2; }));
     await p.evaluate(() => statsApproveRequest('q1')); await p.waitForTimeout(500);
     await p.evaluate(() => { window.__db.master_requests.push({ id: 'qd1', field: 'customer', value: '詳細つき申請社', requested_by: 'm@example.com', status: 'pending', details: { location: '福岡市博多区', mainGoods: '雑貨' }, note: '急ぎです', created_at: new Date().toISOString() }); });
     await p.evaluate(async () => { await statsLoadMasterCache(); statsRerenderActive(); }); await p.waitForTimeout(400);
