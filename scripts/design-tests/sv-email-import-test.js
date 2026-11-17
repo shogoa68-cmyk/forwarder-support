@@ -325,6 +325,32 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('画面のエラーが出ていない', errs.length === 0, errs);
     await ctx.close();
   }
+  // ===== 実際の文面（円記号が「\\」）：読めなかった状態 → 読める → 直して覚える =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member' });
+    await setSv(p, 'テスト運送');
+    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click()); await p.waitForTimeout(300);
+    const TXT = '倉庫料金\n定温庫保管料：\\850/M3/期\n入出庫バンニング作業：\\2,600/M3 min:\\45,000 ※フォークリフト作業可条件\nショアリング作業(簡易)：\\15,000/VAN\n\n倉庫〜東京CY搬入\nショートドレー20F：\\36,000/VAN';
+    await p.evaluate(t => { document.getElementById('eiText').value = t; window.eiParse(); }, TXT); await p.waitForTimeout(400);
+    let rows = await p.evaluate(() => [...document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')].map(tr => ({ name: tr.querySelector('.ei-name').value, unit: tr.querySelector('.ei-unit').value, ccy: tr.querySelector('.ei-ccy').value, price: tr.querySelector('.ei-price').value, note: tr.querySelector('.ei-note').value, sv: tr.querySelector('.ei-sv').value })));
+    ok('「抽出できませんでした」だった文面が、4 行の明細として読める（サブコンも入る）', rows.length === 4 && rows.every(r => r.ccy === 'JPY' && r.sv === 'テスト運送') && rows[0].unit === 'M3/期' && rows[0].price === '850' && /Min/.test(rows[1].note), rows);
+    ok('読み取れなかった行の案内は出ない（すべて読めたため）', await p.evaluate(() => !document.querySelector('#eiReviewWrap .ei-unread')), null);
+
+    // 直して覚える → 次回から自動
+    await p.evaluate(() => { const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[3]; tr.querySelector('.ei-name').value = '東京CY搬入（ショートドレー）'; window.eiLearnFromCorrections(); }); await p.waitForTimeout(700);
+    const learned = await p.evaluate(() => window.__db.master_details.find(r => r.field === 'sv' && r.value === 'テスト運送').details.importRules.aliases);
+    ok('読めた行を直して「覚える」と、ルールとして残る', learned.length === 1 && learned[0].from === 'ショートドレー20F' && learned[0].to === '東京CY搬入（ショートドレー）', learned);
+    await p.evaluate(t => { document.getElementById('eiText').value = t; window.eiParse(); }, TXT); await p.waitForTimeout(400);
+    ok('次に同じ書き方のメールを貼ると、呼び名が自動で直る', await p.evaluate(() => [...document.querySelectorAll('#eiReviewWrap .ei-name')].some(i => i.value === '東京CY搬入（ショートドレー）')), null);
+
+    // 読めない行は、原因が分かるように見せる
+    await p.evaluate(() => { document.getElementById('eiText').value = '特殊作業 ABC123 XYZ 999 要相談\n倉庫保管 〒105-0023 港区'; window.eiParse(); }); await p.waitForTimeout(300);
+    const un = await p.evaluate(() => ({ empty: !!document.querySelector('#eiReviewWrap .preset-empty'), list: [...document.querySelectorAll('#eiReviewWrap .ei-unread li')].map(l => l.textContent), open: document.querySelector('#eiReviewWrap .ei-unread')?.open }));
+    ok('何も読めないときは、金額らしい数字があるのに読めなかった行を一覧で見せる（郵便番号の行は除く）', un.empty && un.list.length === 1 && /特殊作業/.test(un.list[0]) && un.open === true, un);
+    ok('画面のエラーが出ていない', errs.length === 0, errs);
+    if (process.env.SHOT2) { await p.screenshot({ path: process.env.SHOT2 }); }
+    await ctx.close();
+  }
   await b.close(); srv.close();
   console.log(out.join('\n'));
   process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);
