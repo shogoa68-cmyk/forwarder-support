@@ -273,6 +273,14 @@ const http = require('http'), fs = require('fs'), path = require('path');
       document.getElementById('statsPane-master').appendChild(t); mmMarksEnhance();
       const hidden = td.querySelectorAll('.mm-hide').length, btn = td.querySelector('.mm-more'); const ok1 = hidden === 2 && btn && btn.textContent === '他2' && getComputedStyle(td.querySelector('.mn-chip')).display === 'none';
       btn.click(); const ok2 = td.classList.contains('mm-open') && btn.textContent === '閉じる'; t.remove(); return ok1 && ok2; }));
+    ok(L + '[ゆらぎ ▸ 直す] ゆらぎのあるカードにだけ出て、押すと「ゆらぎ・未登録」へ', await p.evaluate(() => {
+      const f0 = window.statsMasterFieldFilter, h0 = window.statsMasterHasDrift, m0 = window.masterSetPane, k0 = window.fixSetKind; let got = [];
+      window.statsMasterFieldFilter = () => 'customer'; window.statsMasterHasDrift = (f, n) => n === '乱れ商事'; window.masterSetPane = x => got.push('m:' + x); window.fixSetKind = x => got.push('k:' + x);
+      const mk = nm => { const td = document.createElement('td'); td.className = 'stats-val'; td.innerHTML = '<span class="master-name-toggle">' + nm + '</span>'; const t = document.createElement('table'); t.className = 'master-grid'; const tr = document.createElement('tr'); tr.appendChild(td); t.appendChild(tr); document.getElementById('statsPane-master').appendChild(t); return [t, td]; };
+      const [t1, a] = mk('乱れ商事'), [t2, b] = mk('正常商事'); mmMarksEnhance();
+      const r = !!a.querySelector('.mm-fix') && !b.querySelector('.mm-fix'); a.querySelector('.mm-fix').click();
+      t1.remove(); t2.remove(); window.statsMasterFieldFilter = f0; window.statsMasterHasDrift = h0; window.masterSetPane = m0; window.fixSetKind = k0;
+      return r && got.join() === 'm:fix,k:customer'; }));
     await p.evaluate(() => statsApproveRequest('q1')); await p.waitForTimeout(500);
     await p.evaluate(() => { window.__db.master_requests.push({ id: 'qd1', field: 'customer', value: '詳細つき申請社', requested_by: 'm@example.com', status: 'pending', details: { location: '福岡市博多区', mainGoods: '雑貨' }, note: '急ぎです', created_at: new Date().toISOString() }); });
     await p.evaluate(async () => { await statsLoadMasterCache(); statsRerenderActive(); }); await p.waitForTimeout(400);
