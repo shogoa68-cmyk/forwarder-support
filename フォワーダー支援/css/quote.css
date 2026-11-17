@@ -1730,6 +1730,8 @@
 /* 客先モードでは pct-group 非表示（内部情報） */
 #tab-quote-make #quoteTable.customer-mode .pct-group { display: none !important; }
 /* プレビュー：都度請求の客先注記 */
+#tab-quote-make .pv-ins-inv { font-size: var(--text-xs); color: var(--text-md); margin-top: 2px; font-weight: 400; }
+#tab-quote-make .ins-group .ins-iv-wrap { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--text-md); cursor: pointer; white-space: nowrap; }
 #tab-quote-make .pv-cond-note { color: #8a5a00; font-size: var(--fs-10-5); font-weight: 700; margin-left: var(--sp-4); white-space: nowrap; }
 #tab-quote-make .pv-ref-note { color: #3a5a80; font-size: var(--fs-10-5); font-weight: 700; margin-left: var(--sp-4); white-space: nowrap; }
 /* 参考情報行の金額：括弧書き＋グレー（合計外の参考値であることを示す） */

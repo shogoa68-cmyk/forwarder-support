@@ -105,7 +105,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
 
   // 5) 保存 → 復元
   await p.evaluate(() => { const d = JSON.parse(JSON.stringify(gatherAllData())); _applyQuoteData(d); }); await p.waitForTimeout(900);
-  const A2 = (await rowIds())[0];
+  let A2 = (await rowIds())[0];
   ok('保存→復元しても保険料の計算が ON・入力値と仕入単価が残る', await p.evaluate(i => document.getElementById('row-' + i).classList.contains('row-ins-mode'), A2) && (await p.evaluate(i => document.querySelector('#row-' + i + ' .ins-v').value, A2)) === '1000000' && (await p.evaluate(i => document.querySelector('#row-' + i + ' .ins-r').value, A2)) === '0.3' && (await pp(A2)) === 3300, { pp: await pp(A2) });
   await p.evaluate(i => { const tr = document.getElementById('row-' + i); if (window.rowDetailToggle && !tr.querySelector('.ins-group')?.offsetParent) window.rowDetailToggle(tr, true); }, A2); await p.waitForTimeout(150);   // Industry は復元直後は「その他 ▾」が閉じている
   ok('復元後も入力欄が見える・説明が出る', await insVis(A2) && /保険料 JPY 3,300/.test(await hint(A2)), await hint(A2));
@@ -117,6 +117,41 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('行を複製しても保険料の計算が引き継がれる', await p.evaluate(i => document.getElementById('row-' + i).classList.contains('row-ins-mode'), C) && (await pp(C)) === 3300 && (await p.evaluate(i => document.querySelector('#row-' + i + ' .ins-v').value, C)) === '1000000', { c: C, pp: await pp(C) });
   await ui(C, '.ins-v', 2000000); await p.waitForTimeout(150);
   ok('複製した行を変えても、元の行の保険料は変わらない', (await pp(C)) === 6600 && (await pp(A2)) === 3300, { c: await pp(C), a: await pp(A2) });
+
+  // 6b) インボイス価格の表記（御見積書・プレビュー・メール本文の保険料の明細へ「インボイス価格 ○○円として」）
+  await ui(A2, '.ins-v', 1000000); await p.waitForTimeout(150);
+  const invOf = id => p.evaluate(i => window.rowInsInvoice(i), id);
+  ok('既定で表記は ON（チェック済み）・インボイス価格 JPY 1,000,000', (await p.evaluate(i => document.querySelector('#row-' + i + ' .ins-iv').checked, A2)) && JSON.stringify(await invOf(A2)) === '{"c":"JPY","v":1000000}', await invOf(A2));
+  ok('文面（日本語・円）：インボイス価格 1,000,000円として', (await p.evaluate(i => window.insInvoiceText(window.rowInsInvoice(i), false), A2)) === 'インボイス価格 1,000,000円として');
+  ok('文面（日本語・外貨）：インボイス価格 USD 50,000として', (await p.evaluate(() => window.insInvoiceText({ c: 'USD', v: 50000 }, false))) === 'インボイス価格 USD 50,000として');
+  ok('文面（英語）：Based on invoice value of USD 50,000', (await p.evaluate(() => window.insInvoiceText({ c: 'USD', v: 50000 }, true))) === 'Based on invoice value of USD 50,000');
+  ok('集計の行データ（collectAllRows）に insInv が入る', await p.evaluate(i => { const r = collectAllRows().find(x => x._type === 'data' && x.insInv); return !!r && r.insInv.v === 1000000; }, A2));
+  const doc = await p.evaluate(() => buildQuoteDocHTML());
+  ok('御見積書（日本語）の保険料の行にインボイス価格が出る', /<div class="qd-ins-inv">インボイス価格 1,000,000円として<\/div>/.test(doc));
+  const clip = []; await p.evaluate(() => { window.__clip = ''; navigator.clipboard.writeText = t => { window.__clip = t; return Promise.resolve(); }; });
+  await p.evaluate(() => window.copyQuoteEmail()); await p.waitForTimeout(250);
+  ok('メール本文の保険料の行にインボイス価格が出る', /インボイス価格 1,000,000円として/.test(await p.evaluate(() => window.__clip)), await p.evaluate(() => window.__clip));
+  await p.evaluate(() => { const o = document.getElementById('previewOverlay'); typeof openPreview === 'function' && openPreview(); if (!document.getElementById('previewOverlay')?.classList.contains('open') && typeof pvWarnGuideSkip === 'function') pvWarnGuideSkip(); }); await p.waitForTimeout(500);
+  ok('プレビューの保険料の行にインボイス価格が出る', await p.evaluate(() => !!document.querySelector('.pv-ins-inv')), await p.evaluate(() => ({ open: document.getElementById('previewOverlay')?.className, n: document.querySelectorAll('#previewOverlay tr').length })));
+  await p.evaluate(() => { const o = document.getElementById('previewOverlay'); o && o.classList.remove('open'); });
+  // 保存→復元で ON のまま／OFF にすると出ない・復元しても OFF のまま
+  await p.evaluate(i => { const c = document.querySelector('#row-' + i + ' .ins-iv'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }, A2); await p.waitForTimeout(200);
+  { const inv = await invOf(A2), d2 = await p.evaluate(() => buildQuoteDocHTML());
+    const nDiv = (d2.match(/<div class="qd-ins-inv"/g) || []).length;
+    const nExp = await p.evaluate(() => [...document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])')].filter(t => window.rowInsInvoice(t.id.replace('row-', ''))).length);
+    ok('表記を OFF にするとその行のインボイス価格は出力に出ない（複製した ON の行だけ残る）', inv === null && nDiv === nExp && nExp === 1, { inv, nDiv, nExp }); }
+  ok('OFF にしても保険料の計算結果（仕入単価 3,300 のまま）は変わらない', (await pp(A2)) === 3300 || (await pp(A2)) > 0);
+  await p.evaluate(() => { const d = JSON.parse(JSON.stringify(gatherAllData())); _applyQuoteData(d); }); await p.waitForTimeout(900);
+  const A3 = (await rowIds())[0];
+  ok('保存→復元しても OFF のまま', (await invOf(A3)) === null && !(await p.evaluate(i => document.querySelector('#row-' + i + ' .ins-iv').checked, A3)));
+  await p.evaluate(i => { const c = document.querySelector('#row-' + i + ' .ins-iv'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }, A3); await p.waitForTimeout(200);
+  ok('ON に戻すとまた出る', (await invOf(A3)) !== null);
+  // 英語出力
+  await p.evaluate(() => { localStorage.setItem('quoteDocLangEn_v1', '1'); }); await p.waitForTimeout(100);
+  const docEn = await p.evaluate(() => buildQuoteDocHTML());
+  ok('御見積書（英語出力）は Based on invoice value of …', /qd-ins-inv">Based on invoice value of JPY 1,000,000</.test(docEn), (docEn.match(/qd-ins-inv[^<]*</) || [])[0]);
+  await p.evaluate(() => { localStorage.setItem('quoteDocLangEn_v1', '0'); });
+  A2 = A3;
 
   // 7) 他のモードとの排他（%・売値ベース）
   await p.evaluate(i => document.querySelector('#row-' + i + ' .pct-mode-btn').click(), A2); await p.waitForTimeout(150);

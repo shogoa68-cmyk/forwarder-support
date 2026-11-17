@@ -4146,9 +4146,10 @@ window.reflectToQuote = function(key) {
   }
   const round3 = v => String(Math.round(v * 1000) / 1000);
   const config = {
-    rt:  { value: m.rt > 0 ? Math.max(m.rt, 1) : m.rt, label: 'R/T',  fmt: round3,  units: ['RT', 'R/T'] },
-    cw:  { value: m.cw,  label: 'CW',   fmt: String,   units: ['KG', 'CW'] },
-    cbm: { value: m.cbm, label: 'CBM',  fmt: round3,  units: ['M3', 'CBM', 'M³'] },
+    // kinds：単位の表記ゆれ（R/T・RT・W/M・C/W・m³ など）は quoteUnitKind() で同じ単位として判定する
+    rt:  { value: m.rt > 0 ? Math.max(m.rt, 1) : m.rt, label: 'R/T',  fmt: round3,  units: ['RT', 'R/T', 'W/M'],        kinds: ['rt'] },
+    cw:  { value: m.cw,  label: 'CW',   fmt: String,   units: ['KG', 'CW', 'C/W'],                          kinds: ['cw', 'kg'] },
+    cbm: { value: m.cbm, label: 'CBM',  fmt: round3,  units: ['M3', 'CBM', 'M³'],                          kinds: ['cbm'] },
   };
   const cfg = config[key];
   if (!cfg || !cfg.value) {
@@ -4161,7 +4162,10 @@ window.reflectToQuote = function(key) {
   document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
     const id = tr.id.replace('row-', '');
     const unEl = document.getElementById('un-' + id);
-    if (!unEl || !targetsUpper.includes((unEl.value || '').trim().toUpperCase())) return;
+    if (!unEl) return;
+    const _uv = (unEl.value || '').trim();
+    const _kind = (typeof window.quoteUnitKind === 'function') ? window.quoteUnitKind(_uv) : null;
+    if (!(_kind ? cfg.kinds.includes(_kind) : targetsUpper.includes(_uv.toUpperCase()))) return;
     const pqEl = document.getElementById('pq-' + id);
     if (pqEl) {
       pqEl.value = displayVal;
