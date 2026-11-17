@@ -115,7 +115,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('③「詳細 ▾」で荷姿が開く', await vis('.cond-field--cargo-detail'));
   await p.click('#e2PackBtn'); await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(200);
   await p.click('#e2Steps [data-e2s="5"]'); await p.waitForTimeout(600);
-  ok('⑤リマークは本文に直接出る（下の引き出しは出さない）', await p.evaluate(() => { const sec = document.getElementById('section-remark'); const sh = document.getElementById('rmSheet'); return !!sec.closest('.quote-main') && (!sh || getComputedStyle(sh).display === 'none'); }));
+  ok('⑤リマークは本文に直接出る（下の引き出しにはリマークを入れず、「一時ファイル」のタブだけ）', await p.evaluate(() => { const sec = document.getElementById('section-remark'); const sh = document.getElementById('rmSheet'); const t = sh && sh.querySelector('.rms-tab[data-pane="remark"]'); return !!sec.closest('.quote-main') && !(sh && sh.contains(sec)) && (!t || getComputedStyle(t).display === 'none'); }));
   ok('⑤リマーク：入力欄が見えて、上に何も重ならず押せる', await p.evaluate(() => { const t = document.getElementById('remarkTextarea'); if (!t) return false; t.scrollIntoView({ block: 'center' }); const b = t.getBoundingClientRect(); if (b.width < 50 || b.height < 20) return false; const e = document.elementFromPoint(b.left + 20, b.top + 10); return !!e && e.id === 'remarkTextarea'; }));
   await p.fill('#remarkTextarea', 'テストのリマーク'); await p.waitForTimeout(200);
   ok('⑤リマークに入力でき、要約に反映される', (await p.evaluate(() => document.getElementById('remarkTextarea').value)) === 'テストのリマーク' && /リマークあり/.test(await p.textContent('#e2Steps [data-e2s="5"]')));
