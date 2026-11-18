@@ -23,6 +23,8 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
       ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   }
+  // onclick="f('…')" の中に入れるメール。' や \ を含んでも JS の文字列が壊れないよう、JS 用 → HTML 用の順でエスケープする
+  function _jsq(s) { return _esc(String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
   function _toast(msg, type, ms) {
     if (typeof quoteShowToast === 'function') quoteShowToast(msg, type, ms);
   }
@@ -126,7 +128,7 @@
     const roleCtl = admin
       ? '<select class="um-role um-role--' + m.role + '" ' +
           (isSelf ? 'disabled title="自分のロールは変更できません" ' : 'title="ロールを変更" ') +
-          'onchange="umChangeRole(\'' + _esc(m.email) + '\', this.value)">' +
+          'onchange="umChangeRole(\'' + _jsq(m.email) + '\', this.value)">' +
           ['admin', 'member', 'viewer'].map(r =>
             '<option value="' + r + '"' + (r === m.role ? ' selected' : '') + '>' + ROLE_LABEL[r] + '</option>').join('') +
         '</select>'
@@ -135,18 +137,18 @@
 
     const delBtn = admin
       ? '<button class="um-del" ' + (isSelf ? 'disabled title="自分は削除できません"' : 'title="削除"') +
-          ' onclick="umDeleteMember(\'' + _esc(m.email) + '\')">✕</button>'
+          ' onclick="umDeleteMember(\'' + _jsq(m.email) + '\')">✕</button>'
       : '';
 
     // 発番IDバッジ：管理者はクリックで任意の番号に変更可。未割当なら「＋採番」。
     const memberNoCtl = (m.member_no != null)
       ? (admin
           ? '<button class="um-memberno um-memberno--edit" title="発番ID（仮REF#の先頭2桁）をクリックで変更" ' +
-              'onclick="umEditMemberNo(\'' + _esc(m.email) + '\')">#' + String(m.member_no).padStart(2, '0') + ' ✎</button>'
+              'onclick="umEditMemberNo(\'' + _jsq(m.email) + '\')">#' + String(m.member_no).padStart(2, '0') + ' ✎</button>'
           : '<span class="um-memberno" title="発番ID（仮REF#の先頭2桁）">#' + String(m.member_no).padStart(2, '0') + '</span>')
       : (admin
           ? '<button class="um-memberno um-memberno--empty" title="発番IDを割り当て" ' +
-              'onclick="umEditMemberNo(\'' + _esc(m.email) + '\')">＋採番</button>'
+              'onclick="umEditMemberNo(\'' + _jsq(m.email) + '\')">＋採番</button>'
           : '');
 
     return '<div class="um-card' + (isSelf ? ' is-self' : '') + (active ? '' : ' is-pending') + '">' +
