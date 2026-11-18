@@ -395,3 +395,11 @@ html.theme-industry .ua-chip-del { color: var(--text-muted); }
 
 /* BOOKMARK：未確認の ✓ が背景と 2.3:1 でほぼ読めなかったのを補正（2026-11・点検第4弾） */
 .bm-verify.bm-verify-0 { color: #6b6e73; }
+
+/* 「その他」メニュー内タブの崩れ直し（2026-11・Industry は Design の元の値へ戻すため、ここで打ち消す）
+   ①諸チャージの上部ボタンが狭い画面で 1 文字幅に潰れる→折り返す ②1 行の検索欄が大画面で 1500px 超に伸びる→640px まで
+   ③「データなし」の薄い文字（コントラスト不足）を読める濃さに */
+.lc-topbar-right { flex-wrap: wrap; min-width: 0; }
+.lc-topbar-right > *, .lc-topbar-right .lc-add-btn, .lc-topbar-right .lc-variant-btn { white-space: nowrap; }
+.lookup-form input[type="text"] { max-width: 640px; }
+.lc-empty, .rn-empty { color: #6f5f50; }
