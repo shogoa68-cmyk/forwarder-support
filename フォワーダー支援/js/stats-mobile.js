@@ -1,7 +1,7 @@
 // 統計画面のスマホ版（Design 案B「今日の確認」・2026-11・第1回）。
 // 〜600px のときだけ、既存の #tab-stats（タブ 14 個・数字カード・各ペイン）の上に薄い表示層を足す。
 // 既存の DOM・id・onclick は変えず、CSS（css/stats-mobile.css）で「今日の確認」か「中身」のどちらかを出し分ける。
-//  ・今日の確認：カード 3 枚（ゆらぎ／粗利率の低い明細／受注率と失注）＋「すべての集計を選ぶ」
+//  ・今日の確認：カード 3 枚（表記ゆれ／粗利率の低い明細／受注率と失注）＋「すべての集計を選ぶ」
 //  ・集計を選ぶシート：名寄せ／分析／指標の 3 系統から 14 タブを選ぶ（statsSetPane をそのまま呼ぶ）
 //  ・書き込みの確認シート：☆登録・→別名にする は、押すと下から確認シート（実行後に「元に戻す」を数秒出す）
 // 数字は stats.js の window.statsTodaySummary()（読み取りだけ）から取る。
@@ -65,8 +65,8 @@
       ? card('ledger', '⚠', '粗利率の低い明細', th + '%未満 ' + S.low.n + '件' + (S.low.worst ? '（' + esc(S.low.worst.nm) + ' ' + Math.round(S.low.worst.margin) + '%）' : ''), 'warn')
       : card('ledger', '✅', '粗利率の低い明細', th + '%未満はありません');
     const name = (S.unorg || S.blur)
-      ? card('sv', '🏢', '名前のゆらぎを整理', '未整理 ' + S.unorg + '件・ゆらぎ ' + S.blur + '件', 'warn')
-      : card('sv', '✅', '名前のゆらぎを整理', '整理が必要な名前はありません');
+      ? card('sv', '🏢', '名前の表記ゆれを整理', '未整理 ' + S.unorg + '件・表記ゆれ ' + S.blur + '件', 'warn')
+      : card('sv', '✅', '名前の表記ゆれを整理', '整理が必要な名前はありません');
     const win = w.sent
       ? card('winrate', '🎲', '受注率 ' + (w.rate == null ? '—' : w.rate + '%') + '　失注 ' + w.lost + '件',
         w.topReason ? '失注の最多は「' + esc(w.topReason) + '」' + w.topN + '件（失注理由が入っている案件のみ）' : (w.lost ? '失注理由が入っている案件がまだありません' : '失注はありません'))
@@ -173,7 +173,7 @@
   }
 
 
-  // ---- 名寄せの画面：絞り込みチップ（すべて／未整理のみ N／ゆらぎあり N）。既存の 2 つのチェックを操作するだけ ----
+  // ---- 名寄せの画面：絞り込みチップ（すべて／未整理のみ N／表記ゆれあり N）。既存の 2 つのチェックを操作するだけ ----
   const NAME_PANES = ['sv', 'carrier', 'customer', 'nm', 'un', 'port'];
   function injectFilter(paneKey) {
     const pane = $('statsPane-' + paneKey); if (!pane || !mobile()) return;
@@ -185,7 +185,7 @@
     const all = !un.checked && !fl.checked;
     const html = '<button type="button" class="sm-fchip" data-f="all" aria-pressed="' + all + '">すべて</button>' +
       '<button type="button" class="sm-fchip" data-f="unorg" aria-pressed="' + un.checked + '">未整理のみ' + (c ? ' ' + c.unorg : '') + '</button>' +
-      '<button type="button" class="sm-fchip" data-f="fluct" aria-pressed="' + fl.checked + '">ゆらぎあり' + (c ? ' ' + c.blur : '') + '</button>';
+      '<button type="button" class="sm-fchip" data-f="fluct" aria-pressed="' + fl.checked + '">表記ゆれあり' + (c ? ' ' + c.blur : '') + '</button>';
     if (bar && bar.dataset.h === html) return;
     if (!bar) { bar = document.createElement('div'); bar.className = 'sm-fbar'; pane.insertBefore(bar, pane.firstChild); bar.addEventListener('click', e => {
       const b = e.target.closest('[data-f]'); if (!b) return;
