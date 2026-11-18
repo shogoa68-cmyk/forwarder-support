@@ -11,7 +11,7 @@
   function place() {
     // .cat-nav はスマホ幅で横スクロール（overflow）になり、中の絶対配置は切れるため、fixed で置く
     var r = btn.getBoundingClientRect();
-    var w = Math.max(r.width, 200);
+    var w = Math.max(r.width, 260);
     panel.style.top = (r.bottom + 4) + 'px';
     panel.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
     panel.style.minWidth = w + 'px';

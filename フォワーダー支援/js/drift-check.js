@@ -1,10 +1,10 @@
 /* ===================================================================
- * 🔍 ゆらぎ（表記ゆれ）チェック：定期チェック＋自動対応＋人への振り分け（2026-11）
+ * 🔍 表記ゆれチェック：定期チェック＋自動対応＋人への振り分け（2026-11）
  *
  * 判定は js/drift-engine.js（純粋関数）。このファイルは、画面のデータを集めて判定にかけ、
  *   ① 自動対応：代表（マスター）が決まっていて、読みが完全に同じ表記 → 別名として自動登録（管理者のログイン時に、前回から 1 週間以上あいていれば。
  *      1 回の上限 100 件。登録は「別名」＝元の案件データは書き換えない。元に戻せる）
- *   ② 要確認：代表が未決定のゆらぎ・綴りや社名の一部がよく似た別々の名前 → マスター管理の上部のカードに出し、1 クリックで決められる
+ *   ② 要確認：代表が未決定の表記ゆれ・綴りや社名の一部がよく似た別々の名前 → マスター管理の上部のカードに出し、1 クリックで決められる
  *   ③ 人間が判断：代表が複数ある・単位（意味が変わりうる）→ 理由つきで一覧に出すだけ（自動では触らない）
  * に仕分ける。AI・外部への送信はなし。保存は、別名＝既存の synonym_groups。記録（登録した別名・元に戻したもの・別物と決めた組・前回の実行日）は
  * チーム共有のテーブル drift_log（docs/sql/drift-log.sql を実行すると共有される。未実行の間はこの端末のブラウザ localStorage に残す）。
@@ -78,7 +78,7 @@
       _entries = _entries.concat(rows);
     }
     [LOCAL_KEY, LEGACY_LOG, LEGACY_RUN, LEGACY_DISMISS].forEach(k => { try { localStorage.removeItem(k); } catch (e) { /* 無視 */ } });
-    toast('🔍 この端末のゆらぎチェックの記録を、チーム共有へ移しました（' + rows.length + ' 件）', 'info', 5000);
+    toast('🔍 この端末の表記ゆれチェックの記録を、チーム共有へ移しました（' + rows.length + ' 件）', 'info', 5000);
   }
   async function append(list) {
     const now = new Date().toISOString();
@@ -86,7 +86,7 @@
     if (_shared) {
       const { error } = await client().from(TABLE).insert(rows.map(r => ({ at: r.at, kind: r.kind, mode: r.mode || null, field: r.field || null, alias: r.alias || null, canonical: r.canonical || null, by: r.by, note: r.note || null })));
       if (!error) { _entries = _entries.concat(rows); return true; }
-      if (!_warned) { _warned = true; toast('⚠️ ゆらぎチェックの記録を共有に書けませんでした（この端末にだけ残します）：' + error.message, 'warn', 6000); }
+      if (!_warned) { _warned = true; toast('⚠️ 表記ゆれチェックの記録を共有に書けませんでした（この端末にだけ残します）：' + error.message, 'warn', 6000); }
     }
     const loc = localEntries().concat(rows); jset(LOCAL_KEY, loc);
     _entries = _entries.concat(rows);
@@ -148,11 +148,11 @@
   function updateBadge() {
     const btn = document.querySelector('.cat-btn[aria-controls="tab-master"]'); if (!btn) return;
     let b = document.getElementById('driftTabBadge');
-    if (!isAdmin()) { if (b) b.remove(); return; }   // ゆらぎチェックは管理者だけ
+    if (!isAdmin()) { if (b) b.remove(); return; }   // 表記ゆれチェックは管理者だけ
     const c = counts(_res), n = c.review + c.human + c.auto;
     if (!n) { if (b) b.remove(); return; }
     if (!b) { b = document.createElement('span'); b.id = 'driftTabBadge'; b.className = 'drift-tab-badge'; btn.appendChild(b); }
-    b.textContent = n; b.title = 'ゆらぎチェック：要確認 ' + c.review + ' 件・人が判断 ' + c.human + ' 件' + (c.auto ? '・自動で別名にできるもの ' + c.auto + ' 件' : '');
+    b.textContent = n; b.title = '表記ゆれチェック：要確認 ' + c.review + ' 件・人が判断 ' + c.human + ' 件' + (c.auto ? '・自動で別名にできるもの ' + c.auto + ' 件' : '');
   }
 
   // ---------- 別名の登録（自動・手動の共通） ----------
@@ -208,8 +208,8 @@
       if (opts.apply && isAdmin()) await append([{ kind: 'run' }]);
       if (opts.notify) {
         const c = counts(res);
-        if (applied && applied.added) toast('🔍 ゆらぎチェック：別名 ' + applied.added + ' 件を自動登録しました' + (c.review + c.human ? '（要確認 ' + (c.review + c.human) + ' 件：マスター管理で確認できます）' : ''), 'success', 6000);
-        else if (c.review + c.human) toast('🔍 ゆらぎチェック：確認が必要なものが ' + (c.review + c.human) + ' 件あります（マスター管理）', 'info', 6000);
+        if (applied && applied.added) toast('🔍 表記ゆれチェック：別名 ' + applied.added + ' 件を自動登録しました' + (c.review + c.human ? '（要確認 ' + (c.review + c.human) + ' 件：マスター管理で確認できます）' : ''), 'success', 6000);
+        else if (c.review + c.human) toast('🔍 表記ゆれチェック：確認が必要なものが ' + (c.review + c.human) + ' 件あります（マスター管理）', 'info', 6000);
       }
       return res;
     } catch (e) {
@@ -254,22 +254,22 @@
   }
 
   // ---------- カード ----------
-  const nameBtn = (idx, label, cls) => `<button type="button" class="drift-btn${cls ? ' ' + cls : ''}" onclick="driftAct(${idx})">${label}</button>`;
+  const nameBtn = (idx, label, cls, tip) => `<button type="button" class="drift-btn${cls ? ' ' + cls : ''}" onclick="driftAct(${idx})"${tip ? ' title="' + tip + '"' : ''}>${label}</button>`;
   const act = a => { _acts.push(a); return _acts.length - 1; };
 
   function render() {
     const el = document.getElementById('driftCard'); if (!el) return;
-    if (!cloudOn() || !isAdmin()) { el.innerHTML = ''; return; }   // ゆらぎチェックは管理者だけ（メンバーには出さない）
+    if (!cloudOn() || !isAdmin()) { el.innerHTML = ''; return; }   // 表記ゆれチェックは管理者だけ（メンバーには出さない）
     _acts = [];
     if (!_res) {
-      el.innerHTML = '<div class="drift-head"><span class="drift-title">🔍 ゆらぎチェック</span><span class="drift-sub">' + (_busy ? '確認しています…' : '準備しています…') + '</span></div>';
+      el.innerHTML = '<div class="drift-head"><span class="drift-title">🔍 表記ゆれチェック</span><span class="drift-sub">' + (_busy ? '確認しています…' : '準備しています…') + '</span></div>';
       if (!_busy && !_kicked && typeof window.statsMastersReady === 'function' && window.statsMastersReady()) { _kicked = true; run({ apply: false }); }
       return;
     }
     const c = counts(_res);
     const dv = derive();
     const last = dv.lastRun;
-    const head = '<div class="drift-head"><span class="drift-title">🔍 ゆらぎチェック</span>' +
+    const head = '<div class="drift-head"><span class="drift-title">🔍 表記ゆれチェック</span>' +
       `<span class="drift-sub">${last ? '前回の自動チェック ' + esc(fmt(last)) : '自動チェックはまだ実行されていません'}（管理者のログイン時、1 週間おき）${_shared ? '・🌐 チームで共有' : '・この端末だけに記録（docs/sql/drift-log.sql を実行すると共有されます）'}</span>` +
       `<button type="button" class="drift-btn drift-run" onclick="driftRunNow()"${_busy ? ' disabled' : ''}>${_busy ? '確認中…' : '今すぐチェック'}</button></div>`;
     const hint = '<p class="drift-note">別名にしても、過去の案件に入っている表記は書き換わりません（統計はまとめて数えられます）。過去の案件の表記も揃えたいときは「エイリアス是正」の一括置換から。</p>';
@@ -307,7 +307,7 @@
           nameBtn(act({ t: 'alias', field: f, canonical: n.suggest.alias, aliases: [n.suggest.canonical] }), '逆にする', 'drift-ghost') +
           nameBtn(act({ t: 'merge', field: f, names: [n.a, n.b] }), '別の名前にまとめる…', 'drift-ghost') +
           nameBtn(act({ t: 'snooze', field: f, a: n.a, b: n.b }), '保留（30日）', 'drift-ghost') +
-          nameBtn(act({ t: 'dismiss', field: f, a: n.a, b: n.b }), '≠ 別物', 'drift-ghost') + '</div></li>';
+          nameBtn(act({ t: 'dismiss', field: f, a: n.a, b: n.b }), '≠ 別物', 'drift-ghost', '別の会社・別のものなので、まとめません（この組み合わせは、もう候補に出ません）') + '</div></li>';
       });
       if (r.near.length > 40) rev += `<li class="drift-more">${esc(LBL[f])}：ほか ${r.near.length - 40} 件（上から順に片付けると出てきます）</li>`;
     });
@@ -322,11 +322,11 @@
         (h.kind === 'paren' ? '<div class="drift-actions">' +
           nameBtn(act({ t: 'merge', field: f, names: h.pair }), '同じ会社として別の名前にまとめる…', 'drift-primary') +
           nameBtn(act({ t: 'snooze', field: f, a: h.pair[0], b: h.pair[1] }), '保留（30日）', 'drift-ghost') +
-          nameBtn(act({ t: 'dismiss', field: f, a: h.pair[0], b: h.pair[1] }), '≠ 別物（このまま）', 'drift-ghost') + '</div>' : '') + '</li>';
+          nameBtn(act({ t: 'dismiss', field: f, a: h.pair[0], b: h.pair[1] }), '≠ 別物（このまま）', 'drift-ghost', '別のものなので、まとめません（この組み合わせは、もう候補に出ません）') + '</div>' : '') + '</li>';
     }));
     if (hum) body += sec('human', '🔵 人が判断（自動では触りません）', c.human, '<ul class="drift-list">' + hum + '</ul>', 'human');
 
-    if (!body) body = '<p class="drift-ok">✅ 確認が必要なゆらぎはありません。</p>';
+    if (!body) body = '<p class="drift-ok">✅ 確認が必要な表記ゆれはありません。</p>';
     el.innerHTML = head + body + hint;
   }
   window.driftRenderCard = render;
