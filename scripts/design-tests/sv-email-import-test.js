@@ -25,12 +25,14 @@ const http = require('http'), fs = require('fs'), path = require('path');
       { field: 'carrier', value: 'ONE', voter_email: ME }, { field: 'nm', value: 'THC', voter_email: ME },
       { field: 'nm', value: '海上運賃', voter_email: ME }, { field: 'port', value: 'Yokohama', voter_email: ME },
       { field: 'sv', value: 'テスト運送', voter_email: ME }, { field: 'sv', value: 'ABCキャリア', voter_email: ME },
+      { field: 'un', value: "40'HQ", voter_email: ME },
     ],
     synonym_groups: [
       { id: 'g1', field: 'carrier', canonical: 'ONE', aliases: ['Ocean Network Express'] },
       { id: 'g2', field: 'nm', canonical: 'THC', aliases: ['Terminal Handling Charge', 'ターミナルハンドリングチャージ'] },
       { id: 'g3', field: 'port', canonical: 'Yokohama', aliases: ['横浜'] },
       { id: 'g4', field: 'sv', canonical: 'ABCキャリア', aliases: ['ABC Line'] },
+      { id: 'g5', field: 'un', canonical: "40'HQ", aliases: ['40HQ', '40HC'] },
     ],
     master_details: [
       { field: 'nm', value: 'THC', details: { defaultUnit: 'CNTR', defaultCat: 'export-local', enName: 'Terminal Handling Charge' } },
@@ -477,6 +479,30 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const fbSent0 = (await fbCalls()).length;
     await p.evaluate(() => window.eiLearnFromCorrections()); await p.waitForTimeout(300);
     ok('同じ内容は、このページから二度送らない', (await fbCalls()).length === fbSent0, fbSent0);
+    await p.evaluate(() => window.closeEmailImport());
+    // ===== 品名・単位のマスターを参照する（解析時／確認画面で直したとき） =====
+    await p.evaluate(() => { window.openEmailImport(); document.getElementById('eiText').value = "Terminal Handling Charge USD 100\n5. THC: terminal USD 50 /BL\nABC特殊作業 USD 10\n海上運賃 USD 100 /40HQ"; window.eiParse(); }); await p.waitForTimeout(500);
+    const mm = await p.evaluate(() => [...document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')].map(tr => ({ name: tr.querySelector('.ei-name').value, unit: tr.querySelector('.ei-unit').value, cat: tr.querySelector('.ei-cat').value, unreg: tr.querySelector('.ei-name').classList.contains('name-unregistered'), flags: tr.querySelector('.ei-flags').textContent, list: tr.querySelector('.ei-name').getAttribute('list') + '/' + tr.querySelector('.ei-unit').getAttribute('list') })));
+    ok('解析：マスターの別名はマスターの名前にそろい、既定の単位・カテゴリが入る', mm[0].name === 'THC' && mm[0].unit === 'CNTR' && mm[0].cat === 'export-local' && /マスター名/.test(mm[0].flags), mm[0]);
+    ok('解析：行頭の番号と「: 説明」を外して照合する（既定の単位は読めた単位を上書きしない）', mm[1].name === 'THC' && mm[1].unit === 'BL', mm[1]);
+    ok('解析：マスターに無い名前はそのまま・欄に「マスターに無い」印が付く', mm[2].name === 'ABC特殊作業' && mm[2].unreg === true, mm[2]);
+    ok('解析：単位も単位マスターの名前にそろう（40HQ → 40\'HQ）', mm[3].unit === "40'HQ", mm[3]);
+    ok('品名・単位の欄はマスターの入力候補を引く（datalist）', mm[0].list === 'nmSuggestions/unit-list', mm[0].list);
+    const ed = await p.evaluate(() => {
+      const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[2];
+      const unit = tr.querySelector('.ei-unit'); unit.value = ''; 
+      const nm = tr.querySelector('.ei-name'); nm.value = 'Terminal Handling Charge'; nm.dispatchEvent(new Event('change', { bubbles: true }));
+      return { name: nm.value, unit: unit.value, cat: tr.querySelector('.ei-cat').value, unreg: nm.classList.contains('name-unregistered') };
+    });
+    ok('品名を直すと、マスターの名前にそろい、空の単位・カテゴリにマスターの既定が入る', ed.name === 'THC' && ed.unit === 'CNTR' && ed.cat === 'export-local' && ed.unreg === false, ed);
+    const ed2 = await p.evaluate(() => {
+      const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[2];
+      const unit = tr.querySelector('.ei-unit'); unit.value = '40HC'; unit.dispatchEvent(new Event('change', { bubbles: true }));
+      const nm = tr.querySelector('.ei-name'); const cat = tr.querySelector('.ei-cat'); cat.value = 'other'; cat.dispatchEvent(new Event('change', { bubbles: true }));
+      nm.value = 'THC'; nm.dispatchEvent(new Event('change', { bubbles: true }));
+      return { unit: unit.value, cat: cat.value };
+    });
+    ok('単位を直すと単位マスターの名前にそろう／手で選んだカテゴリは品名を直しても上書きしない', ed2.unit === "40'HQ" && ed2.cat !== 'export-local', ed2);
     await p.evaluate(() => window.closeEmailImport());
     ok('画面のエラーが出ていない', errs.length === 0, errs);
     await ctx.close();
