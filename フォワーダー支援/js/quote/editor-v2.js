@@ -22,7 +22,7 @@
     const on = document.querySelector('#qrcRail .qrc-rail-btn.is-on'), rail = document.getElementById('qrcRail'); if (!rail) return;
     rrClosed = true; if (on) on.click();
   };
-  const visited = {};   // 開いたことのあるステップ（必須が欠けた「!」の印はここだけに出す＝順番は強制しない）
+  const visited = {};   // 開いて離れたことのあるステップ（必須が欠けた「!」の印はここだけに出す＝順番は強制しない・着いた直後は出さない）
 
   const isOn = () => root.classList.contains('editor-v2');
   const val = id => { const e = $(id); return e ? String(e.value || '').trim() : ''; };
@@ -30,7 +30,11 @@
 
   function summaries() {
     const cust = val('qf-customer'), name = val('qf-case-name'), pol = val('z2Pol'), pod = val('z2Pod'), cargo = val('cond-cargo-name') || val('cargo-name') || val('cond-cargo');
-    const rows = document.querySelectorAll('#tableBody tr:not([data-virtual]):not(.tr-sub):not(.tr-remark)').length;
+    // 品名か金額が入っている行だけを「入力のある行」と数える（空の初期行だけで ✓ にしない）
+    const rows = [].filter.call(document.querySelectorAll('#tableBody tr:not([data-virtual]):not(.tr-sub):not(.tr-remark)'), tr => {
+      const g = f => { const e = tr.querySelector('[data-field="' + f + '"]'); return e ? String(e.value || '').trim() : ''; };
+      return !!(g('nm') || Number(g('pp')) > 0 || Number(g('bp')) > 0);
+    }).length;
     const sell = ($('tot-subtotal') && $('tot-subtotal').textContent || '').replace(/\s+/g, ' ').trim();
     return {
       1: { s: [cust, name].filter(Boolean).join(' / ') || '未入力', ok: !!(cust && val('qf-person')) },
@@ -207,7 +211,7 @@
       const tab = $('tab-quote-make'); if (!tab || !tab.classList.contains('active') && tab.classList.contains('qp-dash')) return;
       e.preventDefault(); setRail(!railOpen, true);
     });
-    foot.addEventListener('click', e => { if (e.target.id === 'e2Prev') go(step - 1); if (e.target.id === 'e2Next') go(step + 1); });
+    foot.addEventListener('click', e => { if (e.target.id === 'e2Prev') go(step - 1); if (e.target.id === 'e2Next') { if (step >= 5) { const pv = document.querySelector('#quoteActionDock .qad-preview'); if (pv) pv.click(); } else go(step + 1); } });
     tot.addEventListener('click', e => {
       if (e.target.closest('[data-e2f]')) { if (window.rmsIsOpen && window.rmsIsOpen() && window.rmsPane && window.rmsPane() === 'files') window.rmsClose(); else if (window.rmsShowFiles) window.rmsShowFiles(); return; }
       if (e.target.closest('[data-e2q]')) toggleDrawer('scenario');
@@ -234,8 +238,8 @@
     const html = toggle + [1, 2, 3, 4, 5].map(n => { const warn = !s[n].ok && REQ[n] && visited[n]; const mark = n; const sm = s[n].s.replace(/</g, '&lt;'); return '<button type="button" data-e2s="' + n + '" title="' + NAMES[n] + '：' + sm + '" class="' + (n === step ? 'is-on' : '') + (s[n].ok ? ' is-ok' : '') + (warn ? ' is-warn' : '') + '"><i>' + mark + '</i><b>' + NAMES[n] + '</b><small>' + sm + '</small></button>'; }).join('');
     if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
     const hd = $('e2Head'); if (hd) { const ht = '<b>' + step + ' ' + NAMES[step] + '</b><span>' + s[step].s.replace(/</g, '&lt;') + '</span>'; if (hd.dataset.h !== ht) { hd.dataset.h = ht; hd.innerHTML = ht; } }
-    $('e2Prev').disabled = step <= 1; $('e2Next').disabled = step >= 5;
-    const nx = $('e2Next'), nt = step < 5 ? '次へ：' + NAMES[step + 1] + ' →' : '次へ'; if (nx.textContent !== nt) nx.textContent = nt;
+    $('e2Prev').disabled = step <= 1; $('e2Next').disabled = false;   // 最後のステップは行き止まりにせず、プレビューへ進める
+    const nx = $('e2Next'), nt = step < 5 ? '次へ：' + NAMES[step + 1] + ' →' : '📋 プレビューで確認 →'; if (nx.textContent !== nt) nx.textContent = nt;
     const t = (id, to) => { const a = $(id), b = $(to); if (!a || !b) return; const v = a.textContent.replace(/\s+/g, ' ').replace(/^粗利\s*/, '').replace(/\s*粗利\s*/, '  ').trim() || '—'; if (b.textContent !== v) b.textContent = v; };
     t('tot-subtotal', 'e2tSell'); t('tot-cost', 'e2tCost'); t('tot-profit', 'e2tProfit');
   }
@@ -275,7 +279,8 @@
   window.addEventListener('scroll', kickRailTop, { passive: true }); window.addEventListener('resize', kickRailTop);
   function go(n, quiet) {
     if (n < 1 || n > 5) return;
-    step = n; visited[n] = true;
+    if (n !== step) visited[step] = true;   // 離れたステップだけ「開いたことがある」とみなす（着いた直後に「!」を出さない）
+    step = n;
     const tab = $('tab-quote-make'); if (tab) tab.dataset.e2 = String(n);
     [].concat.apply([], Object.values(SECS)).forEach(id => { const s = $(id); if (s) s.classList.remove('e2-show'); });
     SECS[n].forEach(id => { const s = $(id); if (!s) return; s.classList.add('e2-show'); if (s.classList.contains('collapsed') && typeof window.toggleQuoteSection === 'function') { try { window.toggleQuoteSection(id); } catch (e) {} } });
