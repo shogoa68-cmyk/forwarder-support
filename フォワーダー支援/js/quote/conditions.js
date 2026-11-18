@@ -1213,6 +1213,16 @@
       });
     }
 
+    // 画面の幅・高さが小さくなったとき（ウィンドウを縮める・スマホを横向きにする）、ドラッグで動かした付箋が画面外に残って
+    // 閉じるボタンまで押せなくならないよう、画面の中へ引き戻す（ドラッグ前＝CSS の位置のままなら何もしない）
+    window.addEventListener('resize', () => {
+      const f = document.getElementById('qfMemoFloat');
+      if (!f || f.hasAttribute('hidden') || !f.style.left) return;
+      const w = f.offsetWidth || 80, h = f.offsetHeight || 40;
+      f.style.left = Math.max(0, Math.min(window.innerWidth  - w, parseFloat(f.style.left) || 0)) + 'px';
+      f.style.top  = Math.max(0, Math.min(window.innerHeight - h, parseFloat(f.style.top)  || 0)) + 'px';
+    });
+
     // IntersectionObserver：メモ欄が画面外に出たら自動表示（メモ欄を画面から隠した今は使わない。付箋は右下の「案件名・社内メモ」ボタンで開く。
     //   開く度に勝手に出てきて「消せない」ように見えるため、自動表示は廃止）
     const memoField = null;

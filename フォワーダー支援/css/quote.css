@@ -1754,7 +1754,7 @@ body:has(#previewOverlay.open) #qfMemoFloat, body:has(#previewOverlay.open) .qf-
   border: 1.5px solid #e6a817;
   border-radius: var(--r-10);
   box-shadow: 0 6px 28px rgba(0,0,0,0.20);
-  z-index: 1200;
+  z-index: 9200;   /* 付箋（9100）に隠れて「このまま出力」を押せなくならないよう、付箋より上 */
   font-size: var(--fs-13);
 }
 #tab-quote-make .pv-wg-header {
@@ -5535,7 +5535,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   background: var(--accent-lt);
 }
 #tab-quote-make #cmdInput::placeholder { color: var(--border); }
-#tab-quote-make #cmdList { max-height: 340px; overflow-y: auto; padding: var(--sp-6) 0; }
+#tab-quote-make #cmdList { max-height: max(120px, min(340px, calc(100vh - 240px))); overflow-y: auto;   /* 背の低い画面（横向きのスマホ等）で下が切れないように */ padding: var(--sp-6) 0; }
 #tab-quote-make .cmd-item {
   display: flex;
   align-items: center;

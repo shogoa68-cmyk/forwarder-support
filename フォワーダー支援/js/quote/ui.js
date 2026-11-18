@@ -4841,3 +4841,27 @@
       if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ コピーに失敗しました', 'warn', 2000);
     });
   };
+
+// 操作バーの「⋯」「⚙」のパネルは、ボタンの位置（レイアウトで左右に変わる）に関係なく、
+// 開いたときに画面の中へ収める（右端そろえで左へ広げると、ボタンが左寄りのとき画面の左に切れていた）。
+(function () {
+  function clamp(d) {
+    const pop = d.querySelector(':scope > .cmdbar-gear-pop, :scope > .cmdbar-more-pop');
+    if (!pop) return;
+    pop.style.transform = '';
+    if (!d.open) return;
+    requestAnimationFrame(function () {
+      const r = pop.getBoundingClientRect();
+      const vw = document.documentElement.clientWidth;
+      let dx = 0;
+      if (r.left < 8) dx = 8 - r.left;
+      else if (r.right > vw - 8) dx = vw - 8 - r.right;
+      if (dx) pop.style.transform = 'translateX(' + Math.round(dx) + 'px)';
+    });
+  }
+  // toggle は泡のように上がらないので、捕まえる側（capture）で受ける
+  document.addEventListener('toggle', function (e) {
+    const d = e.target;
+    if (d && d.matches && d.matches('#cmdbarGear, #cmdbarMore')) clamp(d);
+  }, true);
+})();
