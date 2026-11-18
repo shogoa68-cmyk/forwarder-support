@@ -96,6 +96,24 @@ body.rms-open .fb-fab-hint { z-index: 999; }
 @keyframes fbRecBlink { 50% { opacity: .25; } }
 .fb-rec-stop { border: 0; border-radius: 999px; background: #e5484d; color: #fff; font: inherit; font-weight: 700; padding: var(--sp-4, 4px) var(--sp-12, 12px); cursor: pointer; }
 
+/* ---------- 見張り番（不具合の再現の記録中バー・js/bug-recorder.js） ---------- */
+.fb-brec-bar {
+  position: fixed; left: 50%; top: 8px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: var(--sp-8, 8px); flex-wrap: wrap; justify-content: center;
+  max-width: calc(100vw - 16px);
+  background: #2b2b2b; color: #fff; border-radius: 999px;
+  padding: var(--sp-6, 6px) var(--sp-8, 8px) var(--sp-6, 6px) var(--sp-16, 16px);
+  font-size: var(--fs-13, 13px); box-shadow: 0 6px 20px rgba(0,0,0,.4); z-index: 100001;
+}
+.fb-brec-dot { width: 10px; height: 10px; border-radius: 50%; background: #e5484d; animation: fbRecBlink 1s infinite; }
+.fb-brec-bar button { border: 0; border-radius: 999px; background: #444; color: #fff; font: inherit; padding: var(--sp-4, 4px) var(--sp-12, 12px); min-height: 32px; cursor: pointer; }
+.fb-brec-bar button:hover { background: #555; }
+.fb-brec-bar .fb-brec-stop { background: #e5484d; font-weight: 700; }
+.fb-brec-bar .fb-brec-stop:hover { background: #d13a3f; }
+.fb-brec-bar .fb-brec-x { padding: var(--sp-4, 4px) var(--sp-10, 10px); }
+@media print { .fb-brec-bar { display: none !important; } }
+@media (pointer: coarse), (max-width: 600px) { .fb-brec-bar button { min-height: 44px; } }
+
 /* ---------- 不具合報告ページ ---------- */
 .fbr-root { max-width: 980px; margin: 0 auto; padding: var(--sp-6, 6px) var(--sp-4, 4px) 48px; }
 .fbr-head h2 { margin: var(--sp-6, 6px) 0 var(--sp-4, 4px); font-size: var(--fs-18, 18px); font-weight: 800; color: var(--brown-21, #3a2c14); }

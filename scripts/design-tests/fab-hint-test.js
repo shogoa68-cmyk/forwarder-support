@@ -187,7 +187,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
         above: a.bottom <= r.top, inView: a.left >= 0 && a.top >= 0 && a.right <= innerWidth, title: card.querySelector('.fbhc-title').textContent, exp: f.getAttribute('aria-expanded') };
     });
     ok('押すとカード「困ったとき」が「？」の上に開く（幅 250px・画面内）', c.title === '困ったとき' && c.exp === 'true' && c.above && c.inView && c.w === 250, c);
-    ok('中身は 6 つ（📖 用語を調べる／🧭 この画面の使い方／🐞／📋／💡／📣）・各 44px 以上', c.rows.length === 6 && /用語を調べる/.test(c.rows[0]) && /この画面の使い方/.test(c.rows[1]) && /不具合・ご意見を送る/.test(c.rows[2]) && /報告の状況/.test(c.rows[3]) && /アイデア/.test(c.rows[4]) && /改修予定/.test(c.rows[5]) && c.minH >= 44, c);
+    ok('中身は 7 つ（📖 用語を調べる／🧭 この画面の使い方／🐞／🔴 再現を記録／📋／💡／📣）・各 44px 以上', c.rows.length === 7 && /用語を調べる/.test(c.rows[0]) && /この画面の使い方/.test(c.rows[1]) && /不具合・ご意見を送る/.test(c.rows[2]) && /再現を記録/.test(c.rows[3]) && /報告の状況/.test(c.rows[4]) && /アイデア/.test(c.rows[5]) && /改修予定/.test(c.rows[6]) && c.minH >= 44, c);
     ok('移した 3 つは id・onclick・href がそのまま', await p.evaluate(() => { const g = id => document.getElementById(id); return /switchCategory\('bugreports'\); fbrSetMode\('bug'\)/.test(g('hdrBugReportsBtn').getAttribute('onclick')) && /fbrSetMode\('idea'\)/.test(g('hdrIdeasBtn').getAttribute('onclick')) && document.querySelector('#fbHelpCard a[href="roadmap.html"]'); }));
     ok('各行にアイコンが 1 つだけ（二重にならない）', await p.evaluate(() => [...document.querySelectorAll('#fbHelpCard a.hdr-roadmap')].every(a => getComputedStyle(a, '::before').content === 'none')));
     if (process.env.OUT) await p.screenshot({ path: path.join(OUT, `help-card-pc${process.env.THEME ? '-industry' : ''}.png`), clip: { x: 900, y: 450, width: 500, height: 450 } });

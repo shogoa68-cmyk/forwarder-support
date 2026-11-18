@@ -57,7 +57,11 @@
     const tabEl = document.querySelector('.tab-content.active');
     const cls = (document.documentElement.className || '').split(/\s+/).filter(c => /^(theme|mode)-/.test(c)).join(' ');
     const ver = ((document.querySelector('script[src*="app.js"]') || {}).src || '').match(/[?&]v=([^&]+)/);
+    // 見張り番（js/bug-recorder.js）で作った再現記録つきの報告だけ、記録の要約を context に添える
+    const fbBody = $('fbBody');
+    const rec = (window.__fbRecCtx && fbBody && fbBody.value.indexOf('【再現手順（自動記録）】') >= 0) ? window.__fbRecCtx : null;
     return {
+      ...(rec ? { recording: rec } : {}),
       tab: tabEl ? tabEl.id.replace(/^tab-/, '') : '',
       nav: ((document.querySelector('.cat-btn.active') || {}).textContent || '').trim().slice(0, 30),
       viewport: window.innerWidth + 'x' + window.innerHeight,
@@ -325,6 +329,7 @@
     return (err && (err.code === 'PGRST204' || err.code === '42703')) || /column .* (does not exist|of relation)|could not find the .* column|schema cache/i.test(m);
   }
   function fbAfterSubmit() {
+    window.__fbRecCtx = null;
     fbResetAttachments();
     if ($('fbTitle')) $('fbTitle').value = '';
     _setIdeaMode(false);
@@ -909,6 +914,12 @@
     send.textContent = '🐞 不具合・ご意見を送る';
     send.addEventListener('click', () => { closeHelpCard(); fbOpenQuick(); });
     c.appendChild(send);
+    // 不具合の再現を記録する「見張り番」（js/bug-recorder.js・Ctrl+Shift+L でも開始／終了）
+    const rec = document.createElement('button');
+    rec.type = 'button'; rec.id = 'fbHelpRec'; rec.className = 'fbhc-item'; rec.setAttribute('role', 'menuitem');
+    rec.textContent = '🔴 不具合の再現を記録する（Ctrl+Shift+L）';
+    rec.addEventListener('click', () => { closeHelpCard(); if (typeof window.bugRecToggle === 'function') window.bugRecToggle(); });
+    c.appendChild(rec);
     const header = document.querySelector('.header');
     const rename = (a, text) => { const n = a && Array.prototype.find.call(a.childNodes, x => x.nodeType === 3); if (n) n.nodeValue = text; };
     const bug = $('hdrBugReportsBtn'), idea = $('hdrIdeasBtn');
