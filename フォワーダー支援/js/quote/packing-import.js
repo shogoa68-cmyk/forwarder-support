@@ -241,6 +241,9 @@
   function _rebuildEntries() {
     const dataLines = _lines.filter((_, i) => i !== _headerIdx);
     _entries = dataLines.map(row => {
+      // 合計行（TOTAL・合計・小計 など）は梱包ではないので取り込まない（取り込むと CBM・重量が二重に数えられる）
+      const first = (row.find(c => c && String(c).trim()) || '').trim();
+      if (/^(?:grand\s*|sub\s*-?\s*)?total\b|^(?:合計|総計|小計|計)(?:[\s:：]|$)/i.test(first)) return null;
       const e = { pkg: '', qty: 1, l: '', w: '', h: '', kg: '', stack: '可', _checked: true };
       let any = false;
       _colMap.forEach((field, i) => {

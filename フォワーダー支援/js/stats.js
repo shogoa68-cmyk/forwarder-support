@@ -2886,12 +2886,14 @@
   }
   function _idxKeyOfText(t) {
     let x = String(t || '').normalize('NFKC').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
-    x = x.replace(/^[\s()\[\]「」『』・.\-_/*]+/, '').replace(/^(株式会社|有限会社|合同会社|\(株\)|\(有\)|\(合\))[\s]*/, '').replace(/^[\s()\[\]「」『』・.\-_/*]+/, '');
+    const _corp = /^\s*(株式会社|有限会社|合同会社|\(株\)|\(有\)|\(合\))\s*/;
+    x = x.replace(_corp, '').replace(/^[\s()\[\]「」『』・.\-_/*]+/, '').replace(_corp, '').replace(/^[\s()\[\]「」『』・.\-_/*]+/, '');
     const c = x.charAt(0);
     if (!c) return '他';
     const row = _IDX_ROWS.find(r => r[1].indexOf(c) >= 0);
     if (row) return row[0];
-    if (/[a-zA-Z]/.test(c)) return c.toUpperCase();
+    const cb = c.normalize('NFD').charAt(0);   // É→E（アクセント付きの英字も英字の見出しへ）
+    if (/[a-zA-Z]/.test(cb)) return cb.toUpperCase();
     if (/[0-9]/.test(c)) return '0-9';
     return '他';
   }
@@ -2977,8 +2979,9 @@
     const add = (k, label, val) => list.push('<span class="mc-chip" data-k="' + k + '"><b>' + _esc(label) + '</b>' + _esc(val) + '<button type="button" class="mc-x" aria-label="' + _esc(label) + 'の条件を外す" onclick="statsMasterClearCond(\'' + k + '\')">✕</button></span>');
     if (_masterFieldFilter !== 'all') { const f = _REG_FIELDS.find(x => x[0] === _masterFieldFilter); add('field', '種別', f ? f[1] : _masterFieldFilter); }
     if (_masterQuery.trim()) add('q', '検索', _masterQuery.trim());
-    if (_masterRegion) add('region', '地域', _masterRegion);
-    if (_masterSub) add('sub', '小地域', _masterSub);
+    const _kjaOf = (arr, k) => k === 'ZZ' ? 'その他' : ((arr || []).find(c => c.key === k) || { ja: k }).ja;   // 内部コード（AS／EAS）ではなく日本語名で出す
+    if (_masterRegion) add('region', '地域', _kjaOf(window.COUNTRY_CONTINENTS, _masterRegion));
+    if (_masterSub) add('sub', '小地域', _kjaOf(window.COUNTRY_SUBREGIONS, _masterSub));
     if (_masterDeal) { const dd = _DEAL_DEFS.find(x => x[0] === _masterDeal); add('deal', '取引形態', dd ? dd[1] : _masterDeal); }
     if (_masterSvType) add('type', _SUB_FILTER[_masterFieldFilter] ? _SUB_FILTER[_masterFieldFilter].label : '絞り込み', _masterSvType === _SV_NONE ? '未設定' : _subLabel(_masterFieldFilter, _masterSvType));
     if (_masterAreaKind || _masterArea) add('area', '得意エリア', _masterArea ? (_masterArea === _SV_NONE ? '未設定' : (typeof window.areaLabel === 'function' ? window.areaLabel(_masterArea) : _masterArea)) : (_masterAreaKind === 'DOM' ? '国内' : _masterAreaKind === 'OVS' ? '海外' : '未設定'));

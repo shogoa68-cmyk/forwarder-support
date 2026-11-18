@@ -5606,6 +5606,7 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
   z-index: 10050; min-width: 260px; max-width: min(420px, calc(100vw - 16px));
   background: var(--surface); border: 1px solid var(--border-md); border-radius: var(--r-8);
   box-shadow: 0 8px 24px rgba(0, 0, 0, .22); font-size: var(--fs-12); color: var(--text);
+  max-height: calc(100vh - 16px); overflow-y: auto;   /* リンクが多くても画面からはみ出さず、「＋ ブックマークを追加」まで届く */
 }
 .sv-bm-pop-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); padding: var(--sp-8) var(--sp-12); border-bottom: 1px solid var(--border); font-weight: 700; }
 .sv-bm-pop-close { border: 0; background: transparent; cursor: pointer; color: var(--text-md); font-size: var(--fs-13); }
