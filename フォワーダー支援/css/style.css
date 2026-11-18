@@ -1640,7 +1640,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .bm-empty {
   grid-column: 1 / -1;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text-md);
   padding: 40px var(--sp-16);
   font-size: var(--fs-13);
 }

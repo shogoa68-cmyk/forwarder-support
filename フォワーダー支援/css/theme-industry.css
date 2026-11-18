@@ -583,6 +583,9 @@ html.theme-industry {
   background: #4a637c;
   border-color: #4a637c;
 }
+:where(html.theme-industry) .bm-empty {
+  color: var(--text-muted);
+}
 :where(html.theme-industry) .bm-card {
   border-radius: 0;
 }
@@ -10621,4 +10624,15 @@ html.theme-industry {
   font-size: var(--text-sm, 13px);
   font-weight: 700;
   color: #1a7f6e;
+}
+:where(html.theme-industry) #tab-cptest .cpt-btn.is-primary.is-primary,
+:where(html.theme-industry) #tab-bugreports .fbr-btn-primary,
+:where(html.theme-industry) #tab-bugreports .fbr-chip.is-on,
+:where(html.theme-industry) #tab-bugreports .fbr-mode.is-on .fbr-mode-n {
+  background: #4a6d91;
+  border-color: #4a6d91;
+}
+:where(html.theme-industry) #tab-cptest .cpt-btn.is-g.is-g,
+:where(html.theme-industry) #tab-bugreports .fbr-mode.is-on {
+  color: #3e5f82;
 }
