@@ -850,6 +850,7 @@
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
     if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
+    if (typeof window.qmfSync === 'function') window.qmfSync();
     if (typeof window.ciSync === 'function') window.ciSync();
     if (typeof window.cfSync === 'function') window.cfSync();
     if (typeof window.htSync === 'function') window.htSync();
@@ -1144,6 +1145,19 @@
     const src = document.getElementById('qf-memo');
     const fta = document.getElementById('qf-memo-float-ta');
 
+    // 付箋は「管理番号入力」セクションの中に書かれているため、そのままだと新画面でステップを切り替えたとき（セクションごと隠れる）や、
+    // セクションを畳んだときに一緒に消える。見積タブ直下へ移し、どのステップでも・畳んでいても表示する。
+    // （ダッシュボード・ほかのタブでは出さない＝css/quote.css の `#tab-quote-make.qp-dash > #qfMemoFloat`）
+    {
+      const fl0 = document.getElementById('qfMemoFloat'), tab0 = document.getElementById('tab-quote-make');
+      if (fl0 && tab0 && fl0.parentElement !== tab0) tab0.appendChild(fl0);
+    }
+    // 案件を開く・新規にするとき、開いている付箋の中身も新しい案件のメモに合わせる
+    window.qmfSync = function () {
+      const fl = document.getElementById('qfMemoFloat');
+      if (fl && !fl.hasAttribute('hidden') && fta && src) fta.value = src.value;
+    };
+
     // #qf-memo → float 同期（float が開いているときのみ）
     if (src) {
       src.addEventListener('input', () => {
@@ -1198,6 +1212,16 @@
         e.preventDefault();
       });
     }
+
+    // 画面の幅・高さが小さくなったとき（ウィンドウを縮める・スマホを横向きにする）、ドラッグで動かした付箋が画面外に残って
+    // 閉じるボタンまで押せなくならないよう、画面の中へ引き戻す（ドラッグ前＝CSS の位置のままなら何もしない）
+    window.addEventListener('resize', () => {
+      const f = document.getElementById('qfMemoFloat');
+      if (!f || f.hasAttribute('hidden') || !f.style.left) return;
+      const w = f.offsetWidth || 80, h = f.offsetHeight || 40;
+      f.style.left = Math.max(0, Math.min(window.innerWidth  - w, parseFloat(f.style.left) || 0)) + 'px';
+      f.style.top  = Math.max(0, Math.min(window.innerHeight - h, parseFloat(f.style.top)  || 0)) + 'px';
+    });
 
     // IntersectionObserver：メモ欄が画面外に出たら自動表示（メモ欄を画面から隠した今は使わない。付箋は右下の「案件名・社内メモ」ボタンで開く。
     //   開く度に勝手に出てきて「消せない」ように見えるため、自動表示は廃止）

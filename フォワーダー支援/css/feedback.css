@@ -99,7 +99,7 @@ body.rms-open .fb-fab-hint { z-index: 999; }
 /* ---------- 不具合報告ページ ---------- */
 .fbr-root { max-width: 980px; margin: 0 auto; padding: var(--sp-6, 6px) var(--sp-4, 4px) 48px; }
 .fbr-head h2 { margin: var(--sp-6, 6px) 0 var(--sp-4, 4px); font-size: var(--fs-18, 18px); font-weight: 800; color: var(--brown-21, #3a2c14); }
-.fbr-lead { margin: 0 0 var(--sp-10, 10px); font-size: var(--fs-12, 12px); color: var(--text-muted, #777); line-height: 1.6; }
+.fbr-lead { margin: 0 0 var(--sp-10, 10px); font-size: var(--fs-12, 12px); color: var(--text-md, #6a5745); line-height: 1.6; }
 .fbr-head-actions { display: flex; flex-wrap: wrap; gap: var(--sp-8, 8px); margin-bottom: var(--sp-12, 12px); }
 .fbr-btn {
   border: 1px solid var(--border-md, #ccc); background: var(--surface, #fff); color: var(--text, #333);
@@ -163,7 +163,7 @@ body.rms-open .fb-fab-hint { z-index: 999; }
 .fb-status-need_info { background: #e8f1fb; color: #1b5fa8; }
 .fbr-card.fbr-st-need_info { border-left-color: #2e86de; }
 .fbr-badge-need_info { background: #e8f1fb; color: #1b5fa8; }
-.fbr-ask { font-size: var(--fs-11, 11px); font-weight: 700; color: #fff; background: #2e86de; border-radius: 999px; padding: 1px var(--sp-10, 10px); white-space: nowrap; animation: fbrAskPulse 2s ease-in-out infinite; }
+.fbr-ask { font-size: var(--fs-11, 11px); font-weight: 700; color: #fff; background: #1f6fc4; border-radius: 999px; padding: 1px var(--sp-10, 10px); white-space: nowrap; animation: fbrAskPulse 2s ease-in-out infinite; }
 @keyframes fbrAskPulse { 50% { box-shadow: 0 0 0 4px rgba(46,134,222,.22); } }
 .fbr-banner { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12, 12px); flex-wrap: wrap; margin-bottom: var(--sp-12, 12px); padding: var(--sp-10, 10px) var(--sp-14, 14px); background: #e8f1fb; border: 1px solid #9cc4ee; border-radius: var(--r-8, 8px); font-size: var(--fs-13, 13px); color: #174f8c; }
 .fbr-banner[hidden] { display: none; }
@@ -217,7 +217,7 @@ body.rms-open .fb-fab-hint { z-index: 999; }
    ================================================================ */
 /* 表示の切り替えタブ */
 .fbr-modes { display: flex; gap: var(--sp-4, 4px); margin-bottom: var(--sp-12, 12px); border-bottom: 2px solid var(--border-md, #ddd); }
-.fbr-mode { border: 0; background: transparent; font: inherit; font-size: var(--fs-14, 14px); font-weight: 700; color: var(--text-muted, #777); padding: var(--sp-8, 8px) var(--sp-16, 16px); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+.fbr-mode { border: 0; background: transparent; font: inherit; font-size: var(--fs-14, 14px); font-weight: 700; color: var(--text-md, #6a5745); padding: var(--sp-8, 8px) var(--sp-16, 16px); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
 .fbr-mode:hover { color: var(--text, #333); }
 .fbr-mode.is-on { color: var(--accent, #8a6d3b); border-bottom-color: var(--accent, #8a6d3b); }
 .fbr-mode-n { display: inline-block; min-width: 18px; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--border-md, #e4e4e4); color: var(--text, #333); font-size: 12px; font-weight: 700; line-height: 18px; text-align: center; }

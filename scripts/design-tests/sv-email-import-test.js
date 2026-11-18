@@ -25,12 +25,14 @@ const http = require('http'), fs = require('fs'), path = require('path');
       { field: 'carrier', value: 'ONE', voter_email: ME }, { field: 'nm', value: 'THC', voter_email: ME },
       { field: 'nm', value: '海上運賃', voter_email: ME }, { field: 'port', value: 'Yokohama', voter_email: ME },
       { field: 'sv', value: 'テスト運送', voter_email: ME }, { field: 'sv', value: 'ABCキャリア', voter_email: ME },
+      { field: 'un', value: "40'HQ", voter_email: ME },
     ],
     synonym_groups: [
       { id: 'g1', field: 'carrier', canonical: 'ONE', aliases: ['Ocean Network Express'] },
       { id: 'g2', field: 'nm', canonical: 'THC', aliases: ['Terminal Handling Charge', 'ターミナルハンドリングチャージ'] },
       { id: 'g3', field: 'port', canonical: 'Yokohama', aliases: ['横浜'] },
       { id: 'g4', field: 'sv', canonical: 'ABCキャリア', aliases: ['ABC Line'] },
+      { id: 'g5', field: 'un', canonical: "40'HQ", aliases: ['40HQ', '40HC'] },
     ],
     master_details: [
       { field: 'nm', value: 'THC', details: { defaultUnit: 'CNTR', defaultCat: 'export-local', enName: 'Terminal Handling Charge' } },
@@ -209,6 +211,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('通常のメール取込では、お客様・REF#・有効期限・「単価を売値として取り込む」も従来どおり表示される', await p.evaluate(() => ['#eiF-customer', '#eiF-ref', '#eiF-valid', '#eiSellMode'].every(s => { const e = document.querySelector(s); return !!e && e.offsetParent !== null; })), null);
     ok('通常のメール取込（サブコンを決めない入口）では、一括設定の欄は空のまま', await p.evaluate(() => document.getElementById('eiBulkSv').value === ''), await p.evaluate(() => document.getElementById('eiBulkSv').value));
     ok('通常のメール取込を開き直すと、サブコン専用の表示は残らない', !plain.ctx && plain.box && !/テスト運送/.test(plain.title), plain);
+    // サブコン専用の取込を閉じたあと、別の入口（保管した原文の取り込み）を開いても、前のサブコンが持ち越されない
+    await p.evaluate(() => { window.closeEmailImport(); window.eiOpenForSubcon('テスト運送'); window.closeEmailImport(); document.getElementById('eiText').value = '海上運賃 USD 1,200 /20GP'; document.getElementById('emailImportModal').classList.add('open'); window.eiParse(); }); await p.waitForTimeout(300);
+    ok('サブコン専用の取込を閉じたあと、次の取込にサブコン名が自動で入らない（専用の見た目も残らない）', await p.evaluate(() => document.querySelector('#eiReviewWrap .ei-sv').value === '' && !document.getElementById('emailImportBox').classList.contains('ei-sv-ctx')), null);
 
     // ===== 取り込みの入口（テキスト／PDF／荷姿） =====
     await p.evaluate(() => { window.closeEmailImport(); window.openImportChooser(); }); await p.waitForTimeout(200);
@@ -422,6 +427,86 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => document.querySelector('#eiReviewWrap .ei-unread-copy').click()); await p.waitForTimeout(300);
     const clip = await p.evaluate(() => window.__clip);
     ok('「📋 改善用にコピー」で、数字を 9 に伏せた形がコピーされる', /数字は 9 に伏せています/.test(clip) && /・特殊作業 ABC999 XYZ 999 要相談/.test(clip) && !/[0-8]/.test(clip.split('\n').slice(1).join('')), clip);
+
+    // ===== 行の評価（✅合っている／❌明細ではない）→ 覚える → 次回から反映 =====
+    const abcRules = () => p.evaluate(() => ((window.__db.master_details.find(r => r.field === 'sv' && r.value === 'ABCキャリア') || {}).details || {}).importRules || null);
+    const RATE_TXT = "海上運賃 USD 1,200 /20GP\nTHC USD 150 /20GP\n注意書き USD 50 at cost\nTYPE 40HQ 99";
+    await p.evaluate(t => { window.closeEmailImport(); window.eiOpenForSubcon('ABCキャリア'); document.getElementById('eiText').value = t; window.eiParse(); }, RATE_TXT); await p.waitForTimeout(500);
+    const r0 = await p.evaluate(() => ({ rows: document.querySelectorAll('#eiReviewWrap .ei-table tbody tr').length, btns: document.querySelectorAll('#eiReviewWrap .ei-rate-btn').length, src: [...document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')].map(t => t.dataset.src) }));
+    ok('サブコン専用の取込では、各行に ✅／❌ の評価ボタンが出て、元の行の文を持つ', r0.rows >= 3 && r0.btns === r0.rows * 2 && /海上運賃/.test(r0.src[0]), r0);
+    const r1 = await p.evaluate(() => {
+      const trs = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr');
+      trs[0].querySelector('.ei-rate-btn[data-k="ok"]').click();
+      trs[2].querySelector('.ei-rate-btn[data-k="ng"]').click();
+      return { okOn: trs[0].querySelector('.ei-rate-btn[data-k="ok"]').classList.contains('on'), ngChk: trs[2].querySelector('.ei-chk').checked, ngRate: trs[2].dataset.rate };
+    });
+    ok('❌ を押した行は、挿入のチェックが外れて印が付く（もう一度押すと取り消し）', r1.okOn && r1.ngChk === false && r1.ngRate === 'ng', r1);
+    const r2 = await p.evaluate(() => { const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[2]; tr.querySelector('.ei-rate-btn[data-k="ng"]').click(); const a = tr.querySelector('.ei-chk').checked; tr.querySelector('.ei-rate-btn[data-k="ng"]').click(); return a; });
+    ok('❌ をもう一度押すと取り消されてチェックが戻る', r2 === true, r2);
+    await p.evaluate(() => window.eiLearnFromCorrections()); await p.waitForTimeout(700);
+    let rr = await abcRules();
+    ok('「覚える」で、❌の形が ignore に・✅の形が ok に保存される（数字は 9 に伏せた形）', rr && rr.ignore && rr.ignore.length === 1 && /注意書き USD 99 at cost/.test(rr.ignore[0].shape) && rr.ok && rr.ok.length === 1 && /海上運賃 USD 9,999 \/9GP|海上運賃/.test(rr.ok[0].shape) && !/1,200/.test(rr.ok[0].shape), rr);
+    // 金額が違っても同じ形として当たる
+    await p.evaluate(() => { document.getElementById('eiText').value = "海上運賃 USD 2,500 /20GP\n注意書き USD 80 at cost\nTHC USD 300 /20GP"; window.eiParse(); }); await p.waitForTimeout(500);
+    const r3 = await p.evaluate(() => ({ names: [...document.querySelectorAll('#eiReviewWrap .ei-name')].map(x => x.value), confs: [...document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')].map(t => t.querySelector('.ei-conf')?.textContent), ign: document.querySelector('#eiReviewWrap .ei-ignored')?.textContent || '' }));
+    ok('次回：❌の形の行（金額違い）は自動で除外され、「ルールで除外した行」に出る', r3.names.length === 2 && !r3.names.some(n => /注意書き/.test(n)) && /ルールで除外した行（1 件）/.test(r3.ign), r3);
+    ok('次回：✅の形の行は確度が「高」になる（ほかの行は変わらない）', r3.confs[0] === '高' && r3.confs[1] !== '高', r3.confs);
+    // 読めなかった行を「今後は無視」
+    await p.evaluate(() => { document.getElementById('eiText').value = "海上運賃 USD 2,500 /20GP\nTYPE 40HQ 99 ref"; window.eiParse(); }); await p.waitForTimeout(400);
+    const hasIgn = await p.evaluate(() => !!document.querySelector('#eiReviewWrap .ei-unread .ei-ign-btn'));
+    if (hasIgn) {
+      await p.evaluate(() => document.querySelector('#eiReviewWrap .ei-unread .ei-ign-btn').click()); await p.waitForTimeout(600);
+      rr = await abcRules();
+      ok('「読めなかった行」の「🚫 今後は無視」で、その形が ignore に保存される', rr.ignore.length === 2, rr.ignore);
+    } else ok('（読めなかった行の無視ボタンの試験は、この文面では読めなかった行が出ないためスキップ）', true, null);
+    // 通常（サブコンなし）の取込には評価ボタンが出ない
+    await p.evaluate(t => { window.closeEmailImport(); window.openEmailImport(); document.getElementById('eiText').value = t; window.eiParse(); }, RATE_TXT); await p.waitForTimeout(400);
+    ok('サブコンを決めない通常の取込には、評価ボタンは出ない', await p.evaluate(() => document.querySelectorAll('#eiReviewWrap .ei-rate-btn').length === 0), null);
+    // マスターのパネル：形の一覧・✕で外して保存
+    await p.evaluate(() => { window.closeEmailImport(); window.statsToggleMasterDetail('sv', 'ABCキャリア'); }); await p.waitForTimeout(700);
+    const pn = await p.evaluate(() => ({ ign: document.querySelectorAll('#irPanel .ir-shapes[data-kind="ignore"] .ir-shape').length, ok: document.querySelectorAll('#irPanel .ir-shapes[data-kind="ok"] .ir-shape').length }));
+    ok('マスターの「メール取込ルール」に、取り込まない形・確認済みの形の一覧が出る', pn.ign >= 1 && pn.ok === 1, pn);
+    await p.evaluate(() => { const m = document.getElementById('mdDetailModal'); m.querySelector('#irPanel .ir-shapes[data-kind="ok"] .ir-shape-del').click(); m.querySelector('#irPanel .ir-save').click(); }); await p.waitForTimeout(700);
+    rr = await abcRules();
+    ok('パネルで ✕ を押した形だけが外れる（ほかの形は残る）', rr.ok.length === 0 && rr.ignore.length >= 1, rr);
+    await p.evaluate(() => window.statsCloseMasterDetail());
+    // ===== 評価の記録（email_feedback_record・数字を 9 に伏せた形だけ） =====
+    const fbCalls = () => p.evaluate(() => (window.__rpc || []).filter(c => c.name === 'email_feedback_record').flatMap(c => c.args.items));
+    let fb = await fbCalls();
+    ok('「覚える」の評価が、伏せた形で記録される（❌＝ignore・直さず✅＝ok）', fb.some(x => x.kind === 'ignore' && /注意書き USD 99 at cost/.test(x.shape)) && fb.some(x => x.kind === 'ok' && /海上運賃/.test(x.shape)) && fb.every(x => !/[0-8]/.test(x.shape + x.hint) && !/1,200|150/.test(x.shape)), fb);
+    await p.evaluate(() => { window.eiOpenForSubcon('ABCキャリア'); document.getElementById('eiText').value = "ドキュメント代 USD 75 /BL"; window.eiParse(); }); await p.waitForTimeout(400);
+    await p.evaluate(() => { const tr = document.querySelector('#eiReviewWrap .ei-table tbody tr'); tr.querySelector('.ei-name').value = 'DOC FEE'; window.eiLearnFromCorrections(); }); await p.waitForTimeout(600);
+    fb = await fbCalls();
+    const fx = fb.find(x => x.kind === 'fix');
+    ok('品名を直した行は fix として記録される（元の行＋「解析 → 直し」・数字は 9 に伏せる）', fx && /ドキュメント代 USD 99 \/BL/.test(fx.shape) && /解析=ドキュメント代/.test(fx.hint) && /直し=DOC FEE/.test(fx.hint), fx);
+    const fbSent0 = (await fbCalls()).length;
+    await p.evaluate(() => window.eiLearnFromCorrections()); await p.waitForTimeout(300);
+    ok('同じ内容は、このページから二度送らない', (await fbCalls()).length === fbSent0, fbSent0);
+    await p.evaluate(() => window.closeEmailImport());
+    // ===== 品名・単位のマスターを参照する（解析時／確認画面で直したとき） =====
+    await p.evaluate(() => { window.openEmailImport(); document.getElementById('eiText').value = "Terminal Handling Charge USD 100\n5. THC: terminal USD 50 /BL\nABC特殊作業 USD 10\n海上運賃 USD 100 /40HQ"; window.eiParse(); }); await p.waitForTimeout(500);
+    const mm = await p.evaluate(() => [...document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')].map(tr => ({ name: tr.querySelector('.ei-name').value, unit: tr.querySelector('.ei-unit').value, cat: tr.querySelector('.ei-cat').value, unreg: tr.querySelector('.ei-name').classList.contains('name-unregistered'), flags: tr.querySelector('.ei-flags').textContent, list: tr.querySelector('.ei-name').getAttribute('list') + '/' + tr.querySelector('.ei-unit').getAttribute('list') })));
+    ok('解析：マスターの別名はマスターの名前にそろい、既定の単位・カテゴリが入る', mm[0].name === 'THC' && mm[0].unit === 'CNTR' && mm[0].cat === 'export-local' && /マスター名/.test(mm[0].flags), mm[0]);
+    ok('解析：行頭の番号と「: 説明」を外して照合する（既定の単位は読めた単位を上書きしない）', mm[1].name === 'THC' && mm[1].unit === 'BL', mm[1]);
+    ok('解析：マスターに無い名前はそのまま・欄に「マスターに無い」印が付く', mm[2].name === 'ABC特殊作業' && mm[2].unreg === true, mm[2]);
+    ok('解析：単位も単位マスターの名前にそろう（40HQ → 40\'HQ）', mm[3].unit === "40'HQ", mm[3]);
+    ok('品名・単位の欄はマスターの入力候補を引く（datalist）', mm[0].list === 'nmSuggestions/unit-list', mm[0].list);
+    const ed = await p.evaluate(() => {
+      const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[2];
+      const unit = tr.querySelector('.ei-unit'); unit.value = ''; 
+      const nm = tr.querySelector('.ei-name'); nm.value = 'Terminal Handling Charge'; nm.dispatchEvent(new Event('change', { bubbles: true }));
+      return { name: nm.value, unit: unit.value, cat: tr.querySelector('.ei-cat').value, unreg: nm.classList.contains('name-unregistered') };
+    });
+    ok('品名を直すと、マスターの名前にそろい、空の単位・カテゴリにマスターの既定が入る', ed.name === 'THC' && ed.unit === 'CNTR' && ed.cat === 'export-local' && ed.unreg === false, ed);
+    const ed2 = await p.evaluate(() => {
+      const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[2];
+      const unit = tr.querySelector('.ei-unit'); unit.value = '40HC'; unit.dispatchEvent(new Event('change', { bubbles: true }));
+      const nm = tr.querySelector('.ei-name'); const cat = tr.querySelector('.ei-cat'); cat.value = 'other'; cat.dispatchEvent(new Event('change', { bubbles: true }));
+      nm.value = 'THC'; nm.dispatchEvent(new Event('change', { bubbles: true }));
+      return { unit: unit.value, cat: cat.value };
+    });
+    ok('単位を直すと単位マスターの名前にそろう／手で選んだカテゴリは品名を直しても上書きしない', ed2.unit === "40'HQ" && ed2.cat !== 'export-local', ed2);
+    await p.evaluate(() => window.closeEmailImport());
     ok('画面のエラーが出ていない', errs.length === 0, errs);
     await ctx.close();
   }

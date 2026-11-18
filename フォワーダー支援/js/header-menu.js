@@ -26,11 +26,20 @@
       e.stopPropagation();
       var open = panel.hidden; closeAll(panel);
       panel.hidden = !open; btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) place(panel);
     });
     // パネル内の項目を押したら閉じる（入力欄は無いので常に閉じてよい）
     panel.addEventListener('click', function () { closeAll(null); });
     panels.push({ panel: panel, btn: btn });
     return { wrap: wrap, btn: btn, panel: panel };
+  }
+  // パネルは既定でボタンの右端にそろえるが、ヘッダーが折り返してボタンが左側にあるとき（タブレット幅）は
+  // 画面の左へはみ出して切れるため、左端にそろえ直す（スマホ幅は CSS で画面いっぱいに固定表示）
+  function place(panel) {
+    panel.style.left = ''; panel.style.right = '';
+    if (window.innerWidth <= 600) return;
+    var r = panel.getBoundingClientRect();
+    if (r.left < 8) { panel.style.right = 'auto'; panel.style.left = '0'; }
   }
   function label(text) { var p = document.createElement('p'); p.className = 'hdr-panel-label'; p.textContent = text; return p; }
 

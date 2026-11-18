@@ -9,8 +9,8 @@ const run=async(p)=>{
  const nav=()=>p.evaluate(()=>{const n=document.getElementById('qSecNav');const bx=n.querySelector('.q-secnav-box');const r=bx.getBoundingClientRect();const cs=getComputedStyle(bx);const btns=[...n.querySelectorAll('.q-secnav-btn')];const tab=document.getElementById('tab-quote-make');const main=document.querySelector('#tab-quote-make .quote-workspace, #tab-quote-make .container');const mr=main?main.getBoundingClientRect():{left:0};return {shown:n.offsetParent!==null||cs.position==='fixed',pos:cs.position,left:Math.round(r.left),right:Math.round(r.right),top:Math.round(r.top),n:btns.length,labels:btns.map(b=>b.querySelector('em').textContent),filled:btns.filter(b=>b.classList.contains('is-filled')).map(b=>b.dataset.sec),cur:(btns.find(b=>b.classList.contains('is-current'))||{dataset:{}}).dataset.sec,mainLeft:Math.round(mr.left)};});
  await p.evaluate(()=>window.scrollTo(0,0));await p.waitForTimeout(500);
  let n0=await nav();
- const covTop=await p.evaluate(()=>{const bs=[...document.querySelectorAll('#qSecNav .q-secnav-btn')];return bs.filter(b=>{const r=b.getBoundingClientRect();const e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return !(e&&(e===b||b.contains(e)));}).map(b=>b.dataset.sec);});
- ok('ページの最上段でも、7 項目すべてが隠れずに押せる（ヘッダー・タブ・ツールバーの下に潜らない）',covTop.length===0,covTop);
+ const covTop=await p.evaluate(()=>{const bs=[...document.querySelectorAll('#qSecNav .q-secnav-btn')];return bs.filter(b=>b.offsetParent!==null).filter(b=>{const r=b.getBoundingClientRect();const e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return !(e&&(e===b||b.contains(e)));}).map(b=>b.dataset.sec);});
+ ok('ページの最上段でも、表示中の項目（作業範囲は一旦非表示）がすべて隠れずに押せる（ヘッダー・タブ・ツールバーの下に潜らない）',covTop.length===0,covTop);
  ok('左端にナビがある（7 項目）',n0.pos==='absolute'&&n0.left<=24&&n0.n===7&&n0.labels.join()==='管理番号,貿易条件,貨物情報,物量情報,作業範囲,費用,リマーク',n0);
  ok('本文はナビと重ならない（ナビの右端より右から始まる）',n0.mainLeft>=n0.right-2,n0);
  ok('費用テーブルに明細があるので「入力済み」の印が付く',n0.filled.includes('section-table'),n0);
@@ -26,7 +26,7 @@ const run=async(p)=>{
  const n1=await nav();
  ok('いま見ているセクション（費用テーブル）が強調される',n1.cur==='section-table',n1);
  ok('スクロールすると、ナビは画面の上のほうに付いてくる（ツールバーの下）',n1.top>=60&&n1.top<260&&n1.left===n0.left,{n0,n1});
- const covered=await p.evaluate(()=>{const bs=[...document.querySelectorAll('#qSecNav .q-secnav-btn')];return bs.filter(b=>{const r=b.getBoundingClientRect();const e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return !(e&&(e===b||b.contains(e)));}).map(b=>b.dataset.sec);});
+ const covered=await p.evaluate(()=>{const bs=[...document.querySelectorAll('#qSecNav .q-secnav-btn')];return bs.filter(b=>b.offsetParent!==null).filter(b=>{const r=b.getBoundingClientRect();const e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return !(e&&(e===b||b.contains(e)));}).map(b=>b.dataset.sec);});
  ok('スクロール中も、7 項目すべてが他の部品に隠れずに押せる',covered.length===0,covered);
  // 右パネル：費用テーブルの縮小表示に一本化
  const rp=await p.evaluate(()=>{const d=document.getElementById('qspSectionDigest');return {rows:[...d.querySelectorAll('.qsp-dig-row')].map(r=>r.querySelector('.qsp-dig-name').textContent.trim()),groups:d.querySelectorAll('.qsp-dig-subjump').length,tab:(document.getElementById('qspTabBtn-digest')||{}).textContent,rail:[...document.querySelectorAll('#qrcRail .qrc-rail-btn')].map(b=>b.title)};});

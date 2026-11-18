@@ -67,6 +67,18 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('基準額の欄は参照行の金額（円換算）', Math.abs(parseFloat(await get('ppbase', B)) - Math.round(975 * eurJpy * 100) / 100) < 0.01, await get('ppbase', B));
   ok('適用の判定は従量（最低料金の方が小さい）', await p.evaluate(([q, price, min]) => window.minAppliedKind(q, price, min), [1, ppB, 3000]) === 'rate', ppB);
 
+  // 参照行の売通貨だけを変える（仕入は EUR のまま・売は USD の別建て）と、基準額の換算も変わる
+  {
+    const ppBefore = parseFloat(await get('pp', B));
+    await p.evaluate(i => { const el = document.getElementById('bc-' + i); el.value = 'USD'; el.dispatchEvent(new Event('change', { bubbles: true })); }, A);
+    await p.waitForTimeout(200);
+    const refAmt = await p.evaluate(i => applyRowMin(parseFloat(document.getElementById('bq-' + i).value) * parseFloat(document.getElementById('bp-' + i).value), i, 'sell'), A);
+    const exp = Math.round(refAmt * (await p.evaluate(() => toJPY(1, 'USD'))) * 0.05);
+    ok('参照行の売通貨を変えると、% の行の仕入単価も追従する', parseFloat(await get('pp', B)) === exp && exp !== ppBefore, { pp: await get('pp', B), exp, ppBefore });
+    await p.evaluate(i => { const el = document.getElementById('bc-' + i); el.value = 'EUR'; el.dispatchEvent(new Event('change', { bubbles: true })); }, A);
+    await p.waitForTimeout(200);
+    ok('売通貨を戻すと元の仕入単価に戻る', parseFloat(await get('pp', B)) === ppBefore, { pp: await get('pp', B), ppBefore });
+  }
   // 参照行の数量を変えると追従
   await set('pq', A, 100);
   await p.waitForTimeout(200);
