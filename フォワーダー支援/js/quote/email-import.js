@@ -52,9 +52,9 @@
   const _CCY_ALL = CCY_RE + '|RMB';
   const _SYM_MAP = { 'US$': 'USD', '$': 'USD', 'HK$': 'HKD', 'NT$': 'TWD', 'SG$': 'SGD', 'S$': 'SGD', 'AU$': 'AUD', 'A$': 'AUD', '€': 'EUR', '£': 'GBP' };
   const _MONEY_SRC =
-    '(?:(?<s1>[¥￥])\\s?(?<n1>' + _NUM.slice(1, -1) + '))' +
-    '|(?:(?<s2>HK\\$|NT\\$|SG\\$|AU\\$|US\\$|S\\$|A\\$|\\$|€|£)\\s?(?<n2>' + _NUM.slice(1, -1) + '))' +
-    '|(?:\\b(?<c3>' + _CCY_ALL + ')(?![A-Za-z])\\s?(?<n3>' + _NUM.slice(1, -1) + '))' +
+    '(?:(?<s1>[¥￥])\\s?(?<m1>[-−])?(?<n1>' + _NUM.slice(1, -1) + '))' +
+    '|(?:(?<s2>HK\\$|NT\\$|SG\\$|AU\\$|US\\$|S\\$|A\\$|\\$|€|£)\\s?(?<m2>[-−])?(?<n2>' + _NUM.slice(1, -1) + '))' +
+    '|(?:\\b(?<c3>' + _CCY_ALL + ')(?![A-Za-z])\\s?(?<m3>[-−])?(?<n3>' + _NUM.slice(1, -1) + '))' +
     '|(?:(?<n4>' + _NUM.slice(1, -1) + ')\\s?(?<c4>' + _CCY_ALL + ')\\b)' +
     '|(?:(?<n5>' + _NUM.slice(1, -1) + ')\\s?(?<c5>円|元))';
   // 金額のすぐ後ろの「〜上限」（〜 ~ ～ - – to）。単位（20GP など）を範囲と取り違えないよう、直後に英数字が続くものは範囲にしない
@@ -75,11 +75,17 @@
       else if (g.n4) { ccy = g.c4.toUpperCase(); num = g.n4; }
       else { ccy = 'JPY'; num = g.n5; if (g.c5 === '元') ccy = 'CNY'; }
       if (ccy === 'RMB') ccy = 'CNY';
-      const v = _num(num);
+      let v = _num(num);
+      // マイナス（値引き）：金額の直前にくっついた「-」「−」「△」「▲」（「USD -50」「-USD 100」「¥-5,000」「△¥5,000」）。
+      //  「海上運賃 - USD 1,200」のように空白をはさんだ区切りのハイフンは、符号にしない
+      let start = m.index, neg = !!(g.m1 || g.m2 || g.m3);
+      const pm = !neg && /(?:^|[\s:：(（])([-−△▲])$/.exec(s.slice(0, m.index));
+      if (pm) { neg = true; start = m.index - 1; }
+      if (neg && v != null) v = -v;
       let end = m.index + m[0].length, hi = null;
-      const rm = _RANGE_RE.exec(s.slice(end));
+      const rm = v != null && v >= 0 ? _RANGE_RE.exec(s.slice(end)) : null;
       if (rm) { const h = _num(rm[1]); if (h != null && v != null && h > v) { hi = h; end += rm[0].length; } }
-      out.push({ v, hi, ccy, start: m.index, end });
+      out.push({ v, hi, ccy, start, end });
       re.lastIndex = end;
     }
     return out;
@@ -326,14 +332,14 @@
 
       // スキップ：罫線・サマリ・署名・注記
       if (/^[─═―_\-=]{4,}/.test(t)) return;
-      if (/^(　)?(小計|課税対象小計|御見積額|消費税|仕入合計|売値合計|合計|総合計|総額|ご?請求(合計|金額)|(grand\s*|sub\s*-?\s*)?total\b|ttl\b)/i.test(t)) return;
+      if (/^(　)?(小計|課税対象小計|御見積額|消費税|仕入合計|売値合計|(?:税込|税抜|税別)(?:合計|総額|金額)?|(?:御|ご)?(?:見積|請求|支払い?)(?:合計|総額|金額)|合計|総合計|総額|ご?請求(合計|金額)|(grand\s*|sub\s*-?\s*)?total\b|ttl\b)/i.test(t)) return;
       if (/^※/.test(t)) { pushRemark(t, prevItem >= 0 ? prevItem : null); lastItemIdx = prevItem; return; }   // 続く「※」も同じ明細へ
       if (/^(■(?!.*[×＝])|TEL|FAX|Mail|E-?mail)/i.test(t)) return;
       // サマリの区間行（ラベル＋空白＋¥金額のみ）は明細と重複するためスキップ
       if (/^　.+\s{2,}[¥￥][\d,]+$/.test(line)) return;
 
       // 表（Excel／メール内の表を貼ったタブ区切り、または「|」区切り）。見出し行があれば列の役割を使う
-      if (/\t/.test(t) || /^\|.*\|$/.test(t)) {
+      if (/\t/.test(t) || /^\|.*\|$/.test(t) || (t.match(/\|/g) || []).length >= 2) {   // 先頭・末尾に「|」が無い「A | B | C」の表も
         const cells = _splitCells(t);
         if (cells.length >= 2) {
           if (cells.every(c => /^:?-{2,}:?$/.test(c) || !c)) return;   // 「|---|---|」の区切り行
@@ -387,8 +393,8 @@
       }
 
       // パターンB（自形式・実費）
-      if (/(^|\s)実費(\s|$)/.test(body)) {
-        const nm2 = body.replace(/(^|\s)実費(\s|$)/, ' ').replace(/\s+/g, ' ').trim();
+      if (/(^|[\s:：])実費(\s|$)/.test(body)) {   // 「諸掛り：実費」のようにコロンで区切った書き方も
+        const nm2 = body.replace(/(^|[\s:：])実費(\s|$)/, ' ').replace(/\s+/g, ' ').replace(/[\s:：]+$/, '').trim();
         if (nm2) {
           pushItem({ _kind: 'item', conf: 'high', name: nm2, qty: '', unit: '', ccy: 'JPY', price: null, actual: true, taxed, taxSrc: tax, cond, ref: refFlg, note });
           return;
@@ -539,6 +545,7 @@
   }
   function closeEmailImport() {
     document.getElementById('emailImportModal')?.classList.remove('open');
+    _svCtx = null; _renderSvCtx();   // サブコン専用の状態（サブコン名の自動入力・ルール・専用の見た目）を持ち越さない（次に「保管した原文を取り込む」を開いたとき、前のサブコンが勝手に入るのを防ぐ）
     _setStoreOnly(false);
     _curEntryId = null;
     _fromEntry(false);
@@ -557,7 +564,8 @@
   function _parseEntries(json) {
     try {
       const a = JSON.parse(json || '[]');
-      return Array.isArray(a) ? a.filter(e => e && String(e.text || '').trim()) : [];
+      // id はボタンの onclick に埋めるので、英数字・_・- 以外は除く（保存データに細工があっても、画面のスクリプトとして動かない）
+      return Array.isArray(a) ? a.filter(e => e && String(e.text || '').trim()).map((e, i) => Object.assign({}, e, { id: String(e.id == null ? '' : e.id).replace(/[^\w-]/g, '') || 'fx' + i })) : [];
     } catch (e) { return []; }
   }
   // 旧形式の原文（明細が無いときだけ）
@@ -676,6 +684,7 @@
     const e = _liveEntries().find(x => x.id === id);
     if (!e) return;
     if (!(await _ensureEdit())) return;   // 他メンバーが作業中など、編集できなければ中止
+    _svCtx = null; _renderSvCtx();
     _setStoreOnly(false);
     _curEntryId = id;
     _fromEntry(true);
@@ -874,7 +883,7 @@
         `<td><input type="number" class="ei-in ei-qty" value="${e.qty ?? ''}" step="any"></td>` +
         `<td><input type="text" class="ei-in ei-unit" value="${_esc(e.unit || '')}"></td>` +
         `<td><input type="text" class="ei-in ei-ccy" value="${_esc(e.ccy || 'JPY')}" list="eiCcyList"></td>` +
-        `<td><input type="number" class="ei-in ei-price" value="${e.price != null ? Math.round(e.price * 100) / 100 : ''}" step="any"></td>` +
+        `<td><input type="number" class="ei-in ei-price" value="${e.price != null ? Math.round(e.price * 10000) / 10000 : ''}" step="any"></td>` +
         `<td class="ei-tax-cell"><input type="checkbox" class="ei-tax"${e.taxed ? ' checked' : ''} title="${e.taxSrc === 'on' ? '本文の語（[課税]・課税対象・税別 等）から課税と判定' : e.taxSrc === 'off' ? '本文の語（非課税・免税 等）から非課税と判定' : '判定できなかったため非課税（必要ならチェック）'}"></td>` +
         `<td class="ei-flags" title="解析されたフラグ（都度/参考/実費）">${_esc(flags.trim() || '—')}</td>` +
         `<td><input type="text" class="ei-in ei-note" value="${_esc(e.note || '')}"></td>` +
@@ -1136,6 +1145,9 @@
     return String(line == null ? '' : line).trim().replace(/\s+/g, ' ')
       .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '<mail>')
       .replace(/https?:\/\/\S+/gi, '<url>')
+      .replace(/\S*(?:株式会社|有限会社|合同会社|㈱|[（(]株[）)]|御中)\S*/g, '<社名>')   // 社名・宛名は残さない
+      .replace(/\S+\s?(?:様|殿)(?![぀-ゟ一-鿿])/g, '<宛名>')
+      .replace(/\b[A-Za-z][\w&.,'-]*(?:\s+[A-Za-z][\w&.,'-]*)*\s+(?:Co\.?,?\s*Ltd\.?|Ltd\.?|Inc\.?|Corp\.?|LLC|GmbH|Pte\.?(?:\s*Ltd\.?)?|Limited)(?![A-Za-z])/gi, '<社名>')
       .replace(/[0-9０-９]/g, '9')
       .slice(0, 160);
   }
@@ -1296,7 +1308,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
         zc: '', vf: '', vt: '', ac: src.actual ? '1' : '', pt: group,
         ps: '', co: src.cond ? '1' : '', lu: '', ppmode: useSell ? 'sell' : '', pprate: '', ppbase: '', uid: '', ppref: '',
         ri: src.ref ? '1' : '',
-        bphi: (!src.actual && src.priceHi != null) ? String(Math.round(src.priceHi * 100) / 100) : '',   // 「1,000〜1,200」の上限（売単価〜上限の「幅」）
+        bphi: (!src.actual && src.priceHi != null) ? String(Math.round(src.priceHi * 10000) / 10000) : '',   // 「1,000〜1,200」の上限（売単価〜上限の「幅」）
       };
       CELL_FIELDS.forEach(k => cells.push(f[k]));
       if (!f.nm) return;
