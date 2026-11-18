@@ -122,6 +122,12 @@
     "date": "2026-11-12",
     "hash": "a21e3049c0368f382147acdc41e78bb555c60282"
   },
+  "docs/sql/org-teams.sql": {
+    "status": "applied",
+    "date": "2026-11-18",
+    "hash": "66752a66b237be107119aace40db725976c72571",
+    "note": "ユーザーが Supabase で実行済みと連絡"
+  },
   "docs/sql/quote-preset-editors.sql": {
     "status": "legacy",
     "date": "2026-11-12",

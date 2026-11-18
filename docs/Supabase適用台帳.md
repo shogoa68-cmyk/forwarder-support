@@ -8,10 +8,10 @@
 
 | 状態 | 件数 | 意味 |
 |---|---|---|
-| 🔴 未渡し | 3 | 新しい SQL／関数。まだ Supabase で実行（デプロイ）していない（main にも入っていない分を含む） |
+| 🔴 未渡し | 9 | 新しい SQL／関数。まだ Supabase で実行（デプロイ）していない（main にも入っていない分を含む） |
 | 🟠 変更あり | 0 | 渡し済みの SQL／関数を、そのあと書き換えた。再実行（再デプロイ）が必要か確認する |
 | 📦 過去分 | 52 | 基準日より前に作った分。**管理対象外**（見つけ次第対応）。基準日のあとに書き換えると「変更あり」になる |
-| 🟢 渡し済み | 0 | 実行・デプロイ済み（日付つき） |
+| 🟢 渡し済み | 1 | 実行・デプロイ済み（日付つき） |
 
 ## 使い方
 
@@ -24,21 +24,29 @@
 ※ まだ push していないブランチの SQL は、その作業ツリーでしか見えません。別セッションの SQL は、そのセッションが push した時点で拾えます。
 ※ 台帳ファイルを別ブランチと同時に編集して競合したら、どちらかを採用してから `node scripts/sql-ledger.js` を実行すれば作り直せます（印は json 側。json が競合したら両方の行を残す）。
 
-## 🔴 未渡し（3）
+## 🔴 未渡し（9）
 
 | ファイル | 何のための SQL か | どこにある | メモ |
 |---|---|---|---|
+| `docs/sql/allowed-emails.sql` | 許可リスト（allowed_emails）の鍵（RLS）— 記録用 | claude/security-hardening-1 |  |
+| `docs/sql/email-import-feedback.sql` | 📩 メール取込：行の「評価」の蓄積と、AI が読むための読み取り口（解析パターンを増やすための材料） | main |  |
+| `docs/sql/email-import-unread.sql` | 📩 メール取込：「読み取れなかった行」の蓄積（解析パターンを増やすための材料） | main |  |
 | `docs/sql/master-history.sql` | マスターの変更履歴（追記のみ・書き換え不可）【案・まだ Supabase では実行していない】 | claude/wonderful-wright-e7b23p |  |
-| `docs/sql/org-teams.sql` | 🏢 組織とチーム（名簿の整理・ダッシュボードの「全体／組織／チーム／自分」の絞り込み用） | main |  |
+| `docs/sql/master-request-details.sql` | マスターの申請に「詳細」と「申請メモ」を持たせる（マスター管理の「マスターを申請」から、詳細ごと申請できるように） | main |  |
+| `docs/sql/quote-preset-links-hierarchy.sql` | quote_preset_links に「メイン／サブ」の向きを足す（関連付けた案件を入れ子・ツリーで見せるため） | main |  |
+| `docs/sql/quote-temp-files.sql` | 一時ファイル置き場（案件ごと・3 時間で自動削除）— js/quote/temp-files.js | main |  |
+| `docs/sql/saas-export-core-schema.sql` | SaaS 化 段階 1-0：核になる定義の書き出し（読み取り専用・SELECT だけ） | claude/peaceful-ptolemy-tkb2rk |  |
 | `docs/sql/trash-quote-presets.sql` | 削除の「ゴミ箱」化・段階 1（案件 quote_presets ＋ 連鎖で消える quote_preset_links） | claude/security-policy-ledger |  |
 
 ## 🟠 変更あり（渡したあとに書き換えた）（0）
 
 （なし）
 
-## 🟢 渡し済み（0）
+## 🟢 渡し済み（1）
 
-（なし）
+| ファイル | 何のための SQL か | 渡した日 | メモ |
+|---|---|---|---|
+| `docs/sql/org-teams.sql` | 🏢 組織とチーム（名簿の整理・ダッシュボードの「全体／組織／チーム／自分」の絞り込み用） | 2026-11-18 | ユーザーが Supabase で実行済みと連絡 |
 
 <details><summary>📦 過去分（管理対象外・52 件）・基準日 2026-11-12</summary>
 
