@@ -287,3 +287,8 @@ body.rms-open .fb-help-card { z-index: 999; }
 .memo-label.is-internal { background: #e4e7ec; color: #475467; }
 .memo-label.is-quote { background: #eef3fb; color: #234a8f; }
 @media print { .memo-label { display: none; } }
+
+/* ❓カードの 1 行目（用語を調べる＝薄い青で強調）・2 行目（この画面の使い方。無い画面では薄くして押せなくする） */
+.fb-help-card .fbhc-strong { background: var(--accent-lt, #eef3fb); font-weight: 700; color: var(--accent-dk, #234a8f); }
+.fb-help-card .fbhc-item.is-off { opacity: .45; cursor: not-allowed; }
+.fb-help-card .fbhc-item.is-off:hover { background: transparent; }

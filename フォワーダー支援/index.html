@@ -28,6 +28,7 @@
 <!-- 「かんたん表示」（Claude Design 案）。<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま。 -->
 <link rel="stylesheet" href="css/simple-mode.css">
 <link rel="stylesheet" href="css/feedback.css">
+<link rel="stylesheet" href="css/glossary-drawer.css">
 <link rel="stylesheet" href="css/announcements.css">
 <link rel="stylesheet" href="css/org-teams.css">
 <link rel="stylesheet" href="css/temp-files.css">
@@ -4113,8 +4114,8 @@
                 <th class="hd-base" style="width:188px;">項目名<br><small class="hd-sub">／備考</small></th>
                 <th class="hd-base hd-qty" style="width:65px;">数量·単位<small class="hd-sub hd-qpat" id="hdQtyPat" hidden></small></th>
                 <th class="hd-base hd-stk" style="width:62px;" title="上段＝支払い（仕入）通貨、下段＝請求（売値）通貨">通貨<br><small class="hd-sub"><span class="t-cost">仕</span>／<span class="t-sell">売</span></small></th>
-                <th class="hd-base hd-stk" style="width:118px;" title="上段＝支払い単価（仕入）、中＝＋乗せ幅、下段＝請求単価（売値）。CD は通貨差調整値">単価<br><small class="hd-sub"><span class="t-cost">仕入</span>＋<span class="hd-mk-tag">乗せ幅</span>＝<span class="t-sell">売値</span></small></th>
-                <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。">課税</th>
+                <th class="hd-base hd-stk" style="width:118px;" title="上段＝支払い単価（仕入）、中＝＋乗せ幅、下段＝請求単価（売値）。CD は通貨差調整値">単価<button type="button" class="hint-i" data-hint="price" aria-label="仕・＋・売の説明" aria-haspopup="dialog">ⓘ</button><br><small class="hd-sub"><span class="t-cost">仕入</span>＋<span class="hd-mk-tag">乗せ幅</span>＝<span class="t-sell">売値</span></small></th>
+                <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。">課税<br><button type="button" class="hint-i" data-hint="tax" aria-label="課税の説明" aria-haspopup="dialog">ⓘ</button></th>
                 <th class="hd-bill" style="width:92px;">小計<br><small class="hd-sub t-sell">売</small></th>
                 <th class="hd-profit hd-pr" style="width:80px;">利益</th>
               </tr>
@@ -5152,6 +5153,7 @@
 <script src="js/theme-quiet.js"></script>
 <!-- 欄ごとの説明書きを「？」にしまう（マウスを乗せる／タップで読める） -->
 <script src="js/hint-fold.js"></script>
+<script src="js/help-hints.js"></script>
 <script src="js/workfolder.js"></script>
 <script src="js/integrations/cyberport.js"></script>
 <script src="js/integrations/cp-events.js"></script>

@@ -888,6 +888,22 @@
     const c = document.createElement('div');
     c.id = 'fbHelpCard'; c.className = 'fb-help-card'; c.setAttribute('role', 'menu'); c.hidden = true;
     c.innerHTML = '<p class="fbhc-title">困ったとき</p>';
+    // 1 行目：用語を調べる（全画面から用語の説明ドロワーを開く＝Design 35）／2 行目：この画面の使い方（いまのタブの「このタブの使い方」を開く）
+    const gl = document.createElement('button');
+    gl.type = 'button'; gl.id = 'fbHelpGloss'; gl.className = 'fbhc-item fbhc-strong'; gl.setAttribute('role', 'menuitem');
+    gl.textContent = '📖 用語を調べる';
+    gl.addEventListener('click', () => { closeHelpCard(); if (typeof window.openQuoteGlossary === 'function') window.openQuoteGlossary(); });
+    c.appendChild(gl);
+    const use = document.createElement('button');
+    use.type = 'button'; use.id = 'fbHelpUse'; use.className = 'fbhc-item'; use.setAttribute('role', 'menuitem');
+    use.textContent = '🧭 この画面の使い方';
+    use.addEventListener('click', () => {
+      const el = _tabHelpEl(); if (!el) return;
+      closeHelpCard();
+      el.style.display = ''; el.open = true;
+      setTimeout(() => window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 120, behavior: 'smooth' }), 30);
+    });
+    c.appendChild(use);
     const send = document.createElement('button');
     send.type = 'button'; send.id = 'fbHelpSend'; send.className = 'fbhc-item'; send.setAttribute('role', 'menuitem');
     send.textContent = '🐞 不具合・ご意見を送る';
@@ -902,6 +918,17 @@
     c.addEventListener('click', e => { if (e.target.closest('.fbhc-item')) closeHelpCard(); });
     document.body.appendChild(c);
   }
+  // いま見ているタブの「このタブの使い方」（details.tab-help）。無ければ null
+  function _tabHelpEl() {
+    const t = document.querySelector('.tab-content.active');
+    return t ? t.querySelector('details.tab-help') : null;
+  }
+  function _syncHelpUse() {
+    const b = $('fbHelpUse'); if (!b) return;
+    const has = !!_tabHelpEl();
+    b.classList.toggle('is-off', !has); b.setAttribute('aria-disabled', has ? 'false' : 'true');
+    b.title = has ? '' : 'この画面には使い方の説明がありません';
+  }
   function _helpPlace() {
     const c = $('fbHelpCard'), f = $('fbQuickFab');
     if (!c || !f || c.hidden) return;
@@ -912,7 +939,7 @@
   function openHelpCard() {
     const c = $('fbHelpCard'), f = $('fbQuickFab'); if (!c || !f) return;
     fbHintHide(true);                                  // 「？」を押した＝気づいた
-    c.hidden = false; f.setAttribute('aria-expanded', 'true'); _helpPlace();
+    c.hidden = false; f.setAttribute('aria-expanded', 'true'); _syncHelpUse(); _helpPlace();
   }
   function closeHelpCard() {
     const c = $('fbHelpCard'), f = $('fbQuickFab');
