@@ -209,6 +209,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('通常のメール取込では、お客様・REF#・有効期限・「単価を売値として取り込む」も従来どおり表示される', await p.evaluate(() => ['#eiF-customer', '#eiF-ref', '#eiF-valid', '#eiSellMode'].every(s => { const e = document.querySelector(s); return !!e && e.offsetParent !== null; })), null);
     ok('通常のメール取込（サブコンを決めない入口）では、一括設定の欄は空のまま', await p.evaluate(() => document.getElementById('eiBulkSv').value === ''), await p.evaluate(() => document.getElementById('eiBulkSv').value));
     ok('通常のメール取込を開き直すと、サブコン専用の表示は残らない', !plain.ctx && plain.box && !/テスト運送/.test(plain.title), plain);
+    // サブコン専用の取込を閉じたあと、別の入口（保管した原文の取り込み）を開いても、前のサブコンが持ち越されない
+    await p.evaluate(() => { window.closeEmailImport(); window.eiOpenForSubcon('テスト運送'); window.closeEmailImport(); document.getElementById('eiText').value = '海上運賃 USD 1,200 /20GP'; document.getElementById('emailImportModal').classList.add('open'); window.eiParse(); }); await p.waitForTimeout(300);
+    ok('サブコン専用の取込を閉じたあと、次の取込にサブコン名が自動で入らない（専用の見た目も残らない）', await p.evaluate(() => document.querySelector('#eiReviewWrap .ei-sv').value === '' && !document.getElementById('emailImportBox').classList.contains('ei-sv-ctx')), null);
 
     // ===== 取り込みの入口（テキスト／PDF／荷姿） =====
     await p.evaluate(() => { window.closeEmailImport(); window.openImportChooser(); }); await p.waitForTimeout(200);
