@@ -838,7 +838,9 @@
   function paintDev() {
     var box = $id('cptDev'); if (!box) return;
     $id('cptDevBtn').setAttribute('aria-expanded', ST.devOpen ? 'true' : 'false');
-    $id('cptDevBtn').firstChild.textContent = (ST.devOpen ? '▾ ' : '▸ ');
+    // 先頭の矢印だけ入れ替える（文言ごと上書きすると、ラベルが消えて「▸」だけのボタンになる）
+    var devLbl = $id('cptDevBtn').firstChild;
+    devLbl.textContent = devLbl.textContent.replace(/^[▸▾]\s*/, ST.devOpen ? '▾ ' : '▸ ');
     box.hidden = !ST.devOpen;
     if (!ST.devOpen) return;
     box.innerHTML = '<ul class="cpt-stlist">' + statusRows() + '</ul>' +

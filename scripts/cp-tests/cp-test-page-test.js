@@ -50,9 +50,11 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   ok(/接続は未確認/.test(await txt('#cptConn')) && !(await p.locator('#cptConn').evaluate((e) => e.classList.contains('is-ok'))), '初期：接続は未確認（灰色の札・赤くしない）');
   eq(await p.locator('#tab-cptest .cpt-tab').allInnerTexts(), ['取引', '本船の動静', 'コンテナの状況', 'ウォッチリスト'], 'タブは 取引／本船の動静／コンテナの状況／追いかけ中');
   ok(await p.locator('#cptDev').isHidden(), '開発者向け情報は閉じている');
+  ok(/開発者向け情報/.test(await p.locator('#cptDevBtn').textContent()) && /^▸/.test((await p.locator('#cptDevBtn').textContent()).trim()), '開発者向け情報のボタンに文言が出ている（矢印だけにならない）');
   ok(/読み取りのみ/.test(await txt('.cpt-head')), '「読み取りのみ」の札');
   ok(await p.locator('.cpt-banner, #cptRun, #cptMv, #cptCh').count() === 0, 'テスト用の注意書き・サンプル欄が無い');
   await p.click('#cptDevBtn');
+  ok(/^▾/.test((await p.locator('#cptDevBtn').textContent()).trim()) && /開発者向け情報/.test(await p.locator('#cptDevBtn').textContent()), '開いたあとも文言が残り、矢印が ▾ になる');
   const st0 = await p.$$eval('#cptDev .cpt-st', (els) => els.map((e) => e.className + '|' + e.querySelector('.cpt-st-v').textContent));
   ok(st0[0].includes('is-off') && /未確認/.test(st0[0]) && st0[3].includes('is-ok') && /読み取り専用/.test(st0[3]), '開発者向け情報：4 行の状態（API は未確認・書き込みは使わない）');
   ok(await p.locator('#cptStApi, #cptStFn, #cptStAuth').count() === 3, 'id（cptStApi／cptStFn／cptStAuth）は開発者向け情報の中に残る');

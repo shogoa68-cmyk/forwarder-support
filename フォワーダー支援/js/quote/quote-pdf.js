@@ -112,7 +112,7 @@
     reference:      ['（参考情報）', '(For reference)'],
     noPattern:      ['（パターン未設定）', '(No pattern)'],
     noSubcon:       ['（サブコン未設定）', '(No subcontractor)'],
-    noCategory:     ['— カテゴリ —', '— Uncategorized —'],
+    otherCategory:  ['その他', 'Other'],
     outbound:       ['往路', 'Outbound'],
     returnLeg:      ['復路', 'Return'],
     cmpTitle:       ['■ 御見積案の比較', '■ Quotation Options'],
@@ -180,6 +180,7 @@
   const nl2brLink = s => linkify(esc(s)).replace(/\n/g, '<br>');
   const fmtInt = n => Math.round(n).toLocaleString('ja-JP');
   const fmtNum = (n, d) => Number(n).toLocaleString('ja-JP', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 });
+  const fmtQty = n => Number(n).toLocaleString('ja-JP', { minimumFractionDigits: 0, maximumFractionDigits: 4 });
 
   // 小計テキストに ¥ を付与（「≈ 1,234」→「≈ ¥1,234」、「1,234」→「¥1,234」）
   function _yenSub(txt) {
@@ -243,7 +244,7 @@
     return (!ccy || ccy === 'JPY') ? amount : amount;
   }
   function _catLabel(v) {
-    if (_curLangEn && !v) return t('noCategory');
+    if (!v) return '';   // 未設定は社内用の選択肢名（— カテゴリ —）を客先向け出力に出さない
     if (_curLangEn) return CAT_EN[v] || (typeof getCatLabel === 'function' ? (getCatLabel(v) || '') : (v || ''));
     return (typeof getCatLabel === 'function') ? (getCatLabel(v) || '') : (v || '');
   }
@@ -690,7 +691,7 @@
         + (() => { const k = (typeof minAppliedKind === 'function') ? minAppliedKind(r.bq, r.bp, r.bpmin) : null; return (k === 'min' || (k === 'rate' && !_rg && !isActual)) ? ` <span class="qd-min-tag qd-min-${k}">${t(k === 'min' ? 'minApplied' : 'rateApplied')}</span>` : ''; })();
       // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）
       // 数量は金額の根拠（sub = bq×bp）と一致させる。未入力時に「1」を捏造しない（B/台帳 C）
-      const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
+      const qtyDisp = (r.bq && r.bq > 0) ? fmtQty(r.bq) : '—';   // 小数は最大 4 桁・末尾の 0 は出さない（1 → 1、3.5 → 3.5）
       // サブコン境界：キーが変わったら直前グループの売値小計を挿入
       if (_scActive) {
         const k = _scNorm(r);
@@ -746,8 +747,11 @@
       }
       // カテゴリー境界：サブコン配下でカテゴリが変わったら見出し行を挿入（ツリー第2階層）
       if (r.cat !== _catKey) {
-        const _catTxt = _catLabel(r.cat)
-          .replace(/^[\s\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}️]+/u, '').trim();
+        // カテゴリ未設定の行：サブコンの先頭なら見出しなし（どの見出しの下にも属さない）。
+        // 設定済みの行のあとに未設定の行が来たときだけ「その他」で区切る（前の見出しの配下に見えないように）
+        const _catTxt = r.cat
+          ? _catLabel(r.cat).replace(/^[\s\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}️]+/u, '').trim()
+          : (_catKey === null ? '' : t('otherCategory'));
         if (_catTxt) lineHTML.push(`<tr class="qd-cat-head"><td colspan="5">${esc(_catTxt)}</td></tr>`);
         _catKey = r.cat;
       }
