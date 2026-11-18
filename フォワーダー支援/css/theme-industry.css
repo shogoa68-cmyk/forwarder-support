@@ -10730,3 +10730,10 @@ html.theme-industry.theme-industry-doc #quoteDocOverlay .qd-toggle-l small {
 :where(html.theme-industry) #tab-quote-make .pv-rail-h3 {
   color: #5a6475;
 }
+html.theme-industry.theme-industry {
+  --accent: #3f6590;
+}
+html.theme-industry.theme-industry-doc #quoteDocOverlay #qdPrint,
+html.theme-industry.theme-industry-doc #quoteDocOverlay .qd-print {
+  background: #3f6590;
+}
