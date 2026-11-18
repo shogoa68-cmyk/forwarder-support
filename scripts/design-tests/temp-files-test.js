@@ -66,8 +66,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('[新画面] 閉じている間は取っ手バーを出さない（下の固定物を減らす）', !(await vis(p, '#rmSheet')));
     ok('[新画面] 合計バーには［一時ファイル］を置かない（出力と近い⑤の「出力する」枠へ移した）', !(await p.evaluate(() => !!document.querySelector('#e2Total [data-e2f]'))));
     await p.evaluate(() => { const n = document.querySelector('#e2Steps [data-e2s="5"]'); n && n.click(); }); await p.waitForTimeout(400);
-    ok('[新画面] ステップ⑤の「出力する」枠に［📁 一時ファイル］がある', await vis(p, '#e2Out [data-e2o="files"]'));
+    ok('[新画面] ステップ⑤の「出力する」枠に［📁 案件のファイル］がある', await vis(p, '#e2Out [data-e2o="files"]') && /案件のファイル/.test(await p.textContent('#e2Out [data-e2o="files"]')));
     await p.evaluate(() => document.querySelector('#e2Out [data-e2o="files"]').click()); await p.waitForTimeout(500);
+    ok('[新画面] それを押すと「案件のファイル」の一覧が開く', await vis(p, '#cfOverlay .cf-box'));
+    await p.evaluate(() => { window.cfClose(); window.rmsShowFiles(); }); await p.waitForTimeout(500);
   }
   ok('引き出しの取っ手に「📁 一時ファイル」のタブがある', await vis(p, '#rmSheet .rms-tab[data-pane="files"]'));
   ok(v2 ? '[新画面] リマークのタブは出ず、一時ファイルだけ' : '「📝 全体リマーク」のタブも残っている', v2 ? !(await vis(p, '#rmSheet .rms-tab[data-pane="remark"]')) : await vis(p, '#rmSheet .rms-tab[data-pane="remark"]'));

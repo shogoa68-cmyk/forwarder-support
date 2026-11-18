@@ -227,7 +227,7 @@
   }
   function refresh() {
     if (!isOn() || !built) return;
-    closeRightOnce(); refreshBasics(); refreshTitle(); tagRows(); buildChips(); refreshChips();
+    kickRailTop(); closeRightOnce(); refreshBasics(); refreshTitle(); tagRows(); buildChips(); refreshChips();
     const s = summaries(), box = $('e2Steps'); if (!box) return;
     const REQ = { 1: 1, 2: 1, 4: 1 };   // 印は選択中でも 3 種のまま（選択中は印でなく行の線・背景で示す）
     const toggle = '<button type="button" class="e2-rail-toggle" aria-expanded="' + railOpen + '" title="' + (railOpen ? 'ステップをしまう（[ キー）' : 'ステップを開く（[ キー）') + '"><i>' + (railOpen ? '«' : '»') + '</i><b>しまう</b></button>';
@@ -268,6 +268,11 @@
   // 広い画面に変わったら開いた状態へ、狭くなったら重ねる表示（しまった状態）へ
   const syncRailWidth = () => { if (!isOn() || !built) return; if (wideRail()) { if (!railOpen && railPref() !== '0') setRail(true); else setRail(railOpen); } else if (railOpen) setRail(false); };
   window.addEventListener('resize', () => syncRailWidth());
+  // 右レールの帯は、ツールバー（保存・PDF）の下に付いて動く（スクロール後も上に隙間ができない）
+  let railTopRaf = 0;
+  const syncRailTop = () => { railTopRaf = 0; const tb = $('saveToolbar'), tab = $('tab-quote-make'); if (!tb || !tab) return; const r = tb.getBoundingClientRect(); tab.style.setProperty('--e2-rail-top', Math.max(0, Math.round(r.bottom + 8)) + 'px'); };
+  const kickRailTop = () => { if (!railTopRaf) railTopRaf = requestAnimationFrame(syncRailTop); };
+  window.addEventListener('scroll', kickRailTop, { passive: true }); window.addEventListener('resize', kickRailTop);
   function go(n, quiet) {
     if (n < 1 || n > 5) return;
     step = n; visited[n] = true;
@@ -351,11 +356,11 @@
     const out = document.createElement('div'); out.id = 'e2Out';
     out.innerHTML = '<p class="e2o-t">出力する</p><p class="e2o-d">できあがったら、ここから御見積書を出せます。</p>' +
       '<p class="e2o-warn" hidden>● 未保存の変更があります。先に［💾 保存］をおすすめします。</p>' +
-      '<div class="e2o-btns"><button type="button" data-e2o="pv" class="e2o-pv">📋 プレビュー</button><button type="button" data-e2o="pdf" class="e2o-pdf">📄 PDF 出力</button><button type="button" data-e2o="files" class="e2o-files" title="見積に添える参考資料を、3時間だけ置く場所">📁 一時ファイル</button><button type="button" data-e2o="edit" class="e2o-edit" hidden>✏️ 編集を始める</button><button type="button" data-e2o="save" class="e2o-save">💾 保存</button></div>';
+      '<div class="e2o-btns"><button type="button" data-e2o="pv" class="e2o-pv">📋 プレビュー</button><button type="button" data-e2o="pdf" class="e2o-pdf">📄 PDF 出力</button><button type="button" data-e2o="files" class="e2o-files" title="見積に添えて送るファイル（3時間）や、案件の資料（14日）を、まとめて見る・置く">📁 案件のファイル</button><button type="button" data-e2o="edit" class="e2o-edit" hidden>✏️ 編集を始める</button><button type="button" data-e2o="save" class="e2o-save">💾 保存</button></div>';
     nav.parentNode.insertBefore(out, nav);
     out.addEventListener('click', e => {
       const b = e.target.closest('[data-e2o]'); if (!b) return;
-      if (b.dataset.e2o === 'files') { if (window.rmsIsOpen && window.rmsIsOpen() && window.rmsPane && window.rmsPane() === 'files') window.rmsClose(); else if (window.rmsShowFiles) window.rmsShowFiles(); return; }
+      if (b.dataset.e2o === 'files') { if (typeof window.cfOpen === 'function') window.cfOpen('send'); else if (window.rmsShowFiles) window.rmsShowFiles(); return; }
       if (b.dataset.e2o === 'edit') { if (typeof window.qpDockAction === 'function') window.qpDockAction(); }
       else if (b.dataset.e2o === 'pdf' && typeof window.quickQuotePdf === 'function') window.quickQuotePdf();
       else if (b.dataset.e2o === 'pv' && typeof window.openPreview === 'function') window.openPreview();
