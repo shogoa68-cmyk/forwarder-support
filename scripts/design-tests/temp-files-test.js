@@ -68,6 +68,11 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const g = await p.evaluate(() => { const s = document.getElementById('rmSheet').getBoundingClientRect(), t = document.getElementById('e2Total').getBoundingClientRect(); return { sb: Math.round(s.bottom), tt: Math.round(t.top) }; });
     ok('[新画面] 取っ手は下の合計バーの上に置かれ、重ならない', g.sb <= g.tt + 1, g);
   }
+  // タブでなく取っ手の本体（余白）を押して開いても、中身が空にならない（新画面では、リマークが本文へ移っているのにペインが「リマーク」のままだと空白になっていた）
+  await p.evaluate(() => { window.rmsClose(); }); await p.waitForTimeout(400);
+  await p.evaluate(() => { const h = document.getElementById('rmsHandle'); h.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 5, clientY: 5, pointerId: 7, button: 0 })); h.click(); }); await p.waitForTimeout(500);
+  if (v2) ok('[新画面] 取っ手の本体を押して開いても、一時ファイルの画面が出る（空白にならない）', await p.evaluate(() => window.rmsIsOpen()) && await vis(p, '#tfPane .tf-toolbar'));
+  await p.evaluate(() => { window.rmsClose(); }); await p.waitForTimeout(300);
   await p.click('#rmSheet .rms-tab[data-pane="files"]'); await p.waitForTimeout(500); if (process.env.DBG) { console.log(JSON.stringify(await p.evaluate(() => ({open: window.rmsIsOpen(), pane: window.rmsPane(), h: document.getElementById('rmsBody').getBoundingClientRect().height, tf: document.getElementById('tfPane').getBoundingClientRect().toJSON(), hid: document.getElementById('tfPane').hidden, disp: getComputedStyle(document.getElementById('tfPane')).display})))); await p.screenshot({path:'/tmp/claude-0/tf/dbg.png'}); }
   ok('タブを押すと引き出しが開き、一時ファイルの画面になる', await p.evaluate(() => window.rmsIsOpen() && window.rmsPane() === 'files') && await vis(p, '#tfPane .tf-toolbar'));
   ok('リマーク側は隠れ、一時ファイルの画面だけが出る', !(await vis(p, '#remarkTextarea')));
