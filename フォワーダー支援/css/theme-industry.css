@@ -583,6 +583,9 @@ html.theme-industry {
   background: #4a637c;
   border-color: #4a637c;
 }
+:where(html.theme-industry) .bm-empty {
+  color: var(--text-muted);
+}
 :where(html.theme-industry) .bm-card {
   border-radius: 0;
 }
@@ -645,6 +648,7 @@ html.theme-industry {
   border-radius: 0;
 }
 :where(html.theme-industry) .bm-fcount {
+  color: var(--c-9a8a70);
   border-radius: 0;
 }
 :where(html.theme-industry) .bm-rel-chip {
@@ -1128,6 +1132,9 @@ html.theme-industry {
 :where(html.theme-industry) .master-filter-count {
   border-radius: 0;
 }
+:where(html.theme-industry) .master-filter-chip.is-active .master-filter-count {
+  background: rgba(255,255,255,.25);
+}
 :where(html.theme-industry) .stats-master-rename {
   border: 1px solid #afb1b5;
   border-radius: 0;
@@ -1258,6 +1265,7 @@ html.theme-industry {
 }
 :where(html.theme-industry) .stats-master-abbrev-add {
   border-radius: 0;
+  color: var(--c-a08060);
 }
 :where(html.theme-industry) .stats-master-abbrev-add:hover {
   border-color: #70747a;
@@ -1783,6 +1791,9 @@ html.theme-industry {
   background: #f8eded;
   border-color: #e3b5b5;
 }
+:where(html.theme-industry) .lc-empty {
+  color: var(--c-9a8878);
+}
 :where(html.theme-industry) .lc-cat-badge {
   border-radius: 0;
 }
@@ -2072,6 +2083,9 @@ html.theme-industry {
 }
 :where(html.theme-industry) .rn-ghost-btn:hover {
   background: #eaeff3;
+}
+:where(html.theme-industry) .rn-empty {
+  color: var(--c-9a8878);
 }
 :where(html.theme-industry) .rn-plan-row {
   border-radius: 0;
@@ -2608,6 +2622,9 @@ html.theme-industry {
   font-size: var(--fs-11-5);
   line-height: 1.5;
 }
+:where(html.theme-industry) #tab-quote-make .qf-attach-hint small {
+  color: var(--c-9a8a70);
+}
 :where(html.theme-industry) #tab-quote-make .qf-meter-bar {
   border-radius: 0;
 }
@@ -2817,35 +2834,82 @@ html.theme-industry {
   border: 1px solid #bbbec1;
   border-radius: 0;
 }
+:where(html.theme-industry) #tab-quote-make .name-cell .w-updated {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
 :where(html.theme-industry) #tab-quote-make .name-cell .w-updated-lbl {
+  font-size: var(--fs-9-5);
+  font-weight: 700;
   color: #4a5e72;
+  flex: none;
+  background: var(--blue-95);
+  border: 1px solid var(--blue-84);
   border-radius: 0;
+  padding: 1px var(--sp-4);
 }
 :where(html.theme-industry) #tab-quote-make .name-cell .w-updated-date {
+  font-size: var(--fs-10-5);
+  color: #46505a;
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--blue-84);
+  background: var(--surface);
   border-radius: 0;
+  padding: 1px var(--sp-3);
 }
 :where(html.theme-industry) #tab-quote-make .name-cell .w-updated-date:focus {
   border-color: #4a5e72;
+  background: var(--surface);
+  outline: none;
+}
+:where(html.theme-industry) #tab-quote-make .grp-updated {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-left: var(--sp-10);
 }
 :where(html.theme-industry) #tab-quote-make .grp-updated-lbl {
+  font-size: var(--fs-10);
+  font-weight: 700;
   color: #4a5e72;
+  background: var(--blue-95);
+  border: 1px solid var(--blue-84);
   border-radius: 0;
+  padding: 1px var(--sp-5);
 }
 :where(html.theme-industry) #tab-quote-make .grp-updated-input {
+  font-size: var(--fs-11);
+  color: #46505a;
+  border: 1px solid var(--blue-84);
+  background: var(--surface);
   border-radius: 0;
+  padding: 1px var(--sp-4);
 }
 :where(html.theme-industry) #tab-quote-make .grp-updated-today {
+  font-size: var(--fs-10);
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
+  cursor: pointer;
   color: #4a5e72;
+  background: var(--surface);
+  border: 1px solid var(--blue-84);
   border-radius: 0;
+  padding: 1px var(--sp-6);
 }
 :where(html.theme-industry) #tab-quote-make .grp-updated-today:hover {
+  background: var(--blue-95);
   border-color: #4a5e72;
 }
 :where(html.theme-industry) #tab-quote-make .grp-updated-mixed {
+  font-size: var(--fs-9-5);
+  font-weight: 700;
   color: #705a2a;
+  background: var(--amber-94);
   border: 1px solid #e5d6bb;
   border-radius: 0;
+  padding: 1px var(--sp-5);
 }
 :where(html.theme-industry) #tab-quote-make tr.subcon-child .catsv-cell::before {
   border-left: 1.5px solid #9a9da2;
@@ -3269,6 +3333,7 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .pv-warn-guide {
   border: 1.5px solid #b79546;
   border-radius: 0;
+  z-index: 1200;
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-header {
   border-bottom: 1px solid #e5dbbb;
@@ -3278,6 +3343,7 @@ html.theme-industry {
   color: #584522;
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-close {
+  color: var(--gray-lt);
   border-radius: 0;
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-close:hover {
@@ -3297,6 +3363,7 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num {
   background: #b79546;
+  color: var(--surface);
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-footer {
   border-top: 1px solid #e5dbbb;
@@ -3307,6 +3374,7 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-btn-next {
   background: #b79546;
+  color: var(--surface);
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-btn-next:hover {
   background: #906e37;
@@ -4375,6 +4443,9 @@ html.theme-industry {
 :where(html.theme-industry) #qpDashboard .qpd-stat:hover {
   border-color: #a3a6aa;
 }
+:where(html.theme-industry) #qpDashboard .qpd-stat-n {
+  font-size: 22px;
+}
 :where(html.theme-industry) #qpDashboard .qpd-stat--sent .qpd-stat-n {
   color: #426180;
 }
@@ -4436,11 +4507,19 @@ html.theme-industry {
   color: #964739;
   border-color: #c5c7c9;
 }
+:where(html.theme-industry) #qpDashboard .qpd-tools {
+  margin-bottom: var(--sp-12);
+  gap: var(--sp-8);
+}
 :where(html.theme-industry) #qpDashboard .qpd-search {
+  padding: var(--sp-9) 36px var(--sp-9) var(--sp-12);
   border-radius: 0;
 }
 :where(html.theme-industry) #qpDashboard .qpd-search-clear {
   border-radius: 0;
+}
+:where(html.theme-industry) #qpDashboard .qpd-tools-row {
+  gap: var(--sp-10);
 }
 :where(html.theme-industry) #qpDashboard .qpd-adv-toggle {
   border-radius: 0;
@@ -4506,12 +4585,19 @@ html.theme-industry {
   color: #293c4f;
   border-radius: 0;
 }
+:where(html.theme-industry) #qpDashboard .qpd-tag-quickfilter {
+  margin-top: var(--sp-8);
+}
 :where(html.theme-industry) #qpDashboard .qpd-tag-quickfilter-input {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
   border-radius: 0;
 }
 :where(html.theme-industry) #qpDashboard .qpd-tag-quickfilter-input:focus {
   border-color: #84888e;
+}
+:where(html.theme-industry) #qpDashboard .qpd-tag-chips {
+  gap: var(--sp-5);
+  margin-top: var(--sp-8);
 }
 :where(html.theme-industry) #qpDashboard .cloud-tag-filter-chip {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
@@ -4748,6 +4834,9 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make #cmdInput {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
+}
+:where(html.theme-industry) #tab-quote-make #cmdList {
+  max-height: 340px;
 }
 :where(html.theme-industry) #tab-quote-make #emailImportBox {
   border-radius: 0;
@@ -5394,6 +5483,7 @@ html.theme-industry {
   color: #2c3b4a;
 }
 :where(html.theme-industry) #tab-quote-make .cloud-kv dd.cloud-kv-cust {
+  font-size: 23px;
   color: #1f2b36;
 }
 :where(html.theme-industry) #tab-quote-make .cloud-kv-arrow {
@@ -6688,6 +6778,7 @@ html.theme-industry {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
 }
 :where(html.theme-industry) .um-search {
+  flex: 1;
   border-radius: 0;
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
 }
@@ -10420,4 +10511,197 @@ html.theme-industry {
 }
 :where(html.theme-industry) #toast-container {
   z-index: 100010;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.row-input-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-sub {
+  height: 20px;
+  line-height: 20px;
+  margin-bottom: 1px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.row-input-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-state {
+  height: 22px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.row-src-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-sub {
+  height: 20px;
+  line-height: 20px;
+  margin-bottom: 1px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.row-src-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-state {
+  height: 22px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo.is-src {
+  color: #3a5f86;
+  font-style: italic;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo {
+  margin: 1px 0 0;
+  font-size: 11px;
+  line-height: 12px;
+  text-align: right;
+  color: var(--color-neutral-700, #5d5d60);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo .di-when,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo .di-name {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo .di-name {
+  font-weight: 600;
+}
+:where(html.theme-industry) #qpDashboard .qpd-tools {
+  margin-bottom: var(--sp-16);
+  gap: var(--sp-12);
+}
+:where(html.theme-industry) #tab-quote-make #qpDashboard .qpd-search {
+  padding: var(--sp-12) 36px var(--sp-12) var(--sp-14);
+}
+:where(html.theme-industry) #tab-quote-make #qpDashboard .qpd-tag-quickfilter-input {
+  padding: var(--sp-9) var(--sp-14);
+}
+:where(html.theme-industry) #qpDashboard .qpd-tools-row {
+  gap: var(--sp-12);
+}
+:where(html.theme-industry) #qpDashboard .qpd-tag-quickfilter {
+  margin-top: var(--sp-4);
+}
+:where(html.theme-industry) #qpDashboard .qpd-tag-chips {
+  gap: var(--sp-6);
+  margin-top: var(--sp-4);
+}
+:where(html.theme-industry) #qpDashboard {
+  --fs-9: var(--text-xs);
+  --fs-9-5: var(--text-xs);
+  --fs-10: var(--text-xs);
+  --fs-10-5: var(--text-xs);
+  --fs-11: var(--text-xs);
+  --fs-11-5: var(--text-xs);
+  --fs-12: var(--text-xs);
+  --fs-12-5: var(--text-xs);
+  --fs-13: var(--text-sm);
+  --fs-13-5: var(--text-sm);
+  --fs-14: var(--text-base);
+  --fs-15: var(--text-base);
+  --fs-16: var(--text-lg);
+  --fs-18: var(--text-xl);
+}
+:where(html.theme-industry) #tab-quote-make #qpDashboard .qpd-stat-n {
+  font-size: var(--text-xl);
+}
+:where(html.theme-industry) #tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-cust {
+  font-size: var(--text-xl);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.row-ins-mode:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  width: 100%;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-lbl {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-ctrl {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group select {
+  height: 32px;
+  text-align: right;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-v {
+  width: 170px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group select.ins-c {
+  width: 84px !important;
+  text-align: left;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-k {
+  width: 70px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-r {
+  width: 90px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-x,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-u {
+  font-size: var(--text-sm, 13px);
+  color: var(--text-md);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-hint {
+  flex-basis: 100%;
+  font-size: var(--text-xs, 12px);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-m {
+  width: 70px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-mg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-mg-lbl {
+  font-size: var(--text-sm, 13px);
+  font-weight: 700;
+  color: #1a7f6e;
+}
+:where(html.theme-industry) #tab-quote-make .pv-wg-btn-next,
+:where(html.theme-industry) #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num {
+  color: #2b1d00;
+}
+:where(html.theme-industry) #tab-quote-make .pv-wg-close {
+  color: #666;
+}
+html.theme-industry.theme-industry .master-filter-chip.is-active .master-filter-count {
+  background: rgba(0,0,0,.3);
+  color: #fff;
+}
+html.theme-industry.theme-industry .master-filter-count {
+  color: var(--text);
+}
+html.theme-industry.theme-industry .stats-master-abbrev-add {
+  color: var(--text-muted);
+}
+html.theme-industry.theme-industry .ua-chip-del {
+  color: var(--text-muted);
+}
+:where(html.theme-industry) #tab-cptest .cpt-btn.is-primary.is-primary,
+:where(html.theme-industry) #tab-bugreports .fbr-btn-primary,
+:where(html.theme-industry) #tab-bugreports .fbr-chip.is-on,
+:where(html.theme-industry) #tab-bugreports .fbr-mode.is-on .fbr-mode-n {
+  background: #4a6d91;
+  border-color: #4a6d91;
+}
+:where(html.theme-industry) #tab-cptest .cpt-btn.is-g.is-g,
+:where(html.theme-industry) #tab-cptest .cpt-chip.is-now.is-now,
+:where(html.theme-industry) #tab-cptest .cpt-gb.cpt-gb[aria-pressed="true"],
+:where(html.theme-industry) #tab-bugreports .fbr-mode.is-on {
+  color: #3e5f82;
+}
+:where(html.theme-industry) .bm-verify.bm-verify-0 {
+  color: #6b6e73;
+}
+:where(html.theme-industry) .lc-topbar-right {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+:where(html.theme-industry) .lc-topbar-right > *,
+:where(html.theme-industry) .lc-topbar-right .lc-add-btn,
+:where(html.theme-industry) .lc-topbar-right .lc-variant-btn {
+  white-space: nowrap;
+}
+:where(html.theme-industry) .lookup-form input[type="text"] {
+  max-width: 640px;
+}
+:where(html.theme-industry) .lc-empty,
+:where(html.theme-industry) .rn-empty {
+  color: #6f5f50;
+}
+:where(html.theme-industry) #tab-quote-make .pv-warn-guide {
+  z-index: 9200;
+}
+:where(html.theme-industry) #tab-quote-make #cmdList {
+  max-height: max(120px, min(340px, calc(100vh - 240px)));
 }

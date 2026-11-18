@@ -6,6 +6,7 @@
  *     irreversible: '却下した記録は取り消せません。',    // 取り消せない旨（赤字）。省略可
  *     okLabel:      '却下する',                        // 実行ボタンの文言（既定「実行」）
  *     danger:       true,                              // 実行ボタンを赤の塗りに（取り消しにくい操作）
+ *     content:      element,                           // 本文の下に差し込む DOM 要素（任意。チェック一覧など。選択結果は呼び出し側がこの要素から読む）
  *   });
  *
  * 初期の焦点は「やめる」（誤って Enter を押しても実行されない）。Esc・外側クリックは「やめる」。
@@ -33,6 +34,7 @@
       const body = document.createElement('div');
       body.className = 'confirm-body';
       (opts.lines || []).forEach(t => { const p = document.createElement('p'); p.textContent = t; body.appendChild(p); });
+      if (opts.content) body.appendChild(opts.content);   // 本文の下に入れる部品（チェック一覧など）。結果はこの要素を呼び出し側が読む
       if (opts.irreversible) {
         const p = document.createElement('p');
         p.className = 'irreversible';

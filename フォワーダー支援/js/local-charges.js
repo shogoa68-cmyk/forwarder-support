@@ -237,7 +237,7 @@
     return `${arr[0]} ほか${arr.length - 1}`;
   }
 
-  // ゆらぎ検出用正規化
+  // 表記ゆれ検出用正規化
   function _lcNormalize(s) {
     return String(s || '')
       .replace(/[（(][^）)]*[）)]/g, '')
@@ -709,7 +709,7 @@
     _lcFetchCarrierBms();
   }
 
-  // === ゆらぎ是正 ===
+  // === 表記ゆれ是正 ===
 
   window.lcToggleVariants = function () {
     const p = document.getElementById('lcVariantPanel');
@@ -741,12 +741,12 @@
       .sort((a, b) => b.length - a.length);
 
     if (!groups.length) {
-      panel.innerHTML = '<p class="lc-var-empty">ゆらぎは検出されませんでした。</p>';
+      panel.innerHTML = '<p class="lc-var-empty">表記ゆれは検出されませんでした。</p>';
       return;
     }
 
     let h = `<div class="lc-var-header">
-      <span class="lc-var-title">🔀 ゆらぎ検出 — ${groups.length} グループ</span>
+      <span class="lc-var-title">🔀 表記ゆれ検出 — ${groups.length} グループ</span>
       <span class="lc-var-hint">出現数が最多の表記を代表として「→ 統一」で一括リネームできます。不可逆操作です。</span>
     </div>`;
 

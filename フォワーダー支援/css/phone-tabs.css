@@ -1,0 +1,9 @@
+#ptBar { display: none; }
+@media (max-width: 600px) {
+  #ptBar:not([hidden]) { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1100; height: 56px; background: var(--surface, #fff); border-top: 1px solid var(--border, #d9dee5); box-shadow: 0 -2px 10px rgba(16,24,40,.08); }
+  #ptBar button { flex: 1 1 0; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font: inherit; font-size: var(--text-xs, 12px); font-weight: 600; color: var(--text-muted, #667085); background: transparent; border: 0; cursor: pointer; }
+  #ptBar button span { font-size: 18px; line-height: 1; }
+  #ptBar button.is-on { color: #1d3f7a; background: #eef3fb; box-shadow: inset 0 3px 0 #2f5fb3; }
+  body.pt-on { padding-bottom: 64px; }
+  body.pt-on #fbQuickFab, body.pt-on .fb-quick-fab { bottom: 72px; }
+}

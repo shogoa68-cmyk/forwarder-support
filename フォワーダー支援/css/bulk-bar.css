@@ -1,0 +1,60 @@
+/* 選択行の一括操作バーの整理（2026-11）：1 行に収め、「一括設定 ▾」で開くパネルに 6 つの設定をまとめた。
+   DOM・id・onclick は変えず、部品を .ctx-bulkset の中へ移しただけ（select-mode.js が開閉する）。全テーマ共通。 */
+#tab-quote-make .cmdbar-context { flex-wrap: nowrap; position: relative; overflow: visible; }
+#tab-quote-make .cmdbar-context .ctx-count { white-space: nowrap; }
+#tab-quote-make .cmdbar-context .cmdbar-spacer { flex: 1 1 auto; }
+#tab-quote-make .ctx-bulkset-wrap { position: relative; }
+#tab-quote-make .btn-bulk-set { padding: 0 var(--sp-12, 12px); font-weight: 700; cursor: pointer;
+  background: var(--surface, #fff); border: 1px solid var(--border, #cfd6de); border-radius: var(--r-4, 4px); color: var(--text, #223); }
+#tab-quote-make .btn-bulk-set[aria-expanded="true"] { background: var(--accent-lt, #eef3f8); border-color: var(--accent, #3b6aa0); }
+#tab-quote-make .ctx-bulkset { position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; width: 380px; max-width: 86vw;
+  display: grid; gap: 8px; padding: 12px 14px; background: var(--surface, #fff); border: 1px solid var(--border, #cfd6de);
+  border-radius: var(--r-8, 8px); box-shadow: 0 8px 24px rgba(16, 24, 40, .18); }
+#tab-quote-make .ctx-bulkset[hidden] { display: none; }
+#tab-quote-make .ctx-bs-row { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 8px; }
+#tab-quote-make .ctx-bs-row > label { font-size: var(--text-xs, 12px); font-weight: 700; color: var(--text-muted, #667); }
+#tab-quote-make .ctx-bs-ctl { display: flex; gap: 6px; align-items: center; min-width: 0; }
+#tab-quote-make .ctx-bs-ctl .bulk-subcon-input, #tab-quote-make .ctx-bs-ctl .bulk-cat-select { flex: 1 1 auto; width: auto; min-width: 0; max-width: none; height: 30px; }
+#tab-quote-make .ctx-bs-ctl .btn-bulk-subcon { flex: 0 0 auto; }
+@media (max-width: 680px) {
+  #tab-quote-make .cmdbar-context { flex-wrap: wrap; }
+  #tab-quote-make .ctx-bulkset { position: fixed; left: 8px; right: 8px; top: auto; bottom: 64px; width: auto; max-width: none; }
+}
+
+/* 見積もりテーブルの上の操作バー（cmdbar-main）：「小計行」ボタンは文字つきなので、アイコン用の固定幅を外す */
+#tab-quote-make .cmdbar-main .btn-ins-sub.cmdbar-icon-btn { width: auto; padding: 0 var(--sp-10, 10px) !important; font-size: var(--text-xs, 12px); white-space: nowrap; }
+
+/* サブコン見出しの役割（マスターのサブコン種別）の小さな札 */
+#tab-quote-make .subcon-group-header .sv-hdr-role { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: var(--text-xs, 12px); font-weight: 700; white-space: nowrap;
+  background: #fdf0d8; color: #7a4a0c; border: 1px solid #e9c98a; }
+#tab-quote-make .subcon-group-header .sv-hdr-role[hidden] { display: none; }
+/* 操作バーの「常に前面」は上部ツールバーの「⋯」にもあるので、バーからは外す（重複の整理） */
+#tab-quote-make .quote-cmdbar .cmdbar-pip-btn { display: none; }
+
+/* 航路チップのルート案（案の名前・採用／不採用の印）。見積書の出力には影響しない整理用 */
+#tab-quote-make .z2-route-plan { padding: 0 8px; min-height: 24px; border: 1px dashed var(--border, #b9c2cc); border-radius: 999px; background: transparent; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); cursor: pointer; white-space: nowrap; }
+#tab-quote-make .z2-route-plan.is-none { opacity: .7; }
+#tab-quote-make .z2-route-planwrap { display: inline-flex; align-items: center; gap: 2px; }
+#tab-quote-make .z2-route-planwrap .z2-route-plan { border-style: solid; background: #eef3fb; color: #24467a; font-weight: 700; }
+#tab-quote-make .z2-route-adopt { padding: 0 8px; min-height: 24px; border: 1px solid var(--border, #b9c2cc); border-radius: 999px; background: #fff; font-size: var(--text-xs, 12px); cursor: pointer; white-space: nowrap; }
+#tab-quote-make .z2-route-planwrap.is-adopt .z2-route-adopt { background: #e3f4e8; border-color: #3f9a5a; color: #1d6a3a; font-weight: 700; }
+#tab-quote-make .z2-route-planwrap.is-reject .z2-route-adopt, #tab-quote-make .z2-route-planwrap.is-reject .z2-route-plan { background: #f1f1f1; color: #6b7280; text-decoration: line-through; }
+
+/* 航路の「区間」（区間ごとのモード・キャリア・ETD の控え。見積書の出力には影響しない） */
+#tab-quote-make .z2-route-seg { padding: 0 8px; min-height: 24px; border: 1px dashed var(--border, #b9c2cc); border-radius: 999px; background: transparent; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); cursor: pointer; white-space: nowrap; max-width: 360px; overflow: hidden; text-overflow: ellipsis; }
+#tab-quote-make .z2-route-seg:not(.is-none) { border-style: solid; background: #f3f7ef; color: #2f5a22; font-weight: 700; }
+.z2-seg-pop { position: fixed; z-index: 1300; width: min(560px, 94vw); max-height: 70vh; overflow: auto; padding: 10px 12px; background: var(--surface, #fff); border: 1px solid var(--border, #cfd6de); border-radius: 10px; box-shadow: 0 10px 30px rgba(16, 24, 40, .22); font-size: var(--text-sm, 13px); }
+.z2-seg-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.z2-seg-head span { flex: 1; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); }
+.z2-seg-x, .z2-seg-del { border: 0; background: none; cursor: pointer; font-size: 16px; min-width: 28px; min-height: 28px; }
+.z2-seg-row { display: grid; grid-template-columns: 84px 1fr 138px 1fr 28px; gap: 6px; margin-bottom: 6px; align-items: center; }
+.z2-seg-row input, .z2-seg-row select { min-width: 0; height: 30px; padding: 0 6px; border: 1px solid var(--border, #cfd6de); border-radius: 6px; font: inherit; }
+.z2-seg-empty { color: var(--text-muted, #888); padding: 8px 2px; }
+.z2-seg-add { padding: 4px 12px; border: 1px dashed var(--border, #b9c2cc); border-radius: 8px; background: none; cursor: pointer; }
+@media (max-width: 600px) { .z2-seg-row { grid-template-columns: 1fr 1fr; } .z2-seg-row .z2-seg-del { justify-self: end; } }
+
+/* ダッシュボードのカード／航路ポップアップに出す、ルート案・区間の印（表示だけ） */
+.cc3-rt-plan { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: #eef3fb; color: #24467a; font-size: var(--text-xs, 12px); font-weight: 700; white-space: nowrap; }
+.cc3-rt-plan.is-adopt { background: #e3f4e8; color: #1d6a3a; }
+.cc3-rt-plan.is-reject { background: #f1f1f1; color: #6b7280; text-decoration: line-through; }
+.cc3-rt-segs { display: block; margin-top: 2px; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); }

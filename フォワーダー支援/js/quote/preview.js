@@ -192,7 +192,7 @@
       // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（PROFIT SHARE も客先には出さない）。
       // 適用期間外は「参考」指定があれば例外的に出力する（金額は括弧書き・合計外のまま、客先へ参考提示したい場合）
       const _hideQuote  = _hideManual || (_outRange && !_ref) || _ps;
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), bphi: val(`bphi-${id}`), note, sv, pt, vf, vt, zc, uid, _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange, _outReason });
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), bphi: val(`bphi-${id}`), note, sv, pt, vf, vt, zc, uid, insInv: (typeof window.rowInsInvoice === 'function' ? window.rowInsInvoice(id) : null), _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange, _outReason });
     });
     return rows;
   }
@@ -446,31 +446,47 @@
     return false;
   }
 
-  // 出力前の確認ガイド（右下に出る）を、右下の固定ボタン（PDF出力／プレビュー／保存のドック）と、
-  // 画面下の全体リマークの引き出しの上へ避けて置く（ボタンや「このまま出力」が互いに隠れないように）。
+  // 出力前の確認ガイドを、PDF出力／プレビュー／保存のボタンと、画面下の全体リマークの引き出しに重ならない場所へ置く。
+  //   ・ボタンが画面の下寄り（旧画面の右下ドック）：ボタンの上へ避ける（右下に出る）
+  //   ・ボタンが画面の上寄り（新画面：上部ツールバーへ移したボタン）：ボタンの上は画面の外になって読めないため、
+  //     ボタンの下へ出す（panel.style.top）。「次の箇所へ」「このまま出力」まで画面内に収まる
   // 引き出しの上端は、開閉のアニメーション中でも最終の高さ（--rms-lift）で数える。
   function _placePvWarnGuide() {
     const panel = document.getElementById('pvWarnGuide');
     if (!panel || panel.style.display === 'none') return;
-    panel.style.bottom = '';                                   // いったん CSS の既定（下から 80px）へ
+    panel.style.bottom = ''; panel.style.top = '';             // いったん CSS の既定（下から 80px）へ
     const vh = window.innerHeight || document.documentElement.clientHeight;
     const g = panel.getBoundingClientRect();
     const overlapsX = r => r.width > 0 && r.right > g.left && r.left < g.right;
-    let top = vh;
-    const dock = document.getElementById('quoteActionDock');
-    if (dock && getComputedStyle(dock).display !== 'none') {
-      dock.querySelectorAll('.qad-btn').forEach(b => { const r = b.getBoundingClientRect(); if (overlapsX(r)) top = Math.min(top, r.top); });
-    }
+    const GAP = 10, MIN_BOTTOM = 80;
     const sheet = document.getElementById('rmSheet');
     const sp = sheet && sheet.querySelector('.rms-panel');
+    let sheetTop = vh;
     if (sp && sheet.getClientRects().length > 0 && overlapsX(sp.getBoundingClientRect())) {
       const lift = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rms-lift')) || 0;
-      top = Math.min(top, vh - lift);
+      sheetTop = vh - lift;
     }
-    const GAP = 10, MIN_BOTTOM = 80;
+    const list = document.getElementById('pvWarnGuideList');
+    const dock = document.getElementById('quoteActionDock');
+    const btns = (dock && getComputedStyle(dock).display !== 'none')
+      ? [...dock.querySelectorAll('.qad-btn')].map(b => b.getBoundingClientRect()).filter(r => r.width > 0) : [];
+    // ボタンが画面の上半分にある（上部ツールバー）：ボタンの下へ
+    const upper = btns.length && Math.min(...btns.map(r => r.top)) < vh / 2;
+    if (upper) {
+      const below = Math.max(...btns.map(r => r.bottom));
+      const topPos = Math.max(GAP, Math.round(below + GAP));
+      panel.style.top = topPos + 'px';
+      panel.style.bottom = 'auto';
+      if (list) {
+        const room = Math.max(80, Math.round(sheetTop - topPos - GAP - 130));   // 画面の下（または引き出しの上端）まで・見出しとボタンの分（約 130px）を引く
+        list.style.maxHeight = Math.min(200, room) + 'px';
+      }
+      return;
+    }
+    let top = Math.min(vh, sheetTop);
+    btns.filter(overlapsX).forEach(r => { top = Math.min(top, r.top); });
     panel.style.bottom = Math.max(MIN_BOTTOM, Math.round(vh - top + GAP)) + 'px';
     // 上に余白が足りない小さな画面では、一覧をその分だけ短くする
-    const list = document.getElementById('pvWarnGuideList');
     if (list) {
       const room = Math.max(80, Math.round(top - GAP - 16 - 130));   // 見出し・ボタンの分（約 130px）と上の余白を引く
       list.style.maxHeight = Math.min(200, room) + 'px';
@@ -868,7 +884,7 @@
       html += `<tr class="${(d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : '')}${_hqCls}${d._outRange ? ' pv-row-out-range' : ''}${_ac ? ' pv-row-actual' : ''}${d._cond ? ' pv-row-cond' : ''}${d._ref ? ' pv-row-ref' : ''}">
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
-        <td class="${nameCls}">${_hqBadge}${escHtml(d.name)}${_condNote}${_refNote}${_pvValidityBadge(d.vf, d.vt)}</td>
+        <td class="${nameCls}">${_hqBadge}${escHtml(d.name)}${_condNote}${_refNote}${_pvValidityBadge(d.vf, d.vt)}${d.insInv ? `<div class="pv-ins-inv">${escHtml(window.insInvoiceText(d.insInv, false))}</div>` : ''}</td>
         <td class="pv-num">${fmtRaw(d.pq)}</td><td>${escHtml(d.un || '')}</td><td>${escHtml(d.pc)}</td>
         <td class="pv-num">${ppCell}</td>
         <td class="pv-cd pv-num">${cdCell}</td>
@@ -965,6 +981,7 @@
         ];
     const condFields = [
       ...routeFields,
+      { lbl: 'ICD（インランドデポ）', val: cond.icd },
       { lbl: dirFirstLeg(cond.direction) === 'export' ? '集荷地' : '発地', val: cond.origin },
       { lbl: '仕向地',          val: cond.dest },
       ...(dirIsRound(cond.direction) && cond.incotermsRet && cond.incotermsRet !== cond.incoterms
@@ -1909,6 +1926,7 @@
       : [['POL（積み地）', cExcel.pol], ['POD（揚げ地）', cExcel.pod]];
     const condPairs = [
       ...routePairs,
+      ['ICD（インランドデポ）', cExcel.icd],
       ...(dirIsRound(cExcel.direction) && cExcel.incotermsRet && cExcel.incotermsRet !== cExcel.incoterms
         ? [[`インコタームズ 往路（${dirLegName(cExcel.direction, 'out')}）`, cExcel.incoterms], [`インコタームズ 復路（${dirLegName(cExcel.direction, 'ret')}）`, cExcel.incotermsRet]]
         : [['インコタームズ', cExcel.incoterms]]),

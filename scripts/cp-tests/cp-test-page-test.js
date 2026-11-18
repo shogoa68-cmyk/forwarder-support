@@ -48,7 +48,7 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
 
   // ===== 初期表示 =====
   ok(/接続は未確認/.test(await txt('#cptConn')) && !(await p.locator('#cptConn').evaluate((e) => e.classList.contains('is-ok'))), '初期：接続は未確認（灰色の札・赤くしない）');
-  eq(await p.locator('#tab-cptest .cpt-tab').allInnerTexts(), ['取引', '本船の動静', 'コンテナの状況'], 'タブは 取引／本船の動静／コンテナの状況');
+  eq(await p.locator('#tab-cptest .cpt-tab').allInnerTexts(), ['取引', '本船の動静', 'コンテナの状況', 'ウォッチリスト'], 'タブは 取引／本船の動静／コンテナの状況／追いかけ中');
   ok(await p.locator('#cptDev').isHidden(), '開発者向け情報は閉じている');
   ok(/読み取りのみ/.test(await txt('.cpt-head')), '「読み取りのみ」の札');
   ok(await p.locator('.cpt-banner, #cptRun, #cptMv, #cptCh').count() === 0, 'テスト用の注意書き・サンプル欄が無い');
@@ -290,7 +290,10 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   ok((await p.locator('#cptDetail .cpt-step-v.is-nodata').count()) === 6, 'コンテナ：情報が無いコンテナは、6 段すべてが「COLINSに情報がありません」');
   await p.click('[data-act="all"]');
   ok((await p.locator('#cptDetail .cpt-dl dd.is-nodata').count()) >= 15, 'コンテナ：「すべての項目」も情報が無い項目は「COLINSに情報なし」');
-  await p.click('#cptList .cpt-row >> nth=1'); await p.click('[data-act="all"]');
+  ok(await p.locator('#cptDetail .cpt-guide').count() === 1 && /船会社のトラッキングで確認できます/.test(await txt('#cptDetail .cpt-guide')), 'コンテナ：流れが全部「情報なし」なら、船会社のトラッキングへの案内を出す');
+  await p.click('#cptList .cpt-row >> nth=1');
+  ok(await p.locator('#cptDetail .cpt-guide').count() === 0, 'コンテナ：情報が取れているコンテナには、案内を出さない');
+  await p.click('[data-act="all"]');
   const dl = (await txt('#cptDetail')).replace(/\n/g, ' ');
   ok(/デマレージFT\(日\)\s*7/.test(dl) && /東京CY/.test(dl) && /大井返却/.test(dl), 'コンテナ：すべての項目に FT・搬出場所・返却場所（どの項目も削らない）');
   ok(await p.locator('#cptDetail dd.cpt-due-warn').count() >= 1, 'コンテナ：すべての項目でも 48時間以内の期限は黄');
@@ -347,6 +350,229 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   await p.setViewportSize({ width: 1280, height: 1000 });
   const shot = process.argv[2]; if (shot) await p.locator('#tab-cptest').screenshot({ path: shot });
 
+
+  // ===== COLINS に情報が無いとき：船会社のトラッキングへの案内 =====
+  await p.click('.cpt-tab[data-tab="ctn"]');
+  await p.click('.cpt-seg [data-dir="import"]');
+  respond = router({ '/API/v2/ColinsViewers/GetImportContainers': () => okBody('ColinsViewers/Containers', []) });
+  await p.fill('#cptCtn', 'oneytyogf8748400'); await p.click('#cptColinsC');
+  await p.waitForSelector('#cptLive .cpt-guide');
+  const g1 = await p.$$eval('#cptLive .cpt-guide-chip.is-primary', (a) => a.map((x) => x.getAttribute('href')));
+  eq(g1, ['https://ecomm.one-line.com/one-ecom/manage-shipment/cargo-tracking?trakNoParam=ONEYTYOGF8748400'], '案内：B/L の頭文字（ONEY）から ONE を推測し、番号を渡したトラッキングのリンクを作る');
+  ok(await p.locator('#cptLive .cpt-guide-chip.is-primary[target="_blank"][rel*="noopener"]').count() === 1, '案内：新しいタブで開く（noopener）');
+  ok(await p.locator('#cptLive .cpt-guide-more').count() === 1 && await p.locator('#cptLive .cpt-guide-more[open]').count() === 0, '案内：ほかの船会社は、閉じた状態で選べる');
+  ok(await p.locator('#cptLive .cpt-guide-more .cpt-guide-chip').count() >= 10, '案内：ほかの船会社のチップが並ぶ');
+  ok(/COLINS は日本の港のターミナル情報/.test(await txt('#cptLive .cpt-guide')), '案内：COLINS で載らない理由を一言');
+  // 番号をコピーして開く船会社（MSC）
+  await p.fill('#cptCtn', 'MSCU1234567'); await p.click('#cptColinsC');
+  await p.waitForFunction(() => /MSC/.test((document.querySelector('#cptLive .cpt-guide-chip.is-primary') || {}).innerText || ''));
+  const gm = await p.locator('#cptLive .cpt-guide-chip.is-primary').first();
+  ok(/📋/.test(await gm.innerText()) && (await gm.getAttribute('data-cg-copy')) === 'MSCU1234567', '案内：番号を URL で受けない船会社（MSC）は、📋 の印と番号のコピー指定');
+  // 推測できない番号（ブッキング番号など）：すべての船会社から選べる（開いた状態）
+  await p.click('.cpt-seg [data-dir="export"]');
+  respond = router({ '/API/v2/ColinsViewers/GetExportContainers': () => okBody('ColinsViewers/Containers', []) });
+  await p.fill('#cptCtn', 'bk-998877'); await p.click('#cptColinsC');
+  await p.waitForSelector('#cptLive .cpt-guide');
+  ok(/推測できませんでした/.test(await txt('#cptLive .cpt-guide')) && await p.locator('#cptLive .cpt-guide-more[open]').count() === 1 && await p.locator('#cptLive .cpt-guide-chip.is-primary').count() === 0, '案内：推測できない番号は、船会社を選ぶ形（一覧を開いた状態）');
+  ok(await p.locator('#cptLive .cpt-guide-chip[href*="BK-998877"], #cptLive .cpt-guide-chip[href*="998877"]').count() >= 5, '案内：選んだ船会社には、入力した番号を渡す');
+  // 通信エラーのときは、案内を出さない（COLINS に無いのではなく、取得できなかったため）
+  respond = () => ({ status: 502, body: { ok: false, error: 'upstream_auth', message: 'サイバーポートに認証を拒否されました', upstreamStatus: 403 } });
+  await p.fill('#cptCtn', 'ONEYTYOGF1'); await p.click('#cptColinsC');
+  await p.waitForSelector('#cptLive .cpt-msg.is-error');
+  eq(await p.locator('#cptLive .cpt-guide').count(), 0, '案内：エラーのときは出さない（情報が無いのではなく、取れなかった）');
+  // ----- 本船の動静 -----
+  await p.click('.cpt-tab[data-tab="vessel"]'); await p.click('.cpt-seg [data-dir="import"]');
+  respond = router({ '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', []) });
+  await p.fill('#cptVessel', 'sakura maru'); await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-guide');
+  ok(/本船スケジュールで確認できます/.test(await txt('#cptLive .cpt-guide')) && /船会社が分からない/.test(await txt('#cptLive .cpt-guide')), '案内（本船）：0 件のとき、船会社の本船スケジュールへ案内（本船名からは船会社が分からない旨）');
+  ok(await p.locator('#cptLive .cpt-guide-chip[target="_blank"][rel*="noopener"]').count() >= 10 && await p.locator('#cptLive .cpt-guide-chip.is-primary').count() === 0, '案内（本船）：船会社のチップが並ぶ（推測はしない・新しいタブ・noopener）');
+  eq(await p.locator('#cptLive .cpt-guide-chip').first().getAttribute('data-cg-copy'), 'sakura maru', '案内（本船）：本船名を入れていれば、開くときにその名前をコピーする');
+  await p.fill('#cptVessel', ''); await p.waitForFunction(() => !document.getElementById('cptColinsV').disabled); await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-guide');
+  eq(await p.locator('#cptLive .cpt-guide-chip[data-cg-copy]').count(), 0, '案内（本船）：本船名が空なら、コピーの指定は付けない');
+  // 流れが全部「情報なし」の本船：右の詳細にも案内
+  respond = router({ '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', [{ terminalCode: 'XXXXX99C', vessel: { vesselName: 'GHOST ONE', voyageNo: '1' } }]) });
+  await p.waitForFunction(() => !document.getElementById('cptColinsV').disabled); await p.click('#cptColinsV');
+  await p.waitForSelector('#cptList .cpt-row');
+  ok(await p.locator('#cptDetail .cpt-guide').count() === 1 && await p.locator('#cptDetail .cpt-guide-chip[data-cg-copy="GHOST ONE"]').count() >= 10, '案内（本船）：流れが全部「情報なし」の本船は、詳細にも案内（本船名をコピー）');
+  respond = () => ({ status: 502, body: { ok: false, error: 'upstream_auth', message: 'サイバーポートに認証を拒否されました', upstreamStatus: 403 } });
+  await p.waitForFunction(() => !document.getElementById('cptColinsV').disabled); await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-msg.is-error');
+  eq(await p.locator('#cptLive .cpt-guide').count(), 0, '案内（本船）：エラーのときは出さない');
+  // 推測（純粋関数）
+  eq(await p.evaluate(() => ['MAEU1234567', 'ONEU1234567', 'ooluxxxx', 'ABCD123', 'MS', '', null].map((n) => window.CpCarrierGuide.guess(n))), ['Maersk', 'ONE', 'OOCL', null, null, null, null], '案内：頭 4 文字の推測（Maersk／ONE／OOCL・不明は null）');
+  // ===== 追いかけ（ウォッチ）：取引を選んで朝夕の自動確認の対象にする =====
+  await p.evaluate(() => {
+    window.__db = { cp_watch_targets: [], cp_changes: [] }; window.__dbErr = ''; window.__seq = 0;
+    const q = (table) => {
+      const st = { op: 'select', filters: [] };
+      const api = {
+        select() { return api; }, order() { return api; }, limit() { return api; },
+        insert(rec) { st.op = 'insert'; st.rec = rec; return api; }, update(rec) { st.op = 'update'; st.rec = rec; return api; }, delete() { st.op = 'delete'; return api; },
+        eq(k, v) { st.filters.push([k, v]); return api; },
+        then(res, rej) {
+          const run = () => {
+            if (window.__dbErr) return { error: { message: window.__dbErr } };
+            const rows = window.__db[table], m = (r) => st.filters.every(([k, v]) => r[k] === v);
+            if (st.op === 'select') return { data: rows.filter(m).slice().reverse().map((r) => ({ ...r })) };
+            if (st.op === 'insert') {
+              if (st.rec.source === 'trade' && rows.some((r) => r.source === 'trade' && r.trade_no === st.rec.trade_no)) return { error: { code: '23505', message: 'duplicate key' } };
+              rows.push({ preset_id: 'id' + (++window.__seq), created_at: new Date().toISOString(), consecutive_errors: 0, last_checked_at: null, last_status: null, state_note: null, ...st.rec }); return { data: null };
+            }
+            if (st.op === 'update') { rows.filter(m).forEach((r) => Object.assign(r, st.rec)); return { data: null }; }
+            window.__db[table] = rows.filter((r) => !m(r)); return { data: null };
+          };
+          return Promise.resolve(run()).then(res, rej);
+        }
+      };
+      return api;
+    };
+    window.cloudGetClient = () => ({ auth: { getSession: async () => ({ data: { session: window.__noSession ? null : { access_token: 'jwt-abc', user: { email: 'alice@example.com' } } } }) }, from: q });
+  });
+  respond = () => okBody('Trades/Search', [
+    { tradeNo: 'EXP_2026111000000101', tradeType: 'Export', tradeStatus: 'Ongoing', tradeName: 'サンプル商事 向け 機械部品', blNo: '', updatedAt: '2026-11-10T10:00:00Z' },
+    { tradeNo: 'IMP_2026110900000087', tradeType: 'Import', tradeStatus: 'Ongoing', tradeName: 'テスト物産 家具', blNo: 'SMPL90020002', updatedAt: '2026-11-09T10:00:00Z' }]);
+  await p.click('.cpt-tab[data-tab="trade"]');
+  await p.fill('#cptKw', ''); await p.click('#cptSearch');
+  await p.waitForSelector('#cptList .cpt-row');
+  ok(await p.locator('#cptDetail .cpt-wbar [data-act="w-add"]').count() === 1, '追いかけ：取引の詳細に「☆ ウォッチに入れる」');
+  await p.click('#cptDetail [data-act="w-add"]');
+  ok(await p.locator('#cptWf').isVisible(), '追いかけ：手がかりの入力欄が出る');
+  if (process.env.CP_SHOTS) await p.locator('#tab-cptest').screenshot({ path: process.env.CP_SHOTS + '/w1-form.png' });
+  eq(await p.locator('#cptWf [data-wdir][aria-pressed="true"]').getAttribute('data-wdir'), 'export', '追いかけ：EXP_ の取引は「輸出」が選ばれている');
+  eq(await p.inputValue('#cptWfTitle'), 'サンプル商事 向け 機械部品', '追いかけ：名前の初期値は取引名');
+  await p.click('#cptWf [data-act="w-save"]');
+  ok(/ブッキング番号かコンテナ番号/.test(await txt('#cptWf .cpt-wf-err')), '追いかけ：手がかりが空だと保存できない（やさしい案内）');
+  await p.fill('#cptWfCtn', 'ABC');
+  await p.click('#cptWf [data-act="w-save"]');
+  ok(/形が違います/.test(await txt('#cptWf .cpt-wf-err')), '追いかけ：コンテナ番号の形が違うと保存できない');
+  eq(await p.inputValue('#cptWfCtn'), 'ABC', '追いかけ：エラーでも入力は消えない');
+  await p.fill('#cptWfCtn', ''); await p.fill('#cptWfBk', 'smpl-bk-0001');
+  await p.click('#cptWf [data-act="w-save"]');
+  await p.waitForSelector('#cptDetail .cpt-wbar .cpt-chip.is-ok');
+  const row1 = await p.evaluate(() => window.__db.cp_watch_targets[0]);
+  ok(row1 && row1.source === 'trade' && row1.trade_no === 'EXP_2026111000000101' && row1.direction === 'export' && row1.booking_no === 'SMPL-BK-0001' && row1.trace === true && row1.created_by === 'alice@example.com', '追いかけ：保存された内容（取引・輸出・番号は大文字に整える・追跡中・作成者）', JSON.stringify(row1));
+  ok(/★ ウォッチ中/.test(await txt('#cptDetail .cpt-wbar')), '追いかけ：保存後は「★ ウォッチ中」');
+  ok(await p.locator('#cptList .cpt-row >> nth=0 >> .cpt-star').count() === 1 && await p.locator('#cptList .cpt-row >> nth=1 >> .cpt-star').count() === 0, '追いかけ：一覧に ★（追いかけ中の取引だけ）');
+  // 二重登録は止める
+  await p.evaluate(() => { window.__db.cp_watch_targets = []; });
+  await p.click('#cptList .cpt-row >> nth=1'); await p.click('#cptDetail [data-act="w-add"]');
+  eq(await p.locator('#cptWf [data-wdir][aria-pressed="true"]').getAttribute('data-wdir'), 'import', '追いかけ：IMP_ の取引は「輸入」');
+  eq(await p.inputValue('#cptWfBl'), 'SMPL90020002', '追いかけ：取引に B/L があれば初期値に入る');
+  await p.evaluate(() => { window.__db.cp_watch_targets.push({ preset_id: 'x', source: 'trade', trade_no: 'IMP_2026110900000087', direction: 'import', trace: true, state: 'active', created_at: new Date().toISOString() }); });
+  await p.click('#cptWf [data-act="w-save"]');
+  await p.waitForFunction(() => /すでにウォッチリストに入っています/.test((document.querySelector('#cptWf .cpt-wf-err') || {}).innerText || ''));
+  ok(true, '追いかけ：同じ取引の二重登録はやさしい案内で止まる');
+  await p.evaluate(() => { window.__db.cp_watch_targets = []; });
+  await p.click('#cptWf [data-act="w-cancel"]');
+  ok(await p.locator('#cptWf').count() === 0, '追いかけ：「やめる」で入力欄が閉じる');
+  await p.click('#cptDetail [data-act="w-add"]'); await p.click('#cptWf [data-act="w-save"]');   // B/L が入っているので保存できる
+  await p.waitForSelector('#cptDetail .cpt-wbar .cpt-chip.is-ok');
+
+  // 追いかけ中タブ
+  await p.click('.cpt-tab[data-tab="watch"]');
+  await p.waitForSelector('#cptList .cpt-row');
+  eq(await p.locator('#cptList .cpt-row').count(), 1, '追いかけ中：1 件');
+  ok(/ウォッチ中/.test(await txt('#cptList .cpt-row')) && /輸入/.test(await txt('#cptList .cpt-row')), '追いかけ中：一覧に状態と向き');
+  ok(/まだ確認していません/.test(await txt('#cptDetail')) && /まだ変化の記録はありません/.test(await txt('#cptDetail')), '追いかけ中：未確認・変化なしの案内');
+  const pid = await p.evaluate(() => window.__db.cp_watch_targets[0].preset_id);
+  await p.evaluate((id) => {
+    window.__db.cp_changes.push({ preset_id: id, detected_at: new Date().toISOString(), scope: '本船 SAKURA MARU 101E', label: '入港 予定(ETA)', old_val: '2026-11-10T00:00:00Z', new_val: '2026-11-12T00:00:00Z', kind: 'changed', sev: 'warn', note: '＋2日' });
+    Object.assign(window.__db.cp_watch_targets[0], { last_checked_at: new Date().toISOString(), last_status: 'ok' });
+  }, pid);
+  await p.click('#cptWatchReload');
+  await p.waitForFunction(() => /SAKURA MARU/.test(document.getElementById('cptDetail').innerText));
+  if (process.env.CP_SHOTS) await p.locator('#tab-cptest').screenshot({ path: process.env.CP_SHOTS + '/w2-watch.png' });
+  ok(/最後に確認/.test(await txt('#cptDetail .cpt-wst')) && /成功/.test(await txt('#cptDetail .cpt-wst')), '追いかけ中：最後に確認した時刻と結果');
+  ok(/入港 予定\(ETA\)/.test(await txt('#cptDetail .cpt-wchg')) && /注意/.test(await txt('#cptDetail .cpt-wchg')) && /＋2日/.test(await txt('#cptDetail .cpt-wchg')) && /2026\/11\/1[01] \d\d:\d\d → 2026\/11\/1[12] \d\d:\d\d/.test(await txt('#cptDetail .cpt-wchg')), '追いかけ中：変化の記録（重み・前→後（読みやすい日時）・注記）');
+  await p.click('#cptDetail [data-act="w-toggle"]');
+  await p.waitForFunction(() => /一時停止/.test(document.querySelector('#cptList .cpt-row').innerText));
+  eq(await p.evaluate(() => window.__db.cp_watch_targets[0].trace), false, '追いかけ中：一時停止で追跡の入り切り（trace）が切り替わる');
+  await p.click('#cptDetail [data-act="w-toggle"]');
+  await p.waitForFunction(() => /ウォッチ中/.test(document.querySelector('#cptList .cpt-row').innerText));
+  // 確認待ち（終了の確認）
+  await p.evaluate(() => { Object.assign(window.__db.cp_watch_targets[0], { state: 'ask', state_note: '荷揚港の入港予定を3日過ぎても実績が取れません。' }); });
+  await p.click('#cptWatchReload');
+  await p.waitForSelector('#cptDetail .cpt-wask');
+  ok(/要注意 1/.test(await txt('#cptWatchBadge')) && !(await p.locator('#cptWatchBadge').isHidden()), '追いかけ中：確認待ちがあるとタブに札');
+  await p.click('#cptDetail [data-act="w-snooze"]');
+  await p.waitForFunction(() => document.querySelectorAll('#cptDetail .cpt-wask').length === 0);
+  const sn = await p.evaluate(() => window.__db.cp_watch_targets[0]);
+  ok(sn.state === 'active' && sn.state_note === null && Date.parse(sn.ask_snooze_until) > Date.now() + 2.9 * 86400000, '追いかけ中：「もう少し追う」で 3 日あけて追跡を続ける');
+  // 手がかりを直す
+  await p.click('#cptDetail [data-act="w-edit"]');
+  eq(await p.inputValue('#cptWfBl'), 'SMPL90020002', '追いかけ中：手がかりを直す（いまの値が入っている）');
+  await p.fill('#cptWfCtn', 'smpu1000001 SMPU1000002');
+  await p.click('#cptWf [data-act="w-save"]');
+  await p.waitForFunction(() => document.querySelectorAll('#cptWf').length === 0);
+  eq(await p.evaluate(() => window.__db.cp_watch_targets[0].container_nos), ['SMPU1000001', 'SMPU1000002'], '追いかけ中：コンテナ番号を保存（大文字に整える）');
+  // やめる（確認画面を出す）
+  await p.click('#cptDetail [data-act="w-del"]');
+  await p.waitForSelector('.confirm-dialog');
+  await p.click('.confirm-dialog .btn-cancel');
+  eq(await p.evaluate(() => window.__db.cp_watch_targets.length), 1, '追いかけ中：確認画面で「やめる」を選ぶと消えない');
+  await p.click('#cptDetail [data-act="w-del"]');
+  await p.waitForSelector('.confirm-dialog');
+  await p.click('.confirm-dialog .btn-danger');
+  await p.waitForFunction(() => window.__db.cp_watch_targets.length === 0);
+  await p.waitForFunction(() => /ウォッチリストは空です/.test(document.getElementById('cptList').innerText));
+  ok(true, '追いかけ中：やめると一覧から消え、空の案内が出る');
+  // 準備前（表が無い）
+  await p.evaluate(() => { window.__dbErr = 'relation "public.cp_watch_targets" does not exist'; });
+  await p.click('#cptWatchReload');
+  await p.waitForFunction(() => /サーバー側の準備/.test(document.getElementById('cptLive').innerText));
+  ok(true, '追いかけ中：SQL 未実行のときは準備のお願いを出す（画面は壊れない）');
+  await p.evaluate(() => { window.__dbErr = ''; });
+  await p.click('#cptWatchReload');
+  await p.waitForFunction(() => document.getElementById('cptLive').hidden);
+  await p.click('.cpt-tab[data-tab="ctn"]');
+  // 画面を撮る
+  await p.setViewportSize({ width: 1280, height: 1000 });
+
+  // ===== コンテナの状況から、ウォッチリストへ =====
+  await p.evaluate(() => { window.__db.cp_watch_targets = []; window.__db.cp_changes = []; });
+  await p.click('.cpt-tab[data-tab="watch"]'); await p.click('#cptWatchReload');
+  await p.click('.cpt-tab[data-tab="ctn"]'); await p.click('.cpt-seg [data-dir="import"]');
+  respond = router({ '/API/v2/ColinsViewers/GetImportContainers': () => okBody('ColinsViewers/Containers', [
+    { terminalCode: 'YOKMC03C', container: { containerNo: 'MRKU9737538', lengthName: '20ft' }, billOfLadingDetail: { blNo: 'MAEU276428953' }, vessel: { vesselName: 'SAKURA MARU', voyageNo: '645E' }, loadedContainerPickup: { dueAt: iso(30 * H) } },
+    { terminalCode: 'YOKMC03C', container: { containerNo: 'TGHU1112223', lengthName: '40ft' }, billOfLadingDetail: { blNo: 'MAEU276428953' }, vessel: { vesselName: 'SAKURA MARU', voyageNo: '645E' }, loadedContainerPickup: { dueAt: iso(200 * H) } }]) });
+  await p.fill('#cptCtn', 'MAEU276428953'); await p.waitForFunction(() => !document.getElementById('cptColinsC').disabled); await p.click('#cptColinsC');
+  await p.waitForSelector('#cptList .cpt-row');
+  ok(await p.locator('#cptDetail [data-act="w-add-ctn"]').count() === 1 && /ウォッチに入れる/.test(await txt('#cptDetail .cpt-wbar')), 'ウォッチ（コンテナ）：詳細に「☆ ウォッチに入れる」');
+  ok(/表示中の 2 本をウォッチリストに入れる/.test(await txt('#cptFilter')), 'ウォッチ（コンテナ）：一覧の上に「表示中の 2 本をまとめて入れる」');
+  await p.click('#cptDetail [data-act="w-add-ctn"]');
+  await p.waitForFunction(() => /★ ウォッチ中/.test((document.querySelector('#cptDetail .cpt-wbar') || {}).innerText || ''));
+  const cr = await p.evaluate(() => window.__db.cp_watch_targets[0]);
+  ok(cr && cr.source === 'container' && cr.direction === 'import' && JSON.stringify(cr.container_nos) === '["MRKU9737538"]' && !cr.bl_no && !cr.booking_no && cr.trace === true && cr.created_by === 'alice@example.com', 'ウォッチ（コンテナ）：選んだ 1 本だけを保存（B/L は入れない＝B/L 全体を確認しない）', JSON.stringify(cr));
+  ok(/MRKU9737538/.test(cr.title) && /MAEU276428953/.test(cr.title) && /SAKURA MARU/.test(cr.title), 'ウォッチ（コンテナ）：名前に B/L・本船を添える');
+  ok(await p.locator('#cptList .cpt-row >> nth=0 >> .cpt-star').count() === 1 && await p.locator('#cptList .cpt-row >> nth=1 >> .cpt-star').count() === 0, 'ウォッチ（コンテナ）：一覧に ★（入れたコンテナだけ）');
+  ok(/表示中の 1 本をウォッチリストに入れる/.test(await txt('#cptFilter')), 'ウォッチ（コンテナ）：まとめて入れるボタンは、残りの本数になる');
+  if (process.env.CP_SHOTS) await p.locator('#tab-cptest').screenshot({ path: process.env.CP_SHOTS + '/c1-ctn.png' });
+  await p.click('#cptFilter [data-act="w-add-all"]');
+  await p.waitForFunction(() => window.__db.cp_watch_targets.length === 2);
+  await p.waitForFunction(() => /すべてウォッチリストに入っています/.test(document.getElementById('cptFilter').innerText));
+  ok(true, 'ウォッチ（コンテナ）：まとめて入れると 2 本になり、「すべて入っています」の表示');
+  eq(await p.evaluate(() => window.__db.cp_watch_targets.filter((r) => r.source === 'container').length), 2, 'ウォッチ（コンテナ）：二重には入らない');
+  // ウォッチリスト
+  await p.evaluate(() => {
+    const r = window.__db.cp_watch_targets.find((x) => x.container_nos[0] === 'MRKU9737538');
+    r.urgent_at = new Date(Date.now() + 10 * 3600000).toISOString(); r.last_checked_at = new Date().toISOString(); r.last_status = 'ok';
+    r.snapshot = [{ k: 'c:MRKU9737538:pickDue', scope: 'コンテナ MRKU9737538', label: '搬出期限', val: new Date(Date.now() + 10 * 3600000).toISOString(), cat: 'date', dl: true }, { k: 'c:MRKU9737538:outOk', scope: 'コンテナ MRKU9737538', label: '搬出可否', val: 'true', cat: 'flag' }];
+  });
+  await p.click('.cpt-tab[data-tab="watch"]'); await p.click('#cptWatchReload');
+  await p.waitForFunction(() => document.querySelectorAll('#cptList .cpt-row').length === 2);
+  ok(await p.locator('#cptFilter [data-f="ctn"]').count() === 1 && /コンテナ 2/.test(await txt('#cptFilter')), 'ウォッチリスト：種類の絞り込み（コンテナ 2）');
+  const wl = await txt('#cptList');
+  ok(/48時間以内/.test(wl) && /次の期限/.test(wl) && /コンテナ/.test(wl), 'ウォッチリスト：次の期限が 48 時間以内なら黄の札と「次の期限」');
+  ok(/要注意 1/.test(await txt('#cptWatchBadge')), 'ウォッチリスト：タブに「要注意 1」の札（期限が近いもの）');
+  await p.click('#cptList .cpt-row:has-text("MRKU9737538")');
+  const wd = await txt('#cptDetail');
+  ok(/最新の確認結果/.test(wd) && /搬出期限/.test(wd) && /搬出可否/.test(wd) && /〇/.test(wd), 'ウォッチリスト：最新の確認結果（確認のたびに記録した写し）を詳細に出す');
+  eq(await p.locator('#cptDetail [data-act="w-edit"]').count(), 0, 'ウォッチリスト：コンテナには「手がかりを直す」を出さない（番号は変えない）');
+  if (process.env.CP_SHOTS) await p.locator('#tab-cptest').screenshot({ path: process.env.CP_SHOTS + '/c2-watch.png' });
+  await p.click('#cptFilter [data-f="trade"]').catch(() => {});
+  await p.click('.cpt-tab[data-tab="ctn"]');
   // 未ログイン
   await p.evaluate(() => { window.__noSession = true; });
   const before = sent.length;

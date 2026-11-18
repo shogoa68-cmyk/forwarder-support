@@ -1,0 +1,237 @@
+/* 案件カード（詳細表示）の整理（Design 21「C-3＋取引形態 案2」・2026-11）。ダッシュボードの #qpdListWrap の詳細表示だけ。
+   カードの DOM は変えず、左のお客様ブロック（.cc3-left）と作業者の行（.cc3-who）を足して、CSS のグリッドで並べ替える。 */
+.cc3-left, .cc3-who { display: none; }
+
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card { display: block; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card > .cloud-card-chat { margin: 0; padding: 4px 16px 8px; border: 0; border-top: 1px solid var(--border, #e2e6ec); border-radius: 0; flex: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card.cloud-card-labeled { padding: 0; overflow: hidden; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card > .cloud-card-main { padding: 0; }
+
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-main {
+  display: grid; grid-template-columns: 230px minmax(0, 1fr) auto auto; column-gap: 0; align-items: center;
+}
+/* 左：お客様ブロック（取引形態の色）*/
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left {
+  display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; box-sizing: border-box;
+  grid-column: 1; grid-row: 1 / span 3; align-self: stretch; padding: 12px 16px;
+  background: var(--bg, #f6f7f9); border-right: 1px solid var(--border, #e2e6ec);
+}
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-lbl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: var(--text-xs, 12px); color: var(--text-muted, #667); font-weight: 600; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-kind { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; font-size: var(--text-xs, 12px); font-weight: 700; color: #fff; background: #5a6475; white-space: nowrap; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-cust { font-size: var(--text-xl, 18px); line-height: 1.35; display: -webkit-box !important; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-cust.is-empty { font-size: var(--text-sm, 13px); color: var(--text-muted, #667); font-weight: 500; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-cust.is-link { cursor: pointer; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-cust.is-link:hover { text-decoration: underline; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-person { font-size: var(--text-base, 14px); color: var(--text-md, #475467); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-via { font-size: var(--text-xs, 12px); color: #9a4d0a; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 取引形態の色（マスター管理の一覧と同じ）：左端の太い線＋薄い背景、札は濃い色・白文字。乙仲はマスター管理と同じ青緑 */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="ship"] { background: #e3edfb; } html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="ship"] .cc3-kind { background: #2f5fb3; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="fwd"] { background: #fdebd8; } html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="fwd"] .cc3-kind { background: #d9822b; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="agent"] { background: #eee6fb; } html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="agent"] .cc3-kind { background: #7c52d1; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="otsu"] { background: #eaf6f4; } html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="otsu"] .cc3-kind { background: #2f8f83; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="other"] .cc3-kind { background: #5a6475; }
+
+/* 右・1 行目：ステータス・案件番号・コピー・案件名 …｜進捗の帯｜読込・⋯ */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-row1 { grid-column: 2; grid-row: 1; padding: 12px 8px 4px 16px; min-width: 0; flex-wrap: wrap; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-row1 .cloud-card-name { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress { grid-column: 3; grid-row: 1; padding: 12px 8px 4px; margin: 0; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-bar { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-steps { display: flex; gap: 4px; flex-wrap: nowrap; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-step { font-size: var(--text-xs, 12px); padding: 4px 8px; min-height: 28px; box-sizing: border-box; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-foot { display: contents; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts { grid-column: 4; grid-row: 1; display: flex; gap: 6px; align-items: center; padding: 12px 16px 4px 4px; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts > :not(.btn-preset-load):not(.cloud-menu) { display: none !important; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .cloud-menu { display: inline-block; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .cloud-menu-btn { min-width: 44px; min-height: 36px; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .btn-preset-load .lbl-s { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .btn-preset-load .lbl-d { display: inline; }
+/* 右・2 行目：条件・モード・ルート・幹線 … 更新日時 */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv { grid-column: 2; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 4px 8px 4px 16px; margin: 0; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dt { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd { margin: 0; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="cond"] { order: 1; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="route"] { order: 2; font-weight: 600; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="carrier"] { order: 3; font-size: var(--text-sm, 13px); color: var(--text-md, #475467); }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="sub"] { order: 4; flex-basis: 100%; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="cust"],
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="who"] { display: none; }   /* 左のお客様ブロックと下の作業者の行へ移した */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-who { grid-column: 3 / span 2; grid-row: 2; justify-self: end; padding: 4px 16px 4px 0; font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
+/* 札（締切・受信から N 日・未取込など）。リマインド止める・料金フォロー（未設定）は「⋯」の中へ */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-prio { grid-column: 2 / span 3; grid-row: 3; padding: 4px 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-prio .cloud-hold-toggle,
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-prio .cloud-follow-set { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-preset-tags { grid-column: 2 / span 3; grid-row: 4; padding: 4px 16px 8px; margin: 0; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-memo { grid-column: 2 / span 3; padding: 0 16px 6px; }
+/* その下：関連・コピー元・同時編集などは全幅 */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-main > :is(.cloud-card-parentline, .cloud-ref-tree, .cloud-card-editing, .cloud-copied-from, .cloud-card-links, .qv-card-badge) { grid-column: 1 / -1; margin-left: 16px; margin-right: 16px; }
+/* 下：作業者の 1 行 */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-who {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; grid-column: 1 / -1; padding: 8px 16px; box-sizing: border-box;
+  background: var(--bg, #f6f7f9); border-top: 1px dashed var(--border-md, #c8cfd9);
+}
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-who-l { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); font-weight: 600; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-p { flex: none; width: max-content; max-width: none; overflow: visible; display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 12px 0 4px; border-radius: 999px; background: var(--surface, #fff); border: 1px solid var(--border-md, #c8cfd9); white-space: nowrap; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-av { width: 26px; height: 26px; border-radius: 50%; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-sm, 13px); font-weight: 700; flex: none; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-p b { font-size: var(--text-sm, 13px); } #tab-quote-make #qpDashboard #qpdListWrap .cc3-p small { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
+
+/* ---- スマホ（〜600px）：左ブロックを上段、次に 1 行目…、進捗の帯は 1 行、読込・⋯ は右下 ---- */
+@media (max-width: 600px) {
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-main { grid-template-columns: minmax(0, 1fr) auto; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left { grid-column: 1 / -1; grid-row: auto; border-right: 0; border-bottom: 1px solid var(--border, #e2e6ec); }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-row1 { grid-column: 1 / -1; grid-row: auto; padding-left: 16px; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv { grid-column: 1 / -1; grid-row: auto; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-prio,
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-preset-tags { grid-column: 1 / -1; grid-row: auto; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress { grid-column: 1; grid-row: auto; padding: 8px 8px 8px 16px; overflow-x: auto; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-step { min-height: 44px; display: inline-flex; align-items: center; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts { grid-column: 2; grid-row: auto; padding: 8px 12px 8px 0; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .btn-preset-load, html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .cloud-menu-btn { min-height: 44px; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-who { grid-column: 1 / -1; grid-row: auto; justify-self: start; padding: 0 16px 8px; }
+}
+
+/* ===== Design 23 の回答（2026-11-15）：行を減らす・左線は 1 本・札と緊急の位置・タグ 3 つまで・複数の航路 ===== */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card.cloud-card-labeled { border-left: 4px solid #c8cfd9 !important; background-image: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card.cloud-card-labeled.is-urgent { border-left-color: #d94a3d !important; }
+/* 1 行目：右は進捗・［読込］・［⋯］だけ。案件名は 240px で省略 */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-row1 .cloud-card-name { max-width: 240px; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-urgent { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; border: 1px solid #c0392b; background: #c0392b; color: #fff; font-size: var(--text-xs, 12px); font-weight: 700; cursor: pointer; white-space: nowrap; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-preset-tags .cloud-tag-chip.is-urgent { display: none; }   /* 緊急は 1 行目の札に出す */
+.cc3-urgent { display: none; }
+/* 2 行目：条件・モード・ルート・幹線・タグを同じ行に折り返し。札は右、更新日時はその右 */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-row2 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; grid-column: 2; grid-row: 2; padding: 4px 8px 4px 16px; min-width: 0; }
+.cc3-row2 { display: contents; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-row2 .cloud-kv { display: contents; padding: 0; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-row2 .cloud-preset-tags { display: contents; padding: 0; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="route"] { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="route2"] { order: 2; display: block; }
+.cc3-route2 { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="cond"] { display: flex; gap: 6px; order: 1; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="carrier"] { display: none; }   /* 主ルートの横に出す */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv > dd[data-kv="sub"] { order: 5; flex-basis: auto; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv .cloud-tag-inco { height: 30px; padding: 0 12px; display: inline-flex; align-items: center; border-radius: 6px; background: #e3edfb; color: #1d4f9c; border: 1px solid #bcd0ee; font-size: var(--text-base, 14px); font-weight: 700; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv .cloud-tag-mode { height: 30px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; background: #e1f1ef; color: #17625c; border: 1px solid #b5dad5; font-size: var(--text-base, 14px); font-weight: 700; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv .cloud-tag-mode::before { content: '🚢'; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv .cloud-tag-mode[data-m="air"]::before { content: '✈'; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-kv .cloud-tag-mode[data-m="land"]::before { content: '🚚'; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-route2 b { font-size: var(--text-base, 14px); }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-rt-car { font-size: var(--text-sm, 13px); color: var(--text-md, #475467); margin-left: 6px; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-rt-more { min-height: 28px; margin-left: 6px; padding: 0 10px; border: 1px solid var(--border-md, #c8cfd9); border-radius: 999px; background: var(--surface, #fff); font-size: var(--text-xs, 12px); font-weight: 700; cursor: pointer; }
+/* タグ：3 つまで＋「+N」。［＋ タグ］は小さな破線のチップ 1 つ */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-preset-tags:not(.is-open) .cc3-tag-x { display: none; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-tag-more { min-height: 24px; padding: 0 8px; border: 1px solid var(--border-md, #c8cfd9); border-radius: 999px; background: var(--surface, #fff); font-size: var(--text-xs, 12px); font-weight: 700; cursor: pointer; }
+/* 札：2 行目の右（grid の 3 列目）、更新日時はその右 */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-prio { grid-column: 3; grid-row: 2; justify-self: end; padding: 4px 4px; margin: 0; flex-wrap: nowrap; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-who { grid-column: 4; grid-row: 2; padding: 4px 16px 4px 4px; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-preset-tags { grid-row: auto; }
+/* ［⋯］36px 角・角丸 6px */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .cloud-menu-btn { width: 36px; height: 36px; min-width: 0; min-height: 0; padding: 0; border-radius: 6px; }
+/* 作業者の行（左）と申し送り（右端）を同じ行に。パネルは下に全幅 */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-who { grid-column: 1 / 4; grid-row: 20; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-main > .cloud-card-chat { display: contents; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-main > .cloud-card-chat .ccc-toggle { grid-column: 4; grid-row: 20; align-self: stretch; padding: 8px 16px; background: var(--bg, #f6f7f9); border-top: 1px dashed var(--border-md, #c8cfd9); white-space: nowrap; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-main > .cloud-card-chat .ccc-preview { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-main > .cloud-card-chat .ccc-panel { grid-column: 1 / -1; grid-row: 21; padding: 8px 16px; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card > .cloud-card-chat { display: none; }
+/* 自分は青いリング（「あなた」の文字は付けない） */
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-p.is-me { box-shadow: 0 0 0 2px #2f5fb3; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-person.is-empty { color: var(--text-muted, #667); opacity: .7; }
+/* 複数の航路のポップアップ */
+.cc3-rt-pop { position: fixed; z-index: 1300; min-width: 260px; max-width: min(92vw, 420px); padding: 10px 12px; background: var(--surface, #fff); color: var(--text, #222); border: 1px solid var(--border, #d9dee5); border-radius: 10px; box-shadow: 0 10px 28px rgba(0, 0, 0, .25); }
+.cc3-rt-pop-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.cc3-rt-pop-h button { width: 44px; height: 44px; border: 0; background: none; font-size: var(--text-xl, 18px); cursor: pointer; }
+.cc3-rt-row { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-top: 1px solid var(--border, #e2e6ec); font-size: var(--text-base, 14px); }
+.cc3-rt-row span { font-size: var(--text-sm, 13px); color: var(--text-md, #475467); }
+.cc3-rt-tag { align-self: flex-start; padding: 0 8px; border-radius: 999px; background: #e3edfb; color: #1d4f9c; font-size: var(--text-xs, 12px); font-weight: 700; }
+@media (max-width: 600px) {
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-row2 { grid-column: 1 / -1; grid-row: auto; padding-left: 16px; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-prio { grid-column: 1 / -1; grid-row: auto; justify-self: start; flex-wrap: wrap; padding: 0 16px 4px; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-who { grid-column: 1 / -1; grid-row: auto; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-who { grid-column: 1; grid-row: 20; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-main > .cloud-card-chat .ccc-toggle { grid-column: 2; grid-row: 20; min-height: 44px; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-acts .cloud-menu-btn { width: 44px; height: 44px; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-row1 .cloud-card-name { max-width: none; flex: 1 1 100%; }
+}
+
+/* ===== Design 24：案件名を 1 行目のヘッダーに（H3）。状態・番号・コピー・緊急は 2 行目、チップ等は 3 行目 ===== */
+.cc3-title { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-title { display: block; grid-column: 2; grid-row: 1; padding: 12px 8px 0 16px; min-width: 0; max-width: 480px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xl, 18px); font-weight: 700; line-height: 1.4; color: var(--text, #1d2939); align-self: center; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-title.is-empty { color: #98a2b3; font-weight: 400; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-row1 { grid-row: 2; padding-top: 6px; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-row2 { grid-row: 3; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-prio,
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-who { grid-row: 2; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-memo { display: none; }   /* 案件名はヘッダーに出す（二重にしない） */
+@media (max-width: 600px) {
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-title { grid-column: 1 / -1; grid-row: auto; max-width: none; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; padding: 12px 16px 4px; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-row1,
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-row2,
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-prio,
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-who { grid-row: auto; }
+}
+
+/* ===== 進捗はインジケーター（文字をやめて色の帯 5 つ）。名前・状況は title／aria に残す ===== */
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-steps { gap: 4px; align-items: center; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-step { flex: none; width: 22px; height: 10px; min-height: 0; padding: 0; border-radius: 3px; font-size: 0; line-height: 0; overflow: hidden; background: #e4e7ec; border: 0; color: transparent; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-step.qp-done { background: #3f9a5a; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-step.qp-part { background: linear-gradient(90deg, #e0a33a 50%, #e4e7ec 50%); }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-sub-label,
+html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-sub-cells { display: none; }
+@media (max-width: 600px) {
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .quote-progress .qp-step { min-height: 0; display: block; width: 28px; height: 12px; }
+}
+
+/* ===== 2026-11 取り急ぎ：カードの輪郭・「お客様」の見出しをやめる・スマホは更新日時を案件名の上へ ===== */
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-lbl:empty { display: none; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card.cloud-card-labeled { background: #fff !important; border: 1px solid #c3cad5 !important; border-left-width: 4px !important; border-radius: 10px; box-shadow: 0 2px 6px rgba(16, 24, 40, .12); overflow: hidden; margin-bottom: 14px; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card.cloud-card-labeled.is-urgent { border-left-color: #d94a3d !important; }
+@media (max-width: 600px) {
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-who { order: -2; padding: 10px 16px 0; }
+  html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-title { order: -1; padding-top: 2px; }
+}
+
+/* ===== 🙋 フォロー担当（2026-11）：作業者の行の先頭に「担当：○○ フォロー中」／「未フォロー」＋ボタン ===== */
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 6px 0 10px; border-radius: 999px; background: var(--surface, #fff); border: 1px solid var(--border-md, #c8cfd9); white-space: nowrap; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow .cc3-fl-l { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); font-weight: 600; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow b { font-size: var(--text-sm, 13px); }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow small { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow.is-me { box-shadow: 0 0 0 2px #2f5fb3; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow.is-none { border-style: dashed; background: #fff8e6; border-color: #e0a33a; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow.is-ended { opacity: .7; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-fl-btn { min-height: 28px; padding: 0 10px; border: 1px solid var(--accent-dk, #2c455d); border-radius: 999px; background: var(--accent-dk, #2c455d); color: #fff; font: inherit; font-size: var(--text-xs, 12px); font-weight: 700; cursor: pointer; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-follow:not(.is-none) .cc3-fl-btn { background: var(--surface, #fff); color: var(--accent-dk, #2c455d); }
+@media (max-width: 600px) {
+  #tab-quote-make #qpDashboard #qpdListWrap .cc3-fl-btn { min-height: 44px; padding: 0 14px; font-size: var(--text-sm, 14px); }
+  #tab-quote-make #qpDashboard #qpdListWrap .cc3-follow { min-height: 44px; flex-wrap: wrap; row-gap: 4px; white-space: normal; }
+}
+
+/* ---- 文字の読みやすさ（コントラスト 4.5:1 以上へ・全テーマ共通・2026-11）---- */
+/* 申し送りの開閉（💬 申し送り ▾）・「＋ タグ」・タグの ×・「作業者」・「→」・案件名なし：薄すぎて読みにくかった */
+#tab-quote-make #qpDashboard #qpdListWrap .ccc-toggle { color: var(--accent-dk, #2c455d); }
+#tab-quote-make #qpDashboard #qpdListWrap .ccc-caret { color: #5a6475; }
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-card-chat.ccc-has .ccc-count { color: #8a5200; }
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-tag-add-btn { color: var(--accent-dk, #2c455d); }
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-tag-chip button { color: #5a6475; }
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-tag-chip button:hover { color: var(--red, #c0392b); }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-who-l { color: #5a6475; }
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-kv-arrow { color: #5a6475; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-title.is-empty { color: #5a6475; }
+/* ランキング（順位の数字・タブ・説明）・「さらに読み込む」・「受信から N日」の薄い文字 */
+#tab-quote-make #qpDashboard .qpd-rank-no { color: #5a6475; }
+#tab-quote-make #qpDashboard .qpd-rank-tab:not(.is-active) { color: #5a6475; }
+#tab-quote-make #qpDashboard .qpd-side-note, #tab-quote-make #qpDashboard .qpd-side-note b { color: #5a6475; }
+#tab-quote-make #qpDashboard .qpd-load-more { color: var(--accent-dk, #2c455d); }
+#tab-quote-make #qpdListWrap .cloud-recv { color: var(--accent-dk, #2c455d); }
+/* リスト表示の日時・担当・見出し行、タグのパネルのリンク、新規見積の入口の補足文 */
+#tab-quote-make #qpDashboard .qpd-row-ts, #tab-quote-make #qpDashboard .qpd-row-cust small { color: #5a6475; }
+#tab-quote-make #qpDashboard .qpd-rows-head { color: #5a6475; }
+#qpDashboard.dt-on .dt-pop .dt-link { color: var(--accent-dk, #2c455d); }
+#nqOverlay .nq-card small { color: #5a6475; }
+/* 「⋯」メニューの補足文（サブ案件を作成／代替わり元を設定…）が項目名の直後にくっついて読みにくかったので、次の行へ */
+#tab-quote-make #qpDashboard .cloud-menu-item small, .cloud-menu-panel .cloud-menu-item small { display: block; margin-top: 2px; font-size: var(--text-xs, 12px); font-weight: 400; color: var(--text-muted, #5a6475); }
+/* リスト表示：右端のボタン 4 つ（👁 📄 📋 ✕）が最後の列（64px）に入りきらず、左の「更新」の日時に重なって切れていた → 列を 4 つ分の幅（120px）に */
+@media (min-width: 721px) {
+  #tab-quote-make #qpDashboard .qpd-rows-head:not(.qpd-rows-head--simple),
+  #tab-quote-make #qpDashboard .qpd-row:not(.qpd-row--simple) { grid-template-columns: 84px minmax(120px, 1.4fr) minmax(120px, 1.6fr) 110px 92px 120px; }
+  #tab-quote-make #qpDashboard .qpd-rows-head.qpd-row--linkmode:not(.qpd-rows-head--simple),
+  #tab-quote-make #qpDashboard .qpd-row.qpd-row--linkmode:not(.qpd-row--simple) { grid-template-columns: 24px 84px minmax(120px, 1.4fr) minmax(120px, 1.6fr) 110px 92px 120px; }
+}

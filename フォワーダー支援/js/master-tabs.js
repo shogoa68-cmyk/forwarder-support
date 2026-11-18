@@ -8,10 +8,10 @@
   function organize(modal) {
     const form = $(modal, '.master-detail-form'), body = $(modal, '.md-modal-body'), box = $(modal, '.md-modal');
     if (!form || !body || !box || modal.dataset.mtDone) return; modal.dataset.mtDone = '1';
-    const actions = $(form, '.master-detail-actions'), attach = $(modal, '.master-attach-box'), cr = $(modal, '.cr-section'), mn = $(modal, '.mn-section'), cc = $(modal, '.cc-section');
+    const actions = $(form, '.master-detail-actions'), attach = $(modal, '.master-attach-box'), cr = $(modal, '.cr-section'), mn = $(modal, '.mn-section'), cc = $(modal, '.cc-section'), ir = $(modal, '.ir-section');
     const L = (id) => holder(form, id, '.master-detail-label');
     const isSv = modal.dataset.mtField === 'sv';
-    const basic = [L('md_furigana'), L('md_enName'), L('md_dealType'), L('md_via'), L('md_referrer'), L('md_referralNote'), holder(form, 'md_viaChildren', '.master-detail-via')].filter(Boolean);
+    const basic = [L('md_furigana'), L('md_enName'), L('md_dealType'), L('md_contractType'), L('md_via'), L('md_referrer'), L('md_referralNote'), holder(form, 'md_viaChildren', '.master-detail-via')].filter(Boolean);
     const people = [holder(form, 'md_contacts', '.master-detail-contacts')].filter(Boolean);
     const company = isSv
       ? [L('md_location'), L('md_website'), holder(form, 'md_svTypes', '.master-detail-tags'), holder(form, 'md_areas', '.master-detail-areas'), L('md_group')].filter(Boolean)
@@ -24,7 +24,7 @@
     const bar = document.createElement('div'); bar.className = 'mt-tabs'; bar.setAttribute('role', 'tablist');
     const panels = {};
     const defs = isSv
-      ? [['people', '担当者'], ['company', '会社の詳細・種別・エリア'], ['news', 'ニュース'], ['memo', 'メモ・添付']]
+      ? [['people', '担当者'], ['company', '会社の詳細・種別・エリア'], ['mail', 'メール取込ルール'], ['news', 'ニュース'], ['memo', 'メモ・添付']]
       : [['people', '担当者'], ['company', '会社の詳細・タグ'], ['cases', '顧客カルテ'], ['rules', '取引ルール'], ['news', 'ニュース'], ['memo', 'メモ・添付']];
     defs.forEach(([k, label]) => {
       const p = document.createElement('div'); p.className = 'mt-panel'; p.dataset.mt = k; p.setAttribute('role', 'tabpanel'); panels[k] = p;
@@ -32,7 +32,7 @@
       b.innerHTML = label + ' <span class="mt-sum"></span>'; b.addEventListener('click', () => show(k)); bar.appendChild(b);
     });
     people.forEach(e => panels.people.appendChild(e)); company.forEach(e => panels.company.appendChild(e));
-    if (cr) panels.rules.appendChild(cr); if (mn) panels.news.appendChild(mn); if (cc) panels.cases.appendChild(cc); memo.forEach(e => panels.memo.appendChild(e)); if (attach) panels.memo.appendChild(attach);
+    if (cr) panels.rules.appendChild(cr); if (mn) panels.news.appendChild(mn); if (cc) panels.cases.appendChild(cc); if (ir && panels.mail) panels.mail.appendChild(ir); memo.forEach(e => panels.memo.appendChild(e)); if (attach) panels.memo.appendChild(attach);
     form.innerHTML = ''; form.appendChild(top); form.appendChild(bar); defs.forEach(([k]) => form.appendChild(panels[k]));
     // 保存バー：下に常時表示（本文のスクロールの外）
     if (actions) { const foot = document.createElement('div'); foot.className = 'mt-foot'; foot.appendChild(actions); box.appendChild(foot); }
@@ -58,21 +58,62 @@
       sum('rules', items.length ? items.length + '件' + (strict ? '・厳守' + strict : '') : '');
       const cItems = modal.querySelectorAll('#ccPanel .cc-item'), cOpen = modal.querySelectorAll('#ccPanel .cc-st-open').length; sum('cases', cItems.length ? cItems.length + '件' + (cOpen ? '・未解決' + cOpen : '') : '');
       const nItems = modal.querySelectorAll('#mnPanel .mn-item').length; sum('news', nItems ? nItems + '件' : '');
+      const irN = modal.querySelectorAll('#irPanel .ir-row').length, irC = (modal.querySelector('#irPanel .ir-ccy')?.value || ''); sum('mail', [irN ? irN + '件' : '', irC].filter(Boolean).join('・'));
       const att = modal.querySelectorAll('#mdAttachList .master-attach-item').length, memoV = (modal.querySelector('#md_memo')?.value || '').trim();
       sum('memo', [memoV ? 'メモあり' : '', att ? '添付' + att : ''].filter(Boolean).join('・'));
     }
     ['input', 'change', 'click'].forEach(t => modal.addEventListener(t, () => setTimeout(refresh, 0)));
-    ['#mdAttachList', '#crPanel', '#mnPanel', '#ccPanel'].forEach(s => { const e = modal.querySelector(s); if (e) new MutationObserver(refresh).observe(e, { childList: true, subtree: true }); });
+    ['#mdAttachList', '#crPanel', '#mnPanel', '#ccPanel', '#irPanel'].forEach(s => { const e = modal.querySelector(s); if (e) new MutationObserver(refresh).observe(e, { childList: true, subtree: true }); });
     const strictInit = () => modal.querySelector('#crPanel .cr-item.cr-lv-strict:not(.is-retired)');
     show('people'); refresh();
     // 厳守の取引ルールがあるときは「取引ルール」タブを開いて見せる（取りこぼし防止）
     setTimeout(() => { if (strictInit()) show('rules'); refresh(); }, 600);
   }
+
+  // ---- 詳細ドロワー（Design 29・④）：「● 編集中（未保存）」の印と、未保存で閉じるときの確認・背景クリックで閉じる ----
+  function dirtyHook() {
+    const close0 = window.statsCloseMasterDetail;
+    if (typeof close0 !== 'function' || close0.__mtd) return false;
+    const closeG = function (opt) {
+      const m = document.getElementById('mdDetailModal');
+      if (!m || !m.dataset.mtDirty || m.dataset.mtSkip || (opt && opt.force) || typeof window.uiConfirm !== 'function') return close0.apply(this, arguments);
+      if (m.dataset.mtAsking) return;
+      m.dataset.mtAsking = '1';
+      window.uiConfirm({ title: '保存していない変更があります', lines: ['このまま閉じると、入力した内容は失われます。', m.dataset.mtDirty ? '変更：' + m.dataset.mtDirty : ''].filter(Boolean), okLabel: '破棄して閉じる', danger: true }).then(ok => {
+        delete m.dataset.mtAsking; if (ok) close0.call(window);
+      });
+    };
+    closeG.__mtd = true; window.statsCloseMasterDetail = closeG;
+    ['statsSaveMasterDetail', 'statsDeleteMasterDetail'].forEach(n => {   // 保存・削除のあとの閉じるは確認なし
+      const f = window[n]; if (typeof f !== 'function' || f.__mtd) return;
+      const w = function () { const m = document.getElementById('mdDetailModal'); if (m) m.dataset.mtSkip = '1'; try { return f.apply(this, arguments); } finally { if (m) setTimeout(() => { delete m.dataset.mtSkip; }, 15000); } };
+      w.__mtd = true; window[n] = w;
+    });
+    return true;
+  }
+  function setupDrawer(m) {
+    if (!m || m.dataset.mtDrawer) return; m.dataset.mtDrawer = '1';
+    const head = m.querySelector('.md-modal-head'), closeBtn = head && head.querySelector('.md-modal-close');
+    if (head) { const d = document.createElement('span'); d.className = 'mt-dirty'; d.hidden = true; d.textContent = '● 編集中（未保存）'; head.insertBefore(d, closeBtn); }
+    const names = new Set();
+    const mark = (e) => {
+      const t = e.target; if (!t || !/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName) || t.type === 'file' || !t.closest('.master-detail-form, .mt-basic, .mt-panel')) return;
+      if (t.closest('#crPanel, #ccPanel, #mnPanel')) return;   // ルール・カルテ・ニュースは、それぞれの画面で保存するため対象外
+      const lb = t.closest('.master-detail-label, .master-detail-contacts, .master-detail-tags, .master-detail-areas, .master-detail-via'); const nm = lb ? (lb.textContent || '').trim().split(/[\n：:]/)[0].slice(0, 12) : '';
+      if (nm) names.add(nm); m.dataset.mtDirty = [...names].join('・') || '入力あり';
+      const d = m.querySelector('.mt-dirty'); if (d) { d.hidden = false; d.title = '変更：' + m.dataset.mtDirty; }
+    };
+    m.addEventListener('input', mark); m.addEventListener('change', mark);
+    m.addEventListener('mousedown', e => { if (e.target === m) m.dataset.mtBd = '1'; else delete m.dataset.mtBd; });
+    m.addEventListener('click', e => { if (e.target === m && m.dataset.mtBd) { delete m.dataset.mtBd; window.statsCloseMasterDetail(); } });
+  }
+
   function hook() {
     const orig = window.statsToggleMasterDetail;
     if (typeof orig !== 'function' || orig.__mt) return false;
     const w = function (field, value, btn) {
       const r = orig.apply(this, arguments);
+      dirtyHook(); setupDrawer(document.getElementById('mdDetailModal'));
       if (field === 'customer' || field === 'sv') { const m = document.getElementById('mdDetailModal'); if (m) { m.dataset.mtField = field; organize(m); } }
       return r;
     };

@@ -8,7 +8,9 @@
   #tab-master.mm-on.mm-view-home #statsPane-master,
   #tab-master.mm-on.mm-view-home #statsPane-alias { display: none !important; }
   #tab-master.mm-on.mm-view-work:not(.mm-wtab-drift) #statsPane-master { display: none !important; }
-  #tab-master.mm-on.mm-view-work.mm-wtab-drift #statsPane-master > :not(#driftCard) { display: none !important; }
+  #tab-master.mm-on.mm-view-work.mm-wtab-drift #statsPane-master > :not(#driftCard):not(#mhTodo) { display: none !important; }
+  #tab-master.mm-on.mm-view-work.mm-wtab-drift #mhTodo .mh-todo-b > :not(#driftCard) { display: none !important; }
+  #tab-master.mm-on.mm-view-list #mhTodo { display: none !important; }
   #tab-master.mm-on.mm-view-list #driftCard,
   #tab-master.mm-on.mm-view-list .master-head,
   #tab-master.mm-on.mm-view-list .master-kpis,
@@ -47,7 +49,7 @@
   .mm-btn.is-primary { background: var(--accent, #2c455d); border-color: var(--accent, #2c455d); color: #fff; }
   .mm-btn.is-danger { background: #b3261e; border-color: #b3261e; color: #fff; }
   .mm-btn:disabled { opacity: .45; }
-  /* ゆらぎ（既存カードを作業画面に出す）：タップしやすく */
+  /* 表記ゆれ（既存カードを作業画面に出す）：タップしやすく */
   #tab-master.mm-wtab-drift #driftCard .drift-btn { min-height: 44px; }
   #tab-master.mm-wtab-drift #driftCard .drift-head { flex-wrap: wrap; }
   #tab-master.mm-on.mm-view-work.mm-wtab-drift #mmWork { padding-bottom: 0; }
@@ -92,10 +94,31 @@
   #mdDetailModal .mt-tab { flex: none; min-height: 44px; border-radius: 22px; white-space: nowrap; }
   #mdDetailModal .mt-body { padding-bottom: 72px; }
   #mdDetailModal .mt-foot { position: sticky; bottom: 0; z-index: 3; display: flex; gap: 8px; padding: 8px 12px; background: var(--surface, #fff); border-top: 1px solid var(--border, #ddd); }
-  #mdDetailModal .mt-foot button { min-height: 44px; flex: 1; }
+  #mdDetailModal .mt-foot button { min-height: 44px; flex: 1; white-space: nowrap; }
+  #mdDetailModal .mt-foot .master-detail-actions { flex: 1 1 auto; min-width: 0; }
   #mdDetailModal .cr-item, #mdDetailModal .cc-item, #mdDetailModal .mn-item { margin-bottom: 8px; padding: 10px; border: 1px solid var(--border, #ddd); border-radius: 10px; }
   #mdDetailModal .cr-item.cr-lv-strict { border-color: #8a5a2b; background: #f7efe6; }
   #mdDetailModal .cr-item.cr-lv-strict .cr-lv, #mdDetailModal .cr-item.cr-lv-strict b { color: #8a5a2b; }
   /* ⋯ メニュー（旧）の代わりに下のシートを使う */
   .master-ops-menu { display: none !important; }
+}
+
+/* ---- 名前の整理（表記ゆれ・未登録）のスマホ版：1 件＝1 カード・主ボタン 1 つ・44px（Design 29 ⑥） ---- */
+@media (max-width: 600px) {
+  #tab-master.mm-on.mm-view-fix #statsPane-master, #tab-master.mm-on.mm-view-fix #statsPane-alias { display: none !important; }
+  #tab-master.mm-on.mm-view-fix #mmBar .mm-fix { display: none; }
+  #tab-master.mm-on.mm-view-fix #statsPane-fix { display: block; padding: 8px 4px 96px; }
+  #tab-master.mm-on #statsPane-fix .fix-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -4px 10px; padding: 0 4px; }
+  #tab-master.mm-on #statsPane-fix .fix-chip { flex: 0 0 auto; min-height: 44px; }
+  #tab-master.mm-on #statsPane-fix .stats-nm-table tbody > tr { grid-template-columns: minmax(0, 1fr) auto; padding: 10px 12px; }
+  #tab-master.mm-on #statsPane-fix .stats-nm-table td.stats-chips-cell { padding-left: 0; }
+  #tab-master.mm-on #statsPane-fix .fh-tog { width: 44px; height: 44px; }
+  #tab-master.mm-on #statsPane-fix .fh-actions { flex-direction: column; align-items: stretch; }
+  #tab-master.mm-on #statsPane-fix .fh-canon { width: 100%; min-height: 44px; margin: 4px 0 0; }
+  #tab-master.mm-on #statsPane-fix .fh-main { min-height: 48px; width: 100%; }
+  #tab-master.mm-on #statsPane-fix .fh-more { min-height: 44px; width: 100%; }
+  #tab-master.mm-on #statsPane-fix .stats-nm-table tr.fh-more-on .stats-chip button,
+  #tab-master.mm-on #statsPane-fix .stats-nm-table tr.fh-more-on .stats-syn-merge-canon,
+  #tab-master.mm-on #statsPane-fix .stats-nm-table tr.fh-more-on .stats-syn-dissolve { min-height: 44px; }
+  .fh-undo { bottom: 136px; }   /* 下の 3 タブ（56px）と確認シートの上に出す */
 }

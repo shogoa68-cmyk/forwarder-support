@@ -45,17 +45,21 @@
   // それぞれ独立アイコンとして並べ、押下時に qspSetTab(tab) で切替える。
   const MODS = [
     { id: 'digest',   icon: '📋', label: '費用', title: '費用テーブル（縮小表示）', panel: 'quoteSummaryPanel', tab: 'digest' },
-    { id: 'compare',  icon: '⚖️', label: '比較',    title: '同一項目の最安値比較', panel: 'cmpRailPanel' },
-    { id: 'fcllcl',   icon: '🆚', label: 'FCL/LCL', title: 'FCL/LCL 損益分岐', panel: 'flPanel' },
-    { id: 'bookmark', icon: '🔖', label: 'ブク',    title: 'ブックマーク',  panel: 'bmRailPanel' },
+    { id: 'compare',  icon: '⚖️', label: '比較',    more: 1, title: '同一項目の最安値比較', panel: 'cmpRailPanel' },
+    { id: 'fcllcl',   icon: '🆚', label: 'FCL比較', more: 1, title: 'FCL/LCL 損益分岐', panel: 'flPanel' },
+    { id: 'bookmark', icon: '🔖', label: 'ブクマ',  more: 1, title: 'ブックマーク',  panel: 'bmRailPanel' },
     { id: 'fin',      icon: '💰', label: '金額',    title: '金額',         panel: 'quoteSummaryPanel', tab: 'fin'    },
     { id: 'chat',     icon: '💬', label: '申し送り', title: '申し送り',     panel: 'quoteSummaryPanel', tab: 'chat'   },
-    { id: 'similar',  icon: '🔍', label: '類似',    title: '類似見積',     panel: 'sqPanel' },
-    { id: 'scenario', icon: '📦', label: '数量', title: '単位で数量を一括変更', panel: 'scPanel' },
+    { id: 'similar',  icon: '🔍', label: '類似',    more: 1, title: '類似見積',     panel: 'sqPanel' },
+    { id: 'scenario', icon: '🔢', label: '数量', more: 1, title: '単位で数量を一括変更', panel: 'scPanel' },
     { id: 'subcon',   icon: '👷', label: 'サブコン', title: 'サブコン別',   panel: 'siPanel' },
-    { id: 'charges',  icon: '📦', label: 'チャージ', title: '諸チャージ',   panel: 'lcRailPanel' },
-    { id: 'pattern',  icon: '🗜️', label: '行パタ', title: '行パターン',   action: 'openRowPatternMgr' },
+    { id: 'charges',  icon: '🧾', label: 'チャージ', title: '諸チャージ',   panel: 'lcRailPanel' },
+    { id: 'pattern',  icon: '🗜️', label: '行パタ', more: 1, title: '行パターン',   action: 'openRowPatternMgr' },
   ];
+
+  // 引き出しの既定幅（モジュール別・Design 33）。最小 300・最大 560。左端ドラッグで変更（モジュールごとに記憶）
+  const DEF_W = { digest: 440, fin: 340, subcon: 400, fcllcl: 440 };
+  function _wOf(mod, saved) { return (saved && saved['w:' + mod]) || DEF_W[mod] || 340; }
 
   // 旧 'summary' モジュールは廃止。保存済み active のマイグレーション用。
   function _migrateActive(a) {
@@ -66,6 +70,11 @@
 
   let state = { active: 'digest', pinned: true, width: 300 };
 
+  function _railBtn(m) {
+    return '<button class="qrc-rail-btn" data-mod="' + m.id + '" title="' + m.title + '">' +
+             '<span class="qrc-rail-ico">' + m.icon + '</span><em>' + m.label + '</em></button>';
+  }
+
   // ---- DOM 構築（既存 .quote-right-col を包み替え） ---------------------
   function build() {
     const col = document.querySelector('#tab-quote-make .quote-right-col');
@@ -74,7 +83,7 @@
     const saved = _load();
     state.active = ('active' in saved) ? _migrateActive(saved.active) : 'digest';
     state.pinned = ('pinned' in saved) ? saved.pinned : true;
-    state.width  = saved.width || 300;
+    state.width  = _wOf(state.active, saved);
 
     // 既存パネルを退避
     const panels = {
@@ -101,12 +110,9 @@
         '<div class="qrc-drawer-body" id="qrcBody"></div>' +
       '</div>' +
       '<nav class="qrc-rail" id="qrcRail">' +
-        MODS.map(function (m) {
-          return '<button class="qrc-rail-btn" data-mod="' + m.id + '" title="' + m.title + '">' +
-                   '<span class="qrc-rail-ico">' + m.icon + '</span>' +
-                   '<em>' + m.label + '</em>' +
-                 '</button>';
-        }).join('') +
+        MODS.filter(function (m) { return !m.more; }).map(_railBtn).join('') +
+        '<button class="qrc-rail-btn qrc-more2-btn" id="qrcMore2" type="button" title="その他のツール" aria-expanded="false"><span class="qrc-rail-ico">⋯</span><em>その他 ▾</em></button>' +
+        '<div class="qrc-rail-more" id="qrcRailMore" hidden>' + MODS.filter(function (m) { return m.more; }).map(_railBtn).join('') + '</div>' +
       '</nav>';
 
     // 退避したパネルを drawer body へ戻す（各モジュールのペインに）
@@ -119,6 +125,7 @@
     col.querySelector('#qrcRail').addEventListener('click', function (e) {
       const btn = e.target.closest('.qrc-rail-btn');
       if (!btn) return;
+      if (btn.id === 'qrcMore2') { toggleMore(); return; }
       const mod = btn.dataset.mod;
       setActive(state.active === mod ? null : mod);
     });
@@ -144,14 +151,14 @@
     const x0 = e.clientX, w0 = state.width;
     function move(ev) {
       const dx = x0 - ev.clientX;               // 左へ動かすと広がる
-      state.width = Math.max(240, Math.min(480, w0 + dx));
+      state.width = Math.max(300, Math.min(560, w0 + dx));
       const d = document.getElementById('qrcDrawer');
       if (d) d.style.width = state.width + 'px';
     }
     function up() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
-      _save({ width: state.width });
+      const o = {}; o['w:' + state.active] = state.width; _save(o);
     }
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -167,6 +174,8 @@
       return;
     }
     state.active = mod;
+    if (!mod) document.dispatchEvent(new CustomEvent('qrc:close'));
+    if (mod) state.width = _wOf(mod, _load());
     _save({ active: mod });
     render();
     // chat ショートカット：summary パネルのチャットタブへ
@@ -200,6 +209,21 @@
     }
   }
 
+  function toggleMore(force) {
+    const box = document.getElementById('qrcRailMore'), b = document.getElementById('qrcMore2'); if (!box || !b) return;
+    const open = (force == null) ? box.hidden : !!force;
+    box.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); b.classList.toggle('is-open', open);
+  }
+
+  // Esc：引き出しを閉じる（モーダル・メニューが開いているときは譲る）
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || !state.active) return;
+    if (document.querySelector('.confirm-overlay, #previewOverlay.open, #fbOverlay.open, #mdDetailModal.open, .nq-overlay')) return;
+    const col = document.querySelector('#tab-quote-make .quote-right-col--rail'); if (!col || !col.getClientRects().length) return;
+    if (e.target && /TEXTAREA|SELECT/.test(e.target.tagName)) return;   // 文章の入力中は譲る（欄が 1 行の入力なら Esc で閉じてよい）
+    setActive(null);
+  });
+
   function render() {
     const col = document.querySelector('#tab-quote-make .quote-right-col--rail');
     if (!col) return;
@@ -231,7 +255,8 @@
       b.classList.toggle('is-on', b.dataset.mod === state.active);
     });
 
-    // バッジ／新着ドット（任意：件数があれば付与）
+    const ab = col.querySelector('.qrc-rail-more .qrc-rail-btn.is-on'); if (ab) toggleMore(true);
+    document.body.dataset.qrcOpen = state.active || '';
     _decorateRail(col);
   }
 
@@ -267,6 +292,12 @@
       const hasAlert = !!document.querySelector('#lcRailPanel .lc-rail-expired, #lcRailPanel .lc-rail-expiring');
       _setDot(lcBtn, hasAlert);
     }
+    _moreDot(col);
+  }
+  function _moreDot(col) {
+    const b = col.querySelector('#qrcMore2'); if (!b) return;
+    const inner = col.querySelector('#qrcRailMore'); const has = !!(inner && inner.querySelector('.qrc-rail-badge, .qrc-rail-dot')) && inner.hidden;
+    _setDot(b, has);
   }
   function _setBadge(btn, txt) {
     let b = btn.querySelector('.qrc-rail-badge');

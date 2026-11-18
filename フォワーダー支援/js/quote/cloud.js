@@ -40,8 +40,17 @@
   let _cloudFilterPod     = '';
   let _cloudFilterCarrier = '';
   let _cloudFilterCustomer = '';  // お客様別ランキングからの絞り込み（正規化キー）
-  let _cloudFilterTag     = '';   // タグ絞り込み（'' = すべて）
+  let _cloudFilterTags    = [];   // タグ絞り込み（複数選択・空＝すべて）
+  let _cloudTagMode       = 'and'; // 複数タグの組み合わせ：'and'＝すべて含む／'or'＝どれか含む
+  const _RECENT_TAGS_KEY  = 'qpdRecentTags_v1';   // 「最近使ったタグ」（このブラウザに保存）
+  function _recentTags() { try { const a = JSON.parse(localStorage.getItem(_RECENT_TAGS_KEY) || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; } catch (e) { return []; } }
+  function _pushRecentTag(t) { try { const a = [t].concat(_recentTags().filter(x => x !== t)).slice(0, 10); localStorage.setItem(_RECENT_TAGS_KEY, JSON.stringify(a)); } catch (e) { /* 保存できなくても動く */ } }
+  function _tagMatch(r) {
+    const have = Array.isArray(r.tags) ? r.tags : [];
+    return _cloudTagMode === 'or' ? _cloudFilterTags.some(t => have.includes(t)) : _cloudFilterTags.every(t => have.includes(t));
+  }
   let _cloudFollowFilter  = false; // 🔔 料金更新フォロー（要フォロー）だけに絞り込む
+  let _cloudFilterFollower = '';   // 🙋 フォロー担当での絞り込み（メール／'__none'＝未フォロー）
   // 案件の範囲：全体／組織／チーム／自分（作成者の所属で絞る。見える範囲は変えない＝全員が全案件を見られる）。
   //   _cloudScopeSel＝組織・チームの id（空＝自分の所属）。選択は端末に覚える（qpdScope_v1）。組織とチームの所属は js/org-teams.js
   let _cloudScope = 'all';
@@ -61,6 +70,14 @@
   let _dashLimit = DASH_PAGE;   // 現在の表示上限（絞り込み変更でリセット・「さらに読み込む」で加算）
   let _dashFilterSig = null;    // 絞り込みシグネチャ（変わった時だけ先頭ページへ戻す）
   let _dashFilteredRows = [];   // 直近の絞り込み済み・ソート済み行（追加読み込み用）
+  // 🌳 メイン／サブ：サブは必ずメインの直下に並べ、右へインデントする（カード表示・リスト表示とも）
+  let _linkParents = new Map();     // サブの案件 id → メインの案件 id（全案件ぶん。quote_preset_links.parent_id から）
+  let _linkParentsSig = '';
+  let _linkParentsState = 'none';   // 'none'（未取得／取り直し待ち）| 'loading' | 'loaded'
+  let _dashLinkGen = 0;             // 関連付けが変わるたびに増やす（古い取得結果でキャッシュを上書きしない）
+  let _dashDepth = new Map();       // 今の並びでの深さ（0＝メインや単独・1＝サブ・2＝サブのサブ）
+  let _dashKidCount = new Map();    // メインごとの直下のサブ件数（全案件ぶん）
+  let _dashShownIds = new Set();    // いまカードとして描いている案件の id（メインの中のツリーから重複を除くため）
   // プレビュー
   let _cpId        = null;   // プレビュー中のプリセット ID
   let _cpRows      = [];     // プレビュー中の行データ（v3形式）
@@ -279,6 +296,60 @@
     return lines.join('\n');
   }
 
+  // ---------- 案件の本体（data）の使い回し（通信量の削減） ----------
+  // 以前は一覧を開き直すたびに全案件の本体を丸ごと取っていた（保存・ダッシュボードに戻る・他の人の編集開始・ログイン状態の通知など）。
+  // いまは、本体は「目印が変わった案件」だけ取り直す。
+  //   目印 = updated_at ＋ editors（データ・ステータスが変わると DB のトリガーが editors を必ず更新する。
+  //          ロックの更新・取得・解放では変わらない。updated_at を変えない書き込みもこれで拾える）
+  //   editors の列が無い環境では目印が弱いので、5 分たった本体は取り直す。
+  // 一覧の他の列（ロック状態・ステータスなど）は毎回最新を取るので、削除・ロックの反映も従来どおり。
+  const _BODY_CHUNK = 40;                       // 1 回に取る本体の件数（URL が長くなりすぎないように）
+  const _BODY_PARALLEL = 6;                     // 本体の取得を同時に走らせる本数
+  const _BODY_NOEDITORS_TTL = 5 * 60 * 1000;
+  let _bodyCache = new Map();                   // id -> { sig, at, data }
+  function _bodySig(r) {
+    return String(r.updated_at || '') + '|' + (r.editors === undefined ? '-' : JSON.stringify(r.editors));
+  }
+  function _bodyCacheDrop(id) { _bodyCache.delete(id); }
+  async function _attachBodies(c, rows) {
+    const now = Date.now();
+    const need = [];
+    const next = new Map();
+    for (const r of rows) {
+      const hit = _bodyCache.get(r.id);
+      const sig = _bodySig(r);
+      if (hit && hit.sig === sig && (r.editors !== undefined || now - hit.at < _BODY_NOEDITORS_TTL)) {
+        r.data = hit.data;
+        next.set(r.id, hit);
+      } else {
+        need.push(r);
+      }
+    }
+    const gone = new Set();
+    // チャンクごとの取得は互いに独立なので、数本ずつ並列に取る（以前は 1 本ずつ順番に待っていたため、
+    // 案件が多いと「往復の待ち時間 × チャンク数」がそのまま読み込み時間になっていた）
+    const parts = [];
+    for (let i = 0; i < need.length; i += _BODY_CHUNK) parts.push(need.slice(i, i + _BODY_CHUNK));
+    let nextPart = 0;
+    const worker = async () => {
+      while (nextPart < parts.length) {
+        const part = parts[nextPart++];
+        const { data: got, error } = await c.from(_table()).select('id,data').in('id', part.map(r => r.id));
+        if (error) throw error;
+        const m = new Map((got || []).map(g => [g.id, g.data]));
+        for (const r of part) {
+          if (!m.has(r.id)) { gone.add(r.id); continue; }      // 取得の合間に削除された案件
+          r.data = m.get(r.id);
+          next.set(r.id, { sig: _bodySig(r), at: now, data: r.data });
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(_BODY_PARALLEL, parts.length) }, worker));
+    _bodyCache = next;
+    // 元の並び順（更新が新しい順）を保つ
+    return rows.filter(r => !gone.has(r.id));
+  }
+
   // ---------- 一覧 ----------
   async function cloudListPresets(silent) {
     const c = _getClient();
@@ -287,40 +358,29 @@
     if (wrap && !silent) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
     // 同義グループ（お客様名等の表記ゆれマッピング）を最新化してから集計する。
     // _custKey() がこのキャッシュを参照するため、ランキング描画より前に解決させる必要がある。
-    await Promise.all([
+    // ここでは待たず、案件一覧の取得と同時に走らせる（待つのは描画の直前）。以前は先に待っていたため、往復 1 回ぶん遅れていた
+    const pre = Promise.all([
       _loadProfiles(),
       (typeof window.synLoadCloud === 'function' ? window.synLoadCloud() : Promise.resolve()),
-    ]);
+    ]).catch(() => {});
     // editors（更新者履歴）・locked_by/locked_at（編集ロック）・ref（見積もり番号）・
     // tags（案件タグ）も取得。列が未マイグレーションでも動くよう、段階的にフォールバックする。
-    const BASE_COLS = 'id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data';
-    let { data, error } = await c
-      .from(_table())
-      .select(BASE_COLS + ',ref,tags,locked_by,locked_at,editors')
-      .order('updated_at', { ascending: false });
-    if (error) {
+    // 一覧は「本体（data）以外の列」だけを毎回取り、本体は変わった案件の分だけ取り直す（通信量の削減。_attachBodies）。
+    const META_COLS = 'id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier';
+    const EXTRA_COLS = [
+      ',ref,tags,locked_by,locked_at,editors',
+      ',ref,locked_by,locked_at,editors',
+      ',locked_by,locked_at,editors',
+      ',locked_by,locked_at',
+      '',
+    ];
+    let data, error, usedExtra = '';
+    for (const ex of EXTRA_COLS) {
       ({ data, error } = await c
         .from(_table())
-        .select(BASE_COLS + ',ref,locked_by,locked_at,editors')
+        .select(META_COLS + ex)
         .order('updated_at', { ascending: false }));
-    }
-    if (error) {
-      ({ data, error } = await c
-        .from(_table())
-        .select(BASE_COLS + ',locked_by,locked_at,editors')
-        .order('updated_at', { ascending: false }));
-    }
-    if (error) {
-      ({ data, error } = await c
-        .from(_table())
-        .select(BASE_COLS + ',locked_by,locked_at')
-        .order('updated_at', { ascending: false }));
-    }
-    if (error) {
-      ({ data, error } = await c
-        .from(_table())
-        .select(BASE_COLS)
-        .order('updated_at', { ascending: false }));
+      if (!error) { usedExtra = ex; break; }
     }
     if (error) {
       if (wrap) wrap.innerHTML =
@@ -328,6 +388,21 @@
         '<br><small>許可リスト（allowed_emails）に登録されていない可能性があります</small></div>';
       return;
     }
+    try {
+      data = await _attachBodies(c, data || []);
+    } catch (e) {
+      // 本体の取得に失敗したら、従来どおり本体つきで全件を取り直す（確実さを優先）
+      _bodyCache = new Map();
+      ({ data, error } = await c
+        .from(_table())
+        .select(META_COLS + ',data' + usedExtra)
+        .order('updated_at', { ascending: false }));
+      if (error) {
+        if (wrap) wrap.innerHTML = '<div class="preset-empty">⚠️ 取得に失敗：' + escHtml(error.message) + '</div>';
+        return;
+      }
+    }
+    await pre;   // 表記ゆれのマッピング（_custKey が参照）とプロフィールが揃ってから描画する
     _cloudRows = data || [];
     await _checkStaleHolds();
     _notifyPriceFollows();
@@ -449,6 +524,11 @@
     if (!_inScope(r, _cloudScope, _cloudScopeSel)) return false;   // 全体／組織／チーム／自分
     if (_cloudFollowFilter && !_priceFollow(r)) return false;   // 🔔 要フォローのみ
     if (_cloudPendingFilter && !_pendingImport(r)) return false; // 📩 未取込のみ
+    if (_cloudFilterFollower) {   // 🙋 フォロー担当：進行中の案件だけ（受注・失注・辞退・保留は割り振りの対象外）
+      if (!_isActiveCase(r)) return false;
+      const fo = _followerOf(r);
+      if (_cloudFilterFollower === '__none' ? !!fo : fo !== _cloudFilterFollower) return false;
+    }
     if (_cloudStatusFilter) {
       const st = _normalizeStatus(r.status) || CLOUD_STATUS_DEFAULT;
       const matchesStatus = (_cloudStatusFilter === DRAFT_GROUP_FILTER)
@@ -461,24 +541,78 @@
     if (pol && !(r.pol     || '').toLowerCase().includes(pol)) return false;
     if (pod && !(r.pod     || '').toLowerCase().includes(pod)) return false;
     if (car && !(r.carrier || '').toLowerCase().includes(car)) return false;
-    if (!skipTag && _cloudFilterTag && !(Array.isArray(r.tags) && r.tags.includes(_cloudFilterTag))) return false;
+    if (!skipTag && _cloudFilterTags.length && !_tagMatch(r)) return false;
     if (!skipCustomer && _cloudFilterCustomer && _custKey(r.customer) !== _cloudFilterCustomer) return false;
     if (!terms.length) return true;
     const hay = _searchHayFor(r);
     return terms.every(t => hay.includes(t));   // スペース区切りで AND 検索
   }
 
+  // サブをメインの直下へ（深さ優先）。メインの位置は「その家族のうち最初に並んだ人」の位置＝緊急タグ・並び替えの意味を保つ。
+  // 絞り込みでメインが見えていないサブは、単独のカードとして元の位置に残す（カードの「↳ サブ」行で親が分かる）
+  function _groupByHierarchy(rows) {
+    _dashKidCount = new Map();
+    _linkParents.forEach(pid => _dashKidCount.set(pid, (_dashKidCount.get(pid) || 0) + 1));
+    _dashDepth = new Map();
+    if (!_linkParents.size || !rows.length) return rows;
+    const ids = new Set(rows.map(r => r.id));
+    const parentOf = id => {
+      const p = _linkParents.get(id);
+      if (!p || p === id || !ids.has(p)) return null;
+      let cur = p, n = 0;                                   // 輪になっていたら親なしとして扱う（画面を壊さない）
+      while (cur && n++ < 8) { if (cur === id) return null; cur = _linkParents.get(cur); }
+      return p;
+    };
+    const rootOf = id => { let cur = id, n = 0; while (n++ < 8) { const p = parentOf(cur); if (!p) break; cur = p; } return cur; };
+    const children = new Map(), rootOrder = [], seenRoot = new Set();
+    rows.forEach(r => {
+      const rt = rootOf(r.id);
+      if (!seenRoot.has(rt)) { seenRoot.add(rt); rootOrder.push(rt); }
+      const p = parentOf(r.id);
+      if (p) (children.get(p) || children.set(p, []).get(p)).push(r);
+    });
+    const byId = new Map(rows.map(r => [r.id, r]));
+    const out = [];
+    const walk = (r, d) => { out.push(r); _dashDepth.set(r.id, d); (children.get(r.id) || []).forEach(k => walk(k, d + 1)); };
+    rootOrder.forEach(id => { const r = byId.get(id); if (r) walk(r, 0); });
+    return out.length === rows.length ? out : rows;         // 取りこぼしがあれば元の並びのまま（安全側）
+  }
+  // 全案件のメイン／サブの対応を 1 クエリで取る（描画は取得前の状態で先に出し、変わったときだけ描き直す）
+  function _ensureLinkParents() {
+    if (_linkParentsState !== 'none') return;
+    const c = _getClient();
+    if (!c || !_cloudUser) return;
+    _linkParentsState = 'loading';
+    const gen = _dashLinkGen;
+    (async () => {
+      const map = new Map();
+      if (!_linkHierarchyMissing) {
+        const r = await _selectLinks(c, q => q.not('parent_id', 'is', null));
+        if (!r.error && r.data) r.data.forEach(l => {
+          if (l.parent_id && l.preset_a !== l.preset_b) map.set(l.preset_a === l.parent_id ? l.preset_b : l.preset_a, l.parent_id);
+        });
+      }
+      if (gen !== _dashLinkGen) { _linkParentsState = 'none'; _applyCloudFilter(); return; }   // 取得中に関連付けが変わった：取り直す
+      const sig = JSON.stringify(Array.from(map).sort());
+      const changed = sig !== _linkParentsSig;
+      _linkParents = map; _linkParentsSig = sig; _linkParentsState = 'loaded';
+      if (changed) _applyCloudFilter();
+    })().catch(() => { _linkParentsState = 'loaded'; });
+  }
+
   function _applyCloudFilter() {
-    const rows = _sortCloudRows(_cloudRows.filter(r => _rowMatchesFilters(r)));
+    const rows = _groupByHierarchy(_sortCloudRows(_cloudRows.filter(r => _rowMatchesFilters(r))));
+    _ensureLinkParents();
     // 絞り込み・並び替えが変わったときだけ先頭ページに戻す（ステータス変更や Presence 等の
     // 付随的な再描画では表示件数を保つ＝スクロール位置・展開状態を崩さない）
-    const sig = JSON.stringify([_cloudSearch, _cloudStatusFilter, _cloudFilterCustomer, _cloudFilterTag,
-      _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView, _cloudFollowFilter, _cloudPendingFilter, _cloudScope, _cloudScopeSel]);
+    const sig = JSON.stringify([_cloudSearch, _cloudStatusFilter, _cloudFilterCustomer, _cloudFilterTags.join('\u0001'), _cloudTagMode,
+      _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView, _cloudFollowFilter, _cloudPendingFilter, _cloudFilterFollower, _cloudScope, _cloudScopeSel]);
     if (sig !== _dashFilterSig) { _dashFilterSig = sig; _dashLimit = DASH_PAGE; }
     _renderCloudList(rows);
     _renderTagChips();        // タグチップは現在の絞り込み（ステータス等）に連動して件数・顔ぶれを更新
     _renderActiveQpdRank();   // タブで隠れている側は再計算しない（切替時に改めて描画する）
     _syncResetAllBtn();
+    if (typeof window.dtRefresh === 'function') window.dtRefresh();   // ダッシュボード上部の組み替え（js/quote/dash-top.js）
   }
 
   // 「さらに読み込む」：ダッシュボードの表示上限を DASH_PAGE 件ぶん増やして再描画
@@ -489,8 +623,8 @@
 
   // 何らかの絞り込みが効いているか（「すべて解除」ボタンの出し分けに使う）
   function _anyFilterActive() {
-    return !!(_cloudScope !== 'all' || _cloudSearch.trim() || _cloudStatusFilter || _cloudFilterCustomer || _cloudFilterTag ||
-              _cloudFilterMode || _cloudFilterInco || _cloudFollowFilter || _cloudPendingFilter ||
+    return !!(_cloudScope !== 'all' || _cloudSearch.trim() || _cloudStatusFilter || _cloudFilterCustomer || _cloudFilterTags.length ||
+              _cloudFilterMode || _cloudFilterInco || _cloudFollowFilter || _cloudPendingFilter || _cloudFilterFollower ||
               _cloudFilterPol.trim() || _cloudFilterPod.trim() || _cloudFilterCarrier.trim());
   }
   function _syncResetAllBtn() {
@@ -505,8 +639,9 @@
     _cloudSearch = '';
     _cloudStatusFilter = '';
     _cloudFilterCustomer = '';
-    _cloudFilterTag = '';
+    _cloudFilterTags = [];
     _cloudFollowFilter = false;
+    _cloudFilterFollower = '';
     _cloudPendingFilter = false;
     _cloudScope = 'all'; _cloudScopeSel = ''; _saveScope();
     _cloudFilterMode = _cloudFilterInco = _cloudFilterPol = _cloudFilterPod = _cloudFilterCarrier = '';
@@ -568,8 +703,8 @@
     };
     fill(document.getElementById('cloudFilterMode'), '輸送モード：すべて', modes, _cloudFilterMode);
     fill(document.getElementById('cloudFilterInco'), 'インコタームズ：すべて', incos, _cloudFilterInco);
-    fill(document.getElementById('qpdFilterMode'),   '輸送モード：すべて', modes, _cloudFilterMode);
-    fill(document.getElementById('qpdFilterInco'),   'インコタームズ：すべて', incos, _cloudFilterInco);
+    fill(document.getElementById('qpdFilterMode'),   'すべて', modes, _cloudFilterMode);
+    fill(document.getElementById('qpdFilterInco'),   'すべて', incos, _cloudFilterInco);
     // ダッシュボード側のテキスト系も現在値へ同期
     const setv = (id, v) => { const e = document.getElementById(id); if (e && e.value !== v) e.value = v; };
     setv('qpdFilterPol', _cloudFilterPol); setv('qpdFilterPod', _cloudFilterPod); setv('qpdFilterCarrier', _cloudFilterCarrier);
@@ -653,6 +788,7 @@
     }
     box.innerHTML = html;
     box.hidden = false;
+    if (typeof window.dtRefresh === 'function') window.dtRefresh();
   }
   function cloudFilterScope(scope) {
     _cloudScope = scope; _cloudScopeSel = ''; _saveScope();
@@ -711,7 +847,7 @@
     const shown = _cloudTagChipsExpanded ? list : list.slice(0, QPD_TAG_CHIP_TOP_N);
     const remaining = list.length - shown.length;
     box.innerHTML = shown.map((c, i) =>
-      '<button type="button" class="cloud-tag-filter-chip' + (_cloudFilterTag === c.tag ? ' is-active' : '') + '" ' +
+      '<button type="button" class="cloud-tag-filter-chip' + (_cloudFilterTags.includes(c.tag) ? ' is-active' : '') + '" ' +
       'onclick="cloudFilterTag(' + i + ')" title="このタグで絞り込み">🏷️ ' + escHtml(c.tag) +
       '<span class="cloud-chip-n">' + c.count + '</span></button>'
     ).join('')
@@ -720,7 +856,7 @@
         : (_cloudTagChipsExpanded && list.length > QPD_TAG_CHIP_TOP_N
             ? '<button type="button" class="cloud-tag-filter-more" onclick="cloudTagChipsToggleExpand()">▲ 折りたたむ</button>'
             : ''))
-    + (_cloudFilterTag
+    + (_cloudFilterTags.length
       ? '<button type="button" class="cloud-tag-filter-clear" onclick="cloudFilterTag(-1)">✕ 解除</button>'
       : '');
   }
@@ -736,18 +872,23 @@
     if (!dl) return;
     dl.innerHTML = _cloudTagChipList.map(c => '<option value="' + escHtml(c.tag) + '">').join('');
   }
+  // タグの選択を 1 つ足す／外す（複数選択）。足したタグは「最近使った」に記録する
+  function _tagSet(tag, on) {
+    const has = _cloudFilterTags.includes(tag);
+    if (on && !has) { _cloudFilterTags = _cloudFilterTags.concat(tag); _pushRecentTag(tag); }
+    else if (!on && has) _cloudFilterTags = _cloudFilterTags.filter(t => t !== tag);
+    else return;
+    _renderTagChips(); _applyCloudFilter();
+  }
+  function cloudTagToggle(tag) { _tagSet(tag, !_cloudFilterTags.includes(tag)); }
+  function cloudTagClear() { if (!_cloudFilterTags.length) return; _cloudFilterTags = []; _renderTagChips(); _applyCloudFilter(); }
+  function cloudTagSetMode(m) { _cloudTagMode = m === 'or' ? 'or' : 'and'; _renderTagChips(); _applyCloudFilter(); }
+  // 旧入力欄（#qpdTagQuickFilter・新しい画面では隠している）の互換：完全一致で足す／Enter で前方・部分一致で足す
   function qpdTagQuickFilterInput(val) {
     const v = (val || '').trim();
-    if (!v) {
-      if (_cloudFilterTag) { _cloudFilterTag = ''; _renderTagChips(); _applyCloudFilter(); }
-      return;
-    }
+    if (!v) return;
     const hit = _cloudTagChipList.find(c => c.tag === v);
-    if (hit && _cloudFilterTag !== hit.tag) {
-      _cloudFilterTag = hit.tag;
-      _renderTagChips();
-      _applyCloudFilter();
-    }
+    if (hit) _tagSet(hit.tag, true);
   }
   function qpdTagQuickFilterCommit(val) {
     const v = (val || '').trim();
@@ -758,22 +899,19 @@
       if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 該当するタグが見つかりません', 'warn', 2000);
       return;
     }
-    _cloudFilterTag = hit.tag;
     const inp = document.getElementById('qpdTagQuickFilter');
-    if (inp) inp.value = hit.tag;
-    _renderTagChips();
-    _applyCloudFilter();
+    if (inp) inp.value = '';
+    _tagSet(hit.tag, true);
   }
   function cloudFilterTag(idx) {
-    if (idx < 0) {
-      _cloudFilterTag = '';
-    } else {
-      const c = _cloudTagChipList[idx];
-      if (!c) return;
-      _cloudFilterTag = (_cloudFilterTag === c.tag) ? '' : c.tag;   // 同じものを再クリックで解除
-    }
-    _renderTagChips();
-    _applyCloudFilter();
+    if (idx < 0) { cloudTagClear(); return; }
+    const c = _cloudTagChipList[idx];
+    if (!c) return;
+    cloudTagToggle(c.tag);   // 同じものを再クリックで外す
+  }
+  // タグパネル（js/quote/dash-top.js）が読む状態
+  function cloudTagState() {
+    return { customer: _cloudFilterCustomer ? ((_qpdCustomerRanking().find(x => x.key === _cloudFilterCustomer) || {}).label || _cloudFilterCustomer) : '', tags: _cloudFilterTags.slice(), mode: _cloudTagMode, list: _tagCounts(), recent: _recentTags(), shown: (_dashFilteredRows || []).length };
   }
 
   // 旧値「提示済み」→「提出済み」に正規化（DB 移行前の既存データ対応）
@@ -847,6 +985,8 @@
   const _DEAL_CHIPS = {
     '荷主（直接）':                   { k: 'ship',  ico: '🏭', lbl: '荷主' },
     '同業者（フォワーダー・代理店）': { k: 'fwd',   ico: '🤝', lbl: '同業者' },
+    '海外代理店':                     { k: 'agent', ico: '🌏', lbl: '海外代理店' },
+    '乙仲':                           { k: 'otsu',  ico: '🛃', lbl: '乙仲' },
     'その他':                         { k: 'other', ico: '📁', lbl: 'その他' },
   };
   const nameCanonOrSelf = v => (typeof window.nameCanon === 'function' ? window.nameCanon('customer', v) : v) || v;   // 同業者の名前が変わっていても代表名で出す
@@ -862,6 +1002,42 @@
       def.ico + ' ' + def.lbl + '</span>';
   }
   window.quoteCustomerDealChip = _custDealChip;
+  // 案件カード（詳細表示）の左ブロック：お客様・取引形態の札・担当者・経由する同業者（Design 21「C-3」）。色は取引形態ごと（data-deal）
+  function _cc3Left(customer, personH) {
+    const name = String(customer == null ? '' : customer).trim();
+    const rec = name && typeof window.mdGetCanon === 'function' ? window.mdGetCanon('customer', name) : null;
+    const d = rec && rec.details;
+    const def = d && _DEAL_CHIPS[d.dealType];
+    const via = d && d.via ? nameCanonOrSelf(d.via) : '';
+    return '<div class="cc3-left"' + (def ? ' data-deal="' + def.k + '"' : '') + '>' +
+      '<span class="cc3-lbl">' + (def ? '<span class="cc3-kind" title="取引形態：' + escHtml(d.dealType) + '">' + escHtml(def.lbl) + '</span>' : '') + '</span>' +
+      (name ? (rec
+        ? '<b class="cc3-cust is-link" role="button" tabindex="0" title="' + escHtml(name) + '（クリックでお客様の詳細）" onclick="event.stopPropagation();dashShowCustomerDetail(\'' + encodeURIComponent(name).replace(/'/g, '%27') + '\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.click();}">' + escHtml(name) + '</b>'
+        : '<b class="cc3-cust" title="' + escHtml(name) + '">' + escHtml(name) + '</b>')
+        : '<b class="cc3-cust is-empty">（お客様未入力）</b>') +
+      (personH ? '<span class="cc3-person" title="' + escHtml(personH) + '">' + escHtml(personH) + '</span>' : '<span class="cc3-person is-empty">（担当者なし）</span>') +
+      (via ? '<span class="cc3-via" title="経由する同業者：' + escHtml(via) + '">↳ 経由：' + escHtml(via) + '</span>' : '') +
+    '</div>';
+  }
+  // 作業者の 1 行：作成者と更新した人（editors＝新しい順・最大 20 名）を全員並べる。丸いアイコン＋名前＋作成／更新（自分は「あなた」）
+  function _cc3Who(r, lockedBy) {
+    const me = (_cloudUser && _cloudUser.email) || '';
+    const people = [], idx = {};
+    const add = (email, role) => {
+      if (!email) return;
+      if (!(email in idx)) { idx[email] = people.length; people.push({ email, roles: [] }); }
+      if (!people[idx[email]].roles.includes(role)) people[idx[email]].roles.push(role);
+    };
+    add(r.created_by, '作成');
+    _editorsOf(r).forEach(e => { if (e.email !== r.created_by) add(e.email, '更新'); });   // 名前ごとにラベルは 1 つだけ（作成者が更新もしていれば「作成」のみ）
+    const flw = _followChipHtml(r, lockedBy);
+    if (!people.length && !flw) return '';
+    return '<div class="cc3-who">' + flw + (people.length ? '<span class="cc3-who-l">作業者</span>' : '') + people.map(p => {
+      const nm = _nameFor(p.email) || p.email, a = _avatarFor(p.email, nm);
+      return '<span class="cc3-p' + (p.email === me ? ' is-me' : '') + '" title="' + escHtml(p.email + (p.email === me ? '（あなた）' : '')) + '"><span class="cc3-av" style="background:' + a.color + '">' + escHtml(a.label || '?') + '</span>' +
+        '<b>' + escHtml(nm) + '</b><small>' + escHtml(p.roles[0]) + '</small></span>';
+    }).join('') + '</div>';
+  }
   // お客様名。マスターに登録済みなら押せるボタンにし、押すとその場でお客様詳細（担当者・連絡先・取引形態・添付など）を
   // 読み取り専用のポップアップで開く（見積タブの「詳細」ボタンと同じ mdShowDetailPopup）。未登録は従来どおり文字のまま。
   function _custNameHtml(customer) {
@@ -952,9 +1128,9 @@
   // ブラウザ保存（ui.js renderPresetList）からも共通利用する
   window.quoteExtractSubcons = _extractSubcons;
 
-  // 新しい見積を始める入口（かんたん表示）：案件の先頭の点線カード／0 件のときの案内。どちらも qpNewQuote() を呼ぶだけ
+  // 新しい見積を始める入口（かんたん表示）：案件の先頭の点線カード／0 件のときの案内。どちらも qpNewQuoteChoose()（新規見積の入口＝js/quote/new-quote-chooser.js）を呼ぶだけ
   function _newCaseCardHtml() {
-    return '<button type="button" class="qpd-newcard" onclick="qpNewQuote()">'
+    return '<button type="button" class="qpd-newcard" onclick="qpNewQuoteChoose()">'
       + '<span class="qpd-newcard-plus" aria-hidden="true">＋</span>'
       + '<span class="qpd-newcard-text"><b>新しい見積を作る</b><small>お客様名とご担当者を入れるところから始めます</small></span></button>';
   }
@@ -964,7 +1140,7 @@
       + '<h3>最初の見積を作ってみましょう</h3>'
       + '<p>お客様の名前と担当者を入れるところから始まります。あとからいつでも直せるので、まずは1件作ってみてください。</p>'
       + '<div class="qpd-welcome-steps">' + steps + '</div>'
-      + '<button type="button" class="qpd-welcome-btn" onclick="qpNewQuote()"><span aria-hidden="true">＋</span>新しい見積を作る</button>'
+      + '<button type="button" class="qpd-welcome-btn" onclick="qpNewQuoteChoose()"><span aria-hidden="true">＋</span>新しい見積を作る</button>'
       + '<small>メールの文面を貼って始めたい場合は、右上の「自由入力で保管」から。</small>'
       + '</div>';
   }
@@ -976,10 +1152,9 @@
     let html;
     if (!_cloudRows.length) {
       html = '<div class="preset-empty">共有案件はまだありません<br>'
-        + '<small style="color:#9bb;">「🆕 新規見積を作成」から保存できます</small></div>';
+        + '<small style="color:#9bb;">「新しい見積を作る」から保存できます</small></div>';
       // かんたん表示のダッシュボードは、0 件のとき「ここから始める」の大きな案内を出す（モーダルは従来の文言のまま）
-      const simpleDash0 = !!(window.uiIsSimple && window.uiIsSimple());
-      wraps.forEach(w => { w.innerHTML = (simpleDash0 && w.id === 'qpdListWrap') ? _newCaseWelcomeHtml() : html; });
+      wraps.forEach(w => { w.innerHTML = (w.id === 'qpdListWrap') ? _newCaseWelcomeHtml() : html; });
       return;
     }
     if (!rows.length) {
@@ -1027,7 +1202,7 @@
         : ((pol || pod) ? [pol, pod].filter(Boolean).map(escHtml).join(' <span class="cloud-kv-arrow">→</span> ') : '');
       const condHtml =
         ((inco && inco !== '設定なし') ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(String(inco).split('（')[0]) + '</span>' : '') +
-        (mode ? '<span class="cloud-tag cloud-tag-mode">' + escHtml(mode) + '</span>' : '');
+        (mode ? '<span class="cloud-tag cloud-tag-mode" data-m="' + (/航空|AIR/i.test(mode) ? 'air' : /陸|トラック|TRUCK/i.test(mode) ? 'land' : 'sea') + '">' + escHtml(mode) + '</span>' : '');
       const personH = person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(person) : person);
       const custDd = _custDealChip(customer) + [customer && _custNameHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
       const titleText = (m && m.ref) ? m.ref : r.name;   // 見出しは仮REF#のみ（顧客/担当は下に別掲）
@@ -1109,6 +1284,9 @@
       // 関連が無いカードは空divのまま（CSS の :empty で非表示）＝一覧を汚さない。
       const linksSection = '<div class="cloud-card-links" data-lid="' + escHtml(r.id) + '">' +
         (r.id in _dashLinkCache ? _dashLinksInnerHtml(r.id, _dashLinkCache[r.id]) : '') + '</div>';
+      // この案件が他のメイン案件のサブのとき、カード上部に「↳ サブ／メイン：○○」を出す（関連が読み込まれたら埋まる）
+      const parentLine = '<div class="cloud-card-parentline" data-pid="' + escHtml(r.id) + '">' +
+        (r.id in _dashLinkCache ? _dashParentLineHtml(r.id, _dashLinkCache[r.id]) : '') + '</div>';
 
       // 💬 申し送り（ダッシュボードのみ表示・CSS で制御）。既定で展開表示。
       // 一括取得済み（_dashChatCache）ならスレッド本文をその場で描画（追加クエリなし）、
@@ -1117,14 +1295,14 @@
       const _chatLoaded = _chatC && Array.isArray(_chatC.rows);
       const _chatListHtml = _chatLoaded ? _cardThreadHtml(_chatC.rows) : '<span class="cp-chat-loading">読み込み中…</span>';
       const chatFooter =
-        '<div class="cloud-card-chat' + (sd ? '' : ' ccc-open') + (_chatC && _chatC.count ? ' ccc-has' : '') + '" data-cid="' + escHtml(r.id) + '"' + (_chatLoaded ? ' data-loaded="1"' : '') + '>' +
+        '<div class="cloud-card-chat' + (_chatC && _chatC.count ? ' ccc-has' : '') + '" data-cid="' + escHtml(r.id) + '"' + (_chatLoaded ? ' data-loaded="1"' : '') + '>' +
           '<button type="button" class="ccc-toggle" onclick="dashToggleCardChat(this)">' +
             '<span class="ccc-ico">💬</span>' +
             '<span class="ccc-count">' + (_chatC && _chatC.count ? '申し送り ' + _chatC.count : '申し送り') + '</span>' +
             '<span class="ccc-preview">' + (_chatC ? escHtml(_chatC.count ? _truncateChat(_chatC.body, 28) : '（まだありません）') : '') + '</span>' +
             '<span class="ccc-caret">▾</span>' +
           '</button>' +
-          '<div class="ccc-panel"' + (sd ? ' hidden' : '') + '>' +
+          '<div class="ccc-panel" hidden>' +
             '<div class="ccc-panelbar"><button type="button" class="ccc-expand" onclick="event.stopPropagation();dashExpandCardChat(this)" title="申し送りを大きく表示">⤢ 拡大</button></div>' +
             '<div class="ccc-list">' + _chatListHtml + '</div>' +
             '<div class="ccc-compose">' +
@@ -1148,26 +1326,48 @@
       const tagsRowHtml =
         '<div class="cloud-preset-tags">' +
           rowTags.map((t, ti) =>
-            '<span class="cloud-tag-chip' + (_isUrgentTag(t) ? ' is-urgent' : '') + '">' + (_isUrgentTag(t) ? '🚨 ' : '🏷️ ') + escHtml(t) +
+            '<span class="cloud-tag-chip' + (_isUrgentTag(t) ? ' is-urgent' : '') + (!_isUrgentTag(t) && rowTags.filter(x => !_isUrgentTag(x)).indexOf(t) >= 3 ? ' cc3-tag-x' : '') + '">' + (_isUrgentTag(t) ? '🚨 ' : '🏷️ ') + escHtml(t) +
               '<button type="button" onclick="event.stopPropagation();cloudRemoveTag(\'' + idAttr + '\',' + ti + ')" title="このタグを外す">×</button>' +
             '</span>'
           ).join('') +
+          (rowTags.filter(x => !_isUrgentTag(x)).length > 3 ? '<button type="button" class="cc3-tag-more" onclick="event.stopPropagation();cc3ToggleTags(this)" data-n="' + (rowTags.filter(x => !_isUrgentTag(x)).length - 3) + '">+' + (rowTags.filter(x => !_isUrgentTag(x)).length - 3) + '</button>' : '') +
           '<button type="button" class="cloud-tag-add-btn" onclick="event.stopPropagation();cloudAddTag(\'' + idAttr + '\')" title="タグを追加">＋ タグ</button>' +
         '</div>';
+      // 🚨 緊急は 1 行目の札に出す（外す操作はここ 1 か所）
+      const _urgIdx = rowTags.findIndex(_isUrgentTag);
+      const urgentPill = _urgIdx >= 0
+        ? '<button type="button" class="cc3-urgent" onclick="event.stopPropagation();cc3RemoveUrgent(\'' + idAttr + '\',' + _urgIdx + ')" title="緊急の印を外す">🚨 ' + escHtml(String(rowTags[_urgIdx]).replace(/^🚨\s*/, '')) + ' ✕</button>' : '';
+      // 主ルート 1 本（3 地点まで全部／4 地点以上は中間を省略）＋「＋N」（複数の航路があるとき）
+      const _rts = (routeMeta.routes || []).filter(x => x.pol || x.pod);
+      let route2 = '';
+      if (_rts.length) {
+        const m0 = _rts[0], via = String(m0.via || '').split(/[,、／\/→>]+/).map(x => x.trim()).filter(Boolean);
+        const pts = [m0.pol].concat(via, [m0.pod]).filter(Boolean);
+        const shown = pts.length <= 3 ? pts : [pts[0], '…（経由 ' + (pts.length - 2) + '）', pts[pts.length - 1]];
+        route2 = '<dd data-kv="route2" class="cc3-route2"><b>' + shown.map(escHtml).join(' <span class="cloud-kv-arrow">→</span> ') + '</b>' +
+          (m0.carrier ? ' <span class="cc3-rt-car">🚢 ' + escHtml(m0.carrier) + '</span>' : '') +
+          (m0.plan ? ' <span class="cc3-rt-plan' + (m0.adopt ? ' is-' + m0.adopt : '') + '" title="ルート案">' + escHtml(m0.plan) + (m0.adopt === 'adopt' ? ' ✓' : m0.adopt === 'reject' ? ' ✕' : '') + '</span>' : '') +
+          (_rts.length > 1 ? ' <button type="button" class="cc3-rt-more" onclick="event.stopPropagation();cc3ShowRoutes(\'' + idAttr + '\',this)" title="ほかの航路を見る">＋' + (_rts.length - 1) + ' ルート</button>' : '') + '</dd>';
+      }
 
       const linkChk = _cloudLinkMode
         ? '<input type="checkbox" class="cloud-link-chk" onclick="event.stopPropagation();cloudToggleLinkSel(\'' + idAttr + '\')"' +
             (_cloudLinkSel.has(r.id) ? ' checked' : '') + ' title="この案件を選択して他の案件と関連付ける">'
         : '';
       return '' +
-        '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + (_cloudLinkMode ? ' cloud-card--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + '">' +
+        '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + (_cloudLinkMode ? ' cloud-card--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') +
+          (simpleDash ? _hierCls(r) : '') + '"' + (simpleDash ? _hierStyle(r) : '') + '>' +
           '<div class="cloud-card-main">' +
+          '<div class="cc3-title' + (memoLine ? '' : ' is-empty') + '" title="' + escHtml(memoLine || '（案件名なし）') + '">' + escHtml(memoLine || '（案件名なし）') + '</div>' +
+          _cc3Left(customer, personH) +
           '<div class="cloud-card-row1">' +
             linkChk +
             statusBadge +
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + selfGenBadge + '</span>' +
             '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
+            urgentPill +
           '</div>' +
+          parentLine +
           relRowHtml +
           ((window.qvCardBadge && m) ? window.qvCardBadge(r.data) : '') +
           // かんたん表示用：見出し（メモ1行目→ルート→REF#）とお客様名。詳細表示では CSS で非表示
@@ -1177,8 +1377,10 @@
           (memoLine ? '<div class="cloud-card-memo" title="' + escHtml(memoLine) + '">' + escHtml(memoLine) + '</div>' : '') +
           editBadge +
           progressHtml +
+          '<div class="cc3-row2">' +
           '<dl class="cloud-kv">' +
             (route    ? '<dt data-kv="route">ルート</dt><dd data-kv="route">' + route + '</dd>' : '') +
+            route2 +
             (condHtml ? '<dt data-kv="cond">条件</dt><dd data-kv="cond" class="cloud-kv-tags">' + condHtml + '</dd>' : '') +
             (carrier  ? '<dt data-kv="carrier">幹線</dt><dd data-kv="carrier">🚢 ' + escHtml(carrier) + '</dd>' : '') +
             (subHtml  ? '<dt data-kv="sub">サブコン</dt><dd data-kv="sub" class="cloud-kv-sub">' + subHtml + '</dd>' : '') +
@@ -1186,8 +1388,11 @@
             '<dt data-kv="who">作成 / 更新</dt><dd data-kv="who" class="cloud-kv-who">' + whoDd + '</dd>' +
           '</dl>' +
           tagsRowHtml +
+          '</div>' +
           copiedFromHtml +
           linksSection +
+          _cc3Who(r, lockedBy) +
+          (sd ? '' : chatFooter) +
           '<div class="cloud-card-foot">' +
             '<span class="cloud-card-who" title="' + escHtml(_whoTitle(r)) + '">🕒 ' + ts + '</span>' +
             '<div class="cloud-card-acts">' +
@@ -1195,14 +1400,15 @@
               '<button class="btn-preset-pdf" onclick="cloudPdfPreset(\'' + idAttr + '\')" title="この案件を開いて御見積書PDFを出力">📄 PDF</button>' +
               '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')"><span class="lbl-d">読込</span><span class="lbl-s">開く</span></button>' +
               '<button class="btn-preset-copy" onclick="cloudDuplicatePreset(\'' + idAttr + '\')" title="コピーして新規案件を作成">📋 コピー</button>' +
+              '<button class="btn-preset-copy btn-preset-sub" onclick="cloudCreateSubPreset(\'' + idAttr + '\')" title="この案件をコピーして、サブ案件として関連付けます（この案件がメイン）">🌱 サブ作成</button>' +
               (lockedBy
                 ? '<button class="btn-preset-del is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません">🔒</button>'
                 : '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>') +
-              _cardMenuHtml(idAttr, lockedBy) +
+              _cardMenuHtml(idAttr, lockedBy, { hold: holdToggle ? { off: holdOff } : null, follow: (_followOn() && _isActiveCase(r)) ? { has: !!_followerOf(r), mine: _followerOf(r) === ((_cloudUser && _cloudUser.email) || '') } : null }) +
             '</div>' +
           '</div>' +
           '</div>' +
-          chatFooter +
+          (sd ? chatFooter : '') +
         '</div>';
     }
     // モーダル一覧：開いているときだけ全件ビルド（閉じている間の無駄な全件描画を避ける。
@@ -1214,7 +1420,10 @@
     if (dashWrap) {
       _dashFilteredRows = rows;                       // 追加読み込み用に保持（絞り込み済み・ソート済み全件）
       const listMode = _cloudView === 'list';
-      const shown  = rows.slice(0, _dashLimit);       // 上位 _dashLimit 件だけ描画
+      let nShown = _dashLimit;                        // 上位 _dashLimit 件だけ描画（ただし家族は途中で切らない＝サブはメインの続きまで出す）
+      while (nShown < rows.length && (_dashDepth.get(rows[nShown].id) || 0) > 0) nShown++;
+      const shown  = rows.slice(0, nShown);
+      _dashShownIds = new Set(shown.map(r => r.id));
       const remain = rows.length - shown.length;
       const moreBtn = remain > 0
         ? '<button type="button" class="qpd-load-more" onclick="qpdLoadMore()">さらに読み込む（残り ' + remain + ' 件）</button>'
@@ -1223,40 +1432,99 @@
       const simpleList = !!(window.uiIsSimple && window.uiIsSimple());   // かんたん表示：7列（状態／案件名／お客様／ルート／更新日／開く／⋯）
       dashWrap.classList.toggle('qpd-list--simple', simpleList);
       dashWrap.innerHTML = listMode
-        ? ('<div class="qpd-rows-head' + (simpleList ? ' qpd-rows-head--simple' : '') + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '">' +
+        ? (_newCaseCardHtml() + '<div class="qpd-rows-head' + (simpleList ? ' qpd-rows-head--simple' : '') + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '">' +
               (_cloudLinkMode ? '<span></span>' : '') +
               (simpleList
                 ? '<span>状態</span><span>案件名</span><span>お客様</span><span>ルート</span><span>更新日</span><span></span><span></span></div>'
                 : '<span>状態</span><span>見積番号</span><span>お客様 / 担当</span><span>作業者</span><span>更新</span><span></span></div>')
             + shown.map(r => _cloudListRow(r, simpleList)).join('') + moreBtn)
-        : ((simpleList ? _newCaseCardHtml() : '') + shown.map(r => _cloudCardHtml(r, true)).join('') + moreBtn);
+        : (_newCaseCardHtml() + shown.map(r => _cloudCardHtml(r, true)).join('') + moreBtn);
       if (!listMode) _loadDashChatSummaries(shown);   // 💬 申し送りの件数/最新は描画済みぶんだけ取得
       if (!listMode) _loadDashLinks(shown);           // 🔗 関連案件も描画済みぶんだけ一括取得
     }
   }
 
   // 「⋯」メニュー（かんたん表示のみ表示。項目は従来のボタンと同じ処理を呼ぶ）。開閉は js/ui-mode.js
-  function _cardMenuHtml(idAttr, lockedBy) {
+  function _cardMenuHtml(idAttr, lockedBy, opt) {
+    opt = opt || {};
+    const mi = (js, label, cls, small) => '<button type="button" role="menuitem" class="cloud-menu-item' + (cls ? ' ' + cls : '') + '" onclick="uiCloseMenus();' + js + '">' + label + (small ? '<small>' + small + '</small>' : '') + '</button>';
+    const sep = '<div class="cloud-menu-sep" role="separator"></div>';
     return '<span class="cloud-menu">' +
       '<button type="button" class="cloud-menu-btn" aria-label="その他の操作" aria-haspopup="menu" aria-expanded="false" onclick="event.stopPropagation();uiToggleMenu(this)">⋯</button>' +
       '<div class="cloud-menu-panel" role="menu" hidden onclick="event.stopPropagation()">' +
-        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPreviewPreset(\'' + idAttr + '\')">プレビュー</button>' +
-        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPdfPreset(\'' + idAttr + '\')">PDF を出力</button>' +
-        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudDuplicatePreset(\'' + idAttr + '\')">コピーして新規作成</button>' +
-        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPickPredecessor(\'' + idAttr + '\')">🧬 代替わり元を設定…<small>前の案件を選んで、代替わり（世代）をつなぐ</small></button>' +
-        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();eiOpenStoreForCard(\'' + idAttr + '\')">📝 自由入力を追加<small>この案件に、提示した見積の原文を保管します</small></button>' +
-        '<div class="cloud-menu-sep" role="separator"></div>' +
+        mi("cloudPreviewPreset(\'" + idAttr + "\')", 'プレビュー') +
+        mi("cloudPdfPreset(\'" + idAttr + "\')", 'PDF を出力') +
+        mi("cloudDuplicatePreset(\'" + idAttr + "\')", 'コピーして新規作成') +
+        mi("cloudCreateSubPreset(\'" + idAttr + "\')", '🌱 サブ案件を作成', '', 'この案件をコピーして、サブ案件として関連付ける') +
+        sep +
+        mi("cloudAddTag(\'" + idAttr + "\')", '🏷 タグを追加', 'cc3-mi') +
+        (opt.hold ? mi("cloudToggleHoldReminder(\'" + idAttr + "\'," + (!opt.hold.off) + ")", opt.hold.off ? '🔔 リマインドを再開' : '🔕 リマインド止める', 'cc3-mi') : '') +
+        (lockedBy ? '' : mi("cloudEditFollow(\'" + idAttr + "\')", '🔔 料金フォロー', 'cc3-mi')) +
+        mi("dashOpenCardChat(\'" + idAttr + "\')", '💬 申し送りを開く', 'cc3-mi') +
+        (opt.follow && !lockedBy ? sep + (opt.follow.mine ? '' : mi("cloudFollowMe(\'" + idAttr + "\')", opt.follow.has ? '🔁 担当を引き継ぐ' : '🙋 フォローする', 'cc3-mi')) +
+          mi("cloudFollowAssign(\'" + idAttr + "\')", '👥 担当を渡す…', 'cc3-mi') +
+          (opt.follow.has ? mi("cloudFollowRelease(\'" + idAttr + "\')", '🙌 フォローを外す', 'cc3-mi') : '') + sep : '') +
+        mi("cloudPickPredecessor(\'" + idAttr + "\')", '🧬 代替わり元を設定…', '', '前の案件を選ぶ') +
+        mi("eiOpenStoreForCard(\'" + idAttr + "\')", '📝 自由入力を追加', '', 'この案件に、提示した見積の原文を足す') +
+        (lockedBy && window._myRole === 'admin' ? sep + mi("cloudAdminReleaseLock(\'" + idAttr + "\')", '🔓 強制解放（管理者）', 'cloud-menu-admin') : '') +
+        sep +
         (lockedBy
-          ? '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-danger is-locked" disabled>削除…<small>' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません</small></button>' +
-            (window._myRole === 'admin'
-              ? '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-admin" onclick="uiCloseMenus();cloudAdminReleaseLock(\'' + idAttr + '\')">🔓 強制解放（管理者）<small>' + escHtml(_nameFor(lockedBy)) + ' さんの作業中を解除します</small></button>'
-              : '')
-          : '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-danger" onclick="uiCloseMenus();cloudDeletePreset(\'' + idAttr + '\')">削除…</button>') +
+          ? '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-danger is-locked" disabled>削除…<small>' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません</small></button>'
+          : mi("cloudDeletePreset(\'" + idAttr + "\')", '削除…', 'cloud-menu-danger')) +
       '</div>' +
     '</span>';
   }
+  window.cc3ToggleTags = function (btn) {
+    const box = btn.closest('.cloud-preset-tags'); if (!box) return;
+    const open = box.classList.toggle('is-open');
+    btn.textContent = open ? '▲ 閉じる' : '+' + btn.dataset.n;
+  };
+  window.cc3RemoveUrgent = async function (idAttr, idx) {
+    const ok = typeof window.uiConfirm === 'function' ? await window.uiConfirm({ title: '緊急の印を外しますか？', lines: ['この案件の「緊急」のタグを外します。'], okLabel: '外す' }) : true;
+    if (ok) cloudRemoveTag(idAttr, idx);
+  };
+  window.cc3ShowRoutes = function (idAttr, btn) {
+    const id = decodeURIComponent(idAttr), r = _cloudRows.find(x => x.id === id); if (!r) return;
+    const m = window.quotePresetMeta && r.data ? window.quotePresetMeta({ data: r.data }) : null;
+    const list = ((m && m.routes) || []).filter(x => x.pol || x.pod);
+    document.querySelectorAll('.cc3-rt-pop').forEach(e => e.remove());
+    const pop = document.createElement('div'); pop.className = 'cc3-rt-pop'; pop.setAttribute('role', 'dialog');
+    pop.innerHTML = '<div class="cc3-rt-pop-h"><b>航路（' + list.length + '）</b><button type="button" aria-label="閉じる">✕</button></div>' + list.map((x, i) =>
+      '<div class="cc3-rt-row' + (i === 0 ? ' is-main' : '') + '">' + (i === 0 ? '<span class="cc3-rt-tag">表示中</span>' : '') +
+      '<b>' + [x.pol].concat(String(x.via || '').split(/[,、／\/→>]+/).map(y => y.trim()).filter(Boolean), [x.pod]).filter(Boolean).map(escHtml).join(' → ') + '</b>' +
+      (x.carrier ? '<span>🚢 ' + escHtml(x.carrier) + '</span>' : '') +
+      (x.plan ? '<span class="cc3-rt-plan' + (x.adopt ? ' is-' + x.adopt : '') + '">' + escHtml(x.plan) + (x.adopt === 'adopt' ? ' ✓採用' : x.adopt === 'reject' ? ' ✕不採用' : '') + '</span>' : '') +
+      ((x.segs || []).length ? '<span class="cc3-rt-segs" title="区間">' + x.segs.map(g => escHtml(g.mode || '—') + (g.carrier ? ':' + escHtml(g.carrier) : '') + (g.etd ? '（' + escHtml(g.etd.slice(5).replace('-', '/')) + '）' : '')).join(' ▸ ') + '</span>' : '') + '</div>').join('');
+    document.body.appendChild(pop);
+    const rc = btn.getBoundingClientRect();
+    pop.style.top = Math.max(8, Math.min(innerHeight - pop.offsetHeight - 8, rc.bottom + 6)) + 'px'; pop.style.left = Math.max(8, Math.min(innerWidth - pop.offsetWidth - 8, rc.left)) + 'px';
+    const close = () => { pop.remove(); document.removeEventListener('click', away, true); };
+    const away = e => { if (!pop.contains(e.target)) close(); };
+    pop.querySelector('button').onclick = close; setTimeout(() => document.addEventListener('click', away, true), 0);
+  };
 
   // ダッシュボード：リスト（行）表示の1行
+  // 🌳 メイン／サブの印（カード・リスト共通）。深さ＝サブなら 1 以上
+  function _hierCls(r) {
+    const d = _dashDepth.get(r.id) || 0, k = _dashKidCount.get(r.id) || 0;
+    return (d > 0 ? ' is-sub' : '') + (k > 0 ? ' has-subs' : '');
+  }
+  function _hierStyle(r) {
+    const d = _dashDepth.get(r.id) || 0;
+    return d > 0 ? ' style="--sub-depth:' + Math.min(d, 3) + '"' : '';
+  }
+  // リスト行の見積番号の欄に入れる印：サブ＝「↳」（メインの名前はホバーで）・メイン＝「👑 サブ N」
+  function _hierListMark(r) {
+    const d = _dashDepth.get(r.id) || 0, k = _dashKidCount.get(r.id) || 0;
+    let pre = '', post = '';
+    if (d > 0) {
+      const pr = _cloudRows.find(x => x.id === _linkParents.get(r.id));
+      pre = '<span class="qpd-sub-mark" title="サブ案件' + (pr ? '（メイン：' + escHtml(pr.name || '') + '）' : '') + '">↳</span>';
+    }
+    if (k > 0) post = '<span class="qpd-main-mark" title="この案件のサブ案件が ' + k + ' 件あります">👑 サブ ' + k + '</span>';
+    return { pre, post };
+  }
+
   function _cloudListRow(r, simpleList) {
     const m = (window.quotePresetMeta && r.data) ? window.quotePresetMeta({ data: r.data }) : null;
     const title  = (m && m.ref) ? m.ref : r.name;
@@ -1280,10 +1548,11 @@
       const rt0 = (m && m.routes && m.routes[0]) || { pol: (m ? m.pol : r.pol), pod: (m ? m.pod : r.pod) };
       const routePlain = [(rt0.pol || '').trim(), (rt0.pod || '').trim()].filter(Boolean).join(' → ');
       const headline = mem || routePlain || title;
-      return '<div class="qpd-row qpd-row--simple' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
+      const hm = _hierListMark(r);
+      return '<div class="qpd-row qpd-row--simple' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + _hierCls(r).replace('is-sub', 'qpd-row--sub') + '"' + _hierStyle(r) + ' onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
         linkChk +
         _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
-        '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + '<b class="qpd-row-headline">' + escHtml(headline) + '</b><small class="qpd-row-ref">' + escHtml(title) + '</small></span>' +
+        '<span class="qpd-row-title">' + hm.pre + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + '<b class="qpd-row-headline">' + escHtml(headline) + '</b><small class="qpd-row-ref">' + escHtml(title) + '</small>' + hm.post + '</span>' +
         '<span class="qpd-row-cust">' + _custDealChip(cust) + _custNameHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
         '<span class="qpd-row-route">' + escHtml(routePlain) + '</span>' +
         '<span class="qpd-row-ts">' + ts + '</span>' +
@@ -1291,10 +1560,11 @@
         '<span class="qpd-row-menu" onclick="event.stopPropagation()">' + _cardMenuHtml(idAttr, lockedBy) + '</span>' +
       '</div>';
     }
-    return '<div class="qpd-row' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
+    const hm = _hierListMark(r);
+    return '<div class="qpd-row' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + _hierCls(r).replace('is-sub', 'qpd-row--sub') + '"' + _hierStyle(r) + ' onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
       linkChk +
       _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
-      '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + escHtml(title) + '</span>' +
+      '<span class="qpd-row-title">' + hm.pre + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + escHtml(title) + hm.post + '</span>' +
       '<span class="qpd-row-cust">' + _custDealChip(cust) + _custNameHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
       '<span class="qpd-row-who" title="' + escHtml(_whoTitle(r)) + '">' + escHtml(who) +
         (others > 0 ? '<span class="cloud-card-edn">+' + others + '</span>' : '') + '</span>' +
@@ -1343,6 +1613,7 @@
         '<span class="qpd-stat-n">📩 ' + pends.length + '</span><span class="qpd-stat-l">未取込</span></button>';
     }
     box.innerHTML = html;
+    if (typeof window.dtRefresh === 'function') window.dtRefresh();
   }
 
   // ---------- ダッシュボード右カラム：ランキングカードのタブ切替 ----------
@@ -1491,14 +1762,14 @@
     const max = list[0].total || 1;
     const shown = _qpdTagRankExpanded ? list : list.slice(0, QPD_RANK_TOP);
     let h = '';
-    if (_cloudFilterTag) {
+    if (_cloudFilterTags.length) {
       h += '<div class="qpd-rank-active">' +
-        '<span class="qpd-rank-active-l">絞り込み中：<b>🏷️ ' + escHtml(_cloudFilterTag) + '</b></span>' +
+        '<span class="qpd-rank-active-l">絞り込み中：<b>🏷️ ' + escHtml(_cloudFilterTags.join(_cloudTagMode === 'or' ? ' または ' : ' ＋ ')) + '</b></span>' +
         '<button type="button" class="qpd-rank-clear" onclick="qpdFilterTagRank(\'\')">✕ 解除</button>' +
       '</div>';
     }
     h += shown.map((e, i) => {
-      const on = _cloudFilterTag === e.key;
+      const on = _cloudFilterTags.includes(e.key);
       return '<button type="button" class="qpd-rank-item' + (on ? ' is-active' : '') + '" ' +
           'onclick="qpdFilterTagRank(\'' + encodeURIComponent(e.key) + '\')" ' +
           'title="🏷️ ' + escHtml(e.label) + ' の案件だけに絞り込む（もう一度押すと解除）">' +
@@ -1519,13 +1790,11 @@
   }
 
   // ランキングのタグをクリック → 一覧をそのタグだけに絞る（再クリックで解除）。
-  // 上部のタグ絞り込みチップ（_cloudFilterTag）と状態を共有するため、チップ側の
+  // 上部のタグ絞り込みチップ（_cloudFilterTags）と状態を共有するため、チップ側の
   // 表示も同期させる。引数は onclick 属性に埋める都合で encodeURIComponent 済み。
   function qpdFilterTagRank(rawKey) {
     const key = rawKey ? decodeURIComponent(rawKey) : '';
-    _cloudFilterTag = (key && key !== _cloudFilterTag) ? key : '';
-    _renderTagChips();
-    _applyCloudFilter();
+    if (!key) cloudTagClear(); else cloudTagToggle(key);   // 複数選択：押すと足す／外す
   }
   function qpdTagRankToggleAll() {
     _qpdTagRankExpanded = !_qpdTagRankExpanded;
@@ -1724,10 +1993,24 @@
   var _dirtyKept = false;   // 編集権を失って閲覧に落ちたとき、未保存の入力があったか（再編集しても未保存扱いを続ける）
   let _shareMode = 'edit';   // 'edit'（新規・自分が編集中）| 'view'（共有案件を閲覧中・読み取り専用）
 
+  // 閲覧モードでは、費用ツリー（右の引き出し）の「行追加・メモ・除外・見積書に出す／出さない・行コピー」と、案バーの「追加・メニュー・削除・改名・並べ替え」を受け付けない（描き直されるため、イベントを手前で止める）
+  var _VIEW_BLOCK_SEL = '.qsp-dig-grp-add, .qsp-dig-grp-note, .qsp-dig-grp-excl, .qsp-dig-row-hide, .qsp-dig-row-copy, #qtyPatternBar .qpat-add, #qtyPatternBar .qpat-more, #qtyPatternBar .qpat-x';
+  function _viewBlock(e) {
+    if (!e.target || !e.target.closest || !document.querySelector('#tab-quote-make.qmode-view')) return;   // qmode-view＝_applyShareMode('view') が付ける印
+    const hit = e.target.closest(_VIEW_BLOCK_SEL) || (e.type === 'dblclick' || e.type === 'dragstart' ? e.target.closest('#qtyPatternBar .qpat-chip') : null);
+    if (!hit) return;
+    if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault(); e.stopImmediatePropagation();
+  }
+  ['click', 'dblclick', 'dragstart', 'keydown'].forEach(t => document.addEventListener(t, _viewBlock, true));
+
   function _applyShareMode(mode) {
     _shareMode = mode;
+    if (typeof _renderFollowInfo === 'function') _renderFollowInfo();   // 🙋 編集画面の担当表示（閲覧中は操作できないので文字だけ）
     const main = document.querySelector('#tab-quote-make .quote-main');
     if (main) main.inert = (mode === 'view');   // 閲覧中はフォーム全体を操作不可（マウス・キーボード）
+    // 右の引き出し・上部の案バーは .quote-main の外にあるため、行や案を変えられるものは別に止める（閲覧・ジャンプ・案の切替は残す）
+    ['scPanel', 'siPanel'].forEach(id => { const e = document.getElementById(id); if (e) e.inert = (mode === 'view'); });   // 数量の一括変更・サブコン別の行挿入
     if (typeof window.rmsApplyMode === 'function') window.rmsApplyMode(mode === 'view');   // 画面下の全体リマーク（引き出し）も閲覧中は読むだけ
     const tab = document.getElementById('tab-quote-make');
     if (tab) tab.classList.toggle('qmode-view', mode === 'view');
@@ -1895,9 +2178,13 @@
     document.getElementById('tab-quote-make')?.classList.add('qp-dash');
     document.body.classList.add('qp-dash-active');
     _renderQpdAuth();
+    if (typeof window.dtRefresh === 'function') window.dtRefresh();
     if (_cloudUser) cloudListPresets(true);   // 一覧・統計を最新化（silent）
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
+  // 作業中の見積があるか（保存済みの案件を開いている／未保存の入力がある）。ダッシュボードの「作業中の見積に戻る」の出し分け
+  window.qpHasWorkingQuote = function () { return !!_loadedCloudId || !!_quoteDirty; };
+  window.quoteIsDirty = function () { return !!_quoteDirty; };   // 未保存の変更があるか（見積入力の新画面の作業状態の札が読む）
   function qpShowEditor() {
     document.getElementById('tab-quote-make')?.classList.remove('qp-dash');
     document.body.classList.remove('qp-dash-active');
@@ -2325,6 +2612,7 @@
       quoteShowToast('⚠️ 更新に失敗：' + error.message, 'warn', 5000);
       return;
     }
+    _bodyCacheDrop(id);
     row.data = newData;
     _applyCloudFilter();
     quoteShowToast(off ? '🔕 この案件の保留リマインドを停止しました' : '🔔 この案件の保留リマインドを再開しました', 'success', 3000, {
@@ -2351,6 +2639,7 @@
     if (pf) newData.priceFollow = pf; else delete newData.priceFollow;
     const { error } = await c.from(_table()).update({ data: newData }).eq('id', id);
     if (error) { quoteShowToast('⚠️ 更新に失敗：' + error.message, 'warn', 5000); return false; }
+    _bodyCacheDrop(id);
     row.data = newData;
     _followEditId = null;
     _applyCloudFilter();
@@ -2401,7 +2690,7 @@
     if (fe && typeof window.eiMakeEntry === 'function') fe.value = JSON.stringify([window.eiMakeEntry({ text: o.rawText, label: o.memo })]);
     if (typeof window.eiRefreshPendingBanner === 'function') window.eiRefreshPendingBanner();
     const before = _loadedCloudId;
-    await cloudSaveCurrent({ toDashboard: true });
+    await cloudSaveCurrent({ toDashboard: true, noFollow: true });
     return !!_loadedCloudId && _loadedCloudId !== before;
   }
   // 既存の案件へ「保管した自由入力」を 1 件足す（案件は開かない・ダッシュボードのカードの「⋯」から）。
@@ -2433,6 +2722,207 @@
     cloudListPresets(true);
     return true;
   }
+  // ================================================================
+  // ========== 🙋 フォロー担当（案件ごとに 1 人・アプリ内で宣言／引き継ぎ） ==========
+  // ================================================================
+  // 「誰がこの案件を見ているか」を口頭ではなくアプリで宣言する。案件データ fields の qf-follower（メール・空＝未フォロー）と
+  // qf-follow-log（引き継ぎの履歴・新しい順・最大 30 件）に持つ＝SQL 不要。評価・集計ではなく、割り振りの目安のための表示。
+  // ※ 「🔔 要フォロー」（料金フォロー＝価格の更新確認）とは別の概念。
+  // 画面への表示は今は止めている（機能・データの扱いは残してある）。出すとき：localStorage `fwd.follow`＝'1'、または URL に ?follow=1、
+  // 恒久的に出すなら下の関数を `return true` にする。止めている間は、保存・コピーでも担当を書かない（表示を戻した時に過去分が食い違わないように）
+  function _followOn() {
+    try { return localStorage.getItem('fwd.follow') === '1' || /[?&]follow=1(&|$)/.test(location.search); } catch (e) { return false; }
+  }
+  const FOLLOW_ENDED = ['受注', '失注', '辞退', '保留'];
+  const FOLLOW_LOG_MAX = 30;
+  function _followerOf(r) {
+    const f = r && r.data && r.data.fields && r.data.fields['qf-follower'];
+    return (typeof f === 'string' && f.trim()) ? f.trim() : '';
+  }
+  function _followLogOf(r) {
+    try {
+      const v = JSON.parse((r && r.data && r.data.fields && r.data.fields['qf-follow-log']) || '[]');
+      return Array.isArray(v) ? v.filter(e => e && typeof e === 'object') : [];
+    } catch (e) { return []; }
+  }
+  // 進行中の案件（受注・失注・辞退・保留は担当の割り振り対象にしない）
+  function _isActiveCase(r) { return !FOLLOW_ENDED.includes(_normalizeStatus(r && r.status) || CLOUD_STATUS_DEFAULT); }
+  // 担当に選べる人（プロフィールのあるメンバー＋いま担当になっている人＋自分）
+  function _followMembers() {
+    const set = new Set(Object.keys(_profileMap).concat(Object.keys(_profileAv)));
+    _cloudRows.forEach(r => { const f = _followerOf(r); if (f) set.add(f); });
+    if (_cloudUser && _cloudUser.email) set.add(_cloudUser.email);
+    return Array.from(set).filter(Boolean).sort((a, b) => _nameFor(a).localeCompare(_nameFor(b), 'ja'));
+  }
+  function _followChipHtml(r, lockedBy) {
+    if (!_followOn()) return '';
+    const f = _followerOf(r), me = (_cloudUser && _cloudUser.email) || '';
+    const ended = !_isActiveCase(r);
+    const idAttr = encodeURIComponent(r.id).replace(/'/g, '%27');
+    if (!f) {
+      if (ended) return '';
+      return '<span class="cc3-follow is-none" title="まだ誰もフォローを宣言していません"><span class="cc3-fl-l">担当</span><b>未フォロー</b>' +
+        (lockedBy ? '' : '<button type="button" class="cc3-fl-btn" onclick="event.stopPropagation();cloudFollowMe(\'' + idAttr + '\')">🙋 フォローする</button>') + '</span>';
+    }
+    const nm = _nameFor(f), a = _avatarFor(f, nm), mine = f === me;
+    return '<span class="cc3-follow' + (mine ? ' is-me' : '') + (ended ? ' is-ended' : '') + '" title="' + escHtml(f + (mine ? '（あなた）' : '')) + '">' +
+      '<span class="cc3-fl-l">担当</span><span class="cc3-av" style="background:' + a.color + '">' + escHtml(a.label || '?') + '</span>' +
+      '<b>' + escHtml(nm) + (mine ? '・あなた' : '') + '</b><small>フォロー中</small>' +
+      ((ended || lockedBy || mine) ? '' : '<button type="button" class="cc3-fl-btn" onclick="event.stopPropagation();cloudFollowMe(\'' + idAttr + '\')">🔁 引き継ぐ</button>') +
+      '</span>';
+  }
+  // 申し送りへ自動で 1 行残す（失敗しても担当の変更は成功のまま）
+  async function _followPostComment(c, id, body) {
+    try { await c.from('quote_comments').insert({ preset_id: id, body, created_by: _cloudUser.email }); } catch (e) {}
+    delete _dashChatCache[id];
+  }
+  // 担当を書き換える本体。toEmail が空なら担当を外す。戻り値 true＝書けた
+  async function _followWrite(rawId, toEmail, note) {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return false; }
+    const id = decodeURIComponent(rawId);
+    const row = _cloudRows.find(r => r.id === id);
+    const lockedBy = row ? _lockedByOther(row) : null;
+    if (lockedBy) { quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません（作業が終わってからお試しください）', 'warn', 5000); return false; }
+    const base = await _freshRowData(id, row);
+    if (!base) { quoteShowToast('⚠️ 案件を読み込めませんでした', 'warn', 4000); return false; }
+    const fromEmail = _followerOf({ data: base });
+    toEmail = toEmail || '';
+    if (fromEmail === toEmail) return true;
+    const me = _cloudUser.email, nowIso = new Date().toISOString();
+    const log = _followLogOf({ data: base });
+    log.unshift({ from: fromEmail, to: toEmail, at: nowIso, by: me, note: note || '' });
+    if (log.length > FOLLOW_LOG_MAX) log.length = FOLLOW_LOG_MAX;
+    const newData = Object.assign({}, base, { fields: Object.assign({}, base.fields, { 'qf-follower': toEmail, 'qf-follow-log': JSON.stringify(log) }) });
+    const { data: upd, error } = await c.from(_table())
+      .update({ data: newData, owner_email: me, updated_at: nowIso }).eq('id', id).select('id');
+    if (error) { quoteShowToast('⚠️ フォローの変更に失敗：' + error.message, 'warn', 5000); return false; }
+    if (!upd || !upd.length) { quoteShowToast('🔒 他メンバーが編集中のため変更できません（作業が終わってからお試しください）', 'warn', 6000); return false; }
+    if (row) { row.data = newData; row.owner_email = me; row.updated_at = nowIso; }
+    _bodyCacheDrop(id);
+    if (_loadedCloudId === id) {   // 画面で開いている案件：編集画面側にも反映（あとの保存で戻さない）
+      const f1 = document.getElementById('qf-follower'), f2 = document.getElementById('qf-follow-log');
+      if (f1) f1.value = toEmail;
+      if (f2) f2.value = JSON.stringify(log);
+      _loadedCloudTs = nowIso;
+      _renderFollowInfo();
+    }
+    const who = _nameFor(me);
+    let msg;
+    if (!toEmail) msg = '🙌 ' + _nameFor(fromEmail) + ' さんがフォローを外しました' + (note ? '（' + note + '）' : '');
+    else if (!fromEmail) msg = toEmail === me ? '🙋 ' + who + ' さんがフォローします' : '🙋 ' + _nameFor(toEmail) + ' さんをフォロー担当にしました（' + who + ' さんが指定）' + (note ? '／' + note : '');
+    else msg = '🔁 ' + _nameFor(fromEmail) + ' → ' + _nameFor(toEmail) + ' に引き継ぎ' + (toEmail === me ? '' : '（' + who + ' さんが指定）') + (note ? '／' + note : '');
+    await _followPostComment(c, id, msg);
+    _applyCloudFilter();
+    return true;
+  }
+  // 確認画面に差し込む入力部品（引き継ぎ先の選択・ひと言メモ）
+  function _followDialogBody(opt) {
+    const box = document.createElement('div'); box.className = 'fl-dlg';
+    let sel = null;
+    if (opt.pick) {
+      const lab = document.createElement('label'); lab.textContent = '担当にする人';
+      sel = document.createElement('select'); sel.className = 'fl-dlg-sel';
+      _followMembers().forEach(em => { const o = document.createElement('option'); o.value = em; o.textContent = _nameFor(em) + (em === (_cloudUser && _cloudUser.email) ? '（あなた）' : ''); if (em === opt.pick) o.selected = true; sel.appendChild(o); });
+      lab.appendChild(sel); box.appendChild(lab);
+    }
+    const lab2 = document.createElement('label'); lab2.textContent = 'ひと言（任意・申し送りに残ります）';
+    const note = document.createElement('input'); note.type = 'text'; note.className = 'fl-dlg-note'; note.maxLength = 120; note.placeholder = '例：見積は作成済み。お客様の返答待ちです';
+    lab2.appendChild(note); box.appendChild(lab2);
+    return { el: box, sel, note };
+  }
+  async function _followConfirm(opts) {
+    if (typeof window.uiConfirm !== 'function') return { ok: true, note: '', to: opts.pick || '' };
+    const b = _followDialogBody(opts);
+    const ok = await window.uiConfirm({ title: opts.title, lines: opts.lines, okLabel: opts.okLabel, content: b.el });
+    return { ok, note: (b.note.value || '').trim(), to: b.sel ? b.sel.value : '' };
+  }
+  // 確認画面を出す前に、編集ロック中（他メンバーが作業中）なら止める（入力してから拒否されないように）
+  function _followBlocked(rawId) {
+    const id = decodeURIComponent(rawId), row = _cloudRows.find(r => r.id === id);
+    const lb = row ? _lockedByOther(row) : null;
+    if (lb) quoteShowToast('🔒 ' + _nameFor(lb) + ' さんが作業中のため変更できません（作業が終わってからお試しください）', 'warn', 5000);
+    return !!lb;
+  }
+  // 「フォローする」：誰も担当でなければその場で宣言／ほかの人が担当なら引き継ぐ（ひと言つき）
+  async function cloudFollowMe(rawId) {
+    if (!_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
+    const id = decodeURIComponent(rawId), row = _cloudRows.find(r => r.id === id);
+    if (_followBlocked(rawId)) return;
+    const cur = row ? _followerOf(row) : '', me = _cloudUser.email;
+    if (cur === me) { quoteShowToast('ℹ️ すでにあなたがフォロー中です', 'info', 2500); return; }
+    if (!cur) {
+      if (await _followWrite(rawId, me, '')) quoteShowToast('🙋 この案件をフォローします', 'success', 3000);
+      return;
+    }
+    const r = await _followConfirm({ title: '担当を引き継ぎますか？', lines: ['いまは ' + _nameFor(cur) + ' さんがフォローしています。あなたが引き継ぎます（申し送りに記録されます）。'], okLabel: '引き継ぐ' });
+    if (!r.ok) return;
+    if (await _followWrite(rawId, me, r.note)) quoteShowToast('🔁 ' + _nameFor(cur) + ' さんから引き継ぎました', 'success', 3000);
+  }
+  // 「担当を渡す…」：メンバーを選んで担当にする（未フォローの案件を割り振るときにも）
+  async function cloudFollowAssign(rawId) {
+    if (!_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
+    const id = decodeURIComponent(rawId), row = _cloudRows.find(r => r.id === id);
+    if (_followBlocked(rawId)) return;
+    const cur = row ? _followerOf(row) : '';
+    const r = await _followConfirm({ title: '担当を割り当てますか？', lines: [cur ? 'いまの担当は ' + _nameFor(cur) + ' さんです。' : 'いまは誰もフォローしていません。'], okLabel: '担当にする', pick: cur || _cloudUser.email });
+    if (!r.ok || !r.to) return;
+    if (r.to === cur) { quoteShowToast('ℹ️ すでにその人が担当です', 'info', 2500); return; }
+    if (await _followWrite(rawId, r.to, r.note)) quoteShowToast('🙋 ' + _nameFor(r.to) + ' さんを担当にしました', 'success', 3000);
+  }
+  async function cloudFollowRelease(rawId) {
+    if (!_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
+    const id = decodeURIComponent(rawId), row = _cloudRows.find(r => r.id === id);
+    if (_followBlocked(rawId)) return;
+    const cur = row ? _followerOf(row) : '';
+    if (!cur) return;
+    const r = await _followConfirm({ title: 'フォローを外しますか？', lines: [_nameFor(cur) + ' さんの担当を外し、「未フォロー」に戻します。'], okLabel: '外す' });
+    if (!r.ok) return;
+    if (await _followWrite(rawId, '', r.note)) quoteShowToast('🙌 フォローを外しました', 'success', 3000, { label: '元に戻す', fn: () => _followWrite(rawId, cur, '') });
+  }
+  // 編集画面の「担当」表示（案件名の下）。未保存の新規案件は「保存するとあなたが担当になります」
+  function _renderFollowInfo() {
+    const box = document.getElementById('qfFollowInfo');
+    if (!box) return;
+    const f = ((document.getElementById('qf-follower') || {}).value || '').trim();
+    const me = (_cloudUser && _cloudUser.email) || '';
+    if (!_cloudUser || !_followOn()) { box.hidden = true; return; }
+    box.hidden = false;
+    if (!_loadedCloudId) { box.innerHTML = '<span class="fl-i-l">担当</span><span class="fl-i-t">保存すると、あなたがフォロー担当になります</span>'; return; }
+    const id = encodeURIComponent(_loadedCloudId).replace(/'/g, '%27');
+    const canAct = _shareMode !== 'view';   // 閲覧中はフォーム全体が操作不可（inert）なので、ボタンは編集中だけ（ダッシュボードのカードからも変えられる）
+    if (!f) { box.innerHTML = '<span class="fl-i-l">担当</span><b class="fl-i-none">未フォロー</b>' + (canAct ? '<button type="button" class="fl-i-btn" onclick="cloudFollowMe(\'' + id + '\')">🙋 フォローする</button>' : ''); return; }
+    const nm = _nameFor(f), a = _avatarFor(f, nm);
+    box.innerHTML = '<span class="fl-i-l">担当</span><span class="cc3-av" style="background:' + a.color + '">' + escHtml(a.label || '?') + '</span><b>' + escHtml(nm) + (f === me ? '・あなた' : '') + '</b><small>フォロー中</small>' +
+      (!canAct ? '' : f === me ? '<button type="button" class="fl-i-btn" onclick="cloudFollowAssign(\'' + id + '\')">担当を渡す…</button>' : '<button type="button" class="fl-i-btn" onclick="cloudFollowMe(\'' + id + '\')">🔁 引き継ぐ</button>');
+  }
+  window.cloudRenderFollowInfo = _renderFollowInfo;
+  // ダッシュボード上部の「人ごとの持ち件数」（js/quote/dash-top.js）。数と期限が近い件数だけ（順位や色の判定は付けない）
+  window.cloudFollowSummary = function () {
+    if (!_followOn()) return null;
+    const me = (_cloudUser && _cloudUser.email) || '';
+    const today = _todayStart(), per = {};
+    let none = 0;
+    _followMembers().forEach(em => { per[em] = { email: em, name: _nameFor(em), n: 0, soon: 0, me: em === me }; });
+    _cloudRows.forEach(r => {
+      if (!_isActiveCase(r)) return;
+      const f = _followerOf(r);
+      if (!f) { none++; return; }
+      const p = per[f] || (per[f] = { email: f, name: _nameFor(f), n: 0, soon: 0, me: f === me });
+      p.n++;
+      const due = r.data && r.data.fields && r.data.fields['qf-due'];
+      if (due) { const d = new Date(due); if (!isNaN(d.getTime()) && Math.round((d.getTime() - today) / 86400000) <= 1) p.soon++; }
+    });
+    const people = Object.keys(per).map(k => per[k]).sort((a, b) => (b.me - a.me) || (b.n - a.n) || a.name.localeCompare(b.name, 'ja'));
+    return { people, none, filter: _cloudFilterFollower };
+  };
+  // 担当での絞り込み：メール＝その人／'__none' ＝未フォロー（進行中のみ）。同じものをもう一度押すと解除
+  function cloudFilterFollower(v) {
+    v = v || '';
+    _cloudFilterFollower = (_cloudFilterFollower === v) ? '' : v;
+    _applyCloudFilter();
+  }
+
   // ダッシュボードの「📩 未取込」から、その案件を開いて保管した原文の取り込みを始める
   async function cloudOpenPendingImport(rawId) {
     if (!(await _confirmLeaveUnsaved('別の案件を開く'))) return;
@@ -2487,6 +2977,14 @@
 
   window.cloudFilterTag  = cloudFilterTag;
   window.cloudTagChipsToggleExpand = cloudTagChipsToggleExpand;
+  window.dashOpenCardChat = function (idAttr) {
+    const id = decodeURIComponent(idAttr), c = [...document.querySelectorAll('#qpdListWrap .cloud-card-chat')].find(x => x.dataset.cid === id);
+    if (!c) return;
+    if (!c.classList.contains('ccc-open')) { const t = c.querySelector('.ccc-toggle'); if (t) t.click(); }
+    c.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const i = c.querySelector('.ccc-input'); if (i) setTimeout(() => i.focus(), 150);
+  };
+  window.cloudTagToggle = cloudTagToggle; window.cloudTagClear = cloudTagClear; window.cloudTagSetMode = cloudTagSetMode; window.cloudTagState = cloudTagState;
   window.qpdTagQuickFilterInput  = qpdTagQuickFilterInput;
   window.qpdTagQuickFilterCommit = qpdTagQuickFilterCommit;
   window.cloudAddTag     = cloudAddTag;
@@ -2615,6 +3113,11 @@
       }
       if (!resp.error) { _loadedCloudId = exId; _loadedCloudTs = nowIso; }  // 自分の保存を基準時刻に更新
     } else {
+      // 新しく作った案件は、作った人が最初のフォロー担当（自由入力の保管だけは「未フォロー」のまま＝割り振り待ち）
+      if (_followOn() && (!opts || !opts.noFollow)) {
+        data.fields = data.fields || {};
+        if (!String(data.fields['qf-follower'] || '').trim()) data.fields['qf-follower'] = _cloudUser.email;
+      }
       resp = await _withOptionalCols(['ref', 'tags'], excluded => c.from(_table())
         .insert(Object.assign(
           { name, data, subcons, status, customer, person, incoterms, transport_mode, pol, pod, carrier,
@@ -2662,7 +3165,16 @@
     return `<div class="cp-kv"><span class="cp-kv-k">${escHtml(k)}</span><span class="cp-kv-v">${escHtml(String(v || ''))}</span></div>`;
   }
 
-  function _cpRenderCondInfo(fields) {
+  // プレビュー中の案件の航路（チェックして現在の見積へ追加できる）。添字は data-ridx
+  let _cpRoutes = [];
+  function _cpRouteKV(k, v, idx, checked) {
+    return `<div class="cp-kv cp-kv-route"><label class="cp-route-pick"><input type="checkbox" class="cp-route-chk" data-ridx="${idx}"${checked ? ' checked' : ''} onchange="cpUpdateRouteCount()" title="この航路を現在の見積へ追加する"></label>`
+      + `<span class="cp-kv-k">${escHtml(k)}</span><span class="cp-kv-v">${escHtml(String(v || ''))}</span></div>`;
+  }
+
+  function _cpRenderCondInfo(fields, opts) {
+    _cpRoutes = [];
+    const canCopyRoutes = !(opts && opts.noRouteCopy);
     if (!fields || !Object.keys(fields).length) {
       return '<div class="cp-cond-empty">引き合い条件情報なし</div>';
     }
@@ -2693,26 +3205,41 @@
         else if (r.enabled !== false) routeEntries.push(r);
       });
     } catch(e) {}
+    const _cpLine = r => {
+      const leg  = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
+      const tt   = r.tt ? `T/T: ${r.tt}` : '';
+      const carrierLine = (typeof window.formatRouteCarrierLine === 'function')
+        ? window.formatRouteCarrierLine(r)
+        : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
+      return [carrierLine, leg, r.icd ? `ICD: ${r.icd}` : '', tt].filter(Boolean).join('  ');
+    };
+    const _cpAddRoute = (label, r, checked) => {
+      const line = _cpLine(r);
+      if (!line) return;
+      if (!canCopyRoutes) { condRows.push(_cpKV(label, line)); return; }
+      _cpRoutes.push(r);
+      condRows.push(_cpRouteKV(label, line, _cpRoutes.length - 1, checked));
+    };
     if (routeEntries.length) {
-      routeEntries.forEach((r, i) => {
-        const leg  = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
-        const tt   = r.tt ? `T/T: ${r.tt}` : '';
-        const carrierLine = (typeof window.formatRouteCarrierLine === 'function')
-          ? window.formatRouteCarrierLine(r)
-          : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
-        const line = [carrierLine, leg, tt].filter(Boolean).join('  ');
-        if (line) condRows.push(_cpKV(i === 0 ? '航路' : '　', line));
-      });
+      routeEntries.forEach((r, i) => _cpAddRoute(i === 0 ? '航路' : '　', r, true));
     } else {
       if (f['z2Pol'] || f['z2Pod']) {
         condRows.push(_cpKV('POL → POD', [f['z2Pol'] || '—', f['z2Pod'] || '—'].join(' → ')));
       }
       if (f['z2Carrier']) condRows.push(_cpKV('キャリア', f['z2Carrier']));
+      // 複数航路の記録が無い古い案件：単一の入力欄を 1 本の航路として追加できるようにする
+      if (canCopyRoutes && (f['z2Pol'] || f['z2Pod'] || f['z2Carrier'])) {
+        const one = { carrier: f['z2Carrier'] || '', service: f['z2Service'] || '', pol: f['z2Pol'] || '', via: f['z2Via'] || '', pod: f['z2Pod'] || '', icd: f['z2Icd'] || '', tt: f['z2Tt'] || '' };
+        _cpRoutes.push(one);
+        condRows.push(_cpRouteKV('→ 追加用', _cpLine(one), _cpRoutes.length - 1, true));
+      }
     }
     ngRoutes.forEach((r, i) => {
       const leg  = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
       const line = [r.carrier || '—', leg, r.ngReason ? `理由: ${r.ngReason}` : ''].filter(Boolean).join('  ');
-      condRows.push(_cpKV(i === 0 ? '🚫 使用不可' : '　', line));
+      if (!canCopyRoutes) { condRows.push(_cpKV(i === 0 ? '🚫 使用不可' : '　', line)); return; }
+      _cpRoutes.push(r);   // 使用不可の記録も追加できる（既定はチェックなし）
+      condRows.push(_cpRouteKV(i === 0 ? '🚫 使用不可' : '　', line, _cpRoutes.length - 1, false));
     });
     const z3On = f['cond-zone3-on'] === 'true' || f['cond-zone3-on'] === true;
     if (z3On) {
@@ -2750,7 +3277,10 @@
     } catch(e) {}
 
     let html = '';
-    if (condRows.length) html += `<div class="cp-cond-section"><div class="cp-cond-section-title">貿易条件・輸送</div><div class="cp-cond-rows">${condRows.join('')}</div></div>`;
+    const _routeBar = (canCopyRoutes && _cpRoutes.length)
+      ? `<div class="cp-route-copybar"><button type="button" class="cp-btn-route" id="cpRouteCopyBtn" onclick="cpCopyRoutes()" title="チェックした航路（キャリア・サービス・POL・経由・POD・T/T）を、現在編集中の見積の航路へ追加します。同じ航路は重ねません。">🚢 選択した航路を見積に追加</button><span class="cp-route-count" id="cpRouteCount"></span></div>`
+      : '';
+    if (condRows.length) html += `<div class="cp-cond-section"><div class="cp-cond-section-title">貿易条件・輸送</div><div class="cp-cond-rows">${condRows.join('')}</div>${_routeBar}</div>`;
     if (cargoRows.length) html += `<div class="cp-cond-section"><div class="cp-cond-section-title">貨物情報</div><div class="cp-cond-rows">${cargoRows.join('')}</div></div>`;
     if (volRows.length)   html += `<div class="cp-cond-section"><div class="cp-cond-section-title">物量</div><div class="cp-cond-rows">${volRows.join('')}</div></div>`;
     return html || '<div class="cp-cond-empty">引き合い条件情報なし</div>';
@@ -2806,7 +3336,11 @@
 
     // 引き合い条件セクション
     const condEl = document.getElementById('cpCondInfo');
-    if (condEl) condEl.innerHTML = _cpRenderCondInfo(rawData?.fields || {});
+    if (condEl) {
+      // 自分自身（編集中の案件）の航路は追加の意味が無いので、航路のチェック・ボタンは出さない
+      condEl.innerHTML = _cpRenderCondInfo(rawData?.fields || {}, { noRouteCopy: _loadedCloudId === _cpId });
+      cpUpdateRouteCount();
+    }
 
     _cpRenderTable(rows);
     _cpUpdateSelCount();
@@ -2898,6 +3432,17 @@
     return SharedCalc.grossMarginPct(bill, cost);
   }
 
+  // 明細ごとの「入力完了」の日時・ユーザー（引用元で確認された時期の目安）。インポートすると、この情報も行に付く
+  function _cpDoneTag(row) {
+    const at = row && (row.doneAt || row.srcDoneAt);
+    if (!at || typeof window.rowDoneFormat !== 'function') return '';
+    const isSrc = !row.doneAt;
+    const f = window.rowDoneFormat(at, isSrc ? row.srcDoneBy : row.doneBy);
+    if (!f.text) return '';
+    const tip = (isSrc ? '引用元の入力完了' : '入力完了') + '：' + f.text + (isSrc && row.srcFrom ? '（案件「' + row.srcFrom + '」）' : '');
+    return `<span class="cp-done-tag${isSrc ? ' is-src' : ''}" title="${escHtml(tip)}">${isSrc ? '📥' : '✓'} ${escHtml(f.text)}</span>`;
+  }
+
   function _cpRenderTable(rows) {
     const catLabel = _CAT_LABEL();
     const tbody = document.getElementById('cpTableBody');
@@ -2984,7 +3529,7 @@
         return ptHeader + `<tr class="${rowCls}" data-sv="${escHtml(g.sv)}" data-idx="${idx}">
           <td><input type="checkbox" class="cp-chk" checked onchange="cpUpdateSelCount()"></td>
           <td class="cp-cat">${escHtml(catLbl)}</td>
-          <td class="cp-nm">${escHtml(nm)}</td>
+          <td class="cp-nm">${escHtml(nm)}${_cpDoneTag(row)}</td>
           <td class="cp-qty">${qty}</td>
           <td class="cp-price cp-pp">${ac ? '実費' : _cpMoney(pp, pc)}</td>
           <td class="cp-price cp-mk">${ac ? '—' : (_cpNum(mk) ? _cpMoney(mk, bc) : '—')}</td>
@@ -3039,6 +3584,30 @@
     }
   }
 
+  function cpUpdateRouteCount() {
+    const total = document.querySelectorAll('#cpCondInfo .cp-route-chk').length;
+    const sel   = document.querySelectorAll('#cpCondInfo .cp-route-chk:checked').length;
+    const el = document.getElementById('cpRouteCount');
+    if (el) el.textContent = `${sel} / ${total} 本選択中`;
+    const btn = document.getElementById('cpRouteCopyBtn');
+    if (btn) btn.disabled = sel === 0;
+  }
+
+  // プレビュー中の案件の、チェックした航路を現在の見積の航路へ追加する
+  function cpCopyRoutes() {
+    const picked = [...document.querySelectorAll('#cpCondInfo .cp-route-chk:checked')]
+      .map(c => _cpRoutes[parseInt(c.dataset.ridx, 10)]).filter(Boolean);
+    if (!picked.length) { quoteShowToast('⚠️ 追加する航路にチェックを入れてください', 'warn'); return; }
+    if (typeof window.appendRouteEntries !== 'function') { quoteShowToast('⚠️ 航路追加の関数が未ロードです', 'warn'); return; }
+    const r = window.appendRouteEntries(picked);
+    document.getElementById('cloudPreviewModal').style.display = 'none';
+    quoteShowToast(r.added
+      ? `✅ 航路を ${r.added} 本追加しました` + (r.skipped ? `（同じ航路 ${r.skipped} 本は追加済みのため除く）` : '')
+      : 'ℹ️ 選んだ航路はすべて追加済みです', r.added ? 'success' : 'info', 3500);
+  }
+  window.cpUpdateRouteCount = cpUpdateRouteCount;
+  window.cpCopyRoutes = cpCopyRoutes;
+
   function cloudImportSelectedRows() {
     const dataRows = _cpRows.filter(r => r._type === 'data' && r.cells?.length);
     // チェックされた行は、表示順（サブコンごとにまとめた順）ではなく data-idx（dataRows の添字）で特定する
@@ -3049,7 +3618,10 @@
     let remarkN = 0;
     dataRows.forEach((r, i) => {
       if (!checked.has(i)) return;
-      selected.push(r);
+      // 引用元で「入力完了」が押されていた日時・ユーザーを、インポートした行に「引用元の入力完了」として持たせる
+      // （入力完了マーク自体は付けない＝この案件では未確認。引用元の行がさらに引用だったときも、その記録を引き継ぐ）
+      const at = r.doneAt || r.srcDoneAt;
+      selected.push(at ? Object.assign({}, r, { srcDoneAt: at, srcDoneBy: r.doneAt ? (r.doneBy || '') : (r.srcDoneBy || ''), srcFrom: r.doneAt ? (_cpFullName || '') : (r.srcFrom || '') }) : r);
       // 明細に紐づくリマーク行（💬 見積書に表示／🔒 社内メモ）も、明細の直後へ一緒に追加する
       if (withRemarks) (_cpRemarksByIdx[i] || []).forEach(m => { selected.push(m); remarkN++; });
     });
@@ -3223,54 +3795,200 @@
   // コピー（copiedFrom）とは別に、多レグ分割・代替提案・取引先の過去案件参照など、
   // 任意の2案件を手動でつなげる。テーブル未作成時は carrier_relations と同じ方針で
   // 「関連なし」として黙ってスキップする（読み取り側）。
+  // ---- メイン／サブ（親子）：quote_preset_links.parent_id＝その関連付けの「メイン」側の案件 ----
+  // parent_id が NULL の行は従来どおりの「ただの関連付け」。列が無い環境（docs/sql/quote-preset-links-hierarchy.sql
+  // が未実行）では、列なしで読み書きし、すべて「ただの関連付け」として扱う（メイン／サブを選ぶと案内を出す）。
+  let _linkHierarchyMissing = false;
+  const LINK_TREE_DEPTH = 3;   // メインの下に何段までツリーで取るか（サブ→そのサブ→…）
+  function _isMissingParentCol(err) {
+    return !!err && /parent_id/.test(err.message || '') && /column|schema cache|does not exist/i.test(err.message || '');
+  }
+  const _HIER_SQL_HINT = '⚠️ メイン／サブの設定には docs/sql/quote-preset-links-hierarchy.sql の実行が必要です';
+  // quote_preset_links の読み取り（parent_id 列が無ければ列なしで取り直す）。filt は query を受けて絞り込みを足す関数
+  async function _selectLinks(c, filt) {
+    const base = 'id,preset_a,preset_b,note';
+    let r = await filt(c.from('quote_preset_links').select(_linkHierarchyMissing ? base : base + ',parent_id'));
+    if (r.error && !_linkHierarchyMissing && _isMissingParentCol(r.error)) {
+      _linkHierarchyMissing = true;
+      r = await filt(c.from('quote_preset_links').select(base));
+    }
+    return r;
+  }
+  // ある案件（selfId）から見た相手の位置づけ。child＝相手がこの案件のサブ／parent＝相手がこの案件のメイン／peer＝ただの関連
+  function _linkRel(row, selfId) {
+    const other = row.preset_a === selfId ? row.preset_b : row.preset_a;
+    let rel = 'peer';
+    if (row.parent_id) rel = (row.parent_id === selfId) ? 'child' : 'parent';
+    return { other, rel };
+  }
+  // 指定した案件たちの「サブ」ぶら下がりを最大 maxDepth 段ぶん取る（parent_id でメインを引くので OR なしの 1 段 1 クエリ）。
+  // 戻り値は { メインID: [{ linkId, id(サブ), note }] }。ダッシュボードで複数カードぶんをまとめて取るために使う。
+  async function _fetchKidMap(c, rootIds, maxDepth) {
+    const kidMap = {}, seenLink = new Set(), expanded = new Set();
+    let frontier = Array.from(new Set(rootIds));
+    for (let d = 0; d < maxDepth && frontier.length && !_linkHierarchyMissing; d++) {
+      frontier.forEach(x => expanded.add(x));
+      const { data, error } = await _selectLinks(c, q => q.in('parent_id', frontier));
+      if (error || !data) break;
+      const next = [];
+      data.forEach(l => {
+        if (!l.parent_id || seenLink.has(l.id)) return;
+        seenLink.add(l.id);
+        const child = l.preset_a === l.parent_id ? l.preset_b : l.preset_a;
+        (kidMap[l.parent_id] = kidMap[l.parent_id] || []).push({ linkId: l.id, id: child, note: l.note || '' });
+        if (!expanded.has(child)) next.push(child);
+      });
+      frontier = Array.from(new Set(next));
+    }
+    return kidMap;
+  }
+  // kidMap と案件メタから、id の下のサブ案件ツリー（入れ子の配列）を作る。path で循環を断つ
+  function _buildKidTree(kidMap, id, metaMap, path, depth) {
+    return (kidMap[id] || []).filter(k => !path.has(k.id) && metaMap[k.id]).map(k =>
+      Object.assign({}, metaMap[k.id], {
+        linkId: k.linkId, note: k.note,
+        kids: depth < LINK_TREE_DEPTH ? _buildKidTree(kidMap, k.id, metaMap, new Set([...path, k.id]), depth + 1) : [],
+      }));
+  }
+  function _kidMapIds(kidMap) {
+    const ids = new Set();
+    Object.keys(kidMap).forEach(p => kidMap[p].forEach(k => ids.add(k.id)));
+    return Array.from(ids);
+  }
+  // ツリー内の件数（孫以降も数える）
+  function _treeCount(kids) { return (kids || []).reduce((n, k) => n + 1 + _treeCount(k.kids), 0); }
+
+  // メイン／サブにしてよいか：①サブにする案件が、この関連付け以外ですでに別のメインのサブでないこと（1 サブ 1 メイン）
+  // ②メイン→…→サブの鎖がぐるっと回って循環しないこと。戻り値 { ok, reason }
+  async function _checkHierarchy(c, parentId, childId, ignoreLinkId) {
+    if (_linkHierarchyMissing) return { ok: false, reason: 'nocol' };
+    const r = await _selectLinks(c, q => q.or(`preset_a.eq.${childId},preset_b.eq.${childId}`));
+    if (r.error) return { ok: false, reason: 'error', message: r.error.message };
+    if (_linkHierarchyMissing) return { ok: false, reason: 'nocol' };
+    const hasParent = (r.data || []).find(l => l.id !== ignoreLinkId && l.parent_id && l.parent_id !== childId);
+    if (hasParent) return { ok: false, reason: 'hasParent' };
+    let cur = parentId;   // メイン側から祖先をたどり、サブ側の案件に着いたら循環
+    for (let i = 0; i < 12; i++) {
+      const rr = await _selectLinks(c, q => q.or(`preset_a.eq.${cur},preset_b.eq.${cur}`));
+      const up = (rr.data || []).find(l => l.id !== ignoreLinkId && l.parent_id && l.parent_id !== cur);
+      if (!up) break;
+      if (up.parent_id === childId) return { ok: false, reason: 'cycle' };
+      cur = up.parent_id;
+    }
+    return { ok: true };
+  }
+  function _hierarchyMsg(res) {
+    if (res.reason === 'nocol')     return _HIER_SQL_HINT;
+    if (res.reason === 'hasParent') return '⚠️ この案件はすでに別のメイン案件のサブです（1つのサブに付けられるメインは1つです）。先に関連付けを解除してから付け直してください';
+    if (res.reason === 'cycle')     return '⚠️ メインとサブが循環してしまうため設定できません';
+    return '⚠️ メイン／サブの設定に失敗：' + (res.message || '');
+  }
+
+  // 現在の案件（id）に関連付けた案件の一覧。各要素は { linkId, otherId, note, rel, preset, kids }。
+  // rel＝'child'（相手がこの案件のサブ）／'parent'（相手がこの案件のメイン）／'peer'（ただの関連）。
+  // kids＝rel が 'child' のとき、その相手の下にぶら下がるサブ案件ツリー（入れ子）。
   async function cloudFetchPresetLinks(id) {
     const c = _getClient();
     if (!c || !id) return [];
-    const { data, error } = await c.from('quote_preset_links')
-      .select('id,preset_a,preset_b,note')
-      .or(`preset_a.eq.${id},preset_b.eq.${id}`);
+    const { data, error } = await _selectLinks(c, q => q.or(`preset_a.eq.${id},preset_b.eq.${id}`));
     if (error) return [];   // テーブル未作成などは黙ってスキップ（関連なし扱い）
-    const links = (data || []).map(r => ({
-      linkId: r.id, otherId: r.preset_a === id ? r.preset_b : r.preset_a, note: r.note || '',
-    }));
+    const links = (data || []).map(r => {
+      const { other, rel } = _linkRel(r, id);
+      return { linkId: r.id, otherId: other, note: r.note || '', rel };
+    });
     if (!links.length) return [];
-    const otherIds = links.map(l => l.otherId);
+    const kidMap = await _fetchKidMap(c, links.filter(l => l.rel === 'child').map(l => l.otherId), LINK_TREE_DEPTH);
+    const allIds = Array.from(new Set(links.map(l => l.otherId).concat(_kidMapIds(kidMap))));
     const { data: others, error: err2 } = await c.from('quote_presets')
-      .select('id,name,ref,status,customer,updated_at').in('id', otherIds);
+      .select('id,name,ref,status,customer,updated_at').in('id', allIds);
     if (err2) return [];
     const map = {};
     (others || []).forEach(o => { map[o.id] = o; });
-    return links.map(l => Object.assign({}, l, { preset: map[l.otherId] || null })).filter(l => l.preset);
+    return links.map(l => Object.assign({}, l, {
+      preset: map[l.otherId] || null,
+      kids: l.rel === 'child' ? _buildKidTree(kidMap, l.otherId, map, new Set([id, l.otherId]), 1) : [],
+    })).filter(l => l.preset);
+  }
+
+  // 既存の関連付け 1 行のメイン／サブを変える。parentId＝メイン側の案件 ID（null で「ただの関連」に戻す）
+  async function _writeLinkParent(c, linkId, parentId, silent) {
+    const toast = silent ? function () {} : quoteShowToast;
+    const { error } = await c.from('quote_preset_links').update({ parent_id: parentId || null }).eq('id', linkId);
+    if (error) {
+      toast(_isMissingParentCol(error) ? _HIER_SQL_HINT : '⚠️ 変更に失敗：' + error.message, 'warn', 6000);
+      return false;
+    }
+    _invalidateDashLinks();
+    return true;
+  }
+  // 関連付けの位置づけを変える。anchorId＝基準にする案件（ダッシュボードのカード／編集中の案件）、
+  // role＝基準から見た相手：'none'（ただの関連）／'sub'（相手は基準のサブ）／'main'（相手は基準のメイン）
+  async function cloudSetLinkRole(linkId, anchorId, role) {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return false; }
+    const { data, error } = await _selectLinks(c, q => q.eq('id', linkId));
+    const row = !error && data && data[0];
+    if (!row) { quoteShowToast('⚠️ 関連付けが見つかりません', 'warn'); return false; }
+    const other = row.preset_a === anchorId ? row.preset_b : row.preset_a;
+    let parentId = null;
+    if (role === 'sub') parentId = anchorId;
+    else if (role === 'main') parentId = other;
+    if (parentId) {
+      const childId = parentId === anchorId ? other : anchorId;
+      const chk = await _checkHierarchy(c, parentId, childId, linkId);
+      if (!chk.ok) { quoteShowToast(_hierarchyMsg(chk), 'warn', 7000); return false; }
+    } else if (_linkHierarchyMissing) {
+      return true;   // 列が無ければもともと「ただの関連」
+    }
+    if (!(await _writeLinkParent(c, linkId, parentId, false))) return false;
+    quoteShowToast(role === 'sub' ? '🌱 サブ案件にしました' : role === 'main' ? '🌳 メイン案件にしました' : '🔗 ただの関連付けに戻しました', 'success', 2500);
+    return true;
   }
 
   // opts.silent: true のときトーストを出さない（ダッシュボードの複数選択→まとめて関連付け
-  // で1ペアごとにトーストが乱立しないようにするため）。戻り値は常に { ok, reason, message }。
-  // reason: 'guard'（未ログイン等）/'duplicate'（既存あり）/'error'（DBエラー）/'created'（成功）
+  // で1ペアごとにトーストが乱立しないようにするため）。opts.parent: idA か idB を渡すと、その案件を「メイン」、
+  // もう片方を「サブ」として関連付ける（省略は従来どおりのただの関連付け。すでに関連付け済みならその行をメイン／サブに更新）。
+  // 戻り値は常に { ok, reason, message }。
+  // reason: 'guard'（未ログイン等）/'duplicate'（既存あり）/'error'（DBエラー）/'created'（成功）/'updated'（既存をメイン／サブに更新）/'hierarchy'（メイン／サブにできない）
   async function cloudLinkPresets(idA, idB, note, opts) {
     const silent = !!(opts && opts.silent);
+    const parent = (opts && opts.parent) || null;
     const toast = silent ? function () {} : quoteShowToast;
     const c = _getClient();
     if (!c || !_cloudUser) { toast('⚠️ ログインが必要です', 'warn'); return { ok: false, reason: 'guard' }; }
     if (!idA || !idB || idA === idB) { toast('⚠️ 関連付ける案件を正しく選んでください', 'warn'); return { ok: false, reason: 'guard' }; }
+    if (parent && parent !== idA && parent !== idB) { toast('⚠️ メインにする案件が関連付ける2案件の中にありません', 'warn'); return { ok: false, reason: 'guard' }; }
     const { data: existing, error: existErr } = await c.from('quote_preset_links')
       .select('id')
       .or(`and(preset_a.eq.${idA},preset_b.eq.${idB}),and(preset_a.eq.${idB},preset_b.eq.${idA})`)
       .limit(1);
-    if (!existErr && existing && existing.length) {
+    const dupId = (!existErr && existing && existing.length) ? existing[0].id : null;
+    let chk = null;
+    if (parent) {
+      chk = await _checkHierarchy(c, parent, parent === idA ? idB : idA, dupId);
+      if (!chk.ok) { toast(_hierarchyMsg(chk), 'warn', 7000); return { ok: false, reason: 'hierarchy', message: chk.reason }; }
+    }
+    if (dupId) {
+      if (parent) {   // すでに関連付け済み：その行をメイン／サブに更新する
+        if (!(await _writeLinkParent(c, dupId, parent, silent))) return { ok: false, reason: 'error' };
+        toast('🌳 すでに関連付け済みだったので、メイン／サブに設定しました', 'success', 3000);
+        return { ok: true, reason: 'updated' };
+      }
       toast('ℹ️ すでに関連付けられています', 'info', 3000);
       return { ok: false, reason: 'duplicate' };
     }
-    const { error } = await c.from('quote_preset_links').insert({
-      preset_a: idA, preset_b: idB, note: (note || '').trim() || null, created_by: _cloudUser.email,
-    });
+    const row = { preset_a: idA, preset_b: idB, note: (note || '').trim() || null, created_by: _cloudUser.email };
+    if (parent) row.parent_id = parent;
+    const { error } = await c.from('quote_preset_links').insert(row);
     if (error) {
-      const msg = /schema cache|could not find the table|does not exist/i.test(error.message || '')
-        ? '⚠️ テーブル未作成です（docs/sql/quote-preset-links.sql を実行してください）'
-        : '⚠️ 関連付けに失敗：' + error.message;
+      let msg;
+      if (parent && _isMissingParentCol(error)) { _linkHierarchyMissing = true; msg = _HIER_SQL_HINT; }
+      else if (/schema cache|could not find the table|does not exist/i.test(error.message || '')) msg = '⚠️ テーブル未作成です（docs/sql/quote-preset-links.sql を実行してください）';
+      else msg = '⚠️ 関連付けに失敗：' + error.message;
       toast(msg, 'warn', 8000);
       return { ok: false, reason: 'error', message: error.message };
     }
-    toast('🔗 案件を関連付けました', 'success', 2500);
+    toast(parent ? '🌳 メイン／サブとして関連付けました' : '🔗 案件を関連付けました', 'success', 2500);
     _invalidateDashLinks();   // ダッシュボードカードの関連案件を次回描画で取り直す
     return { ok: true, reason: 'created' };
   }
@@ -3286,6 +4004,7 @@
     if (!_cloudLinkMode) {
       _cloudLinkSel.clear();
       const nt = document.getElementById('qpdLinkBarNote'); if (nt) nt.value = '';   // 理由入力をリセット
+      const rl = document.getElementById('qpdLinkBarRole'); if (rl) rl.value = 'plain';
     }
     document.getElementById('qpdLinkModeBtn')?.classList.toggle('is-on', _cloudLinkMode);
     _applyCloudFilter();
@@ -3298,15 +4017,26 @@
     _renderCloudLinkBar();
   }
 
+  // 一括関連付けの付け方：'plain'＝選んだ全ペアをただ関連付け／'main'＝最初に選んだ案件をメインに、残りをそのサブに
+  function _linkBarRole() { return document.getElementById('qpdLinkBarRole')?.value === 'main' ? 'main' : 'plain'; }
   function _renderCloudLinkBar() {
     const bar = document.getElementById('qpdLinkBar');
     if (!bar) return;
     bar.hidden = !_cloudLinkMode;
     if (!_cloudLinkMode) return;
     const n = _cloudLinkSel.size;
-    const pairs = n >= 2 ? (n * (n - 1) / 2) : 0;
+    const asMain = _linkBarRole() === 'main';
+    const pairs = n >= 2 ? (asMain ? n - 1 : n * (n - 1) / 2) : 0;
     const countEl = document.getElementById('qpdLinkBarCount');
-    if (countEl) countEl.textContent = n + '件選択中' + (pairs ? '（' + pairs + '組を関連付け）' : '');
+    if (countEl) {
+      let t = n + '件選択中';
+      if (asMain && n >= 1) {
+        const first = _cloudRows.find(r => r.id === Array.from(_cloudLinkSel)[0]);
+        const m = first && window.quotePresetMeta && first.data ? window.quotePresetMeta({ data: first.data }) : null;
+        t += '（メイン：' + ((m && m.ref) || (first && first.name) || '—') + (pairs ? '／サブ ' + pairs + '件' : '') + '）';
+      } else if (pairs) t += '（' + pairs + '組を関連付け）';
+      countEl.textContent = t;
+    }
     const btn = document.getElementById('qpdLinkBarBtn');
     if (btn) btn.disabled = n < 2;
   }
@@ -3315,19 +4045,22 @@
     const ids = Array.from(_cloudLinkSel);
     if (ids.length < 2) return;
     const note = (document.getElementById('qpdLinkBarNote')?.value || '').trim() || null;
-    let created = 0, duplicate = 0, failed = 0;
-    for (let i = 0; i < ids.length; i++) {
-      for (let j = i + 1; j < ids.length; j++) {
-        const res = await cloudLinkPresets(ids[i], ids[j], note, { silent: true });
-        if (res.ok) created++;
-        else if (res.reason === 'duplicate') duplicate++;
-        else failed++;
+    const asMain = _linkBarRole() === 'main';
+    let created = 0, updated = 0, duplicate = 0, failed = 0;
+    const tally = res => { if (res.ok) { if (res.reason === 'updated') updated++; else created++; } else if (res.reason === 'duplicate') duplicate++; else failed++; };
+    if (asMain) {
+      // 最初に選んだ案件＝メイン。残りはすべてそのサブ（サブ同士は関連付けない）
+      for (let j = 1; j < ids.length; j++) tally(await cloudLinkPresets(ids[0], ids[j], note, { silent: true, parent: ids[0] }));
+    } else {
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) tally(await cloudLinkPresets(ids[i], ids[j], note, { silent: true }));
       }
     }
     const parts = [];
-    if (created)   parts.push(created + '組を関連付け');
+    if (created)   parts.push(created + (asMain ? '件をサブに' : '組を関連付け'));
+    if (updated)   parts.push(updated + '件を既存の関連付けからメイン／サブに設定');
     if (duplicate) parts.push(duplicate + '組は関連付け済み');
-    if (failed)    parts.push(failed + '組は失敗');
+    if (failed)    parts.push(failed + '組は失敗（メイン／サブにできない案件が含まれていないか確認してください）');
     quoteShowToast('🔗 ' + (parts.join('・') || '完了'), failed ? 'warn' : 'success', 4500);
     cloudToggleLinkMode();   // 選択モードを終了（選択もクリア）
   }
@@ -3335,6 +4068,7 @@
   window.cloudToggleLinkMode = cloudToggleLinkMode;
   window.cloudToggleLinkSel  = cloudToggleLinkSel;
   window.cloudLinkSelected   = cloudLinkSelected;
+  window.cloudLinkBarRefresh = _renderCloudLinkBar;
 
   async function cloudUnlinkPreset(linkId) {
     const c = _getClient();
@@ -3362,12 +4096,111 @@
   window.cloudLinkPresets      = cloudLinkPresets;
   window.cloudUnlinkPreset     = cloudUnlinkPreset;
   window.cloudUpdateLinkNote   = cloudUpdateLinkNote;
+  window.cloudSetLinkRole      = cloudSetLinkRole;
 
   // ---------- コピー ----------
-  async function cloudDuplicatePreset(rawId) {
+  // asSub（「サブ案件を作成」）：コピーした案件を、コピー元のサブとして関連付ける（メイン＝コピー元）。
+  // 代替わり（copiedFrom・前回提示との差分ハイライト）は付けない（サブは「別の関連案件」であって「次の版」ではないため）
+  //
+  // 通常のコピー（「📋 コピー」）と関連付け（2026-11）：関連付けは案件のデータの外（quote_preset_links）にあるため、
+  //   ・サブ案件をコピーしたとき → コピーも同じメインのサブ（兄弟）として付ける
+  //   ・サブが付いたメインをコピーしたとき → 確認画面で選んだサブも一緒にコピーし、コピーしたメインのサブとして付ける（ツリーごと）
+  //   ・ただの関連（peer）は引き継がない
+  async function cloudDuplicatePreset(rawId, opts) {
     const c = _getClient();
     if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
     const id = decodeURIComponent(rawId);
+    if (opts && opts.asSub) return _dupCore(c, id, opts);   // サブ案件を作成：その 1 件だけ
+    const links = (typeof cloudFetchPresetLinks === 'function') ? await cloudFetchPresetLinks(id) : [];   // 表が無い等は []
+    const parentLink = links.find(l => l.rel === 'parent') || null;
+    const kidNodes = links.filter(l => l.rel === 'child').map(l => Object.assign({}, l.preset, { kids: l.kids || [] }));
+    let picked = null;
+    if (kidNodes.length) {
+      const srcRow = _cloudRows.find(r => r.id === id);
+      picked = await _pickSubsToCopy(srcRow ? srcRow.name : 'この案件', kidNodes);
+      if (!picked) return;   // やめる
+    }
+    const usedNames = new Set(), usedRefs = new Set();
+    // サブをコピーしたとき、コピーは同じメインの兄弟＝メインの番号に (A)(B)… を付ける
+    const main = await _dupCore(c, id, { parentId: parentLink ? parentLink.otherId : null, parentRef: parentLink ? ((parentLink.preset && parentLink.preset.ref) || '') : '', usedNames, usedRefs });
+    if (!main || !main.id) return;
+    let copiedSubs = 0, failedSubs = 0;
+    const copyTree = async (nodes, newParentId, newParentRef) => {
+      for (const n of nodes) {
+        if (!picked.has(n.id)) continue;   // 外したサブは、その下のサブもコピーしない
+        const r = await _dupCore(c, n.id, { parentId: newParentId, parentRef: newParentRef, usedNames, usedRefs });
+        if (!r || !r.id) { failedSubs++; continue; }
+        copiedSubs++;
+        await copyTree(n.kids || [], r.id, r.ref);
+      }
+    };
+    if (picked && picked.size) await copyTree(kidNodes, main.id, main.ref);
+    let msg = '📋 「' + main.srcName + '」をコピーしました → 「' + main.name + '」';
+    if (parentLink) msg += main.linked ? '（同じメイン「' + (parentLink.preset.name || '') + '」のサブとして関連付けました）' : '（メインへの関連付けはできませんでした）';
+    if (copiedSubs) msg += '／サブ ' + copiedSubs + ' 件も一緒にコピー';
+    quoteShowToast(failedSubs ? '⚠️ ' + msg + '（サブ ' + failedSubs + ' 件はコピーできませんでした）' : msg, failedSubs ? 'warn' : 'success', 5000);
+    cloudListPresets();
+  }
+
+  // 🔢 サブ案件の採番：親（メイン）の見積番号の末尾に (A)(B)(C)…（26 を超えたら (AA)(AB)…）を付ける。
+  // すでにある同じ親のサブ（番号が「親の番号(英字)」の案件）の最大の次を使う（途中が消えていても詰め直さない＝番号の使い回しを避ける）
+  function _subRefLetters(i) { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+  function _subRefIndex(letters) { let n = 0; for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; }
+  const _sessionSubRefs = new Set();   // この画面で作ったサブの番号（一覧の取り直しが間に合う前に続けて作っても重ならないように）
+  function _nextSubRef(parentRef, usedRefs) {
+    const esc = parentRef.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp('^' + esc + '\\(([A-Z]+)\\)$');
+    let max = -1;
+    const scan = ref => { const m = re.exec((ref || '').trim()); if (m) max = Math.max(max, _subRefIndex(m[1])); };
+    _cloudRows.forEach(r => scan((r.data && r.data.fields && r.data.fields['qf-ref']) || r.ref));
+    if (usedRefs) usedRefs.forEach(scan);
+    _sessionSubRefs.forEach(scan);
+    return parentRef + '(' + _subRefLetters(max + 1) + ')';
+  }
+
+  // 「サブも一緒にコピーしますか？」：サブ案件ツリーのチェック一覧。戻り値＝コピーする案件の id の Set（やめる＝null）
+  // 親のチェックを外すと、その下のサブは自動でチェックが外れて選べなくなる（親が無いとぶら下げられないため）
+  async function _pickSubsToCopy(srcName, nodes) {
+    const wrap = document.createElement('div');
+    const count = (ns) => ns.reduce((n, k) => n + 1 + count(k.kids || []), 0);
+    const build = (ns) => {
+      const ul = document.createElement('ul'); ul.className = 'dup-subs';
+      ns.forEach(n => {
+        const li = document.createElement('li');
+        const lb = document.createElement('label');
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true; cb.value = n.id;
+        const nm = document.createElement('span'); nm.textContent = n.name || '（無題）';
+        lb.appendChild(cb); lb.appendChild(nm);
+        if (n.ref) { const rf = document.createElement('small'); rf.textContent = n.ref; lb.appendChild(rf); }
+        li.appendChild(lb);
+        if (n.kids && n.kids.length) {
+          const sub = build(n.kids); li.appendChild(sub);
+          cb.addEventListener('change', () => sub.querySelectorAll('input').forEach(x => { x.checked = cb.checked; x.disabled = !cb.checked; }));
+        }
+        ul.appendChild(li);
+      });
+      return ul;
+    };
+    wrap.appendChild(build(nodes));
+    const ok = (typeof uiConfirm === 'function')
+      ? await uiConfirm({
+          title: 'サブ案件も一緒にコピーしますか？',
+          lines: ['「' + srcName + '」にはサブ案件が ' + count(nodes) + ' 件あります。チェックを入れたサブは、コピーしたメインのサブとして一緒にコピーします（チェックをすべて外すと、メインだけをコピーします）。'],
+          okLabel: 'コピーする', content: wrap,
+        })
+      : confirm('サブ案件 ' + count(nodes) + ' 件も一緒にコピーしますか？');
+    if (!ok) return null;
+    const set = new Set();
+    wrap.querySelectorAll('input[type=checkbox]').forEach(x => { if (x.checked && !x.disabled) set.add(x.value); });
+    if (typeof uiConfirm !== 'function') nodes.forEach(function add(n) { set.add(n.id); (n.kids || []).forEach(add); });
+    return set;
+  }
+
+  // コピーの本体。opts：asSub（サブ案件を作成）／parentId（コピーをこの案件のサブとして付ける）／usedNames（まとめてコピーするときの名前の重複避け）
+  // 戻り値：{ id, name, srcName, linked }（失敗は undefined。asSub は従来どおり自分でトーストと一覧の更新まで行う）
+  async function _dupCore(c, id, opts) {
+    opts = opts || {};
+    const asSub = !!opts.asSub;
     let src = _cloudRows.find(r => r.id === id);
     if (!src) {
       // ダッシュボード一覧（_cloudRows）が未取得の文脈（類似見積パネルからの直接コピー等）
@@ -3380,7 +4213,7 @@
     const newData = JSON.parse(JSON.stringify(src.data));
     if (!newData.fields) newData.fields = {};
     // 新規案件としてのコピーのため、コピー元の「入力完了」マークは引き継がない
-    if (Array.isArray(newData.rows)) newData.rows.forEach(r => { if (r) delete r.done; });
+    if (Array.isArray(newData.rows)) newData.rows.forEach(r => { if (r) { delete r.done; delete r.doneAt; delete r.doneBy; delete r.srcDoneAt; delete r.srcDoneBy; delete r.srcFrom; } });
     // ステータスもコピー元を引き継がず「下書き中」に戻す（下の insert の status 列と揃える）。
     // ここを揃えないと、コピー直後にこの案件を開いた際 data.fields の古いステータスで
     // 復元されてしまう（cloudSetStatus と同じ理由の食い違い）。
@@ -3388,7 +4221,7 @@
     // コピー元の内容を「前回提示分」として記録し、改定中の案件と同じ仕組みで
     // コピー先の追加/変更行をハイライトできるようにする（行の uid はそのままコピー
     // されるため、以降コピー先を編集すればそこから差分が出る）。
-    if (typeof window.buildRevisionSnapshotFromRowsData === 'function') {
+    if (!asSub && typeof window.buildRevisionSnapshotFromRowsData === 'function') {
       const baseline = window.buildRevisionSnapshotFromRowsData(src.data.rows);
       if (baseline.rows.length) newData.fields['qf-revision-baseline'] = JSON.stringify(baseline);
     }
@@ -3397,22 +4230,36 @@
     // root：チェーンの先頭（最初のオリジナル）を常に指す。コピー元自体がコピーで
     // あれば root を引き継ぎ、そうでなければコピー元自身が root になる。
     const srcCf = src.data && src.data.copiedFrom;
-    newData.copiedFrom = {
-      id: src.id, name: src.name, ref: srcRef,
-      gen: (srcCf && srcCf.gen ? srcCf.gen : 1) + 1,
-      root: (srcCf && srcCf.root) || { id: src.id, name: src.name, ref: srcRef },
-    };
+    if (asSub) {
+      delete newData.copiedFrom;   // コピー元自身が代替わりの印を持っていても、サブには引き継がない
+      delete newData.fields['qf-revision-baseline'];
+    } else {
+      newData.copiedFrom = {
+        id: src.id, name: src.name, ref: srcRef,
+        gen: (srcCf && srcCf.gen ? srcCf.gen : 1) + 1,
+        root: (srcCf && srcCf.root) || { id: src.id, name: src.name, ref: srcRef },
+      };
+    }
     // 発番ID取得済みなら新REF#をコピー時点で採番（未取得の場合はコピー元番号を保持）
-    const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
+    // サブ（サブ案件を作成・サブのコピー・メインと一緒にコピーするサブ）は、親の番号 + (A)(B)… で採番する。
+    // 親の番号が無いときは、通常のコピーと同じ（新しい番号／無ければコピー元の番号）
+    const subParentRef = asSub ? srcRef : (opts.parentId ? (opts.parentRef || '').trim() : '');
+    const newRef = subParentRef
+      ? _nextSubRef(subParentRef, opts.usedRefs)
+      : (typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null);
     if (newRef) newData.fields['qf-ref'] = newRef;
+    if (newRef && opts.usedRefs) opts.usedRefs.add(newRef);
+    if (newRef && subParentRef) _sessionSubRefs.add(newRef);
     delete newData.fields['qf-core-ref'];   // 基幹REF#は手配した案件に固有のため、コピーには引き継がない
     ['qf-lost-reason', 'qf-lost-note', 'qf-inq-kind', 'qf-inq-channel', 'qf-inq-spec'].forEach(k => delete newData.fields[k]);   // 失注理由・引き合いの経路は元の案件／依頼に固有
     delete newData.fields['qf-first-presented'];   // 初回の提示日時（回答スピード）もコピー元のもの
     delete newData.fields['qf-recv-time'];   // 受信時刻も元の依頼に固有
     delete newData.fields['qf-versions'];   // 提示履歴（版）はコピー元の案件のものなので引き継がない
+    if (_followOn()) newData.fields['qf-follower'] = (_cloudUser && _cloudUser.email) || ''; else delete newData.fields['qf-follower'];   // フォロー担当はコピーした人から（引き継ぎ履歴はコピー元のものなので消す）
+    delete newData.fields['qf-follow-log'];
     delete newData.fields['qf-related-data'];   // 関連番号・メール件名も元の引き合いに固有のため引き継がない
-    const existingNames = _cloudRows.map(r => r.name);
-    let baseName = src.name + ' のコピー';
+    const existingNames = _cloudRows.map(r => r.name).concat(opts.usedNames ? Array.from(opts.usedNames) : []);
+    let baseName = src.name + (asSub ? ' のサブ' : ' のコピー');
     let copyName = baseName;
     let n = 2;
     while (existingNames.includes(copyName)) copyName = baseName + '_' + (n++);
@@ -3439,17 +4286,46 @@
       const parsed = JSON.parse(f['qf-tags-data'] || '[]');
       if (Array.isArray(parsed)) tags = parsed.map(t => String(t || '').trim()).filter(Boolean);
     } catch(e) {}
-    const { error } = await _withOptionalCols(['ref', 'tags'], excluded => c.from(_table()).insert(Object.assign(
-      { name: copyName, data: newData, subcons, status: CLOUD_STATUS_DEFAULT,
-        customer, person, incoterms, transport_mode, pol, pod, carrier,
-        owner_email: _cloudUser.email, created_by: _cloudUser.email },
-      excluded.has('ref')  ? {} : { ref },
-      excluded.has('tags') ? {} : { tags }
-    )));
-    if (error) { quoteShowToast('⚠️ コピーに失敗：' + error.message, 'warn', 5000); return; }
-    quoteShowToast('📋 「' + src.name + '」をコピーしました → 「' + copyName + '」', 'success', 3500);
+    const { data: ins, error } = await _withOptionalCols(['ref', 'tags'], excluded => {
+      const q = c.from(_table()).insert(Object.assign(
+        { name: copyName, data: newData, subcons, status: CLOUD_STATUS_DEFAULT,
+          customer, person, incoterms, transport_mode, pol, pod, carrier,
+          owner_email: _cloudUser.email, created_by: _cloudUser.email },
+        excluded.has('ref')  ? {} : { ref },
+        excluded.has('tags') ? {} : { tags }
+      ));
+      return q.select('id').single();   // できた案件の id が要る（サブにするとき・関連を引き継ぐとき）
+    });
+    if (error) { quoteShowToast('⚠️ ' + (asSub ? 'サブ案件の作成' : 'コピー') + 'に失敗：' + error.message, 'warn', 5000); return; }
+    const newId = ins && ins.id;
+    if (opts.usedNames) opts.usedNames.add(copyName);
+    if (!asSub) {
+      // 関連を引き継ぐ：コピーを parentId のサブとして付ける（トーストと一覧の更新は呼び出し側）
+      let linked = false;
+      if (opts.parentId && newId) {
+        const lk = await cloudLinkPresets(opts.parentId, newId, '', { silent: true, parent: opts.parentId });
+        linked = !!lk.ok;
+      }
+      return { id: newId, name: copyName, srcName: src.name, linked, ref: (newData.fields['qf-ref'] || '').trim() };
+    }
+    // ---- サブ案件：できた案件をコピー元のサブとして関連付ける ----
+    if (!newId) { quoteShowToast('⚠️ サブ案件は作成しましたが、関連付けできませんでした（一覧から関連付けてください）', 'warn', 7000); cloudListPresets(); return; }
+    let lk = await cloudLinkPresets(src.id, newId, '', { silent: true, parent: src.id });
+    if (lk.ok) {
+      quoteShowToast('🌱 「' + src.name + '」のサブ案件を作成しました → 「' + copyName + '」' + (newData.fields['qf-ref'] ? '（番号 ' + newData.fields['qf-ref'] + '）' : ''), 'success', 4000);
+    } else {
+      // メイン／サブの列が無い（SQL 未実行）ときなどは、ただの関連として付けておく
+      const plain = await cloudLinkPresets(src.id, newId, '', { silent: true });
+      quoteShowToast(plain.ok
+        ? (_linkHierarchyMissing ? _HIER_SQL_HINT + '（サブ案件は作成し、ただの関連として付けました）'
+                                 : '⚠️ サブ案件は作成しましたが、メイン／サブには設定できず、ただの関連として付けました')
+        : '⚠️ サブ案件は作成しましたが、関連付けに失敗しました（一覧の「関連付けモード」から付けてください）', 'warn', 8000);
+    }
     cloudListPresets();
+    return { id: newId, name: copyName, srcName: src.name, linked: !!lk.ok, ref: (newData.fields['qf-ref'] || '').trim() };
   }
+  // 「🌱 サブ作成」＝この案件をコピーして、サブ案件として関連付ける
+  function cloudCreateSubPreset(rawId) { return cloudDuplicatePreset(rawId, { asSub: true }); }
 
   // ---------- 🧬 代替わり元（前の案件）をあとから紐づける ----------
   // 代替わりは、新しい案件の data.copiedFrom（コピー元・世代 gen・オリジナル root）で持つ。
@@ -3504,7 +4380,7 @@
         nd.copiedFrom = Object.assign({}, nd.copiedFrom, { gen: p.gen + 1, root: p.root });
         const { data: u, error } = await c.from(_table()).update({ data: nd }).eq('id', k.id).select('id');   // 最終更新者・日時は変えない（世代の数え直しだけ）
         if (error || !u || !u.length) { failed++; continue; }
-        k.data = nd; n++;
+        k.data = nd; n++; _bodyCacheDrop(k.id);
         queue.push({ id: k.id, gen: p.gen + 1, root: p.root });
       }
     }
@@ -3606,9 +4482,17 @@
     const c = _getClient();
     if (!c) { _renderCloudAuth(); return; }
 
+    // 「いま画面に反映済みのログインの人」。同じ人のままの通知では何も読み直さない（通信量の削減）。
+    // supabase-js は、別のタブから戻ったとき・トークン更新のたびにも「ログインした」通知を出すため、
+    // 以前はそのたびに案件一覧・マスターの全件を取り直していた（Free プランの転送量が超過した原因）。
+    let _authUid = null;
+
     // 既存セッション復元（OAuth リダイレクト直後もここで拾える）
     c.auth.getSession().then(({ data }) => {
-      _cloudUser = (data && data.session && data.session.user) || null;
+      const u = (data && data.session && data.session.user) || null;
+      if (u && _authUid === u.id) return;          // 通知側（INITIAL_SESSION）が先に処理済み
+      _cloudUser = u;
+      _authUid = u ? u.id : null;
       _renderCloudAuth();
       if (_cloudUser) {
         _loadProfiles().then(_renderCloudAuth); _initPresence();
@@ -3619,7 +4503,15 @@
 
     // ログイン状態変化を監視
     c.auth.onAuthStateChange((_event, session) => {
-      _cloudUser = (session && session.user) || null;
+      const u = (session && session.user) || null;
+      const same = !!u && _authUid === u.id;
+      _cloudUser = u;   // トークンなど最新のユーザー情報には差し替える
+      _authUid = u ? u.id : null;
+      if (same) {
+        // 同じ人のまま（タブに戻った・トークン更新）：表示名などを変えたとき以外は何も読み直さない
+        if (_event === 'USER_UPDATED') _renderCloudAuth();
+        return;
+      }
       _renderCloudAuth();
       if (_cloudUser) {
         _loadProfiles().then(_renderCloudAuth);   // 自分のアバター/名前を反映
@@ -3975,41 +4867,60 @@
   // ========== 🔗 ダッシュボードカード内 関連案件（quote_preset_links・双方向） ==========
   // ================================================================
   const DASH_LINKS_TOP_N = 3;
-  const _dashLinkCache = {};          // presetId -> [{id,name,ref,status}]（直接リンク＝1次）
+  // presetId -> { parent: メイン案件|null, kids: [サブ案件ツリー], peers: [ただの関連案件] }（各要素は { id,name,ref,status,note,linkId,kids? }）
+  const _dashLinkCache = {};
   const _dashLinkExpanded = new Set(); // 「さらに表示」中の presetId
-  function _invalidateDashLinks() { for (const k in _dashLinkCache) delete _dashLinkCache[k]; }
+  function _invalidateDashLinks() {
+    for (const k in _dashLinkCache) delete _dashLinkCache[k];
+    _dashLinkGen++;                       // 取得中の古い結果は捨てる
+    _linkParentsState = 'none';           // メイン／サブの対応も取り直す（それまでは前の対応で描く）
+  }
+  const _emptyLinks = () => ({ parent: null, kids: [], peers: [] });
 
-  // 表示中カードの関連案件を一括取得（N+1 回避：リンク1クエリ＋相手案件メタ1クエリ）
+  // 表示中カードの関連案件を一括取得（N+1 回避：リンク1クエリ＋サブのツリー最大3段ぶん＋相手案件メタ1クエリ）
   async function _loadDashLinks(rows) {
     const c = _getClient();
     if (!c || !_cloudUser) return;
     const ids = (rows || []).map(r => r.id).filter(Boolean);
     if (!ids.length) return;
+    const gen = _dashLinkGen;
     const uncached = ids.filter(id => !(id in _dashLinkCache));
     ids.forEach(id => { if (id in _dashLinkCache) _applyDashLinks(id); });
     if (!uncached.length) return;
     const inList = '(' + uncached.join(',') + ')';
-    const { data: links, error } = await c.from('quote_preset_links')
-      .select('id,preset_a,preset_b,note')
-      .or('preset_a.in.' + inList + ',preset_b.in.' + inList);
-    if (error) { uncached.forEach(id => { _dashLinkCache[id] = []; }); return; }  // テーブル未作成等は関連なし扱い
+    const { data: links, error } = await _selectLinks(c, q => q.or('preset_a.in.' + inList + ',preset_b.in.' + inList));
+    if (gen !== _dashLinkGen) return _loadDashLinks(rows);   // 取得中に関連付けが変わった：古い結果は使わず取り直す
+    if (error) { uncached.forEach(id => { _dashLinkCache[id] = _emptyLinks(); }); return; }  // テーブル未作成等は関連なし扱い
     const set = new Set(uncached);
-    const adj = {}; uncached.forEach(id => (adj[id] = []));
+    const direct = {}; uncached.forEach(id => (direct[id] = []));   // 各カードのメイン／ただの関連（サブはツリーで別取得）
     const otherIds = new Set();
     (links || []).forEach(l => {
-      if (set.has(l.preset_a) && l.preset_b !== l.preset_a) { adj[l.preset_a].push({ oid: l.preset_b, note: l.note || '', linkId: l.id }); otherIds.add(l.preset_b); }
-      if (set.has(l.preset_b) && l.preset_a !== l.preset_b) { adj[l.preset_b].push({ oid: l.preset_a, note: l.note || '', linkId: l.id }); otherIds.add(l.preset_a); }
+      [l.preset_a, l.preset_b].forEach(self => {
+        if (!set.has(self) || l.preset_a === l.preset_b) return;
+        const { other, rel } = _linkRel(l, self);
+        if (rel === 'child') return;
+        direct[self].push({ oid: other, rel, note: l.note || '', linkId: l.id });
+        otherIds.add(other);
+      });
     });
+    const kidMap = await _fetchKidMap(c, uncached, LINK_TREE_DEPTH);
+    _kidMapIds(kidMap).forEach(x => otherIds.add(x));
     const metaMap = {};
     if (otherIds.size) {
       const { data: metas } = await c.from('quote_presets')
         .select('id,name,ref,status').in('id', Array.from(otherIds));
       (metas || []).forEach(m => { metaMap[m.id] = m; });
     }
+    if (gen !== _dashLinkGen) return _loadDashLinks(rows);   // 同上（後半の取得中に変わった場合）
     uncached.forEach(id => {
-      const seen = new Set(); const uniq = [];
-      (adj[id] || []).forEach(e => { const m = metaMap[e.oid]; if (m && !seen.has(m.id)) { seen.add(m.id); uniq.push(Object.assign({}, m, { note: e.note, linkId: e.linkId })); } });
-      _dashLinkCache[id] = uniq;
+      const e = _emptyLinks(); const seen = new Set();
+      direct[id].forEach(x => {
+        const m = metaMap[x.oid]; if (!m || seen.has(m.id)) return; seen.add(m.id);
+        const item = Object.assign({}, m, { note: x.note, linkId: x.linkId });
+        if (x.rel === 'parent') { if (!e.parent) e.parent = item; } else e.peers.push(item);
+      });
+      e.kids = _buildKidTree(kidMap, id, metaMap, new Set([id]), 1);
+      _dashLinkCache[id] = e;
       _applyDashLinks(id);
     });
   }
@@ -4018,38 +4929,74 @@
     const wrap = document.getElementById('qpdListWrap');
     if (!wrap) return;
     const sel = (window.CSS && CSS.escape) ? CSS.escape(presetId) : presetId;
+    const e = _dashLinkCache[presetId] || _emptyLinks();
     const box = wrap.querySelector('.cloud-card-links[data-lid="' + sel + '"]');
-    if (!box) return;
-    box.innerHTML = _dashLinksInnerHtml(presetId, _dashLinkCache[presetId] || []);
+    if (box) box.innerHTML = _dashLinksInnerHtml(presetId, e);
+    const pl = wrap.querySelector('.cloud-card-parentline[data-pid="' + sel + '"]');
+    if (pl) pl.innerHTML = _dashParentLineHtml(presetId, e);
   }
 
-  function _dashLinksInnerHtml(presetId, arr) {
-    if (!arr || !arr.length) return '';   // 関連なしは何も描かない（:empty で非表示）
-    const expanded = _dashLinkExpanded.has(presetId);
-    const shown = expanded ? arr : arr.slice(0, DASH_LINKS_TOP_N);
-    const remain = arr.length - shown.length;
-    const items = shown.map(m => {
-      const st = m.status || CLOUD_STATUS_DEFAULT;
-      const badge = '<span class="cloud-status-badge cloud-status--' + _statusClass(st) + '">' + escHtml(st) + '</span>';
-      const ref = m.ref ? '<span class="clink-ref">' + escHtml(m.ref) + '</span>' : '';
-      const note = m.note ? '<div class="clink-note" title="関連付けの理由">📝 ' + escHtml(m.note) + '</div>' : '';
-      const unlink = m.linkId
-        ? '<button type="button" class="clink-unlink" onclick="event.stopPropagation();dashUnlinkCardLink(\'' + encodeURIComponent(m.linkId) + '\')" title="この関連付けを解除（双方のカードから外れます）">✕</button>'
-        : '';
-      return '<div class="cloud-clink-wrap">' +
-        '<div class="cloud-clink-row">' +
-        '<button type="button" class="cloud-clink" onclick="cloudPreviewPreset(\'' + encodeURIComponent(m.id) + '\')" title="内容をプレビュー">' +
-        badge + '<span class="clink-name">' + escHtml(m.name || '（無題）') + '</span>' + ref + '</button>' +
-        unlink + '</div>' +
-        note + '</div>';
-    }).join('');
-    const more = remain > 0
-      ? '<button type="button" class="cloud-clink-more" onclick="dashToggleCardLinks(\'' + encodeURIComponent(presetId) + '\')">さらに表示（+' + remain + '）</button>'
-      : (expanded && arr.length > DASH_LINKS_TOP_N
-          ? '<button type="button" class="cloud-clink-more" onclick="dashToggleCardLinks(\'' + encodeURIComponent(presetId) + '\')">▲ 折りたたむ</button>'
-          : '');
-    return '<div class="cloud-card-links-head">🔗 関連案件（' + arr.length + '）</div>' +
-      '<div class="cloud-clink-list">' + items + '</div>' + more;
+  // 位置づけの選択（基準の案件から見た相手：関連／サブ／メイン）。基準 anchorId は、カード自身か、ツリー内の親ノード
+  function _roleSelectHtml(m, anchorId, cur) {
+    const opt = (v, label) => '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + label + '</option>';
+    return '<select class="clink-role" onclick="event.stopPropagation()" title="位置づけを変える（基準の案件から見た相手）" ' +
+      'onchange="dashSetLinkRole(\'' + encodeURIComponent(m.linkId) + '\',\'' + encodeURIComponent(anchorId) + '\',this.value)">' +
+      opt('none', '🔗 関連') + opt('sub', '🌱 サブ') + opt('main', '👑 メイン') + '</select>';
+  }
+  // 1 件ぶんの行（プレビューのボタン＋位置づけ選択＋解除＋関連付けの理由）
+  function _clinkRowHtml(m, anchorId, cur) {
+    const st = m.status || CLOUD_STATUS_DEFAULT;
+    const badge = '<span class="cloud-status-badge cloud-status--' + _statusClass(st) + '">' + escHtml(st) + '</span>';
+    const ref = m.ref ? '<span class="clink-ref">' + escHtml(m.ref) + '</span>' : '';
+    const note = m.note ? '<div class="clink-note" title="関連付けの理由">📝 ' + escHtml(m.note) + '</div>' : '';
+    const role = m.linkId ? _roleSelectHtml(m, anchorId, cur) : '';
+    const unlink = m.linkId
+      ? '<button type="button" class="clink-unlink" onclick="event.stopPropagation();dashUnlinkCardLink(\'' + encodeURIComponent(m.linkId) + '\')" title="この関連付けを解除（双方のカードから外れます）">✕</button>'
+      : '';
+    return '<div class="cloud-clink-wrap">' +
+      '<div class="cloud-clink-row">' +
+      '<button type="button" class="cloud-clink" onclick="cloudPreviewPreset(\'' + encodeURIComponent(m.id) + '\')" title="内容をプレビュー">' +
+      badge + '<span class="clink-name">' + escHtml(m.name || '（無題）') + '</span>' + ref + '</button>' +
+      role + unlink + '</div>' + note + '</div>';
+  }
+  // サブ案件ツリーの 1 ノード（入れ子）。anchorId＝このノードの親（メイン）の案件
+  function _clinkTreeNodeHtml(node, anchorId) {
+    const kids = (node.kids && node.kids.length)
+      ? '<ul class="clink-tree">' + node.kids.map(k => _clinkTreeNodeHtml(k, node.id)).join('') + '</ul>' : '';
+    return '<li class="clink-tree-node">' + _clinkRowHtml(node, anchorId, 'sub') + kids + '</li>';
+  }
+  // カード上部の「↳ サブ／メイン：○○」（この案件がサブのとき）
+  function _dashParentLineHtml(presetId, e) {
+    if (!e || !e.parent) return '';
+    return '<span class="clink-parent-lbl" title="この案件は、下のメイン案件のサブです">↳ サブ</span>' + _clinkRowHtml(e.parent, presetId, 'main');
+  }
+  function _dashLinksInnerHtml(presetId, e) {
+    if (!e || (!e.kids.length && !e.peers.length)) return '';   // 関連なしは何も描かない（:empty で非表示）
+    let html = '';
+    if (e.kids.length) {
+      // すでに下のカード（インデント付き）として出ているサブは、ここには重ねて出さない（そのカードが自分のサブを持つ）。
+      // 絞り込み・ページ送りで下に出ていないサブだけを、ここにツリーで残す
+      const prune = ns => ns.filter(n => !_dashShownIds.has(n.id)).map(n => Object.assign({}, n, { kids: prune(n.kids || []) }));
+      const rest = prune(e.kids), total = _treeCount(e.kids), hidden = _treeCount(rest), below = total - hidden;
+      html += '<div class="cloud-card-links-head">🌳 サブ案件（' + total + '）' +
+        (below > 0 ? '<span class="cloud-card-links-note">' + (hidden ? 'うち ' + below + ' 件は' : '') + '下のカードに表示</span>' : '') + '</div>' +
+        (rest.length ? '<ul class="clink-tree clink-tree--root">' + rest.map(k => _clinkTreeNodeHtml(k, presetId)).join('') + '</ul>' : '');
+    }
+    if (e.peers.length) {
+      const arr = e.peers;
+      const expanded = _dashLinkExpanded.has(presetId);
+      const shown = expanded ? arr : arr.slice(0, DASH_LINKS_TOP_N);
+      const remain = arr.length - shown.length;
+      const items = shown.map(m => _clinkRowHtml(m, presetId, 'none')).join('');
+      const more = remain > 0
+        ? '<button type="button" class="cloud-clink-more" onclick="dashToggleCardLinks(\'' + encodeURIComponent(presetId) + '\')">さらに表示（+' + remain + '）</button>'
+        : (expanded && arr.length > DASH_LINKS_TOP_N
+            ? '<button type="button" class="cloud-clink-more" onclick="dashToggleCardLinks(\'' + encodeURIComponent(presetId) + '\')">▲ 折りたたむ</button>'
+            : '');
+      html += '<div class="cloud-card-links-head">🔗 関連案件（' + arr.length + '）</div>' +
+        '<div class="cloud-clink-list">' + items + '</div>' + more;
+    }
+    return html;
   }
 
   window.dashToggleCardLinks = function (encId) {
@@ -4065,6 +5012,13 @@
     if (typeof cloudUnlinkPreset !== 'function') return;
     const ok = await cloudUnlinkPreset(linkId);   // 成功時は _invalidateDashLinks 済み
     if (ok) _applyCloudFilter();                   // ダッシュボードを再描画して関連案件を取り直す
+  };
+
+  // 位置づけ（関連／サブ／メイン）の変更。基準はカード自身かツリー内の親ノード
+  window.dashSetLinkRole = async function (encLinkId, encAnchorId, role) {
+    const ok = await cloudSetLinkRole(decodeURIComponent(encLinkId), decodeURIComponent(encAnchorId), role);
+    _applyCloudFilter();   // 失敗時も、選択肢の見た目を実際の状態へ戻すために描き直す
+    return ok;
   };
 
   // ================================================================
@@ -4317,8 +5271,16 @@
   window.cloudDeletePreset    = cloudDeletePreset;
   window.cloudAdminReleaseLock = cloudAdminReleaseLock;
   window.cloudDuplicatePreset = cloudDuplicatePreset;
+  window.cloudCreateSubPreset = cloudCreateSubPreset;
   window.cloudListPresets    = cloudListPresets;
   window.cloudGetAllRows     = () => (_cloudRows || []).slice();
+  // 開いている案件を、ほかのメンバーが編集ロック中なら {email, name}（一覧の読み込み時点の情報＝目安）。見積入力の新画面の「🔒 ○○さんが編集中」の札が読む
+  window.quoteLockedByOther = function () {
+    try {
+      const r = (_cloudRows || []).find(x => String(x.id) === String(_loadedCloudId)); const by = r && _lockedByOther(r);
+      return by ? { email: by, name: _nameFor(by) } : null;
+    } catch (e) { return null; }
+  };
   window.cloudGetClient      = _getClient;
   window.cloudCurrentUser    = () => _cloudUser;
   window.cloudOnPresetMgrOpen = cloudOnPresetMgrOpen;
@@ -4339,6 +5301,10 @@
   window.cloudIsLoggedIn = () => !!_cloudUser;
   window.cloudConfirmLeaveUnsaved = _confirmLeaveUnsaved;
   window.cloudAddFreeEntry = cloudAddFreeEntry;
+  window.cloudFollowMe = cloudFollowMe;
+  window.cloudFollowAssign = cloudFollowAssign;
+  window.cloudFollowRelease = cloudFollowRelease;
+  window.cloudFilterFollower = cloudFilterFollower;
   window.cloudCurrentEmail = () => (_cloudUser && _cloudUser.email) || '';
   window.cloudNameFor = e => _nameFor(e);
   window.toggleCloudAdvSearch  = toggleCloudAdvSearch;

@@ -59,12 +59,16 @@
   let _reqs = [];              // 申請（新しい順）
   let _reqOn = false;          // 申請テーブルが使える
   let _aliasReqOn = false;     // 別名の追加申請（alias_of 列）も使える
+  let _detailsReqOn = false;   // 申請に詳細（details）・申請メモ（note）を持たせられる（docs/sql/master-request-details.sql）
   let _countryReqOn = false;   // 港の申請に国（country 列）を持たせられる（docs/sql/master-request-country.sql）
   async function _loadRequests() {
     const c = _c();
     if (!c) { _reqs = []; _reqOn = false; return; }
     // alias_of（別名の追加申請）列は docs/sql/synonym-groups-approval.sql で追加。無い間は従来どおり（別名はメンバーも直接追加できる）
-    let res = await c.from(REQ_TABLE).select('id,field,value,alias_of,country,requested_by,status,decided_by,decided_at,created_at')
+    let res = await c.from(REQ_TABLE).select('id,field,value,alias_of,country,details,note,requested_by,status,decided_by,decided_at,created_at')
+      .order('created_at', { ascending: false }).limit(300);
+    _detailsReqOn = !res.error;   // details／note 列は docs/sql/master-request-details.sql で追加。無い間は名前だけの申請
+    if (res.error) res = await c.from(REQ_TABLE).select('id,field,value,alias_of,country,requested_by,status,decided_by,decided_at,created_at')
       .order('created_at', { ascending: false }).limit(300);
     _countryReqOn = !res.error;   // country 列（港の申請に国を持たせる）は docs/sql/master-request-country.sql で追加。無い間は国なしの申請
     if (res.error) res = await c.from(REQ_TABLE).select('id,field,value,alias_of,requested_by,status,decided_by,decided_at,created_at')
@@ -72,7 +76,7 @@
     _aliasReqOn = !res.error;
     if (res.error) res = await c.from(REQ_TABLE).select('id,field,value,requested_by,status,decided_by,decided_at,created_at')
       .order('created_at', { ascending: false }).limit(300);
-    if (res.error) { _reqs = []; _reqOn = false; _aliasReqOn = false; _countryReqOn = false; return; }
+    if (res.error) { _reqs = []; _reqOn = false; _aliasReqOn = false; _countryReqOn = false; _detailsReqOn = false; return; }
     _reqs = res.data || []; _reqOn = true;
   }
   const _isAdmin = () => window._myRole === 'admin';
@@ -80,22 +84,31 @@
   const _pendingReq = (field, value) => _reqs.find(r => r.status === 'pending' && !r.alias_of && r.field === field && r.value === value);
   // メンバーの別名追加・マスター名変更などは、承認制のとき管理者が行う（別名の追加だけは申請になる）
   window.statsAliasNeedsApproval = () => _approvalOn() && !_isAdmin() && _aliasReqOn;
-  const _FIELD_LABEL = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
+  const _FIELD_LABEL = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港', icd: 'ICD' };
   function _toast(msg, type, ms) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(msg, type || 'success', ms || 3200); }
 
-  async function _request(field, value, country) {
-    if (_pendingReq(field, value)) { _toast('「' + value + '」はすでに申請中です（管理者の承認待ち）', 'info'); return; }
+  async function _request(field, value, country, extra) {
+    if (_pendingReq(field, value)) { _toast('「' + value + '」はすでに申請中です（管理者の承認待ち）', 'info'); return false; }
     const row = { field, value, requested_by: _me(), status: 'pending' };
+    // 詳細・申請メモ（新規登録モーダルから）。列が無い間は名前だけの申請になる
+    let dropped = false;
+    if (extra && ((extra.details && Object.keys(extra.details).length) || extra.note)) {
+      if (_detailsReqOn) { if (extra.details && Object.keys(extra.details).length) row.details = extra.details; if (extra.note) row.note = extra.note; }
+      else dropped = true;
+    }
     const withCountry = !!country && _countryReqOn;   // 国（港の申請）。country 列が無い間は国を持たせられない
     if (withCountry) row.country = country;
     const { error } = await _c().from(REQ_TABLE).insert(row);
-    if (error) { _toast('申請に失敗しました: ' + error.message, 'warn'); return; }
+    if (error) { _toast('申請に失敗しました: ' + error.message, 'warn'); return false; }
     await _loadRequests();
     if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // 行の「申請中」の印を反映
     const cj = country && typeof window.countryJa === 'function' ? window.countryJa(country) : '';
     _toast('📨 ' + (_FIELD_LABEL[field] || field) + '「' + value + '」' + (withCountry && cj ? '（' + cj + '）' : '') + 'をマスターに申請しました。管理者の承認後に入力候補に出ます' +
-      (country && !withCountry ? '（国は申請に付けられませんでした。承認後にマスター管理で設定してください）' : ''), 'success', 4200);
+      (country && !withCountry ? '（国は申請に付けられませんでした。承認後にマスター管理で設定してください）' : '') +
+      (dropped ? '（詳細・メモは申請に付けられませんでした。管理者が SQL を実行すると付けられます）' : ''), 'success', 4200);
+    return true;
   }
+  window.statsMasterRequest = _request;
   // 名称を、国つきでマスターに登録する（見積の POL／経由地／POD から）。承認制のメンバーは「申請」（国も一緒に申請）、管理者・従来の動きは直接登録して国を付ける
   // 戻り値の status：'registered'（登録した）／'requested'（申請した）／'exists'（すでにマスター）／'failed'
   window.statsRegisterWithCountry = async function (field, value, country) {
@@ -135,6 +148,12 @@
     } else if (approve) {
       const { error } = await _c().from(VOTES_TABLE).upsert({ field: r.field, value: r.value, voter_email: _me() }, { onConflict: 'field,value,voter_email' });
       if (error) { _toast('承認に失敗しました: ' + error.message, 'warn'); return; }
+      // 詳細つきの申請（新規登録モーダルから）：承認と一緒に詳細を登録する（すでにある項目は変えない＝管理者が先に入れた内容を守る）
+      if (r.details && typeof r.details === 'object' && Object.keys(r.details).length && typeof window.mdGet === 'function' && typeof window.mdSave === 'function') {
+        const prev = (window.mdGet(r.field, r.value) || {}).details || {};
+        const merged = Object.assign({}, r.details, prev);
+        if (!(await window.mdSave(r.field, r.value, merged))) { _toast('マスターには登録しましたが、詳細を保存できませんでした。マスター管理の詳細から入れ直してください', 'warn', 6000); }
+      }
       // 国つきの申請（港）：承認と一緒に国を付ける（すでにある国は変えない）
       if (r.country && typeof window.mdGet === 'function' && typeof window.mdSave === 'function') {
         const prev = (window.mdGet(r.field, r.value) || {}).details || {};
@@ -177,6 +196,24 @@
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
   }
   // マスター管理画面：申請の一覧（管理者は承認・却下、メンバーは自分の申請と状態）。状態は「記号＋文字」（○ 承認待ち／■ 承認済み／× 却下）
+  // 申請に付いた詳細・メモの要約（承認する前に内容を確認できる）
+  function _reqDetailsSummary(r) {
+    const d = r.details && typeof r.details === 'object' ? r.details : null;
+    const schema = (window.MD_SCHEMA && window.MD_SCHEMA[r.field]) || [];
+    const parts = [];
+    if (d) schema.forEach(sc => {
+      const v = d[sc.key];
+      if (v == null || v === '' || (Array.isArray(v) && !v.length)) return;
+      let t;
+      if (sc.contacts) t = v.map(c => [c.name, c.dept, c.phone, c.email].filter(Boolean).join(' ')).join(' ／ ');
+      else if (sc.areas) t = v.map(k => window.areaLabel ? window.areaLabel(k) : k).join('、');
+      else if (sc.country) t = window.countryLabel ? window.countryLabel(v) : v;
+      else t = Array.isArray(v) ? v.join('、') : String(v);
+      parts.push('<span class="req-d-item"><b>' + _esc(sc.label.replace(/（.*$/, '')) + '</b> ' + _esc(t.length > 60 ? t.slice(0, 60) + '…' : t) + '</span>');
+    });
+    if (r.note) parts.push('<span class="req-d-item req-d-note"><b>💬 申請メモ</b> ' + _esc(r.note) + '</span>');
+    return parts.length ? '<div class="req-details">' + parts.join('') + '</div>' : '';
+  }
   function _requestsHtml() {
     if (!_approvalOn()) return '';
     const admin = _isAdmin(), me = _me();
@@ -198,7 +235,8 @@
           `<button class="stats-demote-btn btn-secondary" onclick="statsRejectRequest('${_ea(r.id)}')">却下…</button>`
         : (r.status === 'pending' ? `<button class="stats-demote-btn btn-secondary" onclick="statsCancelRequest('${_ea(r.id)}')">取り消す</button>` : '');
       const st = ST[r.status] || ['', r.status];
-      return `<tr><td>${_esc(_FIELD_LABEL[r.field] || r.field)}</td><td class="stats-val">${_esc(r.value)}${r.alias_of ? ' <span class="req-alias-of">→ 「' + _esc(r.alias_of) + '」の別名</span>' : ''}${r.country ? ' <span class="req-country" title="申請者が選んだ国">🌐 ' + _esc(typeof window.countryJa === 'function' ? window.countryJa(r.country) : r.country) + '</span>' : ''}</td>` +
+      const sum = _reqDetailsSummary(r);
+      return `<tr><td>${_esc(_FIELD_LABEL[r.field] || r.field)}</td><td class="stats-val">${_esc(r.value)}${sum}${r.alias_of ? ' <span class="req-alias-of">→ 「' + _esc(r.alias_of) + '」の別名</span>' : ''}${r.country ? ' <span class="req-country" title="申請者が選んだ国">🌐 ' + _esc(typeof window.countryJa === 'function' ? window.countryJa(r.country) : r.country) + '</span>' : ''}</td>` +
              `<td>${admin ? _esc(who) : `<span class="req-state ${st[0]}">${st[1]}</span>`}</td><td class="ops">${ops}</td></tr>`;
     }).join('');
     return '<div class="stats-req-section"><p class="stats-master-info-title">' + head + '</p>' +
@@ -335,7 +373,7 @@
     }
     return out;
   }
-  // お客様名を全プリセットから収集（ゆらぎ件数の集計用。お客様タブ自体は別途集計）。
+  // お客様名を全プリセットから収集（表記ゆれ件数の集計用。お客様タブ自体は別途集計）。
   function _gatherCustomers(source) {
     const out = [];
     if (source !== 'cloud') _getLocalPresets().forEach(p => { const v = (((p.data || {}).fields || {})['qf-customer'] || '').trim(); if (v) out.push(v); });
@@ -356,7 +394,7 @@
     return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count }));
   }
 
-  // ゆらぎ判定用の正規化キー。NFKC で全角英数・半角カナ・㈱等の互換文字を統一し、
+  // 表記ゆれ判定用の正規化キー。NFKC で全角英数・半角カナ・㈱等の互換文字を統一し、
   // 記号・空白・長音等を除去、カタカナはひらがなへ寄せる。
   // field==='customer' のときは日本の法人格（株式会社／(株)／㈱／有限会社／合同会社…）を
   // 社名本体から切り離し、位置（前置・後置）の違いだけを吸収する（「株式会社ハブネット」＝「ハブネット(株)」）。
@@ -600,7 +638,8 @@
       const disp = opt ? opt.label : v;
       const short = disp.length > 14 ? disp.slice(0, 14) + '…' : disp;
       const dk = s.key === 'dealType' ? (_DEAL_DEFS.find(x => x[1] === v) || [])[0] : '';
-      chips.push(`<span class="stats-md-chip${dk ? ' stats-md-deal stats-md-deal-' + dk : ''}" title="${_eav(s.label + '：' + disp)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
+      const isContract = s.key === 'contractType' && v === '業務委託';
+      chips.push(`<span class="stats-md-chip${dk ? ' stats-md-deal stats-md-deal-' + dk : ''}${isContract ? ' stats-md-deal stats-md-contract' : ''}" title="${_eav(s.label + '：' + disp)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
     });
     const otherChip = _bothChip(field, value) + _refChip(field, value);
     if (!chips.length) return otherChip ? `<div class="stats-md-inline">${otherChip}</div>` : '';
@@ -626,7 +665,7 @@
       h += `<span class="stats-syn-into" title="「${_eav(canon)}」の別名になっています">→${_esc(canon)}</span>` +
            `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('${_ea(field)}','${_ea(value)}')" title="別名から外す">✕</button>`;
     } else if (canons.size) {
-      h += `<button class="stats-syn-merge" onclick="statsSynMergePicker('${_ea(field)}','${_ea(value)}',this)" title="既存のマスターの別名にする（件数が合算されます）">→ 別名にする</button>`;
+      h += `<button class="stats-syn-merge" onclick="statsSynMergePicker('${_ea(field)}','${_ea(value)}',this)" title="この名前も、選んだマスターと同じものとして扱います。件数が合算されます（過去の案件の入力は書き換わりません）">→ 別名にする</button>`;
     }
     return h;
   }
@@ -779,9 +818,9 @@
     return h;
   }
 
-  // ゆらぎグループ表示（nm/sv/carrier/port 共通）。
+  // 表記ゆれグループ表示（nm/sv/carrier/port 共通）。
   // 手動の同義グループ（⭐代表→統合）は単位タブと同様に1行へ統合表示し、
-  // それ以外は従来どおり自動ゆらぎ検出グループとして表示（併存）。
+  // それ以外は従来どおり自動表記ゆれ検出グループとして表示（併存）。
   // === 並べ替え（件数順／名前順）===
   // 名前順にすると似た表記が隣接し、代表登録（⭐代表→統合）作業がしやすくなる。
   let _statsSort = 'count';   // 'count' | 'name'
@@ -815,7 +854,7 @@
     _listLimit = {};
     _renderActivePane();
   };
-  // 「ゆらぎありのみ」表示フィルタ：表記ゆれ（同じ読みで複数の表記）がある項目だけを表示する。
+  // 「表記ゆれありのみ」表示フィルタ：表記ゆれ（同じ読みで複数の表記）がある項目だけを表示する。
   let _statsFluctOnly = false;
   window.statsToggleFluct = function () {
     _statsFluctOnly = !_statsFluctOnly;
@@ -830,7 +869,7 @@
            `<label class="stats-unorg-toggle sm-f-unorg" title="⭐マスター登録済み・別名として整理済みの項目を隠し、未整理の項目だけ表示します">` +
            `<input type="checkbox" onchange="statsToggleUnorganized()"${_statsUnorganizedOnly ? ' checked' : ''}> 未整理のみ表示</label>` +
            `<label class="stats-unorg-toggle sm-f-fluct" title="表記ゆれ（同じ読みで複数の表記）がある項目だけ表示します">` +
-           `<input type="checkbox" onchange="statsToggleFluct()"${_statsFluctOnly ? ' checked' : ''}> ゆらぎありのみ表示</label></div>`;
+           `<input type="checkbox" onchange="statsToggleFluct()"${_statsFluctOnly ? ' checked' : ''}> 表記ゆれありのみ表示</label></div>`;
   }
 
   // サブコン・キャリア：「所属グループ」ごとの合計（グループ傘下の会社の件数を合算して内訳を出す）
@@ -878,7 +917,7 @@
       return { g, own, aliasCnt, total: own + aliasCnt };
     });
     synRows.sort((a, b) => _statsSort === 'name' ? _cmpName(a.g.canonical, b.g.canonical) : b.total - a.total);
-    // 残りの自動ゆらぎグループ（同義グループに取り込まれた値を除外）
+    // 残りの自動表記ゆれグループ（同義グループに取り込まれた値を除外）
     const restGroups = [];
     groups.forEach((g, gIdx) => {
       const variants = g.variants.filter(v => !consumed.has(v.value));
@@ -888,9 +927,9 @@
     if (_statsSort === 'name') restGroups.sort((a, b) => _cmpName(a.variants[0].value, b.variants[0].value));
 
     // 「未整理のみ」フィルタ：同義グループ行（＝整理済み）を隠し、まだ手つかずの
-    // 単独項目（個別マスター登録もされていないもの）だけ残す。ゆらぎ複数種の行は
+    // 単独項目（個別マスター登録もされていないもの）だけ残す。表記ゆれ複数種の行は
     // まだ同義グループに統合されていない＝手つかずなので常に表示する。
-    // 「ゆらぎありのみ」：同義グループ（整理済み）は隠し、複数表記のある自動ゆらぎグループだけ残す。
+    // 「表記ゆれありのみ」：同義グループ（整理済み）は隠し、複数表記のある自動表記ゆれグループだけ残す。
     const visSynRows  = (_statsUnorganizedOnly || _statsFluctOnly) ? [] : synRows;
     let visRestGroups = _statsUnorganizedOnly
       ? restGroups.filter(g => g.variants.length > 1 || !_masterRegistered(mf, g.variants[0].value, null, synCanons))
@@ -900,7 +939,7 @@
     if (!visSynRows.length && !visRestGroups.length) {
       e.innerHTML = _sortToolbar() + (synRows.length || restGroups.length
         ? (_statsFluctOnly
-            ? '<p class="stats-empty">ゆらぎのある項目はありません。</p>'
+            ? '<p class="stats-empty">表記ゆれのある項目はありません。</p>'
             : '<p class="stats-empty">🎉 未整理の項目はありません。すべてマスター登録済み（または別名として整理済み）です。</p>')
         : '<p class="stats-empty">データなし</p>');
       return;
@@ -915,7 +954,7 @@
     const shownRest = visRestGroups.slice(0, Math.max(0, pageLimit - shownSyn.length));
 
     let h = _sortToolbar() + _groupSummaryHtml(mf, cntMap, synAliasOf) +
-            '<p class="stats-syn-hint">「☆ マスターに登録」で正しい名前を決め、他の表記を「→ 別名にする」でまとめると、⭐行に集約され件数が合算されます（非破壊）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
+            '<p class="stats-syn-hint">「☆ マスターに登録」で正しい名前を決め、他の表記を「→ 別名にする」でまとめると、⭐行に集約され件数が合算されます（非破壊）。表記ゆれの一括置換は「表記ゆれ N種」バッジから。</p>' +
             (field === 'carrier' ? '<p class="stats-syn-hint">🔀 キャリアはサブコンのマスターとして登録します（ここでの登録・別名は、マスター管理の「サブコン」に入ります。集計は幹線輸送の入力から数えます）。</p>' : '') +
             `<table class="stats-table stats-nm-table"><thead><tr>` +
             `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>別名・略称 / バリアント</th>` +
@@ -946,7 +985,7 @@
            `</td></tr>`;
     });
 
-    // --- 残りの自動ゆらぎグループ ---
+    // --- 残りの自動表記ゆれグループ ---
     shownRest.forEach(g => {
       const hasV = g.variants.length > 1;
       const gId  = paneId + '-' + g.origIdx;
@@ -957,7 +996,7 @@
         if (g.isAbbrevGroup) {
           h += ` <span class="stats-variant-badge stats-variant-badge--abbrev" title="別名として登録された表記">別名 ${g.variants.length}種</span>`;
         } else {
-          h += ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">ゆらぎ ${g.variants.length}種</button>`;
+          h += ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">表記ゆれ ${g.variants.length}種</button>`;
         }
       }
       h += `</td>`;
@@ -971,7 +1010,7 @@
              `<span class="stats-chip-text">${_usageSpan(field, v.value)}</span>` +
              `<span class="stats-chip-cnt">×${v.count}</span>` +
              _voteBtn(mf, v.value, synCanons) +
-             (hasV ? `<button class="stats-excl-chip-btn" onclick="statsExcludeVariant('${_ea(field)}','${_ea(v.value)}')" title="ゆらぎ判定から除外（別物として扱う）">≠</button>` : '') +
+             (hasV ? `<button class="stats-excl-chip-btn" onclick="statsExcludeVariant('${_ea(field)}','${_ea(v.value)}')" title="表記ゆれ判定から除外（別物として扱う）">≠</button>` : '') +
              _synBtns(aliasField, v.value, synCanons, synAliasOf, cntMap) +
              `</span>`;
       });
@@ -2061,8 +2100,8 @@
       const aliasCount = (g.aliases || []).reduce((s, a) => s + (countMap[a] || 0), 0);
       displayList.push({ type: 'canonical', canonical: g.canonical, ownCount, aliasCount, total: ownCount + aliasCount, aliases: g.aliases || [] });
     });
-    // 代表・統合済みでない表記だけを未整理として並べる。正規化キーが同じ表記（ゆらぎ）は
-    // 隣り合う行にまとめ、先頭行に「ゆらぎ N種」バッジを付ける。
+    // 代表・統合済みでない表記だけを未整理として並べる。正規化キーが同じ表記ゆれは
+    // 隣り合う行にまとめ、先頭行に「表記ゆれ N種」バッジを付ける。
     const ungroupedGroups = [];
     rawGroups.forEach(g => {
       const rest = g.variants.filter(v => !canonicalSet.has(v.value) && !aliasToCanon[v.value]);
@@ -2078,14 +2117,14 @@
     }));
 
     // 「未整理のみ」フィルタ：代表（⭐）に統合済みの単位グループを隠し、
-    // まだ代表未設定の単位（ungrouped）だけ表示する。「ゆらぎありのみ」は複数表記のある未整理単位だけ。
+    // まだ代表未設定の単位（ungrouped）だけ表示する。「表記ゆれありのみ」は複数表記のある未整理単位だけ。
     let visList = displayList;
     if (_statsUnorganizedOnly) visList = visList.filter(it => it.type !== 'canonical');
     if (_statsFluctOnly)       visList = visList.filter(it => it.type === 'ungrouped' && it.fluct);
 
     if (!visList.length) {
       e.innerHTML = _sortToolbar() + (_statsFluctOnly
-        ? '<p class="stats-empty">ゆらぎのある単位はありません。</p>'
+        ? '<p class="stats-empty">表記ゆれのある単位はありません。</p>'
         : '<p class="stats-empty">🎉 未整理の単位はありません。すべてマスター登録・別名の整理済みです。</p>');
       return;
     }
@@ -2113,7 +2152,7 @@
              `</tr>`;
       } else {
         const badge = (item.fluct && item.first)
-          ? ` <span class="stats-variant-badge" title="読みが同じ表記が複数あります（${item.fluctN}種）。マスターを決めて別名にすると件数が合算されます">ゆらぎ ${item.fluctN}種</span>`
+          ? ` <span class="stats-variant-badge" title="読みが同じ表記が複数あります（${item.fluctN}種）。マスターを決めて別名にすると件数が合算されます">表記ゆれ ${item.fluctN}種</span>`
           : '';
         h += `<tr class="ua-ungrouped-row${item.fluct ? ' stats-has-variant' : ''}">` +
              `<td class="stats-val">${_usageSpan('un', item.value)}${badge}</td>` +
@@ -2121,7 +2160,7 @@
              `<td></td>` +
              `<td class="ua-ops">` +
              `<button class="ua-set-canon" onclick="uaSetCanonical('${_ea(item.value)}')" title="この単位をマスター（正しい名前）として登録">⭐ マスターに</button>` +
-             `<button class="ua-merge-btn" onclick="uaShowMergePicker('${_ea(item.value)}',this)" title="既存のマスターの別名にする">→ 別名にする</button>` +
+             `<button class="ua-merge-btn" onclick="uaShowMergePicker('${_ea(item.value)}',this)" title="この名前も、選んだマスターと同じものとして扱います（過去の案件の入力は書き換わりません）">→ 別名にする</button>` +
              `</td></tr>`;
       }
     });
@@ -2494,14 +2533,14 @@
     });
     const groups = [...map.values()].sort((a, b) => b.count - a.count);
 
-    // ゆらぎグループ化（表記ゆれを検出）
+    // 表記ゆれグループ化（表記ゆれを検出）
     const custExcl = new Set(
       (typeof window.arGetExclusions === 'function' ? window.arGetExclusions() : [])
         .filter(e => e.field === 'customer').map(e => e.value)
     );
     const custNames = groups.map(g => g.customer).filter(Boolean);
     const custGroups = _groupSimilar(custNames, custExcl, 'customer');
-    // 正規化キー → グループ先頭名のマップ（ゆらぎバッジ用）
+    // 正規化キー → グループ先頭名のマップ（表記ゆれバッジ用）
     const normToCanon = new Map();
     custGroups.forEach(cg => {
       if (cg.variants.length > 1) cg.variants.forEach(v => normToCanon.set(_normalize(v.value, 'customer'), cg));
@@ -2575,8 +2614,8 @@
            `</tr>`;
     });
 
-    // --- 残りのお客様（自動ゆらぎ検出は従来表示）---
-    // ゆらぎありのみ：同じゆらぎクラスタの表記が隣り合うよう正規化キー順に並べる
+    // --- 残りのお客様（自動表記ゆれ検出は従来表示）---
+    // 表記ゆれありのみ：同じ表記ゆれクラスタの表記が隣り合うよう正規化キー順に並べる
     const restCust = _statsFluctOnly
       ? [...groups].sort((a, b) => _cmpName(_normalize(a.customer, 'customer'), _normalize(b.customer, 'customer')) || b.count - a.count)
       : (_statsSort === 'name'
@@ -2593,7 +2632,7 @@
       const persons = [...g.persons].join('、') || '—';
       const stHtml = _stHtml(g.statuses);
 
-      // ゆらぎバッジ（同じ正規化キーに複数表記がある場合）
+      // 表記ゆれバッジ（同じ正規化キーに複数表記がある場合）
       const cg = cg0;
       let variantBadge = '';
       if (cg && cg.variants.length > 1 && cg.variants[0].value === g.customer) {
@@ -2602,7 +2641,7 @@
         _renderedGroups[gId] = { aliasField: 'customer', variants: cg.variants };
         variantBadge = cg.isAbbrevGroup
           ? ` <span class="stats-variant-badge stats-variant-badge--abbrev" title="別名として登録された表記">別名 ${cg.variants.length}種</span>`
-          : ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">ゆらぎ ${cg.variants.length}種</button>`;
+          : ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">表記ゆれ ${cg.variants.length}種</button>`;
         gIdx++;
       }
 
@@ -2623,7 +2662,7 @@
     e.innerHTML = shownRows
       ? h + '</tbody></table>' + _moreHtml('statsPane-customer', shownRows)
       : _sortToolbar() + (_statsFluctOnly
-          ? '<p class="stats-empty">ゆらぎのある項目はありません。</p>'
+          ? '<p class="stats-empty">表記ゆれのある項目はありません。</p>'
           : '<p class="stats-empty">🎉 未整理の項目はありません。すべてマスター登録済み（または別名として整理済み）です。</p>');
   }
 
@@ -2631,7 +2670,7 @@
   let _masterFieldFilter = 'all';
   window.statsMasterSetFilter = function (f) {
     _masterFieldFilter = f || 'all';
-    _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = '';   // 種別が変わったらサブコン種別・地域の絞り込みは解く
+    _masterDeal = ''; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = '';   // 種別が変わったらサブコン種別・地域の絞り込みは解く
     _masterSort = 'name';
     _renderMaster();
   };
@@ -2647,9 +2686,11 @@
   window.statsMasterSetSub = function (k) { _masterSub = k || ''; _masterSvType = ''; _renderMaster(); };
   // 並び順：'name'＝名前順（既定）／'tag'＝種別・タグごとにまとめて表示（サブコン・お客様のとき）
   let _masterSort = 'name';
+  let _masterDeal = '';   // お客様の取引形態での絞り込み（'' ＝すべて・'ship'／'fwd'／'agent'／'otsu'／'other'／'none'）
+  window.statsMasterSetDeal = function (k) { _masterDeal = k || ''; _renderMaster(); };
   window.statsMasterSetSort = function (m) { _masterSort = (m === 'tag' || m === 'group' || m === 'area' || m === 'deal') ? m : 'name'; _renderMaster(); };
   // お客様の取引形態（荷主／同業者／その他／未設定）。一覧の行の色・見出しの色・「取引形態ごとにまとめる」に使う
-  const _DEAL_DEFS = [['ship', '荷主（直接）', '🏭'], ['fwd', '同業者（フォワーダー・代理店）', '🤝'], ['agent', '海外代理店', '🌏'], ['other', 'その他', '📁'], ['none', '取引形態 未設定', '❔']];
+  const _DEAL_DEFS = [['ship', '荷主（直接）', '🏭'], ['fwd', '同業者（フォワーダー・代理店）', '🤝'], ['agent', '海外代理店', '🌏'], ['otsu', '乙仲', '🛃'], ['other', 'その他', '📁'], ['none', '取引形態 未設定', '❔']];
   const _dealKeyOf = (field, name) => {
     if (field !== 'customer') return '';
     const d = ((typeof window.mdGet === 'function' && window.mdGet('customer', name)) || { details: {} }).details || {};
@@ -2679,7 +2720,7 @@
 
   let _regOpen = false;   // 「代表を新規登録」の開閉（Industry。再描画しても保つ）
   // マスターの新規登録は、詳細ポップアップと同じ見た目のモーダルで行う（種別・マスター名・続けて登録）
-  const _REG_FIELDS = [['sv', 'サブコン', '例）ABC Logistics Co., Ltd.'], ['customer', 'お客様', '例）ABC Corporation Ltd.'], ['nm', '品名', '例）海上運賃'], ['port', '港', '例）Yokohama'], ['un', '単位', '例）CONTAINER']];
+  const _REG_FIELDS = [['sv', 'サブコン', '例）ABC Logistics Co., Ltd.'], ['customer', 'お客様', '例）ABC Corporation Ltd.'], ['nm', '品名', '例）海上運賃'], ['port', '港', '例）Yokohama'], ['icd', 'ICD（インランドデポ）', '例）ICD Tughlakabad'], ['un', '単位', '例）CONTAINER']];
   function _regModalEl() { return document.getElementById('masterNewModal'); }
   window.statsMasterCloseRegister = function () {
     const m = _regModalEl(); if (!m) return;
@@ -2690,19 +2731,23 @@
     if (_regModalEl()) { window.statsMasterCloseRegister(); return; }
     window.statsCloseMasterDetail();
     const cur = _REG_FIELDS.some(f => f[0] === _masterFieldFilter) ? _masterFieldFilter : 'sv';
+    const req = _approvalOn() && !_isAdmin();   // 承認制のメンバー：登録ではなく「申請」（管理者が承認するとマスターになる）
     const m = document.createElement('div');
     m.id = 'masterNewModal'; m.className = 'md-modal-overlay'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
-    m.innerHTML = '<div class="md-modal master-new-modal"><div class="md-modal-head"><h3>＋ マスターを新規登録</h3><button type="button" class="md-modal-close" title="閉じる（Esc）" aria-label="閉じる">✕</button></div>' +
+    m.innerHTML = '<div class="md-modal master-new-modal"><div class="md-modal-head"><h3>' + (req ? '📨 マスターを申請' : '＋ マスターを新規登録') + '</h3><button type="button" class="md-modal-close" title="閉じる（Esc）" aria-label="閉じる">✕</button></div>' +
       '<div class="md-modal-body">' +
         '<div class="mnr-top">' +
           '<label class="mnr-lab mnr-kind">種別<select id="masterNewField" class="ar-select">' + _REG_FIELDS.map(f => `<option value="${f[0]}"${f[0] === cur ? ' selected' : ''}>${f[1]}</option>`).join('') + '</select></label>' +
           '<label class="mnr-lab mnr-name">マスター名（正しい名前）<input id="masterNewValue" class="ar-input" type="text" autocomplete="off"></label>' +
         '</div>' +
         '<div class="master-detail-form mnr-fields" id="masterNewFields"></div>' +
-        '<p class="master-new-hint">実際の入力値に無い名称でも登録できます。種別ごとの詳細は、わかる範囲で入れておけます（あとから「詳細」でも追加できます）。添付ファイル・ニュース・顧客カルテ・取引ルールは、登録後の「詳細」から追加します。</p>' +
+        (req ? '<label class="mnr-lab mnr-note">申請メモ（管理者へ。任意）<textarea id="masterNewNote" class="ar-input" rows="2" placeholder="例）新規のお客様です。○○社の紹介で取引開始予定"></textarea></label>' : '') +
+        '<p class="master-new-hint">' + (req
+          ? '登録するのは管理者です。ここで出した申請は、管理者が内容を確認して承認するとマスターになります（入れた詳細も一緒に登録されます）。わかる範囲で入れてください。承認の状況は、この画面の上の「あなたの申請」で見られます。'
+          : '実際の入力値に無い名称でも登録できます。種別ごとの詳細は、わかる範囲で入れておけます（あとから「詳細」でも追加できます）。添付ファイル・ニュース・顧客カルテ・取引ルールは、登録後の「詳細」から追加します。') + '</p>' +
       '</div>' +
-      '<div class="mt-foot master-new-foot"><label class="master-new-more"><input type="checkbox" id="masterNewMore"> 続けて登録する</label><span class="mnr-spacer"></span>' +
-        '<button type="button" class="master-new-btn" onclick="statsMasterAddCanonical()">登録</button><button type="button" class="master-new-cancel" onclick="statsMasterCloseRegister()">キャンセル</button></div></div>';
+      '<div class="mt-foot master-new-foot"><label class="master-new-more"><input type="checkbox" id="masterNewMore"> ' + (req ? '続けて申請する' : '続けて登録する') + '</label><span class="mnr-spacer"></span>' +
+        '<button type="button" class="master-new-btn" onclick="statsMasterAddCanonical()">' + (req ? '📨 申請する' : '登録') + '</button><button type="button" class="master-new-cancel" onclick="statsMasterCloseRegister()">キャンセル</button></div></div>';
     document.body.appendChild(m); document.body.classList.add('md-modal-open');
     const inp = m.querySelector('#masterNewValue'), sel = m.querySelector('#masterNewField'), box = m.querySelector('#masterNewFields');
     const paint = () => {
@@ -2827,16 +2872,122 @@
   };
   window.statsMasterClearQuery = function () { _masterQuery = ''; _renderMaster(); };
 
+  // ===== インデックスバー（あ か さ …／A B C …）：マスター一覧を頭文字で探す（2026-11）=====
+  // 頭文字は、詳細の「ふりがな」があればその読み、無ければ名前の先頭（株式会社などは飛ばす・カタカナはひらがなへ）。
+  // かな＝行（あ か さ た な は ま や ら わ）・英字＝A〜Z・数字＝0-9・漢字などで読みが無いもの＝他
+  const _IDX_ROWS = [['あ', 'ぁあぃいぅうぇえぉおゔ'], ['か', 'かがきぎくぐけげこご'], ['さ', 'さざしじすずせぜそぞ'], ['た', 'ただちぢっつづてでとど'], ['な', 'なにぬねの'],
+    ['は', 'はばぱひびぴふぶぷへべぺほぼぽ'], ['ま', 'まみむめも'], ['や', 'ゃやゅゆょよ'], ['ら', 'らりるれろ'], ['わ', 'ゎわゐゑをん']];
+  const _IDX_KANA = _IDX_ROWS.map(r => r[0]);
+  const _IDX_ORDER = _IDX_KANA.concat('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''), ['0-9', '他']);
+  function _idxReading(field, name) {
+    let d = null;
+    try { const r = typeof window.mdGet === 'function' ? window.mdGet(field, name) : null; d = r && r.details; } catch (e) { /* 無視 */ }
+    return String((d && d.furigana) || name || '');
+  }
+  function _idxKeyOfText(t) {
+    let x = String(t || '').normalize('NFKC').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+    const _corp = /^\s*(株式会社|有限会社|合同会社|\(株\)|\(有\)|\(合\))\s*/;
+    x = x.replace(_corp, '').replace(/^[\s()\[\]「」『』・.\-_/*]+/, '').replace(_corp, '').replace(/^[\s()\[\]「」『』・.\-_/*]+/, '');
+    const c = x.charAt(0);
+    if (!c) return '他';
+    const row = _IDX_ROWS.find(r => r[1].indexOf(c) >= 0);
+    if (row) return row[0];
+    const cb = c.normalize('NFD').charAt(0);   // É→E（アクセント付きの英字も英字の見出しへ）
+    if (/[a-zA-Z]/.test(cb)) return cb.toUpperCase();
+    if (/[0-9]/.test(c)) return '0-9';
+    return '他';
+  }
+  const _idxKey = (field, name) => _idxKeyOfText(_idxReading(field, name));
+  // 一覧の並び（名前順）：種別 → 頭文字の順 → 読み（ふりがな）／名前
+  function _idxCmp(a, b) {
+    const ka = _IDX_ORDER.indexOf(_idxKey(a.field, a.name)), kb = _IDX_ORDER.indexOf(_idxKey(b.field, b.name));
+    if (ka !== kb) return ka - kb;
+    return _idxReading(a.field, a.name).localeCompare(_idxReading(b.field, b.name), 'ja');
+  }
+  let _idxBubbleT = null;
+  function _idxJump(k, quiet) {
+    const row = document.querySelector('#statsPane-master table.master-table > tbody > tr[data-idx="' + k + '"]');
+    if (!row) return false;
+    row.scrollIntoView({ block: 'start', behavior: quiet ? 'auto' : 'smooth' });
+    row.classList.add('idx-flash'); setTimeout(() => row.classList.remove('idx-flash'), 1200);
+    return true;
+  }
+  window.statsMasterIndexJump = k => _idxJump(k);
+  function _applyIndexBar() {
+    const pane = document.getElementById('statsPane-master'); if (!pane) return;
+    const old = document.getElementById('masterIndexBar'); if (old) old.remove();
+    // 名前順のときだけ（グループごとのまとめ表示では、頭文字の順に並ばないため出さない）
+    if (_masterSort !== 'name') return;
+    const rows = Array.from(pane.querySelectorAll('table.master-table > tbody > tr[data-mvalue]'));
+    if (rows.length < 8) return;   // 少ないときは要らない
+    const have = new Set();
+    rows.forEach(tr => { const k = _idxKey(tr.dataset.mfield, tr.dataset.mvalue); tr.dataset.idx = k; have.add(k); });
+    const items = _IDX_ORDER.filter(k => _IDX_KANA.includes(k) || have.has(k));   // かなは常に（薄く）・英字・数字・他は、ある分だけ
+    const bar = document.createElement('div');
+    bar.id = 'masterIndexBar'; bar.className = 'master-index-bar'; bar.setAttribute('role', 'navigation'); bar.setAttribute('aria-label', '頭文字で探す');
+    bar.innerHTML = items.map(k => `<button type="button" class="mib-k${have.has(k) ? '' : ' is-off'}" data-k="${_eav(k)}" tabindex="${have.has(k) ? 0 : -1}" aria-label="${_eav(k + 'から始まるもの')}"${have.has(k) ? '' : ' aria-disabled="true"'}>${_esc(k)}</button>`).join('') +
+      '<div class="mib-bubble" id="masterIndexBubble" aria-hidden="true"></div>';
+    pane.appendChild(bar);
+    const bubble = bar.querySelector('#masterIndexBubble');
+    const show = k => { bubble.textContent = k; bubble.classList.add('on'); clearTimeout(_idxBubbleT); _idxBubbleT = setTimeout(() => bubble.classList.remove('on'), 700); };
+    const keyAt = (x, y) => { const el = document.elementFromPoint(x, y); const b = el && el.closest && el.closest('.mib-k'); return b && bar.contains(b) ? b.dataset.k : null; };
+    let drag = false, last = null;
+    const go = k => { if (!k || k === last) return; last = k; if (have.has(k)) { show(k); _idxJump(k, true); } };
+    bar.addEventListener('pointerdown', e => { if (!e.target.closest('.mib-k')) return; drag = true; last = null; try { bar.setPointerCapture(e.pointerId); } catch (x) { /* 無視 */ } go(keyAt(e.clientX, e.clientY)); e.preventDefault(); });
+    bar.addEventListener('pointermove', e => { if (drag) go(keyAt(e.clientX, e.clientY)); });
+    const end = () => { drag = false; last = null; };
+    bar.addEventListener('pointerup', end); bar.addEventListener('pointercancel', end);
+    bar.addEventListener('click', e => { const b = e.target.closest('.mib-k'); if (!b || b.classList.contains('is-off')) return; if (!drag) { show(b.dataset.k); _idxJump(b.dataset.k); } });
+    bar.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const b = e.target.closest('.mib-k'); if (b && !b.classList.contains('is-off')) { e.preventDefault(); _idxJump(b.dataset.k); } } });
+  }
+  window.statsMasterIndexKey = _idxKey;
+
   // 検索ボックスに入力中の描き直しでも、入力の位置を保つ
+  let _todoOpen = null;   // 「今日やること」の開閉（null＝承認待ちがあれば開く）
+  window.statsMhTodoToggle = function () {
+    _todoOpen = !(_todoOpen === null ? false : _todoOpen);
+    const t = document.getElementById('mhTodo'); if (!t) return;
+    t.classList.toggle('is-closed', !_todoOpen);
+    const h = t.querySelector('.mh-todo-h'); if (h) { h.setAttribute('aria-expanded', _todoOpen); const c = h.querySelector('.mh-todo-c'); if (c) c.textContent = _todoOpen ? '▲ 閉じる' : '▼ 開く（表記ゆれチェック・申請・お知らせ）'; }
+  };
   function _renderMaster() {
     const act = document.activeElement;
     const keep = act && act.id === 'masterSearch' ? { s: act.selectionStart, e: act.selectionEnd } : null;
     _renderMasterInner();
-    if (typeof window.driftRenderCard === 'function') window.driftRenderCard();   // 🔍 ゆらぎチェックのカード（js/drift-check.js）
+    _applyIndexBar();
+    if (typeof window.driftRenderCard === 'function') window.driftRenderCard();   // 🔍 表記ゆれチェックのカード（js/drift-check.js）
     const inp = document.getElementById('masterSearch');
     if (inp && keep) { inp.focus(); try { inp.setSelectionRange(keep.s, keep.e); } catch (e) { /* 無視 */ } }
     const c = document.getElementById('masterSearchCount');
     if (c) c.textContent = _masterQuery.trim() && _masterHitCount != null ? '　' + _masterHitCount + ' 件ヒット' : '';
+  }
+  // 「いまの条件」のチップ行（Design 29・案B ③）：種別・検索・地域・種別/タグ・エリア・並び順を 1 行にまとめ、✕で個別に外せる／［条件をクリア］で一括解除。
+  window.statsMasterClearCond = function (k) {
+    if (!k || k === 'all') { _masterDeal = ''; _masterFieldFilter = 'all'; _masterQuery = ''; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = ''; _masterSort = 'name'; }
+    else if (k === 'deal') _masterDeal = '';
+    else if (k === 'field') { _masterDeal = ''; _masterFieldFilter = 'all'; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = ''; _masterSort = 'name'; }
+    else if (k === 'q') _masterQuery = '';
+    else if (k === 'region') { _masterRegion = ''; _masterSub = ''; }
+    else if (k === 'sub') _masterSub = '';
+    else if (k === 'type') _masterSvType = '';
+    else if (k === 'area') { _masterAreaKind = ''; _masterArea = ''; }
+    else if (k === 'sort') _masterSort = 'name';
+    _renderMaster();
+  };
+  function _condHtml() {
+    const list = [];
+    const add = (k, label, val) => list.push('<span class="mc-chip" data-k="' + k + '"><b>' + _esc(label) + '</b>' + _esc(val) + '<button type="button" class="mc-x" aria-label="' + _esc(label) + 'の条件を外す" onclick="statsMasterClearCond(\'' + k + '\')">✕</button></span>');
+    if (_masterFieldFilter !== 'all') { const f = _REG_FIELDS.find(x => x[0] === _masterFieldFilter); add('field', '種別', f ? f[1] : _masterFieldFilter); }
+    if (_masterQuery.trim()) add('q', '検索', _masterQuery.trim());
+    const _kjaOf = (arr, k) => k === 'ZZ' ? 'その他' : ((arr || []).find(c => c.key === k) || { ja: k }).ja;   // 内部コード（AS／EAS）ではなく日本語名で出す
+    if (_masterRegion) add('region', '地域', _kjaOf(window.COUNTRY_CONTINENTS, _masterRegion));
+    if (_masterSub) add('sub', '小地域', _kjaOf(window.COUNTRY_SUBREGIONS, _masterSub));
+    if (_masterDeal) { const dd = _DEAL_DEFS.find(x => x[0] === _masterDeal); add('deal', '取引形態', dd ? dd[1] : _masterDeal); }
+    if (_masterSvType) add('type', _SUB_FILTER[_masterFieldFilter] ? _SUB_FILTER[_masterFieldFilter].label : '絞り込み', _masterSvType === _SV_NONE ? '未設定' : _subLabel(_masterFieldFilter, _masterSvType));
+    if (_masterAreaKind || _masterArea) add('area', '得意エリア', _masterArea ? (_masterArea === _SV_NONE ? '未設定' : (typeof window.areaLabel === 'function' ? window.areaLabel(_masterArea) : _masterArea)) : (_masterAreaKind === 'DOM' ? '国内' : _masterAreaKind === 'OVS' ? '海外' : '未設定'));
+    if (_masterSort !== 'name') add('sort', '並び', { tag: '種別・タグごと', group: '所属グループごと', area: '得意エリアごと', deal: '取引形態ごと' }[_masterSort] || _masterSort);
+    if (!list.length) return '';
+    return '<div class="mc-bar" id="mhCond"><span class="mc-label">いまの条件</span>' + list.join('') + '<button type="button" class="mc-clear" onclick="statsMasterClearCond()">条件をクリア</button></div>';
   }
   function _renderMasterInner() {
     const e = document.getElementById('statsPane-master');
@@ -2860,12 +3011,12 @@
         entries.push({ field, value, votes: total, isMine, promoted: true });
       });
     }
-    const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
+    const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港', icd: 'ICD' };
 
     // --- マスターを新規登録するフォーム（実データに無い名称も登録可）---
-    const fieldOpts = [['sv', 'サブコン'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['un', '単位']]
+    const fieldOpts = [['sv', 'サブコン'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['icd', 'ICD'], ['un', '単位']]
       .map(([v, l]) => `<option value="${v}"${v === _masterFieldFilter ? ' selected' : ''}>${l}</option>`).join('');
-    const formH = '<div class="master-register-bar"><button type="button" class="master-register-toggle" onclick="statsMasterToggleRegister()">＋ マスターを新規登録</button></div>';
+    const formH = '<div class="master-register-bar"><button type="button" class="master-register-toggle" onclick="statsMasterToggleRegister()">' + (_approvalOn() && !_isAdmin() ? '📨 マスターを申請' : '＋ マスターを新規登録') + '</button>' + (_approvalOn() && !_isAdmin() ? '<span class="master-register-note">申請すると、管理者の承認後にマスターになります</span>' : '') + '</div>';
 
     // --- マスター＋別名の一覧（単位も同じ synonym_groups）---
     const synGroups = (typeof window.synGetGroups === 'function' ? window.synGetGroups() : []).slice();
@@ -2880,20 +3031,20 @@
     entries = entries.filter(m => !synCanonSet.has(m.field + '\x00' + m.value));
 
     // --- 種別絞り込みチップ（件数＝個別マスター＋同義グループの合算）---
-    const fieldOrder = ['sv', 'customer', 'port', 'nm', 'un'];   // すべて｜サブコン｜お客様｜港｜品名｜単位
+    const fieldOrder = ['sv', 'customer', 'port', 'icd', 'nm', 'un'];   // すべて｜サブコン｜お客様｜港｜品名｜単位
     const counts = {};
     fieldOrder.forEach(f => { counts[f] = 0; });
     entries.forEach(m => { counts[m.field] = (counts[m.field] || 0) + 1; });
     allSyn.forEach(g => { counts[g.field] = (counts[g.field] || 0) + 1; });
     const totalCount = Object.values(counts).reduce((s, n) => s + n, 0);
     // 現在の絞り込み種別が0件になったら「すべて」に戻す（削除・解除で空になった場合）
-    if (_masterFieldFilter !== 'all' && !counts[_masterFieldFilter] && _masterFieldFilter !== 'port') _masterFieldFilter = 'all';   // 港は、マスターが 0 件でも選べる（一括登録の入口があるため）
+    if (_masterFieldFilter !== 'all' && !counts[_masterFieldFilter] && _masterFieldFilter !== 'port' && _masterFieldFilter !== 'icd') _masterFieldFilter = 'all';   // 港は、マスターが 0 件でも選べる（一括登録の入口があるため）
     const chip = (f, label, n) =>
       `<button class="master-filter-chip${_masterFieldFilter === f ? ' is-active' : ''}" ` +
       `onclick="statsMasterSetFilter('${f}')">${label}<span class="master-filter-count">${n}</span></button>`;
-    let chipsH = _masterSearchHtml() + '<div class="master-filter-chips">' +
+    let chipsH = _masterSearchHtml() + _condHtml() + '<div class="master-filter-chips">' +
       chip('all', 'すべて', totalCount) +
-      fieldOrder.filter(f => counts[f] > 0 || f === 'port').map(f => chip(f, labels[f], counts[f])).join('') +
+      fieldOrder.filter(f => counts[f] > 0 || f === 'port' || f === 'icd').map(f => chip(f, labels[f], counts[f])).join('') +
       '</div>';
 
     // 絞り込みを適用
@@ -2956,6 +3107,23 @@
       }
     }
 
+    // お客様：取引形態での絞り込み（チップ＋条件バー）
+    if (_masterFieldFilter === 'customer') {
+      const dn = [...entries.map(m => m.value), ...synFiltered.map(g => g.canonical)];
+      const dcnt = {}; dn.forEach(n => { const k = _dealKeyOf('customer', n) || 'none'; dcnt[k] = (dcnt[k] || 0) + 1; });
+      if (_masterDeal && !dcnt[_masterDeal]) _masterDeal = '';
+      const dchip = (k, label, n) => `<button class="master-filter-chip master-deal-chip${_masterDeal === k ? ' is-active' : ''}" onclick="statsMasterSetDeal('${k}')">${_esc(label)}<span class="master-filter-count">${n}</span></button>`;
+      if (Object.keys(dcnt).length > 1 || _masterDeal) {
+        chipsH += '<div class="master-filter-chips master-type-chips"><span class="master-type-chips-label">取引形態：</span>' + dchip('', 'すべて', dn.length) +
+          _DEAL_DEFS.filter(x => dcnt[x[0]]).map(x => dchip(x[0], x[1], dcnt[x[0]])).join('') + '</div>';
+      }
+      if (_masterDeal) {
+        const keepD = n => (_dealKeyOf('customer', n) || 'none') === _masterDeal;
+        entries = entries.filter(m => keepD(m.value));
+        synFiltered = synFiltered.filter(g => keepD(g.canonical));
+      }
+    }
+
     // サブコン・キャリア：得意エリア（国内＝日本の地方／海外＝UN M.49 の小地域・国）での絞り込み
     if ((_masterFieldFilter === 'sv' || _masterFieldFilter === 'carrier') && typeof window.areaLabel === 'function') {
       const anames = [...entries.map(m => m.value), ...synFiltered.map(g => g.canonical)];
@@ -3003,7 +3171,7 @@
     let rowsAll = [
       ...entries.map(m => ({ kind: 'ind', field: m.field, name: m.value, m })),
       ...synFiltered.map(g => ({ kind: 'grp', field: g.field, name: g.canonical, g })),
-    ].sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.name || '').localeCompare(b.name || ''));
+    ].sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || _idxCmp(a, b));
     // 検索（種別の絞り込みのあとに、さらに絞る）
     const _terms = _qNorm(_masterQuery).split(/\s+/).filter(Boolean);
     _masterHitCount = null;
@@ -3012,7 +3180,13 @@
       _masterHitCount = rowsAll.length;
     }
 
-    const headH = _masterHeadHtml(totalCount, allSyn.length) + '<div id="driftCard" class="drift-card"></div>' + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
+    // 画面の上に縦に積んでいたお知らせ（表記ゆれチェック・取引ルールの再確認・移行の案内・申請）を「📋 今日やること」の 1 枚にまとめる（Design 29・案B ②）。
+    // 件数のタイルは上に残し、本体は開閉できる（承認待ちがあるときは開いて始まる・選んだ開閉は覚える）。DOM・id（#driftCard など）は不変。
+    const _todoBody = '<div id="driftCard" class="drift-card"></div>' + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
+    const _pendN = _approvalOn() ? (_isAdmin() ? _reqs.filter(r => r.status === 'pending').length : _reqs.filter(r => r.requested_by === _me() && r.status === 'pending').length) : 0;
+    if (_todoOpen === null) _todoOpen = _pendN > 0;
+    const headH = _masterHeadHtml(totalCount, allSyn.length) +
+      '<div id="mhTodo" class="mh-todo' + (_todoOpen ? '' : ' is-closed') + '"><button type="button" class="mh-todo-h" aria-expanded="' + _todoOpen + '" onclick="statsMhTodoToggle()">📋 今日やること' + (_pendN ? ' <span class="mh-todo-n">' + (_isAdmin() ? '承認待ち ' : '申請中 ') + _pendN + '</span>' : '') + '<span class="mh-todo-c">' + (_todoOpen ? '▲ 閉じる' : '▼ 開く（表記ゆれチェック・申請・お知らせ）') + '</span></button><div class="mh-todo-b">' + _todoBody + '</div></div>';
     if (!rowsAll.length) {
       e.innerHTML = headH + formH + chipsH + (_terms.length
         ? '<p class="stats-empty">「' + _esc(_masterQuery.trim()) + '」に一致するマスターはありません。<br><button type="button" class="master-type-preset" onclick="statsMasterClearQuery()">検索をクリア</button>（種別の絞り込みも確認してください）</p>'
@@ -3199,6 +3373,23 @@
     if (!fSel || !inp) return;
     const field = fSel.value;
     const value = (inp.value || '').trim();
+    // 承認制のメンバー：登録ではなく「申請」（名前・詳細・メモを管理者へ。承認すると詳細ごとマスターになる）
+    if (_approvalOn() && !_isAdmin()) {
+      const t = (m, ty) => { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(m, ty || 'success', ty === 'warn' ? 5000 : undefined); };
+      if (!value) { t('名前を入力してください', 'warn'); inp.focus(); return; }
+      if (field !== 'un' && _voteInfo(field, value).total > 0) { t('「' + value + '」はすでにマスターに登録されています', 'info'); return; }
+      const dts = field === 'un' ? {} : _mdCollectDetails(field);
+      const noteEl = document.getElementById('masterNewNote');
+      const ok = await _request(field, value, '', { details: dts, note: noteEl ? noteEl.value.trim() : '' });
+      if (!ok) return;
+      const more = document.getElementById('masterNewMore');
+      if (more && more.checked) {
+        inp.value = ''; if (noteEl) noteEl.value = ''; inp.focus();
+        const sel = document.getElementById('masterNewField'); if (sel) sel.dispatchEvent(new Event('change'));
+      } else window.statsMasterCloseRegister();
+      _rerenderMasters();
+      return;
+    }
     const toast = (msg, t) => { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(msg, t || 'success', t === 'warn' ? 5000 : undefined); };
     if (!value) { toast('マスター名を入力してください', 'warn'); inp.focus(); return; }
     // 1. マスターに登録（承認制のメンバーは申請になる）
@@ -3476,6 +3667,7 @@
       `</div>` +
       // お客様：取引ルール（お客様・担当者ごとの決まりごと。customer-rules.js）
       (field === 'sv' || field === 'customer' ? `<div class="mn-section"><div class="master-attach-hdr"><span>📰 ニュース（新着・事務所移転・担当変更など／時系列・チーム共有）</span></div><div class="mn-panel" id="mnPanel"></div></div>` : '') +
+      (field === 'sv' ? `<div class="ir-section"><div class="master-attach-hdr"><span>📩 メール取込の読み取りルール（このサブコンのメールを取り込むときに自動で効く／チーム共有）</span></div><div class="ir-panel" id="irPanel"></div></div>` : '') +
       (field === 'customer' ? `<div class="cc-section"><div class="master-attach-hdr"><span>🗂 顧客カルテ（案件ごとのイレギュラー・解決策・改善案／チーム共有）</span></div><div class="cc-panel" id="ccPanel"></div></div>` : '') +
       (field === 'customer' ? `<div class="cr-section"><div class="master-attach-hdr"><span>📌 取引ルール（お客様・担当者ごと／チーム共有）</span></div><div class="cr-panel" id="crPanel"></div></div>` : '') +
       `</div></div>`;
@@ -3484,6 +3676,7 @@
     const firstInput = row.querySelector('input,textarea,select'); if (firstInput) firstInput.focus();
     window.statsRefreshMasterAttachments(field, value);
     if ((field === 'sv' || field === 'customer') && typeof window.mnMountPanel === 'function') window.mnMountPanel(document.getElementById('mnPanel'), field, value);
+    if (field === 'sv' && typeof window.eiMountRulesPanel === 'function') window.eiMountRulesPanel(document.getElementById('irPanel'), value);
     if (field === 'customer' && typeof window.ccMountPanel === 'function') window.ccMountPanel(document.getElementById('ccPanel'), value);
     if (field === 'customer' && typeof window.crMountPanel === 'function') window.crMountPanel(document.getElementById('crPanel'), value);
   };
@@ -3520,7 +3713,8 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && document.getElementById('mdDetailModal') && !document.querySelector('.confirm-dialog, .ui-confirm-overlay')) window.statsCloseMasterDetail();
   });
-  window.statsSaveMasterDetail = async function (field, value) {
+    // 詳細の入力欄（#md_*）から、保存する詳細（details）を集める。保存と、メンバーの申請（承認制）の両方で使う
+  function _mdCollectDetails(field) {
     const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
     const details = {};
     schema.forEach(s => {
@@ -3566,6 +3760,17 @@
       }
       if (v) details[s.key] = v;
     });
+    return details;
+  }
+  window.statsSaveMasterDetail = async function (field, value) {
+    const details = _mdCollectDetails(field);
+    // 詳細の入力欄に無い項目（例：サブコンの「メール取込のルール」importRules）は、保存で消さずに引き継ぐ
+    //（mdSave は詳細を丸ごと置き換えるため、引き継がないと別の画面で覚えさせたルールが消える）
+    {
+      const prev = ((typeof window.mdGet === 'function' && window.mdGet(field, value)) || {}).details || {};
+      const known = new Set(((window.MD_SCHEMA && window.MD_SCHEMA[field]) || []).map(x => x.key));
+      Object.keys(prev).forEach(k => { if (!known.has(k) && !(k in details)) details[k] = prev[k]; });
+    }
     // 先のお客様（同業者の側の編集）：先のお客様が 1 社でもいれば、取引形態が空なら「同業者」にする
     let viaAdd = [], viaDel = [];
     const viaWrap = field === 'customer' ? document.getElementById('md_viaChildren') : null;
@@ -3633,7 +3838,7 @@
     set('statsRows',     _data.totalRows);
     set('statsSvCount',  _data.svGroups.length + _data.carrierGroups.length);
     set('statsNmGroups', _data.nmGroups.length);
-    // ゆらぎ件数 = バリアントが2種以上のグループ数の合計
+    // 表記ゆれ件数 = バリアントが2種以上のグループ数の合計
     const blur = [..._data.svGroups, ..._data.carrierGroups, ..._data.nmGroups, ..._data.unGroups, ..._data.customerGroups]
       .filter(g => g.variants.length > 1).length;
     set('statsBlurCount', blur);
@@ -3644,7 +3849,7 @@
   }
 
   // ===== スマホ版「今日の確認」（js/stats-mobile.js）用の要約 =====
-  // 読み取りだけ（保存・表示は変えない）。ゆらぎ・未整理・粗利率の低い明細・受注率と失注の件数を返す。
+  // 読み取りだけ（保存・表示は変えない）。表記ゆれ・未整理・粗利率の低い明細・受注率と失注の件数を返す。
   window.statsLowMarginPct = function (v) {
     if (v !== undefined) { try { localStorage.setItem('statsLowMarginPct', String(v)); } catch (e) {} }
     let n = 10;
@@ -3655,7 +3860,7 @@
     const source = document.getElementById('statsSource')?.value || 'both';
     if (!_data) { try { _data = _build(source); } catch (e) { return null; } }
     const out = { blur: 0, unorg: 0, low: { n: 0, th: window.statsLowMarginPct(), worst: null, skipped: 0 }, win: { won: 0, sent: 0, rate: null, lost: 0, topReason: null, topN: 0, reasoned: 0 } };
-    // ゆらぎ（複数表記のグループ）と未整理（まだマスターにも別名にもなっていない項目）
+    // 表記ゆれ（複数表記のグループ）と未整理（まだマスターにも別名にもなっていない項目）
     const FIELDS = [['sv', _data.svGroups, 'sv'], ['sv', _data.carrierGroups, 'carrier'], ['customer', _data.customerGroups, 'customer'], ['nm', _data.nmGroups, 'nm'], ['un', _data.unGroups, 'un']];
     out.byPane = {};
     FIELDS.forEach(([mf, groups, pane]) => {
@@ -3683,6 +3888,7 @@
     try {
       const sent = _wrCases(source), lost = _wrCases(source, true).filter(c => c.status === '失注');
       out.win.sent = sent.length; out.win.won = sent.filter(c => c.status === '受注').length; out.win.rate = _winRatePct(out.win.won, sent.length);
+      { const ms = sent.filter(c => c.margin != null).map(c => c.margin); out.win.avgMargin = ms.length ? ms.reduce((x, y) => x + y, 0) / ms.length : null; }
       out.win.lost = lost.length; out.win.pending = sent.filter(c => c.status !== '受注' && c.status !== '失注').length;
       const cnt = {}; lost.forEach(c => { if (c.reason) cnt[c.reason] = (cnt[c.reason] || 0) + 1; });
       const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
@@ -3883,7 +4089,9 @@
   }
 
   function _renderActivePane() {
-    const active = document.querySelector('#tab-stats .stats-pane.is-active');
+    const _fixOn = document.querySelector('#statsPane-fix.is-active');
+    const active = (_fixOn && document.getElementById('tab-master')?.classList.contains('active'))
+      ? _fixOn.querySelector('.stats-pane.is-active') : document.querySelector('#tab-stats .stats-pane.is-active');
     if (!active) return;
     const id = active.id.replace('statsPane-', '');
     if (id === 'pattern') { _renderPattern(); return; }
@@ -3908,10 +4116,43 @@
 
   // === サブタブ切替 ===
 
+  // 名寄せ 6 種（サブコン／キャリア／お客様／品名／単位／チャージ）は「🗂 マスター管理 → 🔧 名前の整理」へ移設した（Design 29・案B）。
+  // 統計から呼ばれても（statsSetPane('sv') など）マスター管理のその種別を開く。
+  const _FIX_KINDS = ['sv', 'carrier', 'customer', 'nm', 'un', 'charges'];
+  const _FIX_LABEL = { sv: '🏢 サブコン', carrier: '🚢 キャリア', customer: '👤 お客様', nm: '📝 品名', un: '📐 単位', charges: '💰 チャージ' };
+  let _fixKind = 'sv';
+  function _fixChips() {
+    const box = document.getElementById('fixChips'); if (!box) return;
+    box.innerHTML = _FIX_KINDS.map(k => '<button type="button" class="fix-chip' + (k === _fixKind ? ' is-on' : '') + '" role="tab" aria-selected="' + (k === _fixKind) + '" data-fix="' + k + '" onclick="fixSetKind(\'' + k + '\')">' + _FIX_LABEL[k] + '</button>').join('');
+  }
+  function fixSetKind(kind) {
+    if (!_FIX_KINDS.includes(kind)) kind = 'sv';
+    _fixKind = kind; _listLimit = {};
+    document.querySelectorAll('#statsPane-fix .stats-pane').forEach(p => { p.classList.remove('is-active'); p.innerHTML = ''; });
+    document.getElementById('statsPane-' + kind)?.classList.add('is-active');
+    if (!_data) { _data = _build(document.getElementById('statsSource')?.value || 'both'); _updateSummary(); }
+    _fixChips();
+    if      (kind === 'sv')       _renderSv();
+    else if (kind === 'carrier')  _renderCarrier();
+    else if (kind === 'customer') _renderCustomer();
+    else if (kind === 'nm')       _renderNm();
+    else if (kind === 'un')       _renderUn();
+    else if (kind === 'charges')  _renderCharges();
+  }
+  window.fixSetKind = fixSetKind;
+  function _openFix(kind) {
+    _fixKind = _FIX_KINDS.includes(kind) ? kind : 'sv';
+    const tab = document.getElementById('tab-master');
+    if (tab && tab.classList.contains('active')) { masterSetPane('fix'); return; }
+    window.__masterWant = 'fix';
+    const btn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
+    if (typeof window.switchCategory === 'function') window.switchCategory('master', btn);
+  }
   function statsSetPane(paneId) {
+    if (_FIX_KINDS.includes(paneId)) { _openFix(paneId); return; }
     // 存在しないタブ ID（廃止したダッシュボード等）が渡されても、本文が空白になりタブが
     // どれも選択されない状態にならないよう、先頭のサブタブへ退避する。
-    if (!document.getElementById('statsTabBtn-' + paneId) && !document.getElementById('statsPane-' + paneId)) paneId = 'sv';
+    if (!document.getElementById('statsTabBtn-' + paneId) && !document.getElementById('statsPane-' + paneId)) paneId = 'winrate';
     _listLimit = {};
     document.querySelectorAll('#tab-stats .stats-tab-btn').forEach(b => {
       b.classList.remove('is-active');
@@ -3977,7 +4218,7 @@
     _data  = _build(source);
     _updateSummary();
     _renderCloud();
-    statsSetPane('sv');
+    statsSetPane('winrate');
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     if (_cloud()) {
       await _loadCloudVotes();
@@ -4005,11 +4246,13 @@
     document.getElementById('statsPane-' + paneId)?.classList.add('is-active');
     if      (paneId === 'master') _renderMaster();
     else if (paneId === 'alias')  _renderAlias();
+    else if (paneId === 'fix')    fixSetKind(_fixKind);
   }
   window.masterSetPane = masterSetPane;
 
   window.initMasterTab = async function () {
-    masterSetPane('master');
+    const _want = window.__masterWant === 'fix' ? 'fix' : 'master'; window.__masterWant = null;
+    masterSetPane(_want);
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     if (_cloud()) {
       _cvMap = null;
@@ -4020,7 +4263,7 @@
       if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();   // 読み込んだクラウドのマスターを入力補完へ
       // アクティブなマスタータブのペインを再描画
       const active = document.querySelector('#tab-master .stats-pane.is-active');
-      if (active && active.id === 'statsPane-alias') _renderAlias(); else _renderMaster();
+      if (active && active.id === 'statsPane-alias') _renderAlias(); else if (active && active.id === 'statsPane-fix') fixSetKind(_fixKind); else _renderMaster();
     }
   };
 
@@ -4259,12 +4502,22 @@
     });
   };
 
-  // ゆらぎチェック（js/drift-check.js）用：全期間の表記グループと、判定に使う正規化・読み込み状態
+  // 表記ゆれチェック（js/drift-check.js）用：全期間の表記グループと、判定に使う正規化・読み込み状態
   window.statsDriftInput = function () {
     const d = _build('both', true);
     return { customer: d.customerGroups, sv: d.svGroups, port: d.portGroups, nm: d.nmGroups, un: d.unGroups };
   };
   window.statsNormalizeKey = _normalize;
+  // マスター一覧のカード用：この名前に表記ゆれ（同じ読みで別の綴り）があるか。読み取りだけ・30 秒使い回す（Design 29 ③の［表記ゆれ ▸ 直す］）
+  let _driftCache = null;
+  window.statsMasterHasDrift = function (field, name) {
+    try {
+      if (!_driftCache || Date.now() - _driftCache.t > 30000) _driftCache = { t: Date.now(), d: window.statsDriftInput() };
+      const gs = _driftCache.d[field]; if (!gs) return false;
+      return gs.some(g => g.variants.length > 1 && g.variants.some(v => v.value === name));
+    } catch (e) { return false; }
+  };
+  window.statsMasterFieldFilter = () => _masterFieldFilter;
   window.statsMastersReady = () => _cloud() && _cvMap !== null;
 
   window.statsRefresh = async function () {
@@ -4348,7 +4601,7 @@
   };
 
   window.statsMasterAddAbbrev = function (field, value) {
-    const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
+    const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港', icd: 'ICD' };
     const safeId = 'abbrev-inline-' + Math.random().toString(36).slice(2, 7);
     const tr = Array.from(document.querySelectorAll('#statsPane-master tr[data-mfield]'))
       .find(r => r.dataset.mfield === field && r.dataset.mvalue === value);

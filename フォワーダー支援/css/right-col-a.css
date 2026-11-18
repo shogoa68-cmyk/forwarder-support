@@ -1,0 +1,56 @@
+/* 見積入力の右カラム 案A（Design 33）：レールは「よく使う 5 つ」＋「その他 ▾」、引き出しは中身ごとの幅・見出し 1 本。
+   DOM・id・onclick・data-mod は不変（right-rail.js のシェルと CSS だけ）。 */
+#tab-quote-make .qrc-rail { width: 64px; max-height: calc(100vh - 150px); overflow-y: auto; box-sizing: border-box; }
+#tab-quote-make .qrc-rail-btn { width: 56px; }
+#tab-quote-make .qrc-rail-ico { font-size: 18px; }
+#tab-quote-make .qrc-rail-btn em { font-size: var(--text-xs, 12px); }
+#tab-quote-make .qrc-rail-more { display: flex; flex-direction: column; align-items: center; gap: var(--sp-7, 7px); width: 100%; }
+#tab-quote-make .qrc-rail-more[hidden] { display: none; }
+#tab-quote-make .qrc-more2-btn.is-open { border-color: var(--green-leaf, #4a6a26); }
+#tab-quote-make .qrc-more2-btn .qrc-rail-dot { background: #d92d20; }
+#tab-quote-make .qrc-drawer-title { font-size: var(--text-lg, 16px); font-weight: 800; }
+#tab-quote-make .qrc-drawer { min-width: 300px; max-width: 560px; box-shadow: -6px 0 18px rgba(16,24,40,.16); }
+html.editor-v2 #tab-quote-make .quote-right-col--rail { width: auto; max-width: 94vw; }
+html.editor-v2 #e2Total [data-e2d].is-open, html.editor-v2 #e2Total [data-e2q].is-open { background: #eef3fb; border-color: #2f5fb3; color: #1d3f7a; }
+@media (max-width: 600px) {
+  #tab-quote-make .qrc-rail { max-height: none; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; flex-direction: row; justify-content: flex-start; width: 100%; min-height: 44px; scrollbar-width: none; }
+  #tab-quote-make .qrc-rail-more { flex-direction: row; width: auto; }
+  #tab-quote-make .qrc-rail-btn { flex: 0 0 auto; min-height: 44px; }
+  #tab-quote-make .qrc-rail::after { content: ''; position: sticky; right: 0; flex: 0 0 14px; align-self: stretch; background: linear-gradient(90deg, transparent, rgba(16,24,40,.12)); }
+}
+
+/* ---- 見出しは 1 本：中の「📋 費用テーブル」行は 13px の件数行に下げる（要素は消さない） ---- */
+#tab-quote-make .qrc-drawer-body .qsp-dig-row { padding: 4px 12px; min-height: 0; background: transparent; border: 0; border-bottom: 1px solid var(--border, #e4e7ec); border-radius: 0; cursor: default; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-row .qsp-dig-name { display: none; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-row .qsp-dig-sum { font-size: var(--text-sm, 13px); color: var(--text-muted, #667085); }
+
+/* ---- 費用ツリー：1 行＝名前｜売（太字 13px・右揃え 86px）、仕入・粗利は 2 行目。［⋯］相当の操作は乗せたとき／焦点で出す（スマホは常時） ---- */
+#tab-quote-make .qrc-drawer-body .qsp-dig-grp-item.is-row { padding-left: 28px; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail { display: grid; grid-template-columns: minmax(0, 1fr) 86px; column-gap: 8px; align-items: baseline; text-align: left; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail .qsp-dig-row-nm { grid-column: 1; grid-row: 1; font-size: var(--text-sm, 13px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail .qsp-dig-row-price { display: contents; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail .qsp-dig-grp-sum { grid-column: 2; grid-row: 1; justify-self: end; font-size: var(--text-sm, 13px); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail .qsp-dig-row-meta { grid-column: 1 / -1; grid-row: 2; display: flex; gap: 12px; font-size: var(--text-xs, 12px); color: var(--text-muted, #667085); }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail .qsp-dig-row-mg { color: #1e7a4a; }
+#tab-quote-make .qrc-drawer-body .qsp-dig-subjump.is-detail .qsp-dig-row-mg.is-neg { color: #b42318; }
+@media (hover: hover) {
+  #tab-quote-make .qrc-drawer-body .qsp-dig-grp-item.is-row > :is(.qsp-dig-row-grip, .qsp-dig-row-hide, .qsp-dig-row-copy) { opacity: 0; }
+  #tab-quote-make .qrc-drawer-body .qsp-dig-grp-item.is-row:is(:hover, :focus-within) > :is(.qsp-dig-row-grip, .qsp-dig-row-hide, .qsp-dig-row-copy) { opacity: 1; }
+}
+@media (max-width: 600px) {
+  #tab-quote-make .qrc-drawer-body .qsp-dig-grp-item.is-row > :is(.qsp-dig-row-hide, .qsp-dig-row-copy) { min-width: 44px; min-height: 44px; }
+}
+
+/* ---- FCL比較：幅 400px 以上は入力欄を 2 列に（ラベル＋入力 × 2） ---- */
+#tab-quote-make .qrc-drawer { container-type: inline-size; }
+@container (min-width: 400px) {
+  #tab-quote-make .fl-grid { grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr); }
+}
+
+/* ---- Quiet テーマ：文字と背景のコントラスト 4.5:1 未満だった所を濃くする（2026-11 の点検で見つかった分） ---- */
+html.theme-quiet #tab-quote-make .qf-status-btn,
+html.theme-quiet #tab-quote-make .ci-status-more-btn { color: #5a6475; }
+html.theme-quiet #tab-quote-make .qrc-close,
+html.theme-quiet #tab-quote-make .qrc-rail-btn em { color: #6b5a43; }
+html.theme-quiet .qsp-dig-sum { color: #4f5a6d !important; }
+html.theme-quiet #rmSheet .rms-empty { color: #4f5a6d !important; }

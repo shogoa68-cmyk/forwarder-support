@@ -1,13 +1,13 @@
 /* 🏢 組織とチーム（js/org-teams.js・js/quote/cloud.js の _renderScopeBar） */
 /* ダッシュボード：案件の範囲（全体／組織／チーム／自分） */
-.qpd-scope { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6, 6px) var(--sp-8, 8px); margin: 0 0 var(--sp-10, 10px); }
-.qpd-scope[hidden] { display: none; }
-.qpd-scope-lbl { font-size: var(--fs-12, 12px); color: var(--text-muted, #777); margin-right: 2px; }
-.qpd-scope-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border-md, #ccc); background: var(--surface, #fff); color: var(--text, #333); border-radius: 999px; padding: 4px 14px; font: inherit; font-size: var(--fs-13, 13px); cursor: pointer; }
+#qpDashboard .qpd-scope { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin: 22px 0 16px; padding: 0 2px; }
+#qpDashboard .qpd-scope[hidden] { display: none; }
+.qpd-scope-lbl { font-size: var(--fs-12, 12px); font-weight: 700; color: var(--text-muted, #777); letter-spacing: .02em; }
+.qpd-scope-chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border-md, #ccc); background: var(--surface, #fff); color: var(--text, #333); border-radius: 999px; padding: 6px 16px; font: inherit; font-size: var(--fs-13, 13px); cursor: pointer; }
 .qpd-scope-chip:hover { border-color: var(--accent, #8a6d3b); }
 .qpd-scope-chip.is-active { background: var(--accent, #8a6d3b); border-color: var(--accent, #8a6d3b); color: #fff; font-weight: 700; }
 .qpd-scope-chip.is-active .cloud-chip-n { background: rgba(255,255,255,.25); color: #fff; }
-.qpd-scope-sel { border: 1px solid var(--border-md, #ccc); border-radius: var(--r-8, 8px); padding: 4px 8px; font: inherit; font-size: var(--fs-13, 13px); background: var(--surface, #fff); color: inherit; max-width: 100%; }
+.qpd-scope-sel { border: 1px solid var(--border-md, #ccc); border-radius: var(--r-8, 8px); padding: 6px 12px; font: inherit; font-size: var(--fs-13, 13px); background: var(--surface, #fff); color: inherit; max-width: 100%; }
 .qpd-scope-hint { font-size: var(--fs-12, 12px); color: var(--text-muted, #777); }
 
 /* チーム管理：「組織・チーム」タブ */

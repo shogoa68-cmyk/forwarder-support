@@ -175,10 +175,20 @@
   // ---------- 取得 ----------
   // tags 列（タグ絞り込み用）込みで取得し、列が未マイグレーションの環境では
   // 落ちずに tags 無しへフォールバックする。
+  // 全案件の本体（data）つきの取得は通信量が大きいので、5 分間は同じ結果を使い回す
+  // （パネルを開き直すたびに全件を取り直していた＝Free プランの転送量が超過した原因の 1 つ）。
+  // 他の人が直前に保存した案件は、最大 5 分遅れて反映される。
+  const _ALL_PRESETS_TTL = 5 * 60 * 1000;
+  let _allPresetsCache = null;   // { at, uid, res }
   async function _fetchAllPresets(db) {
+    const uid = _user() || '';   // _user() はメールアドレス（ログインの人が変わったら使い回さない）
+    if (_allPresetsCache && _allPresetsCache.uid === uid && Date.now() - _allPresetsCache.at < _ALL_PRESETS_TTL) {
+      return _allPresetsCache.res;
+    }
     const BASE = 'id,name,customer,person,status,transport_mode,pol,pod,data,updated_at';
     let res = await db.from('quote_presets').select(BASE + ',tags');
     if (res.error) res = await db.from('quote_presets').select(BASE);
+    if (!res.error) _allPresetsCache = { at: Date.now(), uid, res };
     return res;
   }
 

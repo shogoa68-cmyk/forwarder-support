@@ -29,8 +29,24 @@
       ctx.hidden = n === 0;
       const cnt = document.getElementById('ctxSelCount');
       if (cnt) cnt.textContent = n + '行を選択中';
+      if (n === 0) closeBulkSet();
     }
   }
+
+  // 「⚙ 一括設定 ▾」（カテゴリ・通貨・単位・サブコン・パターン・乗せ幅のパネル）の開閉
+  function closeBulkSet() {
+    const pn = document.getElementById('ctxBulkSet'), bt = document.getElementById('ctxBulkToggle');
+    if (pn) pn.hidden = true;
+    if (bt) bt.setAttribute('aria-expanded', 'false');
+  }
+  document.addEventListener('click', function (e) {
+    const bt = e.target.closest && e.target.closest('#ctxBulkToggle');
+    const pn = document.getElementById('ctxBulkSet');
+    if (!pn) return;
+    if (bt) { const open = pn.hidden; pn.hidden = !open; bt.setAttribute('aria-expanded', String(open)); return; }
+    if (!pn.hidden && !e.target.closest('#ctxBulkSet')) closeBulkSet();   // パネルの外を押したら閉じる
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeBulkSet(); });
 
   // 選択をすべて解除（文脈バーの「✕ 選択解除」から）
   window.clearRowSelection = function () {

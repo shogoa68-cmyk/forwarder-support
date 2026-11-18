@@ -97,20 +97,49 @@
     if (open) markSeen();
     if (open && h) storedH = clamp(h, MIN_OPEN, maxH());
     sheet.dataset.open = open ? '1' : '0';
+    // 新画面ではリマークが本文（⑤）へ移るため、「リマーク」のまま開くと中身が空になる＝一時ファイルへ切り替える
+    if (open && pane === 'remark' && !remarkHere()) showPane('files');
+    if (open && pane === 'files' && typeof window.tfOnShow === 'function') window.tfOnShow(true);
     handle.setAttribute('aria-expanded', open ? 'true' : 'false');
     body.hidden = false;
     setH(open ? storedH : 0, true);
     if (!open) { const a = document.activeElement; if (a && body.contains(a)) a.blur(); }
     body.inert = !open;   // 閉じている間は中身にフォーカスが入らない
   }
+  // ---- ペイン（📝 全体リマーク／📁 一時ファイル）----
+  let pane = 'remark';
+  const remarkHere = () => !!(body && $('section-remark') && body.contains($('section-remark')));   // 新画面ではリマークは本文へ移る＝一時ファイルだけ
+  function showPane(name) {
+    if (name === 'remark' && !remarkHere()) name = 'files';
+    pane = name;
+    sheet.dataset.pane = name;
+    sheet.querySelectorAll('.rms-tab').forEach(t => { const on = t.dataset.pane === name; t.classList.toggle('is-on', on); t.setAttribute('aria-selected', on ? 'true' : 'false'); });
+    const sec = $('section-remark'), tf = $('tfPane');
+    if (sec && body.contains(sec)) sec.hidden = (name !== 'remark');
+    if (tf) tf.hidden = (name !== 'files');
+    if (name === 'files' && typeof window.tfOnShow === 'function') window.tfOnShow(open);
+  }
+  // 外部（リマークへの追記・左ナビなど）からの呼び出しは、すべて「全体リマーク」の意味
   window.rmsOpen = function (focus) {
     if (!sheet) return;
+    showPane('remark');
     setOpen(true);
     if (focus) setTimeout(() => { const t = $('remarkTextarea'); if (t && !t.readOnly) t.focus({ preventScroll: true }); }, 260);
   };
   window.rmsClose = function () { if (sheet) setOpen(false); };
-  window.rmsToggle = function () { open ? window.rmsClose() : window.rmsOpen(); };
+  window.rmsToggle = function () { (open && pane === 'remark') ? window.rmsClose() : window.rmsOpen(); };
   window.rmsIsOpen = () => open;
+  // 一時ファイル置き場（📁）を開く／閉じる。取っ手の操作・ほかのモジュールからの呼び出し用
+  window.rmsShowFiles = function () { if (!sheet) return; showPane('files'); setOpen(true); };
+  window.rmsPane = () => pane;
+  window.rmsShowPane = function (name, openIt) { if (!sheet) return; showPane(name); if (openIt) setOpen(true); };
+  // 取っ手で押したとき：別のタブなら切り替えて開く（開いたままにする）。同じタブ・タブ以外なら開閉
+  function handleClick(e) {
+    const t = e.target.closest && e.target.closest('.rms-tab');
+    const want = (t && t.dataset.pane) || handle._tab || null; handle._tab = null;
+    if (want && want !== pane && !(want === 'remark' && !remarkHere())) { showPane(want); if (!open) setOpen(true); return; }
+    open ? window.rmsClose() : setOpen(true);
+  }
 
   // 閲覧モード（他メンバーの案件を閲覧中）：引き出しの中は読むだけ（開閉は可）。文章欄は readonly（スクロール・選択は可）、操作類は inert
   window.rmsApplyMode = function (viewOnly) {
@@ -134,6 +163,7 @@
     handle.addEventListener('pointerdown', e => {
       if (e.button != null && e.button !== 0) return;
       pid = e.pointerId; sy = e.clientY; sh = bodyH; moved = false;
+      const tb = e.target.closest && e.target.closest('.rms-tab'); handle._tab = tb ? tb.dataset.pane : null;   // 押した位置のタブ（ポインターを捕まえると click の対象が取っ手になるため、ここで覚える）
       try { handle.setPointerCapture(pid); } catch (er) {}
     });
     handle.addEventListener('pointermove', e => {
@@ -156,9 +186,9 @@
     };
     handle.addEventListener('pointerup', end);
     handle.addEventListener('pointercancel', end);
-    handle.addEventListener('click', e => { if (handle._justDragged) { e.preventDefault(); return; } window.rmsToggle(); });
+    handle.addEventListener('click', e => { if (handle._justDragged) { e.preventDefault(); return; } handleClick(e); });
     handle.addEventListener('keydown', e => {
-      if (e.key === 'ArrowUp') { e.preventDefault(); window.rmsOpen(); }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setOpen(true); }
       else if (e.key === 'ArrowDown') { e.preventDefault(); window.rmsClose(); }
     });
   }
@@ -172,8 +202,12 @@
         '<button type="button" class="rms-handle" id="rmsHandle" aria-expanded="false" aria-controls="rmsBody" ' +
           'title="上へドラッグ（スワイプ）か押して開く。開いたらつまみをドラッグして高さを変えられます">' +
           '<span class="rms-grab" aria-hidden="true"></span>' +
-          '<span class="rms-title">📝 全体リマーク・免責事項</span>' +
+          '<span class="rms-tabs" role="tablist">' +
+            '<span class="rms-tab rms-title is-on" role="tab" data-pane="remark">📝 全体リマーク<span class="rms-tl-x">・免責事項</span></span>' +
+            '<span class="rms-tab" role="tab" data-pane="files" title="見積に添える参考資料を、3 時間だけ置いておく場所">📁 一時ファイル<i class="rms-tabn" id="tfTabN" hidden></i></span>' +
+          '</span>' +
           '<span class="rms-meta" id="rmsMeta"></span>' +
+          '<span class="rms-meta rms-meta-tf" id="tfMeta"></span>' +
           '<span class="rms-chev" aria-hidden="true">⌃</span>' +
         '</button>' +
         '<div class="rms-body" id="rmsBody" role="region" aria-label="全体リマーク・免責事項" hidden></div>' +
@@ -181,12 +215,14 @@
     tab.appendChild(sheet);
     handle = $('rmsHandle'); body = $('rmsBody');
     body.appendChild(sec);                                   // セクションを要素ごと移す
+    const tf = document.createElement('div'); tf.id = 'tfPane'; tf.className = 'tf-pane'; tf.hidden = true;   // 一時ファイル置き場（js/quote/temp-files.js が中身を作る）
+    body.appendChild(tf);
     return true;
   }
 
   function init() {
     if (window.__rmsInit) return; if (!build()) return; window.__rmsInit = true;
-    loadH(); bindDrag(); setOpen(false); updateMeta();
+    loadH(); bindDrag(); setOpen(false); updateMeta(); showPane('remark');
     sheet.addEventListener('animationend', e => { if (e.target === sheet.querySelector('.rms-panel')) sheet.classList.remove('is-nudging'); });
     // 入力欄に触れたら、その時点で「使い始めた」とみなす（リマークの入力が始まったら合図は不要）
     const ta0 = $('remarkTextarea'); if (ta0) ta0.addEventListener('focus', markSeen);
