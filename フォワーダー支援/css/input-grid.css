@@ -90,3 +90,6 @@ html.editor-v2 #tab-quote-make:not(.qp-dash):not([data-e2="4"]) #e2Out { max-wid
 html.editor-v2 #tab-quote-make #section-ref .ci-memo-btn.ig-in-label { height: 28px !important; min-height: 0 !important; margin-left: 10px; padding: 0 10px; font-size: var(--text-xs, 12px); vertical-align: middle; border-radius: 6px; }
 /* ［戻る］［次へ］は本文（.quote-workspace）の中にあるので、レールの分の左余白は要らない（二重にずれて［戻る］が右に寄っていた） */
 html.editor-v2 #tab-quote-make:not(.qp-dash) .quote-workspace #e2Nav { margin-left: 0 !important; }
+/* ② 下の要約（#cfCrumbs）を隠したため、選び終わると中身の無い帯（.cond-primary-bar）だけが残っていた → 見える項目が無いときは帯ごと出さない */
+html.editor-v2 #tab-quote-make #section-cond .cond-primary-bar.cf-flow:not(:has(> .cond-prim-group:not(.cf-hide):not([hidden]):not(.cond-prim-group-handling))) { display: none !important; }
+html.editor-v2 #tab-quote-make #section-cond .cond-primary-bar.cf-flow:has(> .cond-prim-group-handling:not([hidden])) { display: flex !important; }
