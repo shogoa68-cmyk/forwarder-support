@@ -101,3 +101,23 @@
   /* ⋯ メニュー（旧）の代わりに下のシートを使う */
   .master-ops-menu { display: none !important; }
 }
+
+/* ---- 名前の整理（ゆらぎ・未登録）のスマホ版：1 件＝1 カード・主ボタン 1 つ・44px（Design 29 ⑥） ---- */
+@media (max-width: 600px) {
+  #tab-master.mm-on.mm-view-fix #statsPane-master, #tab-master.mm-on.mm-view-fix #statsPane-alias { display: none !important; }
+  #tab-master.mm-on.mm-view-fix #mmBar .mm-fix { display: none; }
+  #tab-master.mm-on.mm-view-fix #statsPane-fix { display: block; padding: 8px 4px 96px; }
+  #tab-master.mm-on #statsPane-fix .fix-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -4px 10px; padding: 0 4px; }
+  #tab-master.mm-on #statsPane-fix .fix-chip { flex: 0 0 auto; min-height: 44px; }
+  #tab-master.mm-on #statsPane-fix .stats-nm-table tbody > tr { grid-template-columns: minmax(0, 1fr) auto; padding: 10px 12px; }
+  #tab-master.mm-on #statsPane-fix .stats-nm-table td.stats-chips-cell { padding-left: 0; }
+  #tab-master.mm-on #statsPane-fix .fh-tog { width: 44px; height: 44px; }
+  #tab-master.mm-on #statsPane-fix .fh-actions { flex-direction: column; align-items: stretch; }
+  #tab-master.mm-on #statsPane-fix .fh-canon { width: 100%; min-height: 44px; margin: 4px 0 0; }
+  #tab-master.mm-on #statsPane-fix .fh-main { min-height: 48px; width: 100%; }
+  #tab-master.mm-on #statsPane-fix .fh-more { min-height: 44px; width: 100%; }
+  #tab-master.mm-on #statsPane-fix .stats-nm-table tr.fh-more-on .stats-chip button,
+  #tab-master.mm-on #statsPane-fix .stats-nm-table tr.fh-more-on .stats-syn-merge-canon,
+  #tab-master.mm-on #statsPane-fix .stats-nm-table tr.fh-more-on .stats-syn-dissolve { min-height: 44px; }
+  .fh-undo { bottom: 136px; }   /* 下の 3 タブ（56px）と確認シートの上に出す */
+}
