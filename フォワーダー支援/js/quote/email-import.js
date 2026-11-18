@@ -564,7 +564,8 @@
   function _parseEntries(json) {
     try {
       const a = JSON.parse(json || '[]');
-      return Array.isArray(a) ? a.filter(e => e && String(e.text || '').trim()) : [];
+      // id はボタンの onclick に埋めるので、英数字・_・- 以外は除く（保存データに細工があっても、画面のスクリプトとして動かない）
+      return Array.isArray(a) ? a.filter(e => e && String(e.text || '').trim()).map((e, i) => Object.assign({}, e, { id: String(e.id == null ? '' : e.id).replace(/[^\w-]/g, '') || 'fx' + i })) : [];
     } catch (e) { return []; }
   }
   // 旧形式の原文（明細が無いときだけ）

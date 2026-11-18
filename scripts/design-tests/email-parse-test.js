@@ -91,4 +91,6 @@ r = p("Item | Qty | Unit | Price\nTHC | 2 | 20GP | USD 100\nDOC | 1 | BL | USD 5
 chk('先頭・末尾に「|」が無い表も、見出しの列で読む', its(r).length === 2 && its(r)[0].name === 'THC' && its(r)[0].qty === 2 && its(r)[0].unit === '20GP' && its(r)[0].price === 100 && its(r)[1].price === 50, its(r));
 const mk = win.eiMaskLine;
 chk('読めなかった行の伏せ：社名・宛名・メールも残さない', !/ABC|山田|taro/.test(mk('特注 株式会社ABC物流 山田様 taro@example.com 見積 99,000')) && !/Global/.test(mk('Special Global Link Co., Ltd quote 99')), [mk('特注 株式会社ABC物流 山田様 taro@example.com 見積 99,000'), mk('Special Global Link Co., Ltd quote 99')]);
+const fe = win.eiFreeEntriesOf({ fields: { 'qf-free-entries': JSON.stringify([{ id: "x');alert(1);('", text: '見積 USD 100', status: 'pending' }, { text: 'id なし', status: 'pending' }]) } });
+chk('保管した原文の id に細工があっても、ボタンの onclick に埋めても安全な文字だけにする', fe.length === 2 && fe.every(e => /^[\w-]+$/.test(e.id)) && fe[0].id !== fe[1].id, fe);
 process.exit(ok === C.length && ng === 0 ? 0 : 1);
