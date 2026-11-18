@@ -4239,7 +4239,7 @@
             // 客先表示名・サブコン別リマークの入力は、この見出しの行内に置く（以前はグループ末尾の小計行にあった）
             `<span class="hdr-notes">` +
               `<span class="hdr-note hdr-note-remark" title="このサブコンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF）にも表示されます。">` +
-                `<i>📝 サブコン別リマーク</i>` +
+                `<i>📝 このサブコンへの注記</i>` +
                 `<input type="text" class="subcon-remark-input" placeholder="このサブコンへの注記（任意）" value="${_escAttr((_subconRemark[key] || {}).text || '')}" />` +
                 `<button type="button" class="subcon-remark-toggle${(_subconRemark[key] || { show: true }).show ? ' is-shown' : ''}" ` +
                   `title="${(_subconRemark[key] || { show: true }).show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する'}">` +
@@ -4497,7 +4497,7 @@
               const _ptNotesHtml = !_ptHasNotes ? '' :
                 `<span class="hdr-notes hdr-notes--pt">` +
                   `<span class="hdr-note hdr-note-remark" title="このパターンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF・メール）にも表示されます。">` +
-                    `<i>📝 パターン別リマーク</i>` +
+                    `<i>📝 このパターンへの注記</i>` +
                     `<input type="text" class="subcon-remark-input" placeholder="このパターンへの注記（任意）" value="${_escAttr(_remarkObj.text || '')}" />` +
                     `<button type="button" class="subcon-remark-toggle${_remarkObj.show ? ' is-shown' : ''}" ` +
                       `title="${_remarkObj.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する'}">` +

@@ -281,3 +281,9 @@ body.rms-open .fb-help-card { z-index: 999; }
 @media (max-width: 600px) {
   html.editor-v2 .fb-quick-fab { bottom: calc(max(120px, calc(120px + env(safe-area-inset-bottom))) + var(--rms-bar, 0px)); }
 }
+
+/* メモのラベル（Design 34 §6「誰に見える？」）：灰＝社内だけ／青＝見積書に載る */
+.memo-label { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; font-size: var(--text-xs, 12px); font-weight: 700; line-height: 1; white-space: nowrap; margin-left: 6px; vertical-align: middle; }
+.memo-label.is-internal { background: #e4e7ec; color: #475467; }
+.memo-label.is-quote { background: #eef3fb; color: #234a8f; }
+@media print { .memo-label { display: none; } }
