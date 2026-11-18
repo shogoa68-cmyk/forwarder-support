@@ -5353,6 +5353,26 @@
   window.qfRenderAttachments = qfRenderAttachments;
   window.qfRenderStorageMeter = qfRenderStorageMeter;
   // 資料を追加ダイアログ（sources.js）が、ファイルを添付できる状態かを知るための読み取り口
+  // 「案件のファイル」（case-files.js）用：この案件の添付の一覧（14 日以内のもの）と、確認なしの削除
+  window.qfAttachList = async function () {
+    var c = _getClient();
+    if (!c || !_cloudUser) return { state: 'nologin', rows: [] };
+    if (!_loadedCloudId) return { state: 'unsaved', rows: [] };
+    var res = await c.from('quote_attachments').select('id,file_name,file_size,mime_type,storage_path,uploaded_by,created_at').eq('preset_id', _loadedCloudId).order('created_at', { ascending: false });
+    if (res.error) return { state: 'error', error: res.error.message, rows: [] };
+    var now = Date.now();
+    var rows = (res.data || []).filter(function (a) { return !a.created_at || (now - new Date(a.created_at).getTime()) < ATT_TTL_DAYS * 86400000; })
+      .map(function (a) { a.expires_at = a.created_at ? new Date(new Date(a.created_at).getTime() + ATT_TTL_DAYS * 86400000).toISOString() : null; return a; });
+    return { state: 'ok', rows: rows };
+  };
+  window.qfAttachRemove = async function (attId, rawPath) {
+    var c = _getClient(); if (!c) return false;
+    var del = await c.from('quote_attachments').delete().eq('id', attId);
+    if (del.error) { quoteShowToast('⚠️ 削除に失敗：' + del.error.message, 'warn', 6000); return false; }
+    try { await c.storage.from(_ATTACH_BUCKET()).remove([decodeURIComponent(rawPath)]); } catch (e) {}
+    qfRenderAttachments();
+    return true;
+  };
   window.qfAttachState = function () { return { loggedIn: !!_cloudUser, saved: !!_loadedCloudId, configured: !!_getClient() }; };
 
   // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------

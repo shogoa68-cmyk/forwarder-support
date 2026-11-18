@@ -39,9 +39,6 @@ html #tab-quote-make .row-mode-btns > button:not(.is-on):not(.on):not(.master-re
 html.editor-v2 #tab-quote-make #rmSheet:not([data-open="1"]) { display: none; }
 @media (max-width: 600px) {
   /* スマホは幅が足りないので、［📁 一時ファイル］はアイコンだけ・［パターン登録］は外す（案のタブの［＋］から作れる） */
-  html.editor-v2 #e2Total .e2t-btns .e2t-files { font-size: 0 !important; min-width: 44px; padding: 0 !important; }
-  html.editor-v2 #e2Total .e2t-btns .e2t-files::before { content: "📁"; font-size: 18px; }
-  html.editor-v2 #e2Total .e2t-btns button[data-e2p] { display: none !important; }
   /* ❓ はスマホの見積入力では小さく・薄くして、入力欄に被さっても邪魔になりにくくする */
   html.editor-v2 .fb-quick-fab { width: 40px; height: 40px; font-size: 18px; opacity: .88; }
 }
@@ -123,4 +120,43 @@ html.editor-v2 #quoteActionDock #qadMode.is-dirty::after { top: -5px; right: -5p
   html.editor-v2 #quoteActionDock .qad-edit-start:not([hidden]) ~ #e2SaveGhost { display: none; }
   /* ❓は入力中だけ隠す（入力欄に重なって見えにくくなるため） */
   body:has(#tab-quote-make.active input:focus:not([type=checkbox]):not([type=radio]):not([type=button]), #tab-quote-make.active textarea:focus) #fbQuickFab { display: none; }
+}
+
+/* ⑪ 見積入力（新画面）の配置の見直し
+      (a) 左のレールは、広い画面（1400px 以上）では最初から開いた「固定」表示：本文を右へずらし、暗幕・影は出さない（開閉は任意） */
+@media (min-width: 601px) {
+  html.editor-v2 #tab-quote-make.e2-rail-dock #e2Scrim { display: none; }
+  html.editor-v2 #tab-quote-make.e2-rail-dock #e2Steps { box-shadow: none; }
+  html.editor-v2 #tab-quote-make.e2-rail-dock:not(.qp-dash) .quote-workspace,
+  html.editor-v2 #tab-quote-make.e2-rail-dock:not(.qp-dash) #e2Nav,
+  html.editor-v2 #tab-quote-make.e2-rail-dock:not(.qp-dash) #e2Head { margin-left: 208px; }
+}
+/*      (b) 丸の中は、入力済み・必須の欠けでも常に「数字」のまま（✓／! に置き換えない）。状態は色と小さな印で示す */
+html.editor-v2 #e2Steps button i { position: relative; overflow: visible; }
+html.editor-v2 #e2Steps button.is-ok i::after,
+html.editor-v2 #e2Steps button.is-warn i::after { position: absolute; top: -5px; right: -6px; min-width: 14px; height: 14px; line-height: 14px; border-radius: 7px; border: 1.5px solid #fff; font-size: 10px; font-weight: 700; text-align: center; box-sizing: content-box; }
+html.editor-v2 #e2Steps button.is-ok i::after { content: "✓"; background: #1e7a4a; color: #fff; }
+html.editor-v2 #e2Steps button.is-warn i::after { content: "!"; background: #b45309; color: #fff; }
+/*      (c) 右のレール（費用／金額／サブコン／チャージ…）は、広い画面（1500px 以上）では閉じている間も縦の帯として常時表示。
+            そのぶん下の合計バーの［数量登録］［費用の内訳］［参考］は出さない */
+@media (min-width: 1500px) {
+  html.editor-v2 body:not(.e2-drawer) #tab-quote-make:not(.qp-dash) .quote-right-col--rail { display: flex !important; width: auto; max-width: none; animation: none; box-shadow: none; padding: 8px 6px; top: var(--e2-rail-top, 224px); }   /* 上のツールバー（保存・PDF）の下に付いて動く（editor-v2.js が --e2-rail-top を更新） */
+  html.editor-v2 #e2Total .e2t-btns button[data-e2q], html.editor-v2 #e2Total .e2t-btns button[data-e2d] { display: none; }
+}
+/*      (d) ⑤の「出力する」枠の［📁 一時ファイル］（見積に添える資料の置き場。出力と近い場所へ） */
+#e2Out .e2o-files { border-color: #98a2b3; }
+
+/* ⑫ Design 38 の回答：しまった状態（56px）の丸の印は 16px／ステップ④（費用）だけ本文を最大 1400px に */
+html.editor-v2 #tab-quote-make:not(.e2-rail-open) #e2Steps button.is-ok i::after,
+html.editor-v2 #tab-quote-make:not(.e2-rail-open) #e2Steps button.is-warn i::after { min-width: 16px; height: 16px; line-height: 16px; border-radius: 8px; font-size: 11px; top: -6px; right: -7px; }
+@media (min-width: 601px) {
+  html.editor-v2 #tab-quote-make[data-e2="4"]:not(.qp-dash) .quote-workspace,
+  html.editor-v2 #tab-quote-make[data-e2="4"]:not(.qp-dash) #e2Nav,
+  html.editor-v2 #tab-quote-make[data-e2="4"]:not(.qp-dash) #e2Head { max-width: 1400px; }
+}
+/* 右レールの帯（約76px）と重ならないよう、左レール固定＋右レール常時表示の幅では、利用できる幅に収める */
+@media (min-width: 1500px) {
+  html.editor-v2 #tab-quote-make[data-e2="4"].e2-rail-dock:not(.qp-dash) .quote-workspace,
+  html.editor-v2 #tab-quote-make[data-e2="4"].e2-rail-dock:not(.qp-dash) #e2Nav,
+  html.editor-v2 #tab-quote-make[data-e2="4"].e2-rail-dock:not(.qp-dash) #e2Head { max-width: min(1400px, calc(100vw - 316px)); }
 }
