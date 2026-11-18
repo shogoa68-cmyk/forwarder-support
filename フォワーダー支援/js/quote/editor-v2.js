@@ -313,7 +313,8 @@
     const ref = $('hdrDesignBtn'), b = document.createElement('a');
     b.id = 'hdrEditorV2Btn'; b.href = '#'; b.className = ref ? ref.className : ''; b.setAttribute('role', 'button');
     b.addEventListener('click', e => { e.preventDefault(); window.editorV2Toggle(); });
-    panel.appendChild(b); syncBtn(); return true;
+    const lab = document.createElement('p'); lab.className = 'hdr-panel-label'; lab.textContent = '画面の切替';
+    panel.appendChild(lab); panel.appendChild(b); syncBtn(); return true;
   }
 
   document.addEventListener('DOMContentLoaded', () => {

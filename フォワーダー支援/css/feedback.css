@@ -6,16 +6,16 @@
 body.rms-open .fb-quick-fab { z-index: 999; }
 .fb-quick-fab {
   position: fixed;
-  right: max(18px, calc(18px + env(safe-area-inset-right)));
+  right: max(16px, calc(16px + env(safe-area-inset-right)));
   bottom: calc(max(72px, calc(72px + env(safe-area-inset-bottom))) + var(--rms-bar, 0px));
-  width: 36px; height: 36px; padding: 0;
+  width: 48px; height: 48px; padding: 0;
   border-radius: 50%;
   border: 1px solid var(--border-md, #c9bfa9);
   background: var(--surface, #fff);
   color: var(--text, #333);
-  font-size: 17px; line-height: 34px; text-align: center;
+  font-size: 22px; line-height: 46px; text-align: center;
   cursor: pointer;
-  opacity: .72;
+  opacity: .92;
   box-shadow: 0 2px 8px rgba(0,0,0,.18);
   z-index: 1150;
   transition: opacity .15s, transform .1s, box-shadow .15s;
@@ -35,14 +35,14 @@ body.rms-open .fb-quick-fab { z-index: 999; }
 @keyframes fbFabWiggle { 0%, 70%, 100% { transform: rotate(0); } 76% { transform: rotate(-14deg); } 82% { transform: rotate(12deg); } 88% { transform: rotate(-8deg); } 94% { transform: rotate(4deg); } }
 .fb-fab-hint {
   position: fixed; z-index: 1151; display: flex; align-items: stretch;
-  max-width: min(300px, calc(100vw - 80px));
+  max-width: min(210px, calc(100vw - 32px));
   background: #1f2937; color: #fff; border-radius: 12px;
   box-shadow: 0 6px 20px rgba(0,0,0,.3);
   animation: fbHintIn .35s cubic-bezier(.2,.8,.3,1) both;
 }
-.fb-fab-hint::after {                                  /* 🐞 を指す三角（右向き） */
-  content: ''; position: absolute; right: -7px; bottom: 11px;
-  border: 7px solid transparent; border-right: 0; border-left: 8px solid #1f2937;
+.fb-fab-hint::after {                                  /* 「？」を指す三角（下向き） */
+  content: ''; position: absolute; right: 19px; bottom: -7px;
+  border: 7px solid transparent; border-bottom: 0; border-top: 8px solid #1f2937;
 }
 .fb-fab-hint .fbh-main { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 10px 6px 10px 14px; cursor: pointer; line-height: 1.5; min-height: 44px; }
 .fb-fab-hint .fbh-main b { font-size: var(--text-sm, 13px); }
@@ -50,7 +50,7 @@ body.rms-open .fb-quick-fab { z-index: 999; }
 .fb-fab-hint .fbh-main:focus-visible, .fb-fab-hint .fbh-x:focus-visible { outline: 2px solid #fff; outline-offset: -2px; border-radius: 10px; }
 .fb-fab-hint .fbh-x { all: unset; box-sizing: border-box; width: 36px; min-height: 44px; display: flex; align-items: flex-start; justify-content: center; padding-top: 9px; font-size: var(--text-xs, 12px); cursor: pointer; opacity: .75; }
 .fb-fab-hint .fbh-x:hover { opacity: 1; }
-@keyframes fbHintIn { from { opacity: 0; transform: translateX(10px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes fbHintIn { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: none; } }
 body.rms-open .fb-fab-hint { z-index: 999; }
 @media (prefers-reduced-motion: reduce) {
   .fb-quick-fab.fb-hint-pulse, .fb-quick-fab.fb-hint-pulse::before, .fb-fab-hint { animation: none; }
@@ -152,7 +152,7 @@ body.rms-open .fb-fab-hint { z-index: 999; }
 .fbr-ta { width: 100%; box-sizing: border-box; border: 1px solid var(--border-md, #ccc); border-radius: var(--r-8, 8px); padding: var(--sp-6, 6px) var(--sp-8, 8px); font: inherit; font-size: var(--fs-13, 13px); resize: vertical; background: var(--surface, #fff); }
 
 @media (max-width: 640px) {
-  .fb-quick-fab { bottom: calc(max(64px, calc(64px + env(safe-area-inset-bottom))) + var(--rms-bar, 0px)); }
+  .fb-quick-fab { bottom: calc(max(72px, calc(72px + env(safe-area-inset-bottom))) + var(--rms-bar, 0px)); }
   .fbr-ttl { flex-basis: 100%; }
 }
 
@@ -169,7 +169,7 @@ body.rms-open .fb-fab-hint { z-index: 999; }
 .fbr-banner[hidden] { display: none; }
 .hdr-fb-badge { display: inline-block; min-width: 16px; margin-left: 6px; padding: 0 5px; border-radius: 999px; background: #e5484d; color: #fff; font-size: 12px; font-weight: 800; line-height: 16px; text-align: center; vertical-align: 1px; }
 .fb-quick-fab.has-badge { opacity: 1; box-shadow: 0 0 0 2px #e5484d, 0 2px 10px rgba(0,0,0,.3); }
-.fb-quick-fab.has-badge::after { content: attr(data-n); position: absolute; top: -6px; right: -6px; min-width: 16px; padding: 0 4px; border-radius: 999px; background: #e5484d; color: #fff; font-size: 12px; font-weight: 800; line-height: 16px; }
+.fb-quick-fab.has-badge::after { content: attr(data-n); position: absolute; top: -6px; right: -6px; min-width: 18px; padding: 0 5px; border-radius: 999px; background: #e5484d; color: #fff; font-size: var(--text-2xs, 11px); font-weight: 800; line-height: 18px; box-sizing: border-box; }
 
 /* ---------- やりとり（スレッド） ---------- */
 .fbr-thread { margin-top: var(--sp-10, 10px); padding: var(--sp-10, 10px) var(--sp-12, 12px); background: #f3f8fe; border: 1px solid #cfe1f5; border-radius: var(--r-8, 8px); }
@@ -244,4 +244,40 @@ body.rms-open .fb-fab-hint { z-index: 999; }
 @media (max-width: 400px) {   /* 極小画面でヘッダーのリンクがアイコンだけになるとき、📣 ではなく中身に合う絵にする */
   .hdr-roadmap.hdr-bugreports::before { content: "🐞"; }
   .hdr-roadmap.hdr-ideas::before { content: "💡"; }
+}
+
+/* ================================================================
+ * 右下の「❓ 困ったとき」カード（Design 34 案B）。ボタンの上に開く（位置は feedback.js が right／bottom を入れる）
+ * ================================================================ */
+.fb-help-card {
+  position: fixed; z-index: 1152; box-sizing: border-box; width: 250px; max-width: calc(100vw - 16px);
+  padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  background: var(--surface, #fff); color: var(--text, #222);
+  border: 1px solid var(--border-md, #c9bfa9); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.22);
+}
+.fb-help-card[hidden] { display: none; }
+body.rms-open .fb-help-card { z-index: 999; }
+.fb-help-card .fbhc-title { margin: 0; padding: 6px 10px 4px; font-size: var(--text-xs, 12px); font-weight: 700; opacity: .7; letter-spacing: .04em; }
+/* 中の項目。ヘッダーから移した <a class="hdr-roadmap"> も同じ見た目にそろえる */
+.fb-help-card .fbhc-item, .fb-help-card a.hdr-roadmap.fbhc-item {
+  all: unset; box-sizing: border-box; display: flex; align-items: center; min-height: 44px; padding: 0 10px; gap: 6px;
+  border-radius: 8px; cursor: pointer; font-size: var(--text-sm, 13px); font-weight: 600; line-height: 1.4;
+  color: var(--text, #222); background: transparent; text-decoration: none; white-space: normal;
+}
+/* スマホ幅のヘッダー用「アイコンだけ」の規則（style.css・上の @media 内の ::before）を、カードの中では無効にする */
+.fb-help-card a.hdr-roadmap::before, .fb-help-card a.hdr-roadmap.hdr-bugreports::before, .fb-help-card a.hdr-roadmap.hdr-ideas::before { content: none !important; }
+.fb-help-card .fbhc-item:hover, .fb-help-card .fbhc-item:focus-visible { background: var(--accent-lt, #eef3fb); outline: none; }
+.fb-help-card .fbhc-item:focus-visible { box-shadow: inset 0 0 0 2px var(--accent, #2f5fb3); }
+.fb-help-card .hdr-fb-badge { margin-left: auto; }
+@media print { .fb-help-card { display: none !important; } }
+
+/* ----- 見積入力の画面では、下の固定部品を避ける ----- */
+/* 新画面（PC）：下の合計バー（約 48px）の上 */
+@media (min-width: 601px) {
+  html.editor-v2 .fb-quick-fab { bottom: calc(max(62px, calc(62px + env(safe-area-inset-bottom))) + var(--rms-bar, 0px)); }
+}
+/* 新画面（スマホ）：下の固定ドック（56px）と合計バー（約 44px）の上 */
+@media (max-width: 600px) {
+  html.editor-v2 .fb-quick-fab { bottom: calc(max(120px, calc(120px + env(safe-area-inset-bottom))) + var(--rms-bar, 0px)); }
 }

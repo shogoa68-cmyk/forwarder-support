@@ -1,8 +1,9 @@
 // ヘッダーを「☰ メニュー」と「アバター（アカウント）」の 2 つのアイコンにまとめる（2026-11・全テーマ共通）。
 // 既存のボタン・リンク（id／onclick／機能）は変えず、要素ごと移すだけ（cloud.js・users.js・feedback.js は id で操作し続ける）。
-//  ☰ ＝ご意見・ご要望（不具合報告・アイデア・改修予定）＋表示（デザイン切替）
-//  アバター ＝名前（押すとプロフィール編集）・チーム管理・ログアウト
-// ログインしていない間は、従来どおり「Google でログイン」ボタンを出す。
+//  ☰ ＝表示（デザイン切替）＋画面の切替（見積入力の旧／新＝editor-v2.js が足す）
+//      ※「ご意見」の入口（不具合報告・アイデア・改修予定）は、右下の「❓ 困ったとき」のカードへ移した（feedback.js・Design 34 案B）
+//  アカウント ＝［アバター 名前 ▾］。プロフィール編集・チーム管理・ログアウトは必ず「▾」の中
+// ログインしていない間は、従来どおり「ログイン」ボタンを出す。
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
@@ -39,13 +40,8 @@
     var auth = header.querySelector('.header-auth');
 
     // ☰ メニュー
-    var links = {
-      roadmap: header.querySelector(':scope > a.hdr-roadmap:not(.hdr-bugreports):not(.hdr-ideas):not(.hdr-design)'),
-      bug: $('hdrBugReportsBtn'), idea: $('hdrIdeasBtn'), design: $('hdrDesignBtn'),
-    };
-    var m = makeMenu('hdrMenu', '<span aria-hidden="true">☰</span>', 'メニュー（不具合報告・アイデア・改修予定・デザイン）');
-    m.panel.appendChild(label('ご意見・ご要望'));
-    [links.bug, links.idea, links.roadmap].forEach(function (a) { if (a) m.panel.appendChild(a); });
+    var links = { design: $('hdrDesignBtn') };
+    var m = makeMenu('hdrMenu', '<span aria-hidden="true">☰</span>', '表示・画面の切替');
     m.panel.appendChild(label('表示'));
     if (links.design) m.panel.appendChild(links.design);
     header.insertBefore(m.wrap, auth || null);
@@ -53,10 +49,18 @@
     // アカウント（ログイン中だけ出る #hdrCloudUser の中身を組み替える）
     var user = $('hdrCloudUser'); if (!user) return;
     var prof = user.querySelector('.hdr-cloud-prof'), avatar = $('hdrCloudAvatar'), mgr = $('hdrUserMgrBtn'), out = $('hdrCloudLogout');
-    var a = makeMenu('hdrAcct', '', 'アカウント（名前・チーム管理・ログアウト）');
-    a.btn.classList.add('is-acct');
+    var a = makeMenu('hdrAcct', '', 'アカウント（プロフィール・チーム管理・ログアウト）');
+    a.btn.classList.add('is-acct', 'has-name');
+    var who = $('hdrCloudName');                       // 名前はボタンに見せる（Design 34：［アバター 名前 ▾］）
     if (avatar) a.btn.appendChild(avatar);
-    if (prof) { prof.classList.add('hdr-acct-who'); a.panel.appendChild(prof); }
+    if (who) { who.classList.add('hdr-acct-name'); a.btn.appendChild(who); }
+    var caret = document.createElement('span'); caret.className = 'hdr-acct-caret'; caret.setAttribute('aria-hidden', 'true'); caret.textContent = '▾';
+    a.btn.appendChild(caret);
+    if (prof) {                                        // プロフィール編集の行（名前・アバターはボタンへ移したので、行は文字だけ）
+      prof.classList.add('hdr-acct-who');
+      var t = document.createElement('span'); t.className = 'hdr-acct-who-t'; t.textContent = '✏️ プロフィールを編集';
+      prof.appendChild(t); a.panel.appendChild(prof);
+    }
     if (mgr) a.panel.appendChild(mgr);
     if (out) a.panel.appendChild(out);
     user.appendChild(a.wrap);
