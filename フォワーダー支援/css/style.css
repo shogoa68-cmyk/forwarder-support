@@ -1637,7 +1637,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .bm-empty {
   grid-column: 1 / -1;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text-md);
   padding: 40px var(--sp-16);
   font-size: var(--fs-13);
 }
@@ -1792,7 +1792,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border-radius: var(--r-9); padding: 0 var(--sp-5); height: 16px; line-height: 16px;
   display: inline-flex; align-items: center; cursor: pointer;
 }
-.bm-verify-0 { color: #b3a894; background: var(--accent-lt); }
+.bm-verify-0 { color: #8a7d66; background: var(--accent-lt); } /* 未確認の ✓：以前の #b3a894 は背景と 1.9:1 でほぼ読めなかった */
 .bm-verify-1 { color: #3f7d4f; background: #e3f1e6; }
 .bm-verify-2 { color: var(--surface);    background: #3f9d5f; }
 .bm-verify-mine { box-shadow: 0 0 0 1.5px var(--blue); }
@@ -1826,7 +1826,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .bm-fhead-ic { font-size: var(--fs-11); opacity: .8; }
 .bm-fcount {
-  font-size: var(--fs-10); font-weight: 600; color: var(--c-9a8a70); background: var(--bg);
+  font-size: var(--fs-10); font-weight: 600; color: var(--text-md); background: var(--bg);
   border-radius: var(--r-9); padding: 0 var(--sp-6); margin-left: var(--sp-2);
 }
 .bm-fpills { display: flex; flex-wrap: wrap; gap: var(--sp-7); }

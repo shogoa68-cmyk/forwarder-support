@@ -199,3 +199,6 @@
 #tab-cptest .cpt-wchg-t { color: var(--cpt-ink3); font-size: var(--text-xs, 12px); font-variant-numeric: tabular-nums; }
 #tab-cptest .cpt-wbulk { margin-top: 8px; }
 #tab-cptest .cpt-wsnap { margin: 4px 0 16px; }
+
+/* 通知の操作の絞り込み欄（最大 40 文字）が画面幅いっぱい（900px で 760px）に伸びていたため、幅に上限をつける */
+#tab-cptest #cptOpFilter { max-width: 420px; }
