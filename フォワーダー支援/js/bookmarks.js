@@ -415,8 +415,8 @@ function _bmPillHtml(r, rel, popular) {
     // ファイル添付：クリックで署名付き URL を都度取得して開く（Storage は非公開バケット）
     open  = `<span class="bm-pill bm-pill-file${hotCls}" data-bm-click="${escHtml(r.id)}" onclick="bmOpenFile('${escHtml(r.id)}')" title="${lbl}">`;
     close = `</span>`;
-  } else if (r.url) {
-    open  = `<a class="bm-pill${hotCls}" data-bm-click="${escHtml(r.id)}" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${lbl}">`;
+  } else if (SharedFmt.httpUrl(r.url)) {   // http/https 以外（過去に保存された javascript: など）は、リンクにしない
+    open  = `<a class="bm-pill${hotCls}" data-bm-click="${escHtml(r.id)}" href="${escHtml(SharedFmt.httpUrl(r.url))}" target="_blank" rel="noopener" title="${lbl}">`;
     close = `</a>`;
   } else {
     open  = `<span class="bm-pill bm-pill-nourl${hotCls}" title="${lbl}">`;
@@ -875,13 +875,17 @@ async function saveBm() {
   if (!db) return;
   const id      = document.getElementById('bmFormId')?.value              || null;
   const label   = document.getElementById('bmFormLabel')?.value.trim();
-  const url     = document.getElementById('bmFormUrl')?.value.trim()    || null;
+  const urlRaw  = document.getElementById('bmFormUrl')?.value.trim()    || null;
+  // URL は http/https だけ許可（javascript: などは、クリックした人の画面の中でプログラムが動いてしまうため保存させない）。
+  // 「example.com」のようにスキームが無い入力は https:// を補う
+  const url     = urlRaw ? SharedFmt.httpUrl(urlRaw) : null;
   const type    = document.getElementById('bmFormType')?.value           || 'general';
   const carrier = document.getElementById('bmFormCarrier')?.value.trim() || null;
   const fn      = document.getElementById('bmFormFunction')?.value;
   const note    = document.getElementById('bmFormNote')?.value.trim()   || null;
 
   if (!label) { quoteShowToast('⚠️ ラベルを入力してください', 'warn'); return; }
+  if (urlRaw && !url) { quoteShowToast('⚠️ URL は http:// または https:// で始まる形で入力してください（空白や引用符は使えません）', 'warn', 6500); return; }
   // 機能カテゴリは任意。未選択は「未分類」で登録し、後から整理できるようにする。
   const fnVal = fn || '未分類';
 
@@ -1601,8 +1605,8 @@ function openBmDedup() {
   list.innerHTML = _bmDupGroups.map((g, idx) => {
     const keepId  = _bmKeeperId(g);
     const carrier = g[0].carrier || '汎用';
-    const head = g[0].url
-      ? `<a href="${escHtml(g[0].url)}" target="_blank" rel="noopener">${escHtml(g[0].url)}</a>`
+    const head = SharedFmt.httpUrl(g[0].url)
+      ? `<a href="${escHtml(SharedFmt.httpUrl(g[0].url))}" target="_blank" rel="noopener">${escHtml(g[0].url)}</a>`
       : `<span>${escHtml(g[0].label || '(無題)')}</span>`;
     const rows = g.map(r => `
       <label class="bm-dup-item">
@@ -1758,7 +1762,9 @@ window.bmShowForCarrier = async function (name, ev) {
     const tip = escHtml(b.note || b.label || '');
     return b.file_path
       ? `<span class="sv-bm-chip is-file" data-bm-click="${escHtml(b.id)}" onclick="bmOpenFilePath('${encodeURIComponent(b.file_path)}')" title="${tip}">📎 ${escHtml(b.label || b.file_name || '')}</span>`
-      : `<a class="sv-bm-chip" data-bm-click="${escHtml(b.id)}" href="${escHtml(b.url)}" target="_blank" rel="noopener" title="${tip}">${escHtml(b.label || b.url)}</a>`;
+      : (SharedFmt.httpUrl(b.url)
+        ? `<a class="sv-bm-chip" data-bm-click="${escHtml(b.id)}" href="${escHtml(SharedFmt.httpUrl(b.url))}" target="_blank" rel="noopener" title="${tip}">${escHtml(b.label || b.url)}</a>`
+        : `<span class="sv-bm-chip" data-bm-click="${escHtml(b.id)}" title="${tip}">${escHtml(b.label || '')}</span>`);
   }).join('');
   done((chips ? `<div class="sv-bm-pop-chips">${chips}</div>` : '<span class="sv-bm-pop-note">まだブックマークがありません。</span>') +
     `<div class="sv-bm-pop-foot"><button type="button" class="sv-bm-pop-add" data-bm-name="${escHtml(name)}" ` +

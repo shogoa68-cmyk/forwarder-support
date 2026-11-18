@@ -444,6 +444,7 @@ Free プランの転送量（月 5GB）を 2026-11 に超過した（7.48GB・3 
 - **全チップ編集可**：rail/一覧の各チップは ✎ で `openAddBmModal({id,...})`（編集モード）→ `bookmarks` を UPDATE。`fetchCarrierBmsForQSP()` は `carrier_type` も取得し編集時の種別を保持
 - **編集履歴**：Supabase の `bookmark_history` テーブル＋`log_bookmark_change()` トリガー（INSERT/UPDATE/DELETE の前後 jsonb スナップショット・実行者 `auth.jwt()->>'email'`）。BOOKMARK タブ「🕘 履歴」（`openBmHistory()`）で新しい順に表示。**スキーマは `docs/sql/bookmarks-migration.sql` を Supabase で実行する前提**（`is_team_member()` に依存）
 - **TODO**：チップの色分けを「出自」から「用途別」へ（現状は全チップ共通スタイル＝緑系に統一）
+- **URL は http/https だけ（2026-11・セキュリティ）**：ブックマークの URL は、保存時に `SharedFmt.httpUrl(raw)`（`shared/format.js`）を通し、`javascript:` `data:` などは保存させない（スキーム無しの「example.com」は `https://` を補う）。**表示時も同じ関数を通し**、過去に保存された危険な URL は「URLなし」の見た目（クリックできない）で残す（一覧のピル `_bmPillHtml`・重複まとめ・サブコン見出しの BOOKMARK ポップアップ・見積タブ右のチップ `renderQuoteBookmarkRail`）。ブックマークの URL を `<a href>` に入れる処理を足すときは、必ず `SharedFmt.httpUrl` を通すこと。`bookmarks.js` は NUL バイトを含むので、機械的に編集するときはバイトを変えない（Python で文字列のまま置換）。テストは `scripts/design-tests/bookmark-url-test.js`（58 項目）。
 
 ## 統合の現状
 

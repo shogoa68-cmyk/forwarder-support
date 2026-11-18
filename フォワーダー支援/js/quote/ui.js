@@ -3322,9 +3322,13 @@
       const hotMark = o.popular ? '🔥' : '';
       const ckTitle = ck.total ? `\n👆 クリック ${ck.total}回／自分 ${ck.mine}回` : '';
       const ckAttr  = o.id ? ` data-bm-click="${escapeHtml(o.id)}"` : '';
+      const safeUrl = (window.SharedFmt && SharedFmt.httpUrl) ? SharedFmt.httpUrl(o.url) : '';
       const mainEl = o.filePath
         ? `<span class="${cls}"${ckAttr} onclick="bmOpenFilePath('${encodeURIComponent(o.filePath)}')" title="${escapeHtml((o.title || o.label) + ckTitle)}">${relMark}${hotMark}📎${escapeHtml(o.label)}</span>`
-        : `<a class="${cls}"${ckAttr} href="${escapeHtml(o.url)}" target="_blank" rel="noopener" title="${escapeHtml((o.title || o.label) + ckTitle)}">${relMark}${hotMark}${escapeHtml(o.label)}</a>`;
+        : (safeUrl
+          ? `<a class="${cls}"${ckAttr} href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener" title="${escapeHtml((o.title || o.label) + ckTitle)}">${relMark}${hotMark}${escapeHtml(o.label)}</a>`
+          // http/https 以外（過去に保存された javascript: など）は、リンクにしない
+          : `<span class="${cls}"${ckAttr} title="${escapeHtml((o.title || o.label) + ckTitle)}">${relMark}${hotMark}${escapeHtml(o.label)}</span>`);
       return `<span class="qsp-ms-cl-chip-wrap">`
         + mainEl
         + `<button class="qsp-chip-edit-btn" data-bm="${data}" onclick="openAddBmModal(JSON.parse(decodeURIComponent(this.dataset.bm)))" title="このブックマークを編集">✎</button>`
