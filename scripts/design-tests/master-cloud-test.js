@@ -273,7 +273,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
       document.getElementById('statsPane-master').appendChild(t); mmMarksEnhance();
       const hidden = td.querySelectorAll('.mm-hide').length, btn = td.querySelector('.mm-more'); const ok1 = hidden === 2 && btn && btn.textContent === '他2' && getComputedStyle(td.querySelector('.mn-chip')).display === 'none';
       btn.click(); const ok2 = td.classList.contains('mm-open') && btn.textContent === '閉じる'; t.remove(); return ok1 && ok2; }));
-    ok(L + '[表記ゆれ ▸ 直す] 表記ゆれのあるカードにだけ出て、押すと「表記ゆれ・未登録」へ', await p.evaluate(() => {
+    ok(L + '[表記ゆれ ▸ 直す] 表記ゆれのあるカードにだけ出て、押すと「名前の整理」へ', await p.evaluate(() => {
       const f0 = window.statsMasterFieldFilter, h0 = window.statsMasterHasDrift, m0 = window.masterSetPane, k0 = window.fixSetKind; let got = [];
       window.statsMasterFieldFilter = () => 'customer'; window.statsMasterHasDrift = (f, n) => n === '乱れ商事'; window.masterSetPane = x => got.push('m:' + x); window.fixSetKind = x => got.push('k:' + x);
       const mk = nm => { const td = document.createElement('td'); td.className = 'stats-val'; td.innerHTML = '<span class="master-name-toggle">' + nm + '</span>'; const t = document.createElement('table'); t.className = 'master-grid'; const tr = document.createElement('tr'); tr.appendChild(td); t.appendChild(tr); document.getElementById('statsPane-master').appendChild(t); return [t, td]; };

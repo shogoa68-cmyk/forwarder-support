@@ -4939,7 +4939,7 @@
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-kpi"      id="statsTabBtn-kpi"      onclick="statsSetPane('kpi')">🎯 KPI</button>
     </div>
 
-    <div class="stats-moved-note" id="statsMovedNote">🔧 名前の表記ゆれ・未登録の確認は「🗂 マスター管理」へ移りました。<button type="button" class="stats-moved-btn" onclick="statsSetPane('sv')">開く →</button></div>
+    <div class="stats-moved-note" id="statsMovedNote">🔧 名前の整理（表記ゆれ・未登録の確認）は「🗂 マスター管理」へ移りました。<button type="button" class="stats-moved-btn" onclick="statsSetPane('sv')">開く →</button></div>
     <div id="statsPane-svport"   class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-svport"></div>
     <div id="statsPane-custitem" class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-custitem"></div>
     <div id="statsPane-ledger" class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-ledger"></div>
@@ -4953,12 +4953,12 @@
   <!-- ===================== Tab: マスター管理（統計から独立したトップレベルタブ） ===================== -->
   <div class="tab-content" id="tab-master">
     <div class="stats-tabs" role="tablist" aria-label="マスター管理サブタブ">
-      <button class="stats-tab-btn" role="tab" aria-selected="false" aria-controls="statsPane-fix" id="masterTabBtn-fix" onclick="masterSetPane('fix')">🔧 表記ゆれ・未登録</button>
+      <button class="stats-tab-btn" role="tab" aria-selected="false" aria-controls="statsPane-fix" id="masterTabBtn-fix" onclick="masterSetPane('fix')">🔧 名前の整理</button>
       <button class="stats-tab-btn is-active" role="tab" aria-selected="true"  aria-controls="statsPane-master" id="masterTabBtn-master" onclick="masterSetPane('master')">⭐ マスター管理</button>
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-alias"  id="masterTabBtn-alias"  onclick="masterSetPane('alias')">🔀 エイリアス是正</button>
     </div>
     <div id="statsPane-fix" class="stats-pane" role="tabpanel" aria-labelledby="masterTabBtn-fix">
-      <div class="fix-head"><b>🔧 表記ゆれ・未登録</b><span class="fix-sub">同じ会社・同じものなのに書き方が違う名前（例：「ＣＭＡ ＣＧＭ」と「CMA CGM」＝<b>表記ゆれ</b>）を、正しい名前（<b>マスター</b>）にまとめます。まだ登録されていない名前は、ここでマスターに登録できます。過去の案件の入力は書き換わりません。</span></div>
+      <div class="fix-head"><b>🔧 名前の整理</b><span class="fix-sub">同じ会社・同じものなのに書き方が違う名前（例：「ＣＭＡ ＣＧＭ」と「CMA CGM」＝<b>表記ゆれ</b>）を、正しい名前（<b>マスター</b>）にまとめます。まだ登録されていない名前は、ここでマスターに登録できます。過去の案件の入力は書き換わりません。</span></div>
       <div id="fixChips" class="fix-chips" role="tablist" aria-label="種別"></div>
     <div id="statsPane-sv"       class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-sv">
       <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('sv')">📥 CSV</button></div>

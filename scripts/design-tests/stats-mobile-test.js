@@ -87,7 +87,7 @@ srv.listen(0, async () => {
     }
     // ---- 第 2 回：名寄せは 1 表記＝1 カード ----
     await p.evaluate(() => { const o = document.getElementById('smSheet'); if (o) o.remove(); document.body.classList.remove('sm-sheet-open'); });
-    // 名寄せ（サブコン等）はマスター管理の「表記ゆれ・未登録」へ移設（Design 29）。スマホの 1 件 1 カード表示は段階⑥で作り直すため、いまは確認しない。
+    // 名寄せ（サブコン等）はマスター管理の「名前の整理」へ移設（Design 29）。スマホの 1 件 1 カード表示は段階⑥で作り直すため、いまは確認しない。
     if (false) {
     const chips = await p.$$eval('#statsPane-sv .sm-fchip', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()).join('|')); ok('SP2: 名寄せの絞り込みチップ（すべて・未整理のみ N・表記ゆれあり N）', chips === 'すべて|未整理のみ 3|表記ゆれあり 1', chips);
     ok('SP2: 元のチェック 2 つは隠れる（DOM は残る）', !(await vis(p, '#statsPane-sv .sm-f-unorg')) && (await p.$$eval('#statsPane-sv .sm-f-unorg input, #statsPane-sv .sm-f-fluct input', e => e.length)) === 2);

@@ -1,4 +1,4 @@
-// 🔧 表記ゆれ・未登録の「1 行＋主ボタン」（Design 29 ①b）の確認。node scripts/design-tests/fix-hub-test.js
+// 🔧 名前の整理の「1 行＋主ボタン」（Design 29 ①b）の確認。node scripts/design-tests/fix-hub-test.js
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.resolve(__dirname, '..', '..', 'フォワーダー支援');

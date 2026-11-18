@@ -1,4 +1,4 @@
-/* 🔧 表記ゆれ・未登録：名寄せの表を 1 行（名前・件数・状態）に畳み、開くと表記の一覧と主ボタン 1 つ（Design 29 案B ①b・js/fix-hub.js） */
+/* 🔧 名前の整理：名寄せの表を 1 行（名前・件数・状態）に畳み、開くと表記の一覧と主ボタン 1 つ（Design 29 案B ①b・js/fix-hub.js） */
 #statsPane-fix .stats-nm-table { display: block; border: 0; }
 #statsPane-fix .stats-nm-table thead { display: none; }
 #statsPane-fix .stats-nm-table tbody { display: block; }

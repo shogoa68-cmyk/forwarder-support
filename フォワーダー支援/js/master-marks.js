@@ -31,14 +31,14 @@
     td.appendChild(b);
     td.dataset.mmDone = '1';
   }
-  // 表記ゆれのあるマスターには［表記ゆれ ▸ 直す］（押すと「表記ゆれ・未登録」の該当種別へ）。サブコン・お客様のカードだけ
+  // 表記ゆれのあるマスターには［表記ゆれ ▸ 直す］（押すと「名前の整理」の該当種別へ）。サブコン・お客様のカードだけ
   function drift(td) {
     var f = window.statsMasterFieldFilter && window.statsMasterFieldFilter(); if (f !== 'sv' && f !== 'customer') return;
     if (td.querySelector('.mm-fix') || td.closest('.master-nest')) return;
     var nm = td.querySelector('.master-name-toggle') || td; var name = (nm.firstChild && nm.firstChild.nodeType === 3 ? nm.firstChild.textContent : nm.textContent || '').trim();
     var tg = td.querySelector('.master-name-toggle'); if (tg) name = tg.textContent.trim();
     if (!name || !window.statsMasterHasDrift || !window.statsMasterHasDrift(f, name)) return;
-    var b = document.createElement('button'); b.type = 'button'; b.className = 'mm-fix'; b.textContent = '表記ゆれ ▸ 直す'; b.title = '表記の表記ゆれを「表記ゆれ・未登録」で整理します';
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'mm-fix'; b.textContent = '表記ゆれ ▸ 直す'; b.title = '同じ名前の書き方の違いを「名前の整理」で直します';
     b.addEventListener('click', function (ev) { ev.stopPropagation(); if (typeof window.masterSetPane === 'function') window.masterSetPane('fix'); if (typeof window.fixSetKind === 'function') window.fixSetKind(f); });
     td.appendChild(b);
   }
