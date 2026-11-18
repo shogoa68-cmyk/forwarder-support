@@ -1772,7 +1772,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--gray-lt);
+  color: #666;
   font-size: var(--fs-14);
   padding: var(--sp-2) var(--sp-4);
   line-height: 1;
@@ -1819,7 +1819,7 @@
 }
 #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num {
   background: #e6a817;
-  color: var(--surface);
+  color: #3d2700; /* 白文字は琥珀色の上でコントラスト不足（2.1:1）だった */
 }
 #tab-quote-make .pv-wg-footer {
   display: flex;
@@ -1839,7 +1839,7 @@
   cursor: pointer;
   transition: background 0.12s;
 }
-#tab-quote-make .pv-wg-btn-next { background: #e6a817; color: var(--surface); }
+#tab-quote-make .pv-wg-btn-next { background: #e6a817; color: #3d2700; }
 #tab-quote-make .pv-wg-btn-next:hover { background: #c77b00; }
 #tab-quote-make .pv-wg-btn-skip { background: var(--bg); color: #555; }
 #tab-quote-make .pv-wg-btn-skip:hover { background: #ddd8d0; }

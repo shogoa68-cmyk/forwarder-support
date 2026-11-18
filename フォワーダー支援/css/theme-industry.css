@@ -3325,6 +3325,7 @@ html.theme-industry {
   color: #584522;
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-close {
+  color: var(--gray-lt);
   border-radius: 0;
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-close:hover {
@@ -3344,6 +3345,7 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num {
   background: #b79546;
+  color: var(--surface);
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-footer {
   border-top: 1px solid #e5dbbb;
@@ -3354,6 +3356,7 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-btn-next {
   background: #b79546;
+  color: var(--surface);
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-btn-next:hover {
   background: #906e37;
@@ -10622,4 +10625,11 @@ html.theme-industry {
   font-size: var(--text-sm, 13px);
   font-weight: 700;
   color: #1a7f6e;
+}
+:where(html.theme-industry) #tab-quote-make .pv-wg-btn-next,
+:where(html.theme-industry) #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num {
+  color: #2b1d00;
+}
+:where(html.theme-industry) #tab-quote-make .pv-wg-close {
+  color: #666;
 }

@@ -370,3 +370,8 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-m { width: 70px !important; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-mg { display: inline-flex; align-items: center; gap: 6px; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-mg-lbl { font-size: var(--text-sm, 13px); font-weight: 700; color: #1a7f6e; }
+
+/* 出力前の確認ガイド：琥珀色の「次の箇所へ」「現在の番号」が白文字でコントラスト不足（2.8:1）、✕ も薄い灰（2.2:1）。
+   生成される Industry 版は Design の元の値（白文字／--gray-lt）へ戻すため、ここで打ち消す */
+#tab-quote-make .pv-wg-btn-next, #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num { color: #2b1d00; }
+#tab-quote-make .pv-wg-close { color: #666; }
