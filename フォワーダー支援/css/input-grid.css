@@ -1,0 +1,92 @@
+/* ==========================================================================
+   見積入力（新画面）の入力欄：2 列の格子・高さ 36px（Design 40 F1・2026-11）
+   新画面（html.editor-v2）だけ。DOM・id・onclick は変えず、CSS の grid／order と要素の移動だけ。
+   ========================================================================== */
+html.editor-v2 #tab-quote-make { --ig-h: 36px; }
+@media (max-width: 600px) { html.editor-v2 #tab-quote-make { --ig-h: 44px; } }
+
+/* --- 高さの統一（欄と、欄の横のボタン） --- */
+html.editor-v2 #tab-quote-make :is(#qf-ref, #qf-received, #qf-recv-time, #qf-customer, #qf-person, #qf-case-name, #qf-date, #qf-valid-until, #qf-due,
+  #z2Pol, #z2Via, #z2Pod, #z2PolCountry, #z2ViaCountry, #z2PodCountry, #z2Icd, #cond-cargo, #cond-hs, #remarkCargoSel, #cond-incoterms) {
+  height: var(--ig-h) !important; min-height: var(--ig-h) !important; box-sizing: border-box !important; padding-top: 0 !important; padding-bottom: 0 !important;
+}
+html.editor-v2 #tab-quote-make :is(#qfRefAuto, #ciValidChange, #ciMemoBtn, #qfCustomerDetailBtn, #cargoKindBtn, #cargoTaxBtn, #cargoLawBtn, .hs-tariff-link) {
+  height: var(--ig-h) !important; min-height: var(--ig-h) !important; box-sizing: border-box !important; display: inline-flex !important; align-items: center; padding-top: 0 !important; padding-bottom: 0 !important;
+}
+
+/* --- ① 基本：1 行目［お客様｜ご担当者］→ 2 行目［案件名］→ 3 行目［見積もり番号（自動）｜依頼受信日（自動）］ --- */
+html.editor-v2 #tab-quote-make #section-ref .ci-layout .ci-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 601px) {
+html.editor-v2 #tab-quote-make #section-ref .ci-layout .ci-grid > .ci-cell.ci-cell-cust   { grid-column: 1 !important; grid-row: 1 !important; }
+html.editor-v2 #tab-quote-make #section-ref .ci-layout .ci-grid > .ci-cell.ci-cell-person { grid-column: 2 !important; grid-row: 1 !important; }
+html.editor-v2 #tab-quote-make #section-ref .ci-layout .ci-grid > .ci-cell.ci-cell-case   { grid-column: 1 / -1 !important; grid-row: 2 !important; }
+html.editor-v2 #tab-quote-make #section-ref .ci-layout .ci-grid > .ci-cell.ci-cell-ref    { grid-column: 1 !important; grid-row: 3 !important; }
+html.editor-v2 #tab-quote-make #section-ref .ci-layout .ci-grid > .ci-cell.ci-cell-recv   { grid-column: 2 !important; grid-row: 3 !important; }
+}
+html.editor-v2 #tab-quote-make #section-ref .ci-dates .ci-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px; }
+/* 欄はセルの幅いっぱい（右端をそろえる）。横のボタンは欄の右に付ける */
+html.editor-v2 #tab-quote-make #section-ref :is(.qf-ref-row, .qf-customer-row, .ci-case-row, .qf-valid-until-row, .ci-recv-row) { display: flex; gap: 8px; align-items: center; width: 100%; }
+html.editor-v2 #tab-quote-make #section-ref :is(.qf-ref-row, .qf-customer-row, .ci-case-row, .qf-valid-until-row, .ci-recv-row) > input { flex: 1 1 auto; min-width: 0; width: auto !important; }
+html.editor-v2 #tab-quote-make #section-ref .ci-recv-row > #qf-recv-time { flex: 0 0 120px; }
+html.editor-v2 #tab-quote-make #section-ref :is(#qf-person, #qf-date) { width: 100% !important; }
+/* 見積もり番号は表示だけ（自動）。直すときは［変更］で欄を開く */
+html.editor-v2 #tab-quote-make #section-ref .qf-ref-row.ci-ref-locked > #qf-ref { border-color: transparent !important; background: var(--bg, #f6f7f9) !important; color: var(--text, #101828); font-weight: 700; cursor: default; }
+html.editor-v2 #tab-quote-make #section-ref .qf-ref-row.ci-ref-locked > #qfRefAuto { display: none !important; }
+#ciRefEdit { display: none; }
+html.editor-v2 #tab-quote-make #section-ref .qf-ref-row.ci-ref-locked > #ciRefEdit { display: inline-flex; padding: 0 12px; border: 1px solid #98a2b3; border-radius: 6px; background: var(--surface, #fff); font: inherit; font-size: var(--text-sm, 13px); font-weight: 700; cursor: pointer; }
+html.editor-v2 #tab-quote-make #section-ref .ci-cell-ref:has(.ci-ref-locked) > .quote-field > label::after {
+  content: "自動"; display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px; background: #e4e7ec; color: #475467; font-size: var(--text-xs, 12px); font-weight: 700;
+}
+/* 見出しの二重：「🗂 管理番号入力」は出さない（本文の見出し「1 基本」だけ） */
+html.editor-v2 #tab-quote-make #section-ref > h2.section-toggle-head { display: none !important; }
+
+/* --- ② ルート：国（170px）→ 港（340px）を隣り合わせに（国が左） --- */
+html.editor-v2 #tab-quote-make .zone-main.rf-flow .z2-port { grid-template-columns: 170px minmax(0, 340px) !important; justify-content: start; }
+html.editor-v2 #tab-quote-make .zone-main.rf-flow .z2-port .z2-country { grid-column: 1 !important; grid-row: 2 !important; }
+html.editor-v2 #tab-quote-make .zone-main.rf-flow .z2-port > .z2-input { grid-column: 2 !important; grid-row: 2 !important; }
+/* 貿易条件：上の帯を残し、下の「インコタームズ EXW ✎」などの要約は出さない（帯の項目を押すと選び直せる） */
+html.editor-v2 #tab-quote-make #section-cond #cfCrumbs { display: none !important; }
+html.editor-v2 #tab-quote-make #e2Chips2 > span[data-cf] { cursor: pointer; }
+html.editor-v2 #tab-quote-make #e2Chips2 > span[data-cf]::after { content: " ✎"; color: var(--text-sub, #5a6475); font-weight: 400; }
+
+/* --- ③ 貨物：貨物名は全幅・HS コードは左の半分。クリアは見出しの右 --- */
+html.editor-v2 #tab-quote-make #section-cargo #cond-hs { width: auto !important; flex: 0 1 calc(50% - 6px) !important; min-width: 160px; }
+html.editor-v2 #tab-quote-make #section-cargo .ig-clear-row { display: flex; justify-content: flex-end; margin: -4px 0 6px; }
+html.editor-v2 #tab-quote-make #section-cargo .ig-clear-row .btn-cond-clear { min-height: 32px; padding: 0 12px; }
+/* LCL・航空は荷姿（個数・寸法・重さ）を先に出し、コンテナは出さない（FCL はコンテナが先・荷姿は［詳細 ▾］の奥） */
+html.editor-v2 #tab-quote-make #section-volume.ig-pack-first .cond-field--cargo-detail { display: block !important; }
+html.editor-v2 #tab-quote-make #section-volume.ig-pack-first [data-field-id="container-type"],
+html.editor-v2 #tab-quote-make #section-volume.ig-pack-first #e2PackBtn { display: none !important; }
+
+/* --- ⑤ リマーク：定型文 → 文章の欄 → 0文字・クリア（右下）→ 品物別・常時付記・画像 --- */
+html.editor-v2 #tab-quote-make #section-remark #remarkBody { display: flex; flex-direction: column; }
+html.editor-v2 #tab-quote-make #section-remark #remarkBody > * { order: 10; }
+html.editor-v2 #tab-quote-make #section-remark #remarkBody > .section-desc { order: 0; }
+html.editor-v2 #tab-quote-make #section-remark #remarkBody > #remarkTabs { order: 1; }
+html.editor-v2 #tab-quote-make #section-remark #remarkBody > #presetBtns { order: 2; }
+html.editor-v2 #tab-quote-make #section-remark #remarkBody > #remarkTextarea { order: 3; }
+html.editor-v2 #tab-quote-make #section-remark #remarkBody > .remark-actions { order: 4; display: flex; justify-content: flex-end; align-items: center; gap: 10px; flex-direction: row-reverse; margin-top: 4px; }
+html.editor-v2 #tab-quote-make #section-remark #remarkBody > .remark-cargo-row { order: 5; margin-top: 12px; }
+html.editor-v2 #tab-quote-make #section-remark #remarkBody > .remark-fixed-box { order: 6; }
+html.editor-v2 #tab-quote-make #section-remark #remarkBody > .remark-img-section { order: 7; }
+
+/* --- 左右の端：［戻る］［次へ］・⑤の「出力する」を本文の幅（入力欄の左右）にそろえる（④費用は広いまま） --- */
+html.editor-v2 #tab-quote-make:not(.qp-dash):not([data-e2="4"]) #e2Nav,
+html.editor-v2 #tab-quote-make:not(.qp-dash):not([data-e2="4"]) #e2Out { max-width: var(--ig-body-w, 1000px); box-sizing: border-box; }
+
+/* --- スマホは 1 列 --- */
+@media (max-width: 600px) {
+  html.editor-v2 #tab-quote-make #section-ref .ci-layout .ci-grid,
+  html.editor-v2 #tab-quote-make #section-ref .ci-dates .ci-grid { grid-template-columns: 1fr !important; }
+  html.editor-v2 #tab-quote-make #section-ref .ci-layout .ci-grid > .ci-cell { grid-column: 1 !important; grid-row: auto !important; }
+  html.editor-v2 #tab-quote-make #section-ref .ci-layout .ci-grid > .ci-cell.ci-cell-cust { order: 1; }
+  html.editor-v2 #tab-quote-make #section-ref .ci-layout .ci-grid > .ci-cell.ci-cell-person { order: 2; }
+  html.editor-v2 #tab-quote-make #section-ref .ci-layout .ci-grid > .ci-cell.ci-cell-case { order: 3; }
+  html.editor-v2 #tab-quote-make #section-ref .ci-layout .ci-grid > .ci-cell.ci-cell-ref { order: 4; }
+  html.editor-v2 #tab-quote-make #section-ref .ci-layout .ci-grid > .ci-cell.ci-cell-recv { order: 5; }
+  html.editor-v2 #tab-quote-make .zone-main.rf-flow .z2-port { grid-template-columns: minmax(90px, 40%) minmax(0, 1fr) !important; }
+  html.editor-v2 #tab-quote-make #section-cargo #cond-hs { flex: 1 1 100% !important; }
+}
+html.editor-v2 #tab-quote-make #section-ref .ci-memo-btn.ig-in-label { height: 28px !important; min-height: 0 !important; margin-left: 10px; padding: 0 10px; font-size: var(--text-xs, 12px); vertical-align: middle; border-radius: 6px; }
+/* ［戻る］［次へ］は本文（.quote-workspace）の中にあるので、レールの分の左余白は要らない（二重にずれて［戻る］が右に寄っていた） */
+html.editor-v2 #tab-quote-make:not(.qp-dash) .quote-workspace #e2Nav { margin-left: 0 !important; }
