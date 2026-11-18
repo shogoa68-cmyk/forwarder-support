@@ -4815,6 +4815,9 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make #cmdInput {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
 }
+:where(html.theme-industry) #tab-quote-make #cmdList {
+  max-height: 340px;
+}
 :where(html.theme-industry) #tab-quote-make #emailImportBox {
   border-radius: 0;
 }
@@ -10625,4 +10628,7 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make .pv-warn-guide {
   z-index: 9200;
+}
+:where(html.theme-industry) #tab-quote-make #cmdList {
+  max-height: max(120px, min(340px, calc(100vh - 240px)));
 }

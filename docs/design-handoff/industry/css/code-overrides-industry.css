@@ -373,3 +373,6 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 
 /* 入力確認ガイド（#pvWarnGuide）は付箋（z-index 9100）より上に出す。Design の元の値（1200）だと付箋に隠れて「このまま出力」を押せない */
 #tab-quote-make .pv-warn-guide { z-index: 9200; }
+
+/* Ctrl+K の一覧は背の低い画面で下が切れないよう、画面の高さに合わせて縮める（Design の元の値は 340px 固定） */
+#tab-quote-make #cmdList { max-height: max(120px, min(340px, calc(100vh - 240px))); }
