@@ -38,6 +38,23 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => { const r = document.querySelector('#tableBody tr:not([data-virtual]) [data-field="nm"]'); r.value = '海上運賃'; r.dispatchEvent(new Event('input', { bubbles: true })); r.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(500);
   ok('② 品名が入ると ✓ になり、要約に行数が出る', (await mark(4)) === '✓' && /1行/.test(await p.textContent('#e2Head')), [await mark(4), await p.textContent('#e2Head')]);
 
+  // ④ ［次へ］は、本文が長くても常に画面内（合計バーの上）に出る
+  const nextInView = () => p.evaluate(() => { const n = document.getElementById('e2Next').getBoundingClientRect(), t = document.getElementById('e2Total').getBoundingClientRect(); return { top: Math.round(n.top), bottom: Math.round(n.bottom), totTop: Math.round(t.top), vh: innerHeight, ok: n.top >= 0 && n.bottom <= t.top + 1 }; });
+  for (const st of [1, 2, 3, 4]) {
+    await p.evaluate(n => document.querySelector('#e2Steps [data-e2s="' + n + '"]').click(), st); await p.waitForTimeout(500);
+    await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(200);
+    const r = await nextInView();
+    ok('④ ステップ' + st + '：スクロールしなくても［次へ］が画面内（合計バーに隠れない）', r.ok, r);
+  }
+  // ⑤ 合計バーの「数量登録」「パターン登録」は、物量・費用（③④）だけに出す
+  const qBtns = () => p.evaluate(() => ['[data-e2q]', '[data-e2p]'].map(s => { const e = document.querySelector('#e2Total ' + s); return !!e && getComputedStyle(e).display !== 'none' && e.offsetWidth > 0; }));
+  for (const [st, want] of [[1, false], [2, false], [3, true], [4, true], [5, false]]) {
+    await p.evaluate(n => document.querySelector('#e2Steps [data-e2s="' + n + '"]').click(), st); await p.waitForTimeout(400);
+    const v = await qBtns();
+    ok('⑤ ステップ' + st + '：「数量登録」「パターン登録」は' + (want ? '出る' : '出ない'), v[0] === want && v[1] === want, v);
+  }
+  ok('⑤ 「費用の内訳」「参考」はどのステップでも出る', await p.evaluate(() => ['[data-e2d="digest"]', '[data-e2d="ref"]'].every(s => { const e = document.querySelector('#e2Total ' + s); return !!e && e.offsetWidth > 0; })));
+
   // ③ 最後のステップの［次へ］はプレビューへ
   await p.click('#e2Steps [data-e2s="5"]'); await p.waitForTimeout(500);
   const nx = await p.evaluate(() => { const n = document.getElementById('e2Next'); return { dis: n.disabled, text: n.textContent.trim() }; });

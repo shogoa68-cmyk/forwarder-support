@@ -235,3 +235,15 @@ html.editor-v2 #e2PvMenu .qad-pdf { display: flex !important; width: 100%; min-h
   html.editor-v2 #quoteActionDock #qadMode { flex: 1 1 0; min-height: 44px; }
   html.editor-v2 #quoteActionDock #e2PvMenu:not([hidden]) { bottom: 60px; left: 10px; }
 }
+
+/* ===== 入力の流れの整理（2026-11・レビュー指摘） ===== */
+/* ① ［戻る］［次へ］は、本文の末尾が画面の下に隠れていても、合計バーのすぐ上に付いてくる（ステップ2・4 では画面外／合計バーの裏に隠れていた）。
+      本文の末尾に着いたときは、従来の位置（本文の下）に収まる。ボタンの外側は押せるまま（pointer-events）。 */
+html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Nav { position: sticky; bottom: 64px; z-index: 41; padding: 10px 0 6px; pointer-events: none;
+  background: linear-gradient(to top, var(--bg, #f2f4f7) 72%, rgba(242,244,247,0)); }
+html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Nav button { pointer-events: auto; }
+@media (max-width: 600px) { html.editor-v2 #tab-quote-make:not(.qp-dash) #e2Nav { bottom: 112px; } }   /* 合計バー（48px）＋下の固定ドック（56px）の上 */
+/* ② 合計バーの「数量登録」「パターン登録」は、物量・費用を入れるステップ（③④）だけに出す（①基本・②ルート・⑤リマークでは使わない） */
+html.editor-v2 #tab-quote-make[data-e2="1"] #e2Total .e2t-btns button[data-e2q], html.editor-v2 #tab-quote-make[data-e2="1"] #e2Total .e2t-btns button[data-e2p],
+html.editor-v2 #tab-quote-make[data-e2="2"] #e2Total .e2t-btns button[data-e2q], html.editor-v2 #tab-quote-make[data-e2="2"] #e2Total .e2t-btns button[data-e2p],
+html.editor-v2 #tab-quote-make[data-e2="5"] #e2Total .e2t-btns button[data-e2q], html.editor-v2 #tab-quote-make[data-e2="5"] #e2Total .e2t-btns button[data-e2p] { display: none !important; }
