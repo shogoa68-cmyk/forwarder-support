@@ -140,7 +140,7 @@ html.editor-v2 #e2Steps button.is-warn i::after { content: "!"; background: #b45
 /*      (c) 右のレール（費用／金額／サブコン／チャージ…）は、広い画面（1500px 以上）では閉じている間も縦の帯として常時表示。
             そのぶん下の合計バーの［数量登録］［費用の内訳］［参考］は出さない */
 @media (min-width: 1500px) {
-  html.editor-v2 body:not(.e2-drawer) #tab-quote-make:not(.qp-dash) .quote-right-col--rail { display: flex !important; width: auto; max-width: none; animation: none; box-shadow: none; padding: 8px 6px; }
+  html.editor-v2 body:not(.e2-drawer) #tab-quote-make:not(.qp-dash) .quote-right-col--rail { display: flex !important; width: auto; max-width: none; animation: none; box-shadow: none; padding: 8px 6px; top: 224px; }   /* 上のツールバー（保存・PDF）に重ならない位置から */
   html.editor-v2 #e2Total .e2t-btns button[data-e2q], html.editor-v2 #e2Total .e2t-btns button[data-e2d] { display: none; }
 }
 /*      (d) ⑤の「出力する」枠の［📁 一時ファイル］（見積に添える資料の置き場。出力と近い場所へ） */

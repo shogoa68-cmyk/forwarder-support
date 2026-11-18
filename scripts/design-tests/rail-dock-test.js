@@ -48,6 +48,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
   if (wide && W >= 1500) {
     ok('1500px 以上では、右のレールが閉じていても縦の帯として出ている', await q(() => { const r = document.querySelector('#tab-quote-make .quote-right-col--rail'); return !!r && r.getBoundingClientRect().width > 40 && getComputedStyle(r).display !== 'none'; }));
     ok('その広い画面では、合計バーの［数量登録］［費用の内訳］［参考］は出さない', btns.length === 0, btns);
+    ok('右のレールは上のツールバー（保存・PDF）に重ならない', await q(() => { const r = document.querySelector('#tab-quote-make .quote-right-col--rail').getBoundingClientRect(), t = document.getElementById('saveToolbar').getBoundingClientRect(); return r.top >= t.bottom - 1; }));
+    ok('最初は右の引き出しは閉じている（本文に重ならない）', await q(() => { const d = document.getElementById('qrcDrawer'); return !d || getComputedStyle(d).display === 'none'; }));
     await p.evaluate(() => document.querySelector('#qrcRail .qrc-rail-btn[data-mod="digest"]').click()); await p.waitForTimeout(500);
     ok('右のレールのボタンを押すと、引き出しが開く', await q(() => { const d = document.getElementById('qrcDrawer'); return d && getComputedStyle(d).display !== 'none' && d.getBoundingClientRect().width > 200; }));
   } else {

@@ -15,6 +15,13 @@
   const wideRail = () => !!(window.matchMedia && window.matchMedia('(min-width: 1400px)').matches) && !(window.matchMedia && window.matchMedia('(max-width: 600px)').matches);
   const railPref = () => { try { return localStorage.getItem('fwd.e2Rail'); } catch (e) { return null; } };
   const isDock = () => railOpen && wideRail();
+  // 右レールを常時表示する広い画面（1500px 以上）では、最初は引き出しを閉じた状態で始める（右レールの既定は「費用」を開いた状態で、本文に重なるため）。1 回だけ
+  let rrClosed = false;
+  const closeRightOnce = () => {
+    if (rrClosed || !window.matchMedia || !window.matchMedia('(min-width: 1500px)').matches || document.body.classList.contains('e2-drawer')) return;
+    const on = document.querySelector('#qrcRail .qrc-rail-btn.is-on'), rail = document.getElementById('qrcRail'); if (!rail) return;
+    rrClosed = true; if (on) on.click();
+  };
   const visited = {};   // 開いたことのあるステップ（必須が欠けた「!」の印はここだけに出す＝順番は強制しない）
 
   const isOn = () => root.classList.contains('editor-v2');
@@ -220,7 +227,7 @@
   }
   function refresh() {
     if (!isOn() || !built) return;
-    refreshBasics(); refreshTitle(); tagRows(); buildChips(); refreshChips();
+    closeRightOnce(); refreshBasics(); refreshTitle(); tagRows(); buildChips(); refreshChips();
     const s = summaries(), box = $('e2Steps'); if (!box) return;
     const REQ = { 1: 1, 2: 1, 4: 1 };   // 印は選択中でも 3 種のまま（選択中は印でなく行の線・背景で示す）
     const toggle = '<button type="button" class="e2-rail-toggle" aria-expanded="' + railOpen + '" title="' + (railOpen ? 'ステップをしまう（[ キー）' : 'ステップを開く（[ キー）') + '"><i>' + (railOpen ? '«' : '»') + '</i><b>しまう</b></button>';
