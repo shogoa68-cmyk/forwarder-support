@@ -313,9 +313,10 @@ body:has(#previewOverlay.open) #qfMemoFloat, body:has(#previewOverlay.open) .qf-
 }
 #tab-quote-make #srcAddBox .qf-attach-drop:hover { background: var(--accent-lt); border-color: #b8a98f; }
 #tab-quote-make #srcAddBox .qf-attach-drop.is-drag { background: #eef4e6; border-color: var(--green-leaf); }
-#tab-quote-make #srcAddBox .qf-attach-drop.is-disabled { opacity: .55; }
+/* 無効（未ログイン）でも案内の文字が読めるよう、全体を薄くせず背景とカーソルだけで無効を示す（opacity .55 だと 1.9:1 になった） */
+#tab-quote-make #srcAddBox .qf-attach-drop.is-disabled { background: var(--bg, #f2f2f2); cursor: not-allowed; }
 #tab-quote-make .qf-attach-hint { font-size: var(--fs-12); color: var(--text-muted); line-height: 1.7; }
-#tab-quote-make .qf-attach-hint small { color: var(--c-9a8a70); }
+#tab-quote-make .qf-attach-hint small { color: var(--text-muted); }
 #tab-quote-make .src-drop-ic { display: block; font-size: 22px; line-height: 1; margin-bottom: 8px; color: var(--text-muted); }
 #tab-quote-make .src-note { margin: 10px 4px 0; font-size: var(--fs-11-5); color: #8a5a00; background: #fff6e0; border-radius: var(--r-6); padding: 6px 10px; }
 #tab-quote-make .src-note[hidden] { display: none; }
@@ -1753,7 +1754,7 @@ body:has(#previewOverlay.open) #qfMemoFloat, body:has(#previewOverlay.open) .qf-
   border: 1.5px solid #e6a817;
   border-radius: var(--r-10);
   box-shadow: 0 6px 28px rgba(0,0,0,0.20);
-  z-index: 1200;
+  z-index: 9200;   /* 付箋（9100）に隠れて「このまま出力」を押せなくならないよう、付箋より上 */
   font-size: var(--fs-13);
 }
 #tab-quote-make .pv-wg-header {
@@ -1776,7 +1777,7 @@ body:has(#previewOverlay.open) #qfMemoFloat, body:has(#previewOverlay.open) .qf-
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--gray-lt);
+  color: #666;
   font-size: var(--fs-14);
   padding: var(--sp-2) var(--sp-4);
   line-height: 1;
@@ -1823,7 +1824,7 @@ body:has(#previewOverlay.open) #qfMemoFloat, body:has(#previewOverlay.open) .qf-
 }
 #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num {
   background: #e6a817;
-  color: var(--surface);
+  color: #3d2700; /* 白文字は琥珀色の上でコントラスト不足（2.1:1）だった */
 }
 #tab-quote-make .pv-wg-footer {
   display: flex;
@@ -1843,7 +1844,7 @@ body:has(#previewOverlay.open) #qfMemoFloat, body:has(#previewOverlay.open) .qf-
   cursor: pointer;
   transition: background 0.12s;
 }
-#tab-quote-make .pv-wg-btn-next { background: #e6a817; color: var(--surface); }
+#tab-quote-make .pv-wg-btn-next { background: #e6a817; color: #3d2700; }
 #tab-quote-make .pv-wg-btn-next:hover { background: #c77b00; }
 #tab-quote-make .pv-wg-btn-skip { background: var(--bg); color: #555; }
 #tab-quote-make .pv-wg-btn-skip:hover { background: #ddd8d0; }
@@ -2480,7 +2481,7 @@ body:has(#previewOverlay.open) #qfMemoFloat, body:has(#previewOverlay.open) .qf-
 #tab-quote-make .cargo-detail-table .cd-stack { width: 62px; }
 #tab-quote-make .cargo-detail-table .cd-del { width: 30px; }
 #tab-quote-make .cargo-detail-table .cargo-detail-empty td {
-  color: #b0a085;
+  color: #7a6a4f;
   font-size: var(--fs-11);
   padding: var(--sp-10) var(--sp-6);
   background: var(--surface);
@@ -5534,7 +5535,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   background: var(--accent-lt);
 }
 #tab-quote-make #cmdInput::placeholder { color: var(--border); }
-#tab-quote-make #cmdList { max-height: 340px; overflow-y: auto; padding: var(--sp-6) 0; }
+#tab-quote-make #cmdList { max-height: max(120px, min(340px, calc(100vh - 240px))); overflow-y: auto;   /* 背の低い画面（横向きのスマホ等）で下が切れないように */ padding: var(--sp-6) 0; }
 #tab-quote-make .cmd-item {
   display: flex;
   align-items: center;
@@ -9628,9 +9629,9 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 .um-tab.is-active { color: var(--accent-dk); border-bottom-color: var(--accent); }
 
 .um-pane { flex: 1 1 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-.um-toolbar { display: flex; align-items: center; gap: var(--sp-8); padding: var(--sp-10) var(--sp-16); border-bottom: 1px solid var(--accent-lt); background: var(--card-bg); flex-shrink: 0; }
-.um-search { flex: 1; border: 1px solid var(--border); border-radius: var(--r-6); padding: var(--sp-6) var(--sp-11); font-size: var(--fs-12-5); font-family: inherit; background: var(--surface); }
-.um-filter { font-size: var(--fs-12); padding: var(--sp-6) var(--sp-9); border: 1px solid var(--border); border-radius: var(--r-6); background: var(--surface); color: var(--brown-25); font-family: inherit; cursor: pointer; }
+.um-toolbar { display: flex; align-items: center; gap: var(--sp-8); padding: var(--sp-10) var(--sp-16); border-bottom: 1px solid var(--accent-lt); background: var(--card-bg); flex-shrink: 0; flex-wrap: wrap; }
+.um-search { flex: 1 1 160px; min-width: 0; border: 1px solid var(--border); border-radius: var(--r-6); padding: var(--sp-6) var(--sp-11); font-size: var(--fs-12-5); font-family: inherit; background: var(--surface); }
+.um-filter { max-width: 100%; font-size: var(--fs-12); padding: var(--sp-6) var(--sp-9); border: 1px solid var(--border); border-radius: var(--r-6); background: var(--surface); color: var(--brown-25); font-family: inherit; cursor: pointer; }
 .um-invite-btn { flex-shrink: 0; white-space: nowrap; background: var(--accent); color: var(--surface); border: none; border-radius: var(--r-6); padding: var(--sp-7) 13px; font-size: var(--fs-12-5); font-weight: 600; font-family: inherit; cursor: pointer; }
 .um-invite-btn:hover { background: var(--c-5a4a35); }
 
@@ -12528,6 +12529,16 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make #importChooser .ic-opt b { display: block; font-size: var(--text-base, 14px); }
 #tab-quote-make #importChooser .ic-opt small { display: block; margin-top: 2px; font-size: var(--text-xs, 12px); color: var(--text-md); line-height: 1.5; }
 
+/* 狭い画面で「ゾーン構成から見積もり行を生成」の見出しがボタンに押されて 1 文字幅に潰れるのを防ぐ（折り返す） */
+@media (max-width: 600px) {
+  #tab-quote-make .zone-preset-section { flex-wrap: wrap; }
+  #tab-quote-make .zone-preset-section-head { flex: 1 1 100%; }
+}
+
+/* 狭い画面では「⋯」のポップアップが左へ切れるので、画面の内側に固定して広げる（⚙ と同じ） */
+@media (max-width: 700px) {
+  #tab-quote-make .cmdbar-more-pop { position: fixed; top: 124px; left: 8px !important; right: 8px !important; width: auto; max-width: none; max-height: calc(100vh - 140px); overflow-y: auto; }
+}
 /* ✅❌ 確認画面の行の評価（サブコン専用の取込） */
 #tab-quote-make .ei-rate-cell { white-space: nowrap; }
 #tab-quote-make .ei-rate-btn { padding: 2px 8px; margin-right: 4px; min-height: 28px; border: 1px solid var(--border-md, #d0d7de); border-radius: 6px; background: #fff; cursor: pointer; font-size: var(--text-sm, 13px); opacity: .55; }

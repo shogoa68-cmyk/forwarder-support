@@ -93,7 +93,7 @@
   }
 
   // ---- 絞り込み（F3）：チップは元の select と同じ値を入れるだけ ----
-  function setMore(open) { const m = $('dtFilterMore'); if (!m) return; m.hidden = !open; const a = $('dtFilterMoreArw'); if (a) a.textContent = open ? '▴' : '▾'; }
+  function setMore(open) { const m = $('dtFilterMore'); if (!m) return; m.hidden = !open; fitPop($('dtFilterPop')); const a = $('dtFilterMoreArw'); if (a) a.textContent = open ? '▴' : '▾'; }
   function chipsHtml(items, cur, kind) {
     return items.map(it => '<button type="button" class="dt-fchip" data-dt-fchip="' + kind + '" data-v="' + esc(it.v) + '" aria-pressed="' + (cur === it.v) + '">' + esc(it.t) + '</button>').join('');
   }
@@ -131,11 +131,20 @@
     });
     if (!except) { openId = ''; document.body.classList.remove('dt-sheet-open'); }
   }
+  // 右の道具のパネルが画面の右へはみ出すとき（1100px 前後）は、ボタンの右端にそろえて内側へ開く
+  function fitPop(p) {
+    if (!p || p.hidden || p.id === 'dtMorePop') return;
+    p.classList.remove('dt-pop-right');
+    if (window.matchMedia('(max-width:600px)').matches) return;
+    const r = p.getBoundingClientRect(), vw = document.documentElement.clientWidth;
+    if (r.right > vw - 8) p.classList.add('dt-pop-right');
+  }
   function toggle(key) {
     const b = $(POPS[key][0]), p = $(POPS[key][1]); if (!b || !p) return;
     const open = p.hidden; closeAll(open ? key : null);
     p.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); openId = open ? key : '';
     document.body.classList.toggle('dt-sheet-open', open && /Tag|Filter|View|ChipMore/.test(key) && window.matchMedia('(max-width:600px)').matches);
+    if (open) fitPop(p);
     if (open && key === 'dtTag') { renderTagPop(); const i = $('dtTagSearch'); if (i && !window.matchMedia('(pointer:coarse)').matches) i.focus(); }
   }
   function wire() {

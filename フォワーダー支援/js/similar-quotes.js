@@ -247,15 +247,17 @@ async function sqDoLinkSearch() {
   const loadedId = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
   if (!loadedId) { box.innerHTML = '<div class="sq-empty-msg">先に案件を保存・読み込みしてください</div>'; return; }
 
+  // 検索語に「,」「(」「)」が入っていても or() の区切りと混ざらないよう、二重引用符で包む（"ABC, Inc" で検索が空になる不具合）
+  const qq = '"%' + q.replace(/[\\"]/g, '\\$&') + '%"';
   let { data, error } = await db.from('quote_presets')
     .select('id,name,ref,status,customer,updated_at')
-    .or(`name.ilike.%${q}%,customer.ilike.%${q}%,ref.ilike.%${q}%`)
+    .or(`name.ilike.${qq},customer.ilike.${qq},ref.ilike.${qq}`)
     .order('updated_at', { ascending: false })
     .limit(8);
   if (error && _sqIsMissingRefColumn(error)) {
     ({ data, error } = await db.from('quote_presets')
       .select('id,name,status,customer,updated_at')
-      .or(`name.ilike.%${q}%,customer.ilike.%${q}%`)
+      .or(`name.ilike.${qq},customer.ilike.${qq}`)
       .order('updated_at', { ascending: false })
       .limit(8));
   }

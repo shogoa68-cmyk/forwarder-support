@@ -38,7 +38,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
           then(res, rej) { return Promise.resolve(run()).then(res, rej); } }; return api; };
       const store = {};
       const storage = { from: bucket => ({
-        upload: (p, file) => { store[p] = file; (window.__sizes || (window.__sizes = {}))[p] = file.size; return Promise.resolve({ data: { path: p }, error: null }); },
+        upload: (p, file) => { if (window.__failUp) return Promise.resolve({ data: null, error: { message: window.__failUp } }); store[p] = file; (window.__sizes || (window.__sizes = {}))[p] = file.size; return Promise.resolve({ data: { path: p }, error: null }); },
         remove: ps => { window.__removed.push(...ps); ps.forEach(p => delete store[p]); return Promise.resolve({ data: [], error: null }); },
         createSignedUrl: (p, s, opt) => Promise.resolve({ data: { signedUrl: location.origin + '/__signed/' + encodeURIComponent(p) + (opt && opt.download ? '?download=' + encodeURIComponent(opt.download) : '') }, error: null }),
         createSignedUrls: (ps) => Promise.resolve({ data: ps.map(p => ({ path: p, signedUrl: location.origin + '/__signed/' + encodeURIComponent(p) })), error: null }) }) };
@@ -62,18 +62,18 @@ const http = require('http'), fs = require('fs'), path = require('path');
   let { ctx, p, errs } = await open('ok');
   await p.evaluate(() => { try { window.cloudLoadPreset('1'); } catch (e) {} }); await p.waitForTimeout(2500);
   if (v2) { await p.evaluate(() => { const b = document.getElementById('qadMode'); b && b.click(); }); await p.waitForTimeout(600); }
-  if (v2) {   // 新画面：取っ手は閉じている間は出さず、合計バーの［📁 一時ファイル］から開く
-    ok('[新画面] 閉じている間は取っ手バーを出さない（下の固定物を減らす）', !(await vis(p, '#rmSheet')));
-    ok('[新画面] 合計バーに［一時ファイル］のボタンがある', await vis(p, '#e2Total [data-e2f]'));
-    await p.evaluate(() => document.querySelector('#e2Total [data-e2f]').click()); await p.waitForTimeout(500);
-  }
   ok('引き出しの取っ手に「📁 一時ファイル」のタブがある', await vis(p, '#rmSheet .rms-tab[data-pane="files"]'));
   ok(v2 ? '[新画面] リマークのタブは出ず、一時ファイルだけ' : '「📝 全体リマーク」のタブも残っている', v2 ? !(await vis(p, '#rmSheet .rms-tab[data-pane="remark"]')) : await vis(p, '#rmSheet .rms-tab[data-pane="remark"]'));
   if (v2) {
     const g = await p.evaluate(() => { const s = document.getElementById('rmSheet').getBoundingClientRect(), t = document.getElementById('e2Total').getBoundingClientRect(); return { sb: Math.round(s.bottom), tt: Math.round(t.top) }; });
     ok('[新画面] 取っ手は下の合計バーの上に置かれ、重ならない', g.sb <= g.tt + 1, g);
   }
-  if (!v2) { await p.click('#rmSheet .rms-tab[data-pane="files"]'); } await p.waitForTimeout(500); if (process.env.DBG) { console.log(JSON.stringify(await p.evaluate(() => ({open: window.rmsIsOpen(), pane: window.rmsPane(), h: document.getElementById('rmsBody').getBoundingClientRect().height, tf: document.getElementById('tfPane').getBoundingClientRect().toJSON(), hid: document.getElementById('tfPane').hidden, disp: getComputedStyle(document.getElementById('tfPane')).display})))); await p.screenshot({path:'/tmp/claude-0/tf/dbg.png'}); }
+  // タブでなく取っ手の本体（余白）を押して開いても、中身が空にならない（新画面では、リマークが本文へ移っているのにペインが「リマーク」のままだと空白になっていた）
+  await p.evaluate(() => { window.rmsClose(); }); await p.waitForTimeout(400);
+  await p.evaluate(() => { const h = document.getElementById('rmsHandle'); h.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 5, clientY: 5, pointerId: 7, button: 0 })); h.click(); }); await p.waitForTimeout(500);
+  if (v2) ok('[新画面] 取っ手の本体を押して開いても、一時ファイルの画面が出る（空白にならない）', await p.evaluate(() => window.rmsIsOpen()) && await vis(p, '#tfPane .tf-toolbar'));
+  await p.evaluate(() => { window.rmsClose(); }); await p.waitForTimeout(300);
+  await p.click('#rmSheet .rms-tab[data-pane="files"]'); await p.waitForTimeout(500); if (process.env.DBG) { console.log(JSON.stringify(await p.evaluate(() => ({open: window.rmsIsOpen(), pane: window.rmsPane(), h: document.getElementById('rmsBody').getBoundingClientRect().height, tf: document.getElementById('tfPane').getBoundingClientRect().toJSON(), hid: document.getElementById('tfPane').hidden, disp: getComputedStyle(document.getElementById('tfPane')).display})))); await p.screenshot({path:'/tmp/claude-0/tf/dbg.png'}); }
   ok('タブを押すと引き出しが開き、一時ファイルの画面になる', await p.evaluate(() => window.rmsIsOpen() && window.rmsPane() === 'files') && await vis(p, '#tfPane .tf-toolbar'));
   ok('リマーク側は隠れ、一時ファイルの画面だけが出る', !(await vis(p, '#remarkTextarea')));
   ok('空のときは案内（ドラッグ＆ドロップ・3 時間）を出す', /3 時間/.test(await p.evaluate(() => document.getElementById('tfMain').textContent)) && /空/.test(await p.evaluate(() => document.getElementById('tfMain').textContent)));
@@ -191,6 +191,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('取っ手の（タブ以外の）クリックで閉じる', await p.evaluate(() => !window.rmsIsOpen()));
     ok('閉じていても件数のバッジは見える', await vis(p, '#tfTabN'));
   }
+
+  // うまく置けないとき：理由が画面に残り、「原因を調べる」で止まった段階が分かる
+  await p.evaluate(() => window.rmsShowFiles()); await p.waitForTimeout(400);
+  await p.evaluate(() => { window.__failUp = 'new row violates row-level security policy'; });
+  await p.setInputFiles('#tfInput', [{ name: 'x.pdf', mimeType: 'application/pdf', buffer: Buffer.from('hello') }]); await p.waitForTimeout(500);
+  ok('置けなかった理由が画面に残る（吹き出しが消えても）', await vis(p, '#tfBanner') && /row-level security/.test(await p.textContent('#tfBanner')));
+  await p.click('#tfBanner [data-bn="diag"]'); await p.waitForTimeout(700);
+  const dg = await p.textContent('#tfBanner');
+  ok('診断：① 表は読めて ② 保存領域へ置く段階で止まると示す', /✓ ① 一覧の表を読む/.test(dg) && /✕ ② 保存領域へファイルを置く：new row violates row-level/.test(dg) && !/③/.test(dg), dg);
+  await p.evaluate(() => { window.__failUp = ''; });
+  await p.click('#tfBanner [data-bn="diag"]'); await p.waitForTimeout(900);
+  ok('診断：すべて通ると ①〜⑥ が ✓', (await p.textContent('#tfBanner')).match(/✓/g).length === 6, await p.textContent('#tfBanner'));
+  ok('診断の試験ファイルは残らない（行・実体とも）', (await rows()).every(r => !/diag/.test(r.nm)));
+  await p.click('#tfBanner [data-bn="close"]'); await p.waitForTimeout(200);
+  ok('「閉じる」で表示が消える', !(await vis(p, '#tfBanner')));
 
   // 案件が変わったら読み直す／保存前
   await p.evaluate(() => { window.cloudLoadedId = () => null; }); await p.waitForTimeout(1600);

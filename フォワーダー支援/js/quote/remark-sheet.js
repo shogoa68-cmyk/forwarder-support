@@ -97,6 +97,8 @@
     if (open) markSeen();
     if (open && h) storedH = clamp(h, MIN_OPEN, maxH());
     sheet.dataset.open = open ? '1' : '0';
+    // 新画面ではリマークが本文（⑤）へ移るため、「リマーク」のまま開くと中身が空になる＝一時ファイルへ切り替える
+    if (open && pane === 'remark' && !remarkHere()) showPane('files');
     if (open && pane === 'files' && typeof window.tfOnShow === 'function') window.tfOnShow(true);
     handle.setAttribute('aria-expanded', open ? 'true' : 'false');
     body.hidden = false;

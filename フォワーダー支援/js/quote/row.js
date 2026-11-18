@@ -2183,6 +2183,7 @@
       }
       _updateBpBaseHint(id);
       calc(id);
+      _recalcPctDependents(id);   // この行を基準にした % 行は、売通貨が変わると換算も変わる
     }
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
@@ -2621,7 +2622,11 @@
     if (res.ok) {
       const ppEl = document.getElementById(`pp-${id}`);
       if (ppEl) ppEl.value = res.cost;
-      if (res.m > 0) { const mkEl = document.getElementById(`mk-${id}`); if (mkEl) mkEl.value = res.margin; }   // マージン方式：乗せ幅も自動
+      { const mkEl = document.getElementById(`mk-${id}`);
+        if (mkEl) {
+          if (res.m > 0) mkEl.value = res.margin;   // マージン方式：乗せ幅も自動
+          else if (mkEl.dataset.insLocked === '1') mkEl.value = 0;   // マージン率を 0 に戻した：自動で入れていた乗せ幅も外す（仕入＝保険料に戻るのに、前の乗せ幅が残って売が膨らむのを防ぐ）
+        } }
       onPay(id);     // calc → syncInsUi（説明を更新）
     } else {
       syncInsUi(id);

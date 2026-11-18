@@ -1713,6 +1713,7 @@ function _svBmPopClose() {
   document.removeEventListener('mousedown', _svBmPopOutside, true);
 }
 function _svBmPopOutside(e) { if (_svBmPop && !_svBmPop.contains(e.target)) _svBmPopClose(); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && _svBmPop) _svBmPopClose(); });   // Esc でも閉じる
 window.bmHideForCarrier = _svBmPopClose;
 window.bmShowForCarrier = async function (name, ev) {
   if (ev && typeof ev.stopPropagation === 'function') ev.stopPropagation();
