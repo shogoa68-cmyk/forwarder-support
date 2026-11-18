@@ -176,6 +176,8 @@
 .qf-memo-float[hidden] { display: none; }
 /* 付箋は見積タブ直下に置く（js/quote/conditions.js _initMemoFloat）。ダッシュボードでは出さない */
 #tab-quote-make.qp-dash > #qfMemoFloat { display: none !important; }
+/* プレビュー（御見積書の表示）では出さない＝付箋はステップ①〜⑤の入力画面だけ */
+body:has(#previewOverlay.open) #qfMemoFloat, body:has(#previewOverlay.open) .qf-memo-fab { display: none !important; }
 .qf-memo-float-head {
   display: flex; align-items: center; gap: var(--sp-5);
   padding: var(--sp-6) var(--sp-8);

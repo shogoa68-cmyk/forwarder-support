@@ -33,6 +33,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('[旧画面] 管理番号入力を畳んでも付箋は出たまま', await vis('#qfMemoFloat'));
   }
   ok('付箋に書いた内容が #qf-memo（保存される欄）へ反映される', (await p.inputValue('#qf-memo')).startsWith('案件名テスト'));
+  await p.evaluate(() => document.getElementById('previewOverlay').classList.add('open')); await p.waitForTimeout(300);
+  ok('プレビュー表示中は付箋が出ない', !(await vis('#qfMemoFloat')));
+  await p.evaluate(() => document.getElementById('previewOverlay').classList.remove('open')); await p.waitForTimeout(300);
+  ok('プレビューを閉じると付箋が戻る', await vis('#qfMemoFloat'));
   await p.evaluate(() => window.qpShowDashboard && window.qpShowDashboard()); await p.waitForTimeout(1200);
   ok('ダッシュボードでは出ない', !(await vis('#qfMemoFloat')));
   await p.evaluate(() => { const t = document.querySelector('[onclick*="bookmark"]'); t && t.click(); }); await p.waitForTimeout(500);
