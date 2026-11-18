@@ -12523,3 +12523,15 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make #importChooser .ic-ico { font-size: 24px; }
 #tab-quote-make #importChooser .ic-opt b { display: block; font-size: var(--text-base, 14px); }
 #tab-quote-make #importChooser .ic-opt small { display: block; margin-top: 2px; font-size: var(--text-xs, 12px); color: var(--text-md); line-height: 1.5; }
+
+/* ✅❌ 確認画面の行の評価（サブコン専用の取込） */
+#tab-quote-make .ei-rate-cell { white-space: nowrap; }
+#tab-quote-make .ei-rate-btn { padding: 2px 8px; margin-right: 4px; min-height: 28px; border: 1px solid var(--border-md, #d0d7de); border-radius: 6px; background: #fff; cursor: pointer; font-size: var(--text-sm, 13px); opacity: .55; }
+#tab-quote-make .ei-rate-btn:hover { opacity: 1; }
+#tab-quote-make .ei-rate-btn.on { opacity: 1; border-color: #2f8f83; background: #e6f5f1; }
+#tab-quote-make .ei-rate-btn[data-k="ng"].on { border-color: #c2410c; background: #fdebd3; }
+#tab-quote-make tr.ei-rate-ngrow td { opacity: .5; }
+#tab-quote-make tr.ei-rate-ngrow td.ei-rate-cell { opacity: 1; }
+#tab-quote-make .ei-ign-btn { margin-left: 8px; padding: 2px 8px; border: 1px solid #d4a72c; border-radius: 6px; background: #fff; color: #7d4e00; cursor: pointer; font-size: var(--text-xs, 12px); }
+#tab-quote-make .ei-ignored { margin: 8px 0; padding: 8px 12px; border: 1px solid var(--border, #d0d7de); border-radius: 8px; background: var(--card-bg, #fff); font-size: var(--text-xs, 12px); color: var(--text-muted, #57606a); }
+#tab-quote-make .ei-ignored ul { margin: 6px 0 0; padding-left: 18px; }
