@@ -46,3 +46,11 @@ html.editor-v2 #e2Total [data-e2d].is-open, html.editor-v2 #e2Total [data-e2q].i
 @container (min-width: 400px) {
   #tab-quote-make .fl-grid { grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr); }
 }
+
+/* ---- Quiet テーマ：文字と背景のコントラスト 4.5:1 未満だった所を濃くする（2026-11 の点検で見つかった分） ---- */
+html.theme-quiet #tab-quote-make .qf-status-btn,
+html.theme-quiet #tab-quote-make .ci-status-more-btn { color: #5a6475; }
+html.theme-quiet #tab-quote-make .qrc-close,
+html.theme-quiet #tab-quote-make .qrc-rail-btn em { color: #6b5a43; }
+html.theme-quiet .qsp-dig-sum { color: #4f5a6d !important; }
+html.theme-quiet #rmSheet .rms-empty { color: #4f5a6d !important; }
