@@ -2608,6 +2608,9 @@ html.theme-industry {
   font-size: var(--fs-11-5);
   line-height: 1.5;
 }
+:where(html.theme-industry) #tab-quote-make .qf-attach-hint small {
+  color: var(--c-9a8a70);
+}
 :where(html.theme-industry) #tab-quote-make .qf-meter-bar {
   border-radius: 0;
 }

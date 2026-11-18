@@ -309,9 +309,10 @@
 }
 #tab-quote-make #srcAddBox .qf-attach-drop:hover { background: var(--accent-lt); border-color: #b8a98f; }
 #tab-quote-make #srcAddBox .qf-attach-drop.is-drag { background: #eef4e6; border-color: var(--green-leaf); }
-#tab-quote-make #srcAddBox .qf-attach-drop.is-disabled { opacity: .55; }
+/* 無効（未ログイン）でも案内の文字が読めるよう、全体を薄くせず背景とカーソルだけで無効を示す（opacity .55 だと 1.9:1 になった） */
+#tab-quote-make #srcAddBox .qf-attach-drop.is-disabled { background: var(--bg, #f2f2f2); cursor: not-allowed; }
 #tab-quote-make .qf-attach-hint { font-size: var(--fs-12); color: var(--text-muted); line-height: 1.7; }
-#tab-quote-make .qf-attach-hint small { color: var(--c-9a8a70); }
+#tab-quote-make .qf-attach-hint small { color: var(--text-muted); }
 #tab-quote-make .src-drop-ic { display: block; font-size: 22px; line-height: 1; margin-bottom: 8px; color: var(--text-muted); }
 #tab-quote-make .src-note { margin: 10px 4px 0; font-size: var(--fs-11-5); color: #8a5a00; background: #fff6e0; border-radius: var(--r-6); padding: 6px 10px; }
 #tab-quote-make .src-note[hidden] { display: none; }
