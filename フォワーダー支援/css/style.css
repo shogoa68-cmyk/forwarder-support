@@ -3133,7 +3133,7 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
 /* ===== 同義グループ（⭐代表 / ⤵統合）===== */
 .stats-syn-hint {
   font-size: var(--fs-11);
-  color: #8a7656;
+  color: #6b5a3e;
   background: var(--bg);
   border: 1px solid var(--c-e8d8c0);
   border-radius: var(--r-6);
@@ -3248,7 +3248,7 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
   display: flex; align-items: center; gap: var(--sp-8);
   margin: 0 0 var(--sp-10);
 }
-.svp-by-label { font-size: var(--fs-12); color: #8a7656; font-weight: 700; }
+.svp-by-label { font-size: var(--fs-12); color: #6b5a3e; font-weight: 700; }
 .svp-by-btn {
   font-size: var(--fs-12); border: 1px solid var(--c-d8c8a8); background: var(--surface-warm);
   color: var(--c-5a4a38); border-radius: var(--r-6); padding: var(--sp-4) var(--sp-12); cursor: pointer;
@@ -3340,7 +3340,7 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
 .ldg-table { font-size: var(--fs-12); min-width: 980px; }
 .ldg-table td, .ldg-table th { vertical-align: top; }
 .ldg-table td:nth-child(1), .ldg-table td:nth-child(6), .ldg-table td:nth-child(7), .ldg-table td:nth-child(8), .ldg-table td:nth-child(9) { white-space: nowrap; }
-.ldg-sub { color: #8a7656; font-size: var(--fs-11); }
+.ldg-sub { color: #6b5a3e; font-size: var(--fs-11); }
 .ldg-link { color: var(--accent); text-decoration: underline; cursor: pointer; }
 .ldg-sum { margin-bottom: var(--sp-12); }
 .ldg-pat-overlay {
@@ -3941,7 +3941,7 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
   transition: transform 0.15s;
 }
 .stats-sv-detail[open] > summary::before { transform: rotate(90deg); }
-.stats-sv-detail-meta { font-size: var(--fs-11); color: var(--c-a08060); margin-left: auto; }
+.stats-sv-detail-meta { font-size: var(--fs-11); color: #7a5f3f; margin-left: auto; }
 .stats-sv-charge-table { margin: 0; border-top: 1px solid #e8ddd0; }
 .stats-sv-charge-table td { padding: var(--sp-4) var(--sp-8); font-size: var(--fs-12); }
 .stats-sv-price { color: var(--brown-21); white-space: nowrap; }
@@ -3957,7 +3957,7 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
 }
 
 .stats-empty {
-  color: var(--c-9a8878);
+  color: #6b5d50;
   font-size: var(--fs-13);
   padding: var(--sp-16) var(--sp-4);
   line-height: 1.8;
@@ -6018,7 +6018,7 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 .drift-ok { color: #1d6b36; font-size: var(--text-sm); }
 .drift-actions { margin-top: 2px; }
 .drift-more { color: var(--text-muted, #6b7683); }
-.drift-tab-badge { margin-left: 6px; font-size: var(--text-xs); padding: 0 6px; border-radius: 999px; background: #e8870e; color: #fff; font-weight: 700; }
+.drift-tab-badge { margin-left: 6px; font-size: var(--text-xs); padding: 0 6px; border-radius: 999px; background: #b45309; color: #fff; font-weight: 700; }
 
 /* 一括置換の最近の履歴（alias-rules.js／2026-11） */
 .ar-apply-log { margin: 4px 0 0; padding-left: 1.2em; font-size: var(--text-xs); color: var(--text-muted, #6b7683); line-height: var(--lh-body, 1.7); }

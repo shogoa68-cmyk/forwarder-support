@@ -9,6 +9,7 @@
  *   --widths  カンマ区切りの幅（既定 360,600,900,1100,1440,1920）
  *   --height  画面の高さ（既定 900）
  *   --editor  tab=quote のとき、編集画面を開いて行を3つ足す
+ *   --init    ファイル名。ページを開く前に注入する JS（偽の Supabase など。context.addInitScript）
  *   --setup   ファイル名。読み込み後・点検前に、ページの中で実行する JS（疑似データの注入やパネルを開く操作など）
  *   --root    リポジトリのパス（既定は実行した場所）
  *   --shots   写真を保存するフォルダ（幅ごとに viewport と全体を撮る）
@@ -29,6 +30,7 @@ const arg = (k, d) => { const i = A.indexOf('--' + k); return i < 0 ? d : (A[i +
 const TAB = arg('tab', 'quote'), THEME = arg('theme', 'industry'), HEIGHT = +arg('height', 900);
 const WIDTHS = String(arg('widths', '360,600,900,1100,1440,1920')).split(',').map(Number);
 const ROOT = path.resolve(arg('root', process.cwd())), SHOTS = arg('shots', ''), AS_JSON = !!arg('json', false);
+const INIT = arg('init', '') ? fs.readFileSync(arg('init'), 'utf8') : '';
 const SETUP = arg('setup', '') ? fs.readFileSync(arg('setup'), 'utf8') : '';
 
 // ページの中で実行する点検（文字列にして evaluate へ渡す）
@@ -130,6 +132,7 @@ function audit() {
   const report = [];
   for (const w of WIDTHS) {
     const ctx = await b.newContext({ viewport: { width: w, height: HEIGHT }, locale: 'ja-JP' });
+    if (INIT) await ctx.addInitScript(INIT);
     await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
     const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.setDefaultTimeout(10000);
     try {
