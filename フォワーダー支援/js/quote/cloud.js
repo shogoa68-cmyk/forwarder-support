@@ -1993,11 +1993,24 @@
   var _dirtyKept = false;   // 編集権を失って閲覧に落ちたとき、未保存の入力があったか（再編集しても未保存扱いを続ける）
   let _shareMode = 'edit';   // 'edit'（新規・自分が編集中）| 'view'（共有案件を閲覧中・読み取り専用）
 
+  // 閲覧モードでは、費用ツリー（右の引き出し）の「行追加・メモ・除外・見積書に出す／出さない・行コピー」と、案バーの「追加・メニュー・削除・改名・並べ替え」を受け付けない（描き直されるため、イベントを手前で止める）
+  var _VIEW_BLOCK_SEL = '.qsp-dig-grp-add, .qsp-dig-grp-note, .qsp-dig-grp-excl, .qsp-dig-row-hide, .qsp-dig-row-copy, #qtyPatternBar .qpat-add, #qtyPatternBar .qpat-more, #qtyPatternBar .qpat-x';
+  function _viewBlock(e) {
+    if (!e.target || !e.target.closest || !document.querySelector('#tab-quote-make.qmode-view')) return;   // qmode-view＝_applyShareMode('view') が付ける印
+    const hit = e.target.closest(_VIEW_BLOCK_SEL) || (e.type === 'dblclick' || e.type === 'dragstart' ? e.target.closest('#qtyPatternBar .qpat-chip') : null);
+    if (!hit) return;
+    if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault(); e.stopImmediatePropagation();
+  }
+  ['click', 'dblclick', 'dragstart', 'keydown'].forEach(t => document.addEventListener(t, _viewBlock, true));
+
   function _applyShareMode(mode) {
     _shareMode = mode;
     if (typeof _renderFollowInfo === 'function') _renderFollowInfo();   // 🙋 編集画面の担当表示（閲覧中は操作できないので文字だけ）
     const main = document.querySelector('#tab-quote-make .quote-main');
     if (main) main.inert = (mode === 'view');   // 閲覧中はフォーム全体を操作不可（マウス・キーボード）
+    // 右の引き出し・上部の案バーは .quote-main の外にあるため、行や案を変えられるものは別に止める（閲覧・ジャンプ・案の切替は残す）
+    ['scPanel', 'siPanel'].forEach(id => { const e = document.getElementById(id); if (e) e.inert = (mode === 'view'); });   // 数量の一括変更・サブコン別の行挿入
     if (typeof window.rmsApplyMode === 'function') window.rmsApplyMode(mode === 'view');   // 画面下の全体リマーク（引き出し）も閲覧中は読むだけ
     const tab = document.getElementById('tab-quote-make');
     if (tab) tab.classList.toggle('qmode-view', mode === 'view');
