@@ -2476,7 +2476,7 @@
 #tab-quote-make .cargo-detail-table .cd-stack { width: 62px; }
 #tab-quote-make .cargo-detail-table .cd-del { width: 30px; }
 #tab-quote-make .cargo-detail-table .cargo-detail-empty td {
-  color: #b0a085;
+  color: #7a6a4f;
   font-size: var(--fs-11);
   padding: var(--sp-10) var(--sp-6);
   background: var(--surface);
@@ -12523,3 +12523,14 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make #importChooser .ic-ico { font-size: 24px; }
 #tab-quote-make #importChooser .ic-opt b { display: block; font-size: var(--text-base, 14px); }
 #tab-quote-make #importChooser .ic-opt small { display: block; margin-top: 2px; font-size: var(--text-xs, 12px); color: var(--text-md); line-height: 1.5; }
+
+/* 狭い画面で「ゾーン構成から見積もり行を生成」の見出しがボタンに押されて 1 文字幅に潰れるのを防ぐ（折り返す） */
+@media (max-width: 600px) {
+  #tab-quote-make .zone-preset-section { flex-wrap: wrap; }
+  #tab-quote-make .zone-preset-section-head { flex: 1 1 100%; }
+}
+
+/* 狭い画面では「⋯」のポップアップが左へ切れるので、画面の内側に固定して広げる（⚙ と同じ） */
+@media (max-width: 700px) {
+  #tab-quote-make .cmdbar-more-pop { position: fixed; top: 124px; left: 8px !important; right: 8px !important; width: auto; max-width: none; max-height: calc(100vh - 140px); overflow-y: auto; }
+}
