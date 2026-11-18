@@ -10720,3 +10720,13 @@ html.theme-industry.theme-industry .ua-chip-del {
 :where(html.theme-industry) #tab-stats .stats-sv-detail-meta .sd-margin-neg {
   color: #5a6475;
 }
+html.theme-industry.theme-industry-doc #quoteDocOverlay .qd-panel-s,
+html.theme-industry.theme-industry-doc #quoteDocOverlay .qd-fg label,
+html.theme-industry.theme-industry-doc #quoteDocOverlay .qd-inp .qd-ext,
+html.theme-industry.theme-industry-doc #quoteDocOverlay .qd-inp.qd-static,
+html.theme-industry.theme-industry-doc #quoteDocOverlay .qd-toggle-l small {
+  color: #c3cdd9;
+}
+:where(html.theme-industry) #tab-quote-make .pv-rail-h3 {
+  color: #5a6475;
+}
