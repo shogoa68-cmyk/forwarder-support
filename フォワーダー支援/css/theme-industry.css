@@ -583,6 +583,9 @@ html.theme-industry {
   background: #4a637c;
   border-color: #4a637c;
 }
+:where(html.theme-industry) .bm-empty {
+  color: var(--text-muted);
+}
 :where(html.theme-industry) .bm-card {
   border-radius: 0;
 }
@@ -645,6 +648,7 @@ html.theme-industry {
   border-radius: 0;
 }
 :where(html.theme-industry) .bm-fcount {
+  color: var(--c-9a8a70);
   border-radius: 0;
 }
 :where(html.theme-industry) .bm-rel-chip {
@@ -1128,6 +1132,9 @@ html.theme-industry {
 :where(html.theme-industry) .master-filter-count {
   border-radius: 0;
 }
+:where(html.theme-industry) .master-filter-chip.is-active .master-filter-count {
+  background: rgba(255,255,255,.25);
+}
 :where(html.theme-industry) .stats-master-rename {
   border: 1px solid #afb1b5;
   border-radius: 0;
@@ -1258,6 +1265,7 @@ html.theme-industry {
 }
 :where(html.theme-industry) .stats-master-abbrev-add {
   border-radius: 0;
+  color: var(--c-a08060);
 }
 :where(html.theme-industry) .stats-master-abbrev-add:hover {
   border-color: #70747a;
@@ -1783,6 +1791,9 @@ html.theme-industry {
   background: #f8eded;
   border-color: #e3b5b5;
 }
+:where(html.theme-industry) .lc-empty {
+  color: var(--c-9a8878);
+}
 :where(html.theme-industry) .lc-cat-badge {
   border-radius: 0;
 }
@@ -2072,6 +2083,9 @@ html.theme-industry {
 }
 :where(html.theme-industry) .rn-ghost-btn:hover {
   background: #eaeff3;
+}
+:where(html.theme-industry) .rn-empty {
+  color: var(--c-9a8878);
 }
 :where(html.theme-industry) .rn-plan-row {
   border-radius: 0;
@@ -10635,4 +10649,49 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-close {
   color: #666;
+}
+html.theme-industry.theme-industry .master-filter-chip.is-active .master-filter-count {
+  background: rgba(0,0,0,.3);
+  color: #fff;
+}
+html.theme-industry.theme-industry .master-filter-count {
+  color: var(--text);
+}
+html.theme-industry.theme-industry .stats-master-abbrev-add {
+  color: var(--text-muted);
+}
+html.theme-industry.theme-industry .ua-chip-del {
+  color: var(--text-muted);
+}
+:where(html.theme-industry) #tab-cptest .cpt-btn.is-primary.is-primary,
+:where(html.theme-industry) #tab-bugreports .fbr-btn-primary,
+:where(html.theme-industry) #tab-bugreports .fbr-chip.is-on,
+:where(html.theme-industry) #tab-bugreports .fbr-mode.is-on .fbr-mode-n {
+  background: #4a6d91;
+  border-color: #4a6d91;
+}
+:where(html.theme-industry) #tab-cptest .cpt-btn.is-g.is-g,
+:where(html.theme-industry) #tab-cptest .cpt-chip.is-now.is-now,
+:where(html.theme-industry) #tab-cptest .cpt-gb.cpt-gb[aria-pressed="true"],
+:where(html.theme-industry) #tab-bugreports .fbr-mode.is-on {
+  color: #3e5f82;
+}
+:where(html.theme-industry) .bm-verify.bm-verify-0 {
+  color: #6b6e73;
+}
+:where(html.theme-industry) .lc-topbar-right {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+:where(html.theme-industry) .lc-topbar-right > *,
+:where(html.theme-industry) .lc-topbar-right .lc-add-btn,
+:where(html.theme-industry) .lc-topbar-right .lc-variant-btn {
+  white-space: nowrap;
+}
+:where(html.theme-industry) .lookup-form input[type="text"] {
+  max-width: 640px;
+}
+:where(html.theme-industry) .lc-empty,
+:where(html.theme-industry) .rn-empty {
+  color: #6f5f50;
 }
