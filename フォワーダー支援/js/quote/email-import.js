@@ -281,7 +281,8 @@
     let inRemarks = false;
     let itemCount = 0;
     let lastItemIdx = -1;   // 直前の行が明細だったとき、その明細の番号
-    const pushItem = o => { entries.push(o); lastItemIdx = itemCount; itemCount++; };
+    let curSrc = '';   // いま読んでいる行の文（明細に元の行として持たせる＝確認画面の評価・ルールの「形」に使う）
+    const pushItem = o => { if (!o.src) o.src = curSrc; entries.push(o); lastItemIdx = itemCount; itemCount++; };
     const _AUTO_NOTE_RE = /為替レートにより請求金額が変動|「〜」で幅を示した項目を含むため/;   // 本アプリが自動で付ける注記は、取り込まない
     const pushRemark = (raw, itemIdx) => {
       const text = String(raw || '').replace(/^[・･\-\*●○※\s　]+/, '').trim();
@@ -304,6 +305,7 @@
       // メールの引用記号（「> 」）は外す（返信メールの引用部分に見積が入っていることが多い）
       const line = raw.replace(/^(?:[ \t]*>)+[ \t]?/, '').replace(/\s+$/, '');
       const t = line.trim();
+      curSrc = t;
       if (!t) { lastItemIdx = -1; tableCols = null; return; }   // 空行をはさんだ「※」は、直前の明細の注記にしない（全体リマーク）
       const prevItem = lastItemIdx; lastItemIdx = -1;   // 明細の直後だけ「※…」をその明細の注記として扱う
 
@@ -452,7 +454,16 @@
     const rec = (typeof window.mdGet === 'function' && canon) ? window.mdGet('sv', canon) : null;
     const r = rec && rec.details && rec.details.importRules;
     // aliases の各要素は { from, to, cat, unit, n(使った回数), last(最後に使った日), by, at(登録日時) }。知らない項目もそのまま持ち回る
-    return { aliases: Array.isArray(r && r.aliases) ? r.aliases.filter(a => a && a.from).map(a => Object.assign({}, a)) : [], ccy: (r && r.ccy) || '', unit: (r && r.unit) || '', qtyAsUnit: !!(r && r.qtyAsUnit), by: (r && r.by) || '', at: (r && r.at) || '' };
+    return { aliases: Array.isArray(r && r.aliases) ? r.aliases.filter(a => a && a.from).map(a => Object.assign({}, a)) : [], ccy: (r && r.ccy) || '', unit: (r && r.unit) || '', qtyAsUnit: !!(r && r.qtyAsUnit), by: (r && r.by) || '', at: (r && r.at) || '',
+      // 🚫 取り込まない行の形（ignore）／✅ 合っていると確認した行の形（ok）。形＝数字を 9 に伏せた行の文。{key, shape, n, last, by, at}
+      ignore: _shapeList(r && r.ignore), ok: _shapeList(r && r.ok) };
+  }
+  function _shapeList(a) { return Array.isArray(a) ? a.filter(x => x && (x.key || x.shape)).map(x => Object.assign({}, x, { key: x.key || _nzs(x.shape) })) : []; }
+  const _shapeKey = src => _nzs(eiMaskLine(src));   // 行の「形」（金額・数量が違っても同じ形になる）
+  function _upsertShape(list, src) {
+    const key = _shapeKey(src); if (!key) return false;
+    if (list.some(x => x.key === key)) return false;
+    list.push({ key, shape: eiMaskLine(src), n: 0 }); return true;
   }
   const _STALE_DAYS = 180;   // これだけ使われていない（登録後も使われていない）ルールは「古い」として整理の候補にする
   const _todayIso = () => new Date().toISOString().slice(0, 10);
@@ -473,15 +484,33 @@
     const me = (typeof window.cloudCurrentUser === 'function' && window.cloudCurrentUser()) || {};
     const now = new Date().toISOString();
     const aliases = (rules.aliases || []).map(a => Object.assign({}, a, { at: a.at || now, by: a.by || me.email || '' }));   // 登録日・登録者は最初の保存で記録
-    const next = Object.assign({}, prev, { importRules: { v: 2, aliases, ccy: rules.ccy || '', unit: rules.unit || '', qtyAsUnit: !!rules.qtyAsUnit, by: me.email || '', at: now } });
+    const stamp = l => (l || []).map(a => Object.assign({}, a, { at: a.at || now, by: a.by || me.email || '' }));
+    const next = Object.assign({}, prev, { importRules: { v: 2, aliases, ignore: stamp(rules.ignore), ok: stamp(rules.ok), ccy: rules.ccy || '', unit: rules.unit || '', qtyAsUnit: !!rules.qtyAsUnit, by: me.email || '', at: now } });
     return await window.mdSave('sv', canon, next);
   }
   // 解析結果（entries）へルールを当てる。当たった行は ruleHit（呼び名の置き換え）・unitFilled を立てる
   function _applyRules(parsed, rules) {
     if (!parsed || !rules) return parsed;
     const al = (rules.aliases || []).map(a => ({ k: _nzs(a.from), to: a.to || a.from, cat: a.cat || '', unit: a.unit || '' })).filter(a => a.k);
+    const ign = new Set((rules.ignore || []).map(a => a.key || _nzs(a.shape)).filter(Boolean));
+    const oks = new Set((rules.ok || []).map(a => a.key || _nzs(a.shape)).filter(Boolean));
+    parsed.ignored = parsed.ignored || [];
+    if (ign.size) {   // 🚫 取り込まない形の行は、明細からも「読めなかった行」からも外す（リマークの付け先の番号も詰める）
+      const kept = [], idxMap = {}; let oi = -1, ni = 0;
+      parsed.entries.forEach(e => {
+        if (e._kind !== 'item') { kept.push(e); return; }
+        oi++;
+        const k = e.src ? _shapeKey(e.src) : '';
+        if (k && ign.has(k)) { parsed.ignored.push({ src: e.src, key: k }); idxMap[oi] = -1; return; }
+        idxMap[oi] = ni++; kept.push(e);
+      });
+      parsed.entries = kept;
+      (parsed.remarks || []).forEach(r => { if (r.itemIdx != null) { const m = idxMap[r.itemIdx]; r.itemIdx = (m == null || m < 0) ? null : m; } });
+      parsed.unread = (parsed.unread || []).filter(l => { const k = _shapeKey(l); if (ign.has(k)) { parsed.ignored.push({ src: l, key: k }); return false; } return true; });
+    }
     parsed.entries.forEach(e => {
       if (e._kind !== 'item') return;
+      if (oks.size && e.src) { const k = _shapeKey(e.src); if (oks.has(k)) { e.conf = 'high'; e.okHit = k; } }   // ✅ 確認済みの形は、確度を「高」にする
       const key = _nzs(e.name);
       let hit = al.find(a => a.k === key);
       if (!hit) hit = al.filter(a => a.k.length >= 3 && key.includes(a.k)).sort((x, y) => y.k.length - x.k.length)[0];
@@ -830,7 +859,7 @@
     const unread = _parsed.unread || [];
     const unreadHtml = n => unread.length
       ? '<details class="ei-unread"' + (n ? '' : ' open') + '><summary>⚠ 金額らしい数字を含むのに読み取れなかった行（' + unread.length + ' 件）</summary><ul>' +
-        unread.slice(0, 12).map(l => '<li>' + _esc(l) + '</li>').join('') + (unread.length > 12 ? '<li>ほか ' + (unread.length - 12) + ' 件</li>' : '') +
+        unread.slice(0, 12).map((l, i) => '<li>' + _esc(l) + (_svCtx ? ' <button type="button" class="ei-ign-btn" onclick="eiIgnoreUnread(' + i + ', this)" title="明細ではない行として、このサブコンの次回から無視します">🚫 今後は無視</button>' : '') + '</li>').join('') + (unread.length > 12 ? '<li>ほか ' + (unread.length - 12) + ' 件</li>' : '') +
         '</ul><p>通貨記号（¥・$・USD）や単位（/VAN など）の書き方が読み取れていない可能性があります。ログイン中は、<b>数字を 9 に伏せた形</b>が読み取りの改善用に自動で記録されます（金額・社名・メールアドレスは残りません）。</p><button type="button" class="ei-unread-copy" onclick="eiCopyUnread()">📋 改善用にコピー</button></details>' : '';
     if (!items.length && !rems.length) {
       wrap.innerHTML = '<div class="preset-empty">明細行を抽出できませんでした。<br><small>金額（¥1,234 / 100 USD 等）を含む行が対象です。書式を確認してください。</small></div>' + unreadHtml(0);
@@ -852,19 +881,20 @@
         '<input type="checkbox" id="eiSellMode"> 💰 単価を売値として取り込む（仕入を後で入力→乗せ幅を自動算出）</label>' +
       '</div>';
     html += unreadHtml(items.length);
+    if (_parsed.ignored && _parsed.ignored.length) html += '<details class="ei-ignored"><summary>🚫 ルールで除外した行（' + _parsed.ignored.length + ' 件）</summary><ul>' + _parsed.ignored.slice(0, 12).map(x => '<li>' + _esc(x.src) + '</li>').join('') + '</ul><p>このサブコンの「取り込まない行」のルールに当たった行です。元に戻すときは、マスター管理のサブコン詳細「メール取込ルール」から外してください。</p></details>';
     if (!items.length) html += '<div class="ei-rem-only">💡 明細行は抽出できませんでした。リマークだけを取り込めます（下のリマーク候補）。</div>';
     if (items.length) html += '<table class="ei-table"><thead><tr>' +
       '<th><input type="checkbox" id="eiChkAll" checked onchange="eiToggleAll(this.checked)"></th>' +
       '<th>グループ</th><th>カテゴリ</th><th>サブコン</th><th>品名</th><th>数量</th><th>単位</th><th>通貨</th><th>単価</th><th class="ei-tax-th" title="課税対象の行にチェック。見出しのチェックで全行を一括切替">課税 <input type="checkbox" id="eiTaxAll" onchange="eiToggleAllTax(this.checked)"></th><th>フラグ</th><th>備考</th><th>確度</th>' +
-      '</tr></thead><tbody>';
+      (_svCtx ? '<th title="この行の解析結果を評価します。✅合っている／❌明細ではない（押したあと「覚える」で次回から反映）">評価</th>' : '') + '</tr></thead><tbody>';
     let curGroup = '';
     let gi = -1;
     entries.forEach(e => {
       if (e._kind === 'group') { curGroup = e.label; return; }
       gi++;
       const cat = e.ruleCat || inferCat(e.name);
-      const flags = (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費 ' : '') + (e.priceHi != null ? '幅〜' + Math.round(e.priceHi * 100) / 100 : '') + (e.ccyAssumed ? ' 通貨は既定' : '') + (e.ruleHit ? ' 🧠置換' : '') + (e.unitFilled ? ' 単位は既定' : '');
-      html += `<tr data-gi="${gi}" data-orig-name="${_esc(e.origName || e.name)}" data-orig-cat="${_esc(cat)}" data-orig-unit="${_esc(e.unit || '')}" class="ei-row ei-${e.conf}">` +
+      const flags = (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費 ' : '') + (e.priceHi != null ? '幅〜' + Math.round(e.priceHi * 100) / 100 : '') + (e.ccyAssumed ? ' 通貨は既定' : '') + (e.ruleHit ? ' 🧠置換' : '') + (e.okHit ? ' ✅確認済みの形' : '') + (e.unitFilled ? ' 単位は既定' : '');
+      html += `<tr data-gi="${gi}" data-src="${_esc(e.src || '')}" data-orig-name="${_esc(e.origName || e.name)}" data-orig-cat="${_esc(cat)}" data-orig-unit="${_esc(e.unit || '')}" class="ei-row ei-${e.conf}">` +
         `<td><input type="checkbox" class="ei-chk" checked></td>` +
         `<td class="ei-group-cell"><input type="text" class="ei-in ei-group" value="${_esc(curGroup)}" title="挿入時：小計行のラベル、かつ各行の「パターン（任意）」に登録されます（空欄可）">` +
         `<button type="button" class="ei-group-pattern-btn" title="同じグループのチェック済み行を「行パターン」として登録" onclick="eiSaveGroupAsPattern(this)">🔖</button></td>` +
@@ -879,12 +909,13 @@
         `<td class="ei-flags" title="解析されたフラグ（都度/参考/実費）">${_esc(flags.trim() || '—')}</td>` +
         `<td><input type="text" class="ei-in ei-note" value="${_esc(e.note || '')}"></td>` +
         `<td>${confBadge(e.conf)}</td>` +
+        (_svCtx ? `<td class="ei-rate-cell"><button type="button" class="ei-rate-btn" data-k="ok" onclick="eiRate(this,'ok')" title="この行の読み取りは合っている（覚えると、同じ形の行は確度「高」になります）">✅</button><button type="button" class="ei-rate-btn" data-k="ng" onclick="eiRate(this,'ng')" title="明細ではない行（覚えると、同じ形の行は次回から自動で除外されます）">❌</button></td>` : '') +
         `</tr>`;
     });
     if (items.length) html += '</tbody></table>';
     html += _remarksHtml(items, rems);
     html += '<datalist id="eiCcyList">' + CCY_LIST.map(c => `<option value="${c}">`).join('') + '</datalist>';
-    if (_svCtx && items.length) html += '<div class="ei-learn"><button type="button" class="ei-learn-btn" onclick="eiLearnFromCorrections()" title="品名・カテゴリ・単位を直した行を、このサブコンの「呼び名の置き換え」ルールに追加します（チーム共有）">🧠 修正をこのサブコンのルールとして覚える</button><span>品名・カテゴリ・単位を直した行が、次回から自動で直ります</span></div>';
+    if (_svCtx && items.length) html += '<div class="ei-learn"><button type="button" class="ei-learn-btn" onclick="eiLearnFromCorrections()" title="品名・カテゴリ・単位を直した行を、このサブコンの「呼び名の置き換え」ルールに追加します（チーム共有）">🧠 修正と評価をこのサブコンのルールとして覚える</button><span>品名・カテゴリ・単位を直した行が、次回から自動で直ります</span></div>';
     // 「単価を売値として取り込む」はサブコン専用の取込では出さないので、その説明もそのときは外す
     html += '<p class="ei-hint">💡 通常は単価が仕入・売の両方に入ります（粗利0）。仕入額が分かる場合は挿入後に修正してください。' +
       (_svCtx ? '' : '「💰 単価を売値として取り込む」をONにすると、単価は売値としてのみ登録され、挿入後に仕入単価を入力すれば乗せ幅が自動算出されます。') +
@@ -975,11 +1006,14 @@
     return [..._checkedItemSet()].map(gi => items[gi] && items[gi].ruleKey).filter(Boolean);
   }
   // 使ったルールの回数・最後に使った日を記録する。ほかの人の保存と食い違わないよう、保存の直前に最新を読み直す。失敗しても何も出さない
-  async function _bumpRuleUse(canon, keys) {
+  async function _bumpRuleUse(canon, keys, extra) {
     try {
-      if (!canon || !keys.length) return;
+      extra = extra || {};
+      if (!canon || (!keys.length && !(extra.ok || []).length && !(extra.ignore || []).length)) return;
       const r = _rulesOf(canon), today = _todayIso();
       let hit = 0;
+      (extra.ok || []).forEach(k => { const a = r.ok.find(x => x.key === k); if (a) { a.n = (a.n || 0) + 1; a.last = today; hit++; } });
+      (extra.ignore || []).forEach(k => { const a = r.ignore.find(x => x.key === k); if (a) { a.n = (a.n || 0) + 1; a.last = today; hit++; } });
       keys.forEach(k => { const a = r.aliases.find(x => _nzs(x.from) === k); if (a) { a.n = (a.n || 0) + 1; a.last = today; hit++; } });
       if (hit) await _saveRules(canon, r);
     } catch (e) { /* 記録できなくても取込は成功のまま */ }
@@ -1031,11 +1065,37 @@
     if (await _saveRules(_svCtx.canon, r)) { if (window.quoteShowToast) quoteShowToast('🧠 ルール「' + a.from + ' → ' + a.to + '」を外しました', 'info'); _renderSvCtx(); }
   }
   // 確認画面で直した内容（品名・カテゴリ）を、このサブコンのルールとして覚える
+  // 確認画面の行の評価（✅合っている／❌明細ではない）。もう一度押すと取り消し。❌の行は挿入のチェックも外す
+  function eiRate(btn, kind) {
+    const tr = btn && btn.closest('tr'); if (!tr) return;
+    const cur = tr.dataset.rate || '', next = cur === kind ? '' : kind;
+    tr.dataset.rate = next;
+    tr.classList.toggle('ei-rate-okrow', next === 'ok'); tr.classList.toggle('ei-rate-ngrow', next === 'ng');
+    tr.querySelectorAll('.ei-rate-btn').forEach(b => b.classList.toggle('on', b.dataset.k === next));
+    const chk = tr.querySelector('.ei-chk');
+    if (chk) { if (next === 'ng') chk.checked = false; else if (cur === 'ng') chk.checked = true; }
+  }
+  // 「読み取れなかった行」を、今後は無視する形として覚える（その場で保存）
+  async function eiIgnoreUnread(i, btn) {
+    if (!_svCtx || !_parsed || !_parsed.unread) return;
+    const line = _parsed.unread[i]; if (line == null) return;
+    const r = _rulesOf(_svCtx.canon);
+    _upsertShape(r.ignore, line);
+    if (await _saveRules(_svCtx.canon, r)) {
+      const li = btn && btn.closest('li');
+      if (li) li.innerHTML = '<s>' + _esc(line) + '</s> 🚫 次回から無視します';
+      _renderSvCtx();
+    }
+  }
   async function eiLearnFromCorrections() {
     if (!_svCtx) return;
     const r = _rulesOf(_svCtx.canon);
     let added = 0;
+    let ignN = 0, okN = 0;
     document.querySelectorAll('#eiReviewWrap .ei-table tbody tr').forEach(tr => {
+      const rate = tr.dataset.rate || '', src = tr.dataset.src || '';
+      if (rate === 'ng' && src) { if (_upsertShape(r.ignore, src)) ignN++; return; }   // ❌＝明細ではない行の形（直した内容は覚えない）
+      if (rate === 'ok' && src && _upsertShape(r.ok, src)) okN++;
       const orig = (tr.dataset.origName || '').trim();
       const cur = (tr.querySelector('.ei-name')?.value || '').trim();
       const cat = tr.querySelector('.ei-cat')?.value || '';
@@ -1050,9 +1110,9 @@
       _upsertAlias(r.aliases, na);   // 同じ呼び名は更新（使った回数は引き継ぐ）
       added++;
     });
-    if (!added) { if (window.quoteShowToast) quoteShowToast('ℹ️ 覚えさせる修正がありません（品名・カテゴリ・単位を直してから押してください）', 'info'); return; }
+    if (!added && !ignN && !okN) { if (window.quoteShowToast) quoteShowToast('ℹ️ 覚えさせる内容がありません（品名・カテゴリ・単位を直すか、行の ✅／❌ を押してから押してください）', 'info'); return; }
     if (await _saveRules(_svCtx.canon, r)) {
-      if (window.quoteShowToast) quoteShowToast('🧠 ' + added + ' 件を「' + _svCtx.canon + '」のルールとして覚えました（チーム共有・次回から自動で直ります）', 'success');
+      if (window.quoteShowToast) quoteShowToast('🧠 「' + _svCtx.canon + '」のルールとして覚えました（チーム共有）：' + [added ? '修正 ' + added + ' 件' : '', ignN ? '取り込まない行 ' + ignN + ' 件' : '', okN ? '確認済みの形 ' + okN + ' 件' : ''].filter(Boolean).join('・') + '。次回から自動で反映されます', 'success');
       _renderSvCtx();
     }
   }
@@ -1074,6 +1134,11 @@
       '<select class="ir-cat" title="カテゴリ（任意）">' + _catOptions(a.cat || '') + '</select>' +
       '<input type="text" class="ir-aunit" value="' + _esc(a.unit || '') + '" placeholder="単位" title="この品名の単位（任意・読み取れなかったときだけ入る）">' +
       '<button type="button" class="ir-del" title="このルールを外す">✕</button>' + useText(a) + '</div>';
+    const shapesHtml = (kind, title, help, list) => !list.length ? '' :
+      '<details class="ir-shapes" data-kind="' + kind + '"><summary>' + title + '（' + list.length + ' 件）</summary><p class="ir-help">' + help + '</p>' +
+      list.map(a => '<div class="ir-shape" data-kind="' + kind + '" data-key="' + _esc(a.key) + '"><span class="ir-shape-t" title="' + _esc(a.shape) + '">' + _esc(a.shape) + '</span>' +
+        '<span class="ir-use">' + (a.n ? '使用 ' + a.n + '回' : '未使用') + '</span><button type="button" class="ir-shape-del" title="この形のルールを外す（保存すると反映）">✕</button></div>').join('') + '</details>';
+    const delShapes = { ignore: new Set(), ok: new Set() };
     const staleN = r.aliases.filter(_isStaleRule).length;
     const ccyOpts = '<option value="">（なし）</option>' + CCY_LIST.map(c => '<option' + (r.ccy === c ? ' selected' : '') + '>' + c + '</option>').join('');
     el.innerHTML =
@@ -1083,6 +1148,8 @@
       '<p class="ir-help">既定の通貨を決めると、通貨の書かれていない数字（例：<code>海上運賃 1200 /20GP</code>）もその通貨の金額として読みます（確度は「要確認」）。既定の単位は、単位が読み取れなかった行にだけ入ります。</p>' +
       '<div class="ir-list">' + r.aliases.map(rowHtml).join('') + '</div>' +
       '<div class="ir-empty"' + (r.aliases.length ? ' hidden' : '') + '>呼び名の置き換えルールはまだありません。「＋ ルールを追加」か、サブコンの見出しの「📩 メール取込」で品名を直して「🧠 覚える」を押すと増えます。</div>' +
+      shapesHtml('ignore', '🚫 取り込まない行の形', '確認画面で❌を押した行・「今後は無視」にした行の形です。同じ形の行は次回から明細にも「読めなかった行」にも出ません（金額・数量が違っても同じ形として扱います）。', r.ignore) +
+      shapesHtml('ok', '✅ 確認済みの行の形', '確認画面で✅を押した行の形です。同じ形の行は、確度が「高」になります。', r.ok) +
       '<div class="ir-bar"><button type="button" class="ir-add">＋ ルールを追加</button><button type="button" class="ir-save">💾 ルールを保存</button>' +
       '<button type="button" class="ir-clean"' + (staleN ? '' : ' hidden') + ' title="' + _STALE_DAYS + '日以上使われていないルールをまとめて外します">⏳ 長く使っていないルール ' + staleN + ' 件を外す</button>' +
       '<span class="ir-meta">' + (r.at ? '最終更新 ' + _esc(String(r.at).slice(0, 10)) + (r.by ? '・' + _esc((typeof window.cloudNameFor === 'function' && window.cloudNameFor(r.by)) || r.by) : '') : '') + '</span></div>';
@@ -1092,7 +1159,10 @@
       list.insertAdjacentHTML('beforeend', rowHtml({ from: '', to: '', cat: '' })); syncEmpty();
       list.lastElementChild.querySelector('.ir-from').focus();
     });
-    el.addEventListener('click', e => { const d = e.target.closest('.ir-del'); if (d) { d.closest('.ir-row').remove(); syncEmpty(); } });
+    el.addEventListener('click', e => {
+      const d = e.target.closest('.ir-del'); if (d) { d.closest('.ir-row').remove(); syncEmpty(); }
+      const sd = e.target.closest('.ir-shape-del'); if (sd) { const row = sd.closest('.ir-shape'); delShapes[row.dataset.kind].add(row.dataset.key); row.remove(); }
+    });
     el.querySelector('.ir-clean').addEventListener('click', async () => {
       const cur = _rulesOf(canon), stale = cur.aliases.filter(_isStaleRule);
       if (!stale.length) return;
@@ -1118,6 +1188,8 @@
       // 使った回数・登録日などは、保存済みのルールから引き継ぐ（画面で直しても履歴が消えない）
       const old = new Map(next.aliases.map(a => [_nzs(a.from), a]));
       next.aliases = [...seen.entries()].map(([k, a]) => Object.assign({}, old.get(k) || { n: 0 }, a));
+      next.ignore = next.ignore.filter(a => !delShapes.ignore.has(a.key));   // 画面で ✕ を押した形だけ外す
+      next.ok = next.ok.filter(a => !delShapes.ok.has(a.key));
       next.qtyAsUnit = !!el.querySelector('.ir-qtyunit').checked;
       next.ccy = el.querySelector('.ir-ccy').value || '';
       next.unit = el.querySelector('.ir-unit').value.trim();
@@ -1369,7 +1441,12 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     if (_isViewMode()) { if (window.quoteShowToast) quoteShowToast('🔒 閲覧モードです。「✏️ 編集」を押してから挿入してください', 'warn'); return; }
     const usedKeys = _svCtx ? _usedRuleKeys() : [];
     const n = rows.length ? window.appendQuoteRows(rows) : 0;
-    if (_svCtx && usedKeys.length) _bumpRuleUse(_svCtx.canon, usedKeys);   // 待たない（取込の動作を遅くしない）
+    if (_svCtx) {
+      const its = (_parsed && _parsed.entries || []).filter(e => e._kind === 'item');
+      const okKeys = [..._checkedItemSet()].map(gi => its[gi] && its[gi].okHit).filter(Boolean);
+      const ignKeys = ((_parsed && _parsed.ignored) || []).map(x => x.key);
+      if (usedKeys.length || okKeys.length || ignKeys.length) _bumpRuleUse(_svCtx.canon, usedKeys, { ok: okKeys, ignore: ignKeys });
+    }   // 待たない（取込の動作を遅くしない）
     const remN = _applyGlobalRemarks(rem.global);
     // 保管した自由入力から取り込んだときは、その 1 件を取込済みにする（原文は案件に残る）。
     // それ以外（貼り付けから直接）は、原文を案件の取込元メモ（#qf-import-src）に残す
@@ -1424,7 +1501,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     eiOpenStored, eiStoreRaw, eiFeImport, eiFeView, eiFeToggle, eiFeDelete,
     openImportChooser, closeImportChooser, icChoose, icPdfSelected, openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiToggleAllTax, eiInsertRows, eiApplyAsNew,
     eiSaveGroupAsPattern, eiApplyBulkSv, eiCopyAiPrompt,
-    eiCopyUnread, eiMaskLine, eiOpenForSubcon, eiRuleSaveDefaults, eiRuleDel, eiLearnFromCorrections, eiMountRulesPanel,
+    eiCopyUnread, eiMaskLine, eiOpenForSubcon, eiRuleSaveDefaults, eiRuleDel, eiLearnFromCorrections, eiRate, eiIgnoreUnread, eiMountRulesPanel,
     eiApplyRules: _applyRules,   // テスト用
     parseQuoteEmail,   // テスト・将来の AI パーサー差し替え用に公開
   });
