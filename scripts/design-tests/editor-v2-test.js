@@ -148,20 +148,23 @@ const http = require('http'), fs = require('fs'), path = require('path');
   if (out) await p.screenshot({ path: path.join(out, 'e2-step4.png') });
   const hz = () => p.evaluate(() => { const e = document.querySelector('.quote-right-col'), de = document.documentElement; return { disp: getComputedStyle(e).display, w: Math.round(e.getBoundingClientRect().width), sw: de.scrollWidth, cw: de.clientWidth, mainW: Math.round(document.querySelector('.quote-main').getBoundingClientRect().width) }; });
   const hClosed = await hz();
-  ok('右の引き出しは閉じている間は本当に隠れ（display:none）、横スクロールもできない', hClosed.disp === 'none' && hClosed.w === 0 && hClosed.sw <= hClosed.cw, hClosed);
-  await p.click('#e2Total [data-e2d="digest"]'); await p.waitForTimeout(500);
+  // 右レールは常時見える縦帯（引き出しのパネルだけが閉じている間は隠れる）。横スクロールはできない
+  ok('右レールは閉じている間も縦帯として見える（幅 72px 前後）・パネルは隠れ・横スクロールもできない', hClosed.disp !== 'none' && hClosed.w > 40 && hClosed.w < 120 && hClosed.sw <= hClosed.cw && await p.evaluate(() => { const d = document.getElementById('qrcDrawer'); return !!d && getComputedStyle(d).display === 'none' && !document.body.dataset.qrcOpen; }), hClosed);
+  ok('合計バーに「費用の内訳」「参考」のボタンはない（入口は右レールに一本化）', await p.evaluate(() => !document.querySelector('#e2Total [data-e2d]')));
+  ok('右レールは本文・上部ツールバーの［プレビュー］［保存］に重ならない', await p.evaluate(() => { const r = document.getElementById('qrcRail').getBoundingClientRect(); const t = document.querySelector('#quoteActionDock').getBoundingClientRect(); const m = document.querySelector('.quote-main').getBoundingClientRect(); return r.left >= m.right - 1 && !(r.right > t.left && r.left < t.right && r.bottom > t.top && r.top < t.bottom); }));
+  await p.click('#qrcRail .qrc-rail-btn[data-mod="digest"]'); await p.waitForTimeout(500);
   const dr = () => p.evaluate(() => { const r = document.querySelector('.quote-right-col').getBoundingClientRect(); const act = document.querySelector('#qrcRail .is-on'); const d = document.getElementById('qrcDrawer'); const vis = [...document.querySelectorAll('#qrcBody > *')].filter(e => e.style.display !== 'none').map(e => e.id); return { open: r.left < innerWidth - 200 && r.width > 200, mod: act && act.dataset.mod, drawer: d && getComputedStyle(d).display !== 'none', vis }; });
   let d1 = await dr();
-  ok('「費用の内訳」で右の引き出しが開き、費用のパネルが出る', d1.open && d1.mod === 'digest' && d1.drawer && d1.vis.includes('quoteSummaryPanel'), d1);
+  ok('レールの「費用」で右の引き出しが開き、費用のパネルが出る', d1.open && d1.mod === 'digest' && d1.drawer && d1.vis.includes('quoteSummaryPanel'), d1);
   const hOpen = await hz();
   ok('開いたとき：引き出しが出て、横スクロールはできない', hOpen.disp !== 'none' && hOpen.w > 300 && hOpen.sw <= hOpen.cw, { hOpen, hClosed });
-  await p.click('#e2Total [data-e2d="digest"]'); await p.waitForTimeout(400);
-  ok('もう一度押すと閉じる', !(await dr()).open);
+  await p.click('#qrcRail .qrc-rail-btn[data-mod="digest"]'); await p.waitForTimeout(400);
+  ok('もう一度押すと閉じる（レールだけに戻る）', !(await dr()).open);
   const hAfter = await hz();
-  ok('閉じたあとも横スクロールは出ない・本文の幅は開く前に戻る', hAfter.disp === 'none' && hAfter.sw <= hAfter.cw && hAfter.mainW === hClosed.mainW, { hAfter, hClosed });
-  await p.click('#e2Total [data-e2d="ref"]'); await p.waitForTimeout(500);
+  ok('閉じたあとも横スクロールは出ない・本文の幅は開く前に戻る', hAfter.disp !== 'none' && hAfter.w < 120 && hAfter.sw <= hAfter.cw && hAfter.mainW === hClosed.mainW, { hAfter, hClosed });
+  await p.evaluate(() => document.querySelector('#qrcRail .qrc-rail-btn[data-mod="similar"]').click()); await p.waitForTimeout(500);   // 「類似」は「その他 ▾」の中
   d1 = await dr();
-  ok('「参考」で右の引き出しが開く（類似見積）', d1.open && d1.mod === 'similar' && d1.vis.includes('sqPanel'), d1);
+  ok('レールの「類似」で右の引き出しが開く（類似見積）', d1.open && d1.mod === 'similar' && d1.vis.includes('sqPanel'), d1);
   await p.click('#e2Total [data-e2q]'); await p.waitForTimeout(500);
   d1 = await dr();
   ok('「数量登録」で「単位で数量を一括変更」が開く', d1.open && d1.mod === 'scenario' && d1.vis.includes('scPanel'), d1);
@@ -171,7 +174,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('右レール：よく使う 5 つ＋その他（数量はその他の中・開いて見える）', rc.main.slice().sort().join() === 'charges,chat,digest,fin,subcon' && rc.more.includes('scenario') && rc.more.length === 6 && rc.moreOpen && rc.lab === '🔢', rc);
     ok('「数量登録」は開いている間、押された見た目', rc.pressed, rc);
     await p.keyboard.press('Escape'); await p.waitForTimeout(300);
-    { const st = await p.evaluate(() => ({ d: document.body.classList.contains('e2-drawer'), o: [...document.querySelectorAll('#e2Total .is-open')].map(x => x.textContent.trim().slice(0, 8)), act: document.activeElement && (document.activeElement.id || document.activeElement.tagName), ov: !!document.querySelector('.confirm-overlay, #previewOverlay.open, #fbOverlay.open, #mdDetailModal.open, .nq-overlay') })); ok('Esc で引き出しが閉じる（ボタンの押された見た目も戻る）', !st.d && st.o.length === 0, st); }
+    { const st = await p.evaluate(() => ({ d: !!document.body.dataset.qrcOpen, o: [...document.querySelectorAll('#e2Total .is-open')].map(x => x.textContent.trim().slice(0, 8)), act: document.activeElement && (document.activeElement.id || document.activeElement.tagName), ov: !!document.querySelector('.confirm-overlay, #previewOverlay.open, #fbOverlay.open, #mdDetailModal.open, .nq-overlay') })); ok('Esc で引き出しが閉じる（ボタンの押された見た目も戻る）', !st.d && st.o.length === 0, st); }
     await p.click('#e2Total [data-e2q]'); await p.waitForTimeout(300);
   }
   // 明細 1 行：使っていない「その他 ▾」は行に乗せるまで隠す

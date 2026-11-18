@@ -19,7 +19,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(1200);
   await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1200);
   await p.evaluate(() => { const l = document.querySelector('.qpd-local-link, [onclick*="qpd-local"], .qpd-local-start'); if (l) l.click(); else if (window.qpNewQuote) window.qpNewQuote(); }); await p.waitForTimeout(1500);
-  const mark = n => p.evaluate(n => { const b = document.querySelector('#e2Steps [data-e2s="' + n + '"] i'); return b ? b.textContent.trim() : null; }, n);
+  // 丸は常に数字で、印（✓／!）は CSS の疑似要素（Design 38）。状態はボタンの class（is-ok／is-warn）で見る
+  const mark = n => p.evaluate(n => { const b = document.querySelector('#e2Steps [data-e2s="' + n + '"]'); return !b ? null : b.classList.contains('is-warn') ? '!' : b.classList.contains('is-ok') ? '✓' : String(n); }, n);
   const fill = (id, v) => p.evaluate(([i, t]) => { const e = document.getElementById(i); e.value = t; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); }, [id, v]);
   ok('新画面が有効で、ステップが 5 つ', await p.evaluate(() => document.documentElement.classList.contains('editor-v2') && document.querySelectorAll('#e2Steps [data-e2s]').length === 5));
 
@@ -46,14 +47,19 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const r = await nextInView();
     ok('④ ステップ' + st + '：スクロールしなくても［次へ］が画面内（合計バーに隠れない）', r.ok, r);
   }
-  // ⑤ 合計バーの「数量登録」「パターン登録」は、物量・費用（③④）だけに出す
-  const qBtns = () => p.evaluate(() => ['[data-e2q]', '[data-e2p]'].map(s => { const e = document.querySelector('#e2Total ' + s); return !!e && getComputedStyle(e).display !== 'none' && e.offsetWidth > 0; }));
-  for (const [st, want] of [[1, false], [2, false], [3, true], [4, true], [5, false]]) {
-    await p.evaluate(n => document.querySelector('#e2Steps [data-e2s="' + n + '"]').click(), st); await p.waitForTimeout(400);
-    const v = await qBtns();
-    ok('⑤ ステップ' + st + '：「数量登録」「パターン登録」は' + (want ? '出る' : '出ない'), v[0] === want && v[1] === want, v);
+  // ⑤ 合計バーの［数量登録］は PC では出さない（数量は右レールの「その他 ▾」の 🔢 から。入口を右レールに一本化）
+  for (const st of [1, 2, 3, 4, 5]) {
+    await p.evaluate(n => document.querySelector('#e2Steps [data-e2s="' + n + '"]').click(), st); await p.waitForTimeout(300);
+    const v = await p.evaluate(() => { const e = document.querySelector('#e2Total [data-e2q]'); return !!e && getComputedStyle(e).display !== 'none' && e.offsetWidth > 0; });
+    ok('⑤ ステップ' + st + '：合計バーに［数量登録］は出ない（PC）', v === false, v);
   }
-  ok('⑤ 「費用の内訳」「参考」はどのステップでも出る', await p.evaluate(() => ['[data-e2d="digest"]', '[data-e2d="ref"]'].every(s => { const e = document.querySelector('#e2Total ' + s); return !!e && e.offsetWidth > 0; })));
+  // ⑥ 右レール（費用／金額／申し送り／サブコン／チャージ／その他）は、どのステップでも右端に見える。合計バーに「費用の内訳」「参考」は無い
+  for (const st of [1, 2, 3, 4, 5]) {
+    await p.evaluate(n => document.querySelector('#e2Steps [data-e2s="' + n + '"]').click(), st); await p.waitForTimeout(300);
+    const r = await p.evaluate(() => { const e = document.getElementById('qrcRail'); const x = e.getBoundingClientRect(); return { vis: x.width > 40 && getComputedStyle(e).display !== 'none', right: Math.round(innerWidth - x.right), hs: document.documentElement.scrollWidth > innerWidth + 2, nBtn: [...e.querySelectorAll('.qrc-rail-btn')].filter(b => b.offsetWidth > 0).length }; });
+    ok('⑥ ステップ' + st + '：右レールが右端に見える（6 つのボタン・横スクロールなし）', r.vis && r.nBtn === 6 && !r.hs && r.right < 40, r);
+  }
+  ok('⑥ 合計バーに「費用の内訳」「参考」はない', await p.evaluate(() => !document.querySelector('#e2Total [data-e2d]')));
 
   // ③ 最後のステップの［次へ］はプレビューへ
   await p.click('#e2Steps [data-e2s="5"]'); await p.waitForTimeout(500);

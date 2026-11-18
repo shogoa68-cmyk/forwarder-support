@@ -15,10 +15,10 @@
   const wideRail = () => !!(window.matchMedia && window.matchMedia('(min-width: 1400px)').matches) && !(window.matchMedia && window.matchMedia('(max-width: 600px)').matches);
   const railPref = () => { try { return localStorage.getItem('fwd.e2Rail'); } catch (e) { return null; } };
   const isDock = () => railOpen && wideRail();
-  // 右レールを常時表示する広い画面（1500px 以上）では、最初は引き出しを閉じた状態で始める（右レールの既定は「費用」を開いた状態で、本文に重なるため）。1 回だけ
+  // 右レールを常時表示する PC の幅（601px 以上）では、最初は引き出しを閉じた状態で始める（右レールの既定は「費用」を開いた状態で、本文に重なるため）。1 回だけ
   let rrClosed = false;
   const closeRightOnce = () => {
-    if (rrClosed || !window.matchMedia || !window.matchMedia('(min-width: 1500px)').matches || document.body.classList.contains('e2-drawer')) return;
+    if (rrClosed || !window.matchMedia || window.matchMedia('(max-width: 600px)').matches || document.body.classList.contains('e2-drawer')) return;
     const on = document.querySelector('#qrcRail .qrc-rail-btn.is-on'), rail = document.getElementById('qrcRail'); if (!rail) return;
     rrClosed = true; if (on) on.click();
   };
@@ -197,7 +197,7 @@
     const main = ws.querySelector('.quote-main'); (main || ws).appendChild(foot);
     const tot = document.createElement('div'); tot.id = 'e2Total';
     tot.innerHTML = '<div class="e2t-amts"><span><i>売</i><b id="e2tSell">—</b></span><span><i>仕入</i><b id="e2tCost">—</b></span><span><i>粗利</i><b id="e2tProfit">—</b></span></div>' +
-      '<div class="e2t-btns"><button type="button" data-e2q="1" class="e2t-q" title="単位ごとの数量をまとめて登録・変更する">数量登録</button><button type="button" data-e2d="digest">費用の内訳 ▸</button><button type="button" data-e2d="ref">参考 ▸</button></div>';
+      '<div class="e2t-btns"><button type="button" data-e2q="1" class="e2t-q" title="単位ごとの数量をまとめて登録・変更する">数量登録</button></div>';
     document.getElementById('tab-quote-make').appendChild(tot);
     steps.addEventListener('click', e => {
       if (e.target.closest('.e2-rail-toggle')) { setRail(!railOpen, true); return; }
@@ -217,7 +217,6 @@
       if (e.target.closest('[data-e2q]')) toggleDrawer('scenario');
       if (e.target.closest('[data-e2p]') && typeof window.addPackingPattern === 'function') window.addPackingPattern();
     });
-    tot.addEventListener('click', e => { const b = e.target.closest('#e2Total [data-e2d]'); if (b) toggleDrawer(b.dataset.e2d === 'digest' ? 'digest' : 'similar'); });
     built = true;
   }
 
@@ -249,7 +248,6 @@
   function syncDrawerBtns() {
     const on = document.body.classList.contains('e2-drawer') ? (document.body.dataset.e2drawer || '') : '';
     const g = { d: ['digest', 'fin'], s: ['similar', 'compare', 'fcllcl', 'bookmark', 'subcon', 'charges', 'chat'], q: ['scenario'] };
-    document.querySelectorAll('#e2Total [data-e2d]').forEach(b => b.classList.toggle('is-open', !!on && (b.dataset.e2d === 'digest' ? g.d : g.s).includes(on)));
     document.querySelectorAll('#e2Total [data-e2q]').forEach(b => b.classList.toggle('is-open', !!on && g.q.includes(on)));
   }
   document.addEventListener('qrc:close', () => { document.body.classList.remove('e2-drawer'); syncDrawerBtns(); });

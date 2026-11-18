@@ -31,7 +31,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   }
   // ステップ⑤の出力パネル
   await p.evaluate(() => window.editorV2Go(5)); await p.waitForTimeout(400);
-  const o = await p.evaluate(() => { const e = document.getElementById('e2Out'); if (!e) return null; const r = e.getBoundingClientRect(), n = document.getElementById('e2Nav').getBoundingClientRect(); return { shown: getComputedStyle(e).display !== 'none' && r.height > 0, btns: Array.from(e.querySelectorAll('button')).filter(x => !x.hidden).map(x => x.textContent.trim()), aboveNav: r.bottom <= n.top + 1 }; });
+  const o = await p.evaluate(() => { const e = document.getElementById('e2Out'); if (!e) return null; const r = e.getBoundingClientRect(), n = document.getElementById('e2Nav').getBoundingClientRect(); return { shown: getComputedStyle(e).display !== 'none' && r.height > 0, btns: Array.from(e.querySelectorAll('button')).filter(x => !x.hidden).map(x => x.textContent.trim()), aboveNav: !!(e.compareDocumentPosition(document.getElementById('e2Nav')) & Node.DOCUMENT_POSITION_FOLLOWING) }; });   // 順序は DOM で判定（［戻る］［次へ］は画面の下に固定されるため、スクロール位置しだいで見かけの上下が入れ替わる）
   ok('ステップ⑤の最後に出力パネル（プレビュー・PDF・保存の順）が出る', o && o.shown && o.btns.length === 4 && /プレビュー/.test(o.btns[0]) && /PDF/.test(o.btns[1]) && /案件のファイル/.test(o.btns[2]) && /保存/.test(o.btns[3]), o);
   ok('出力パネルは［戻る］［次へ］の上にある', o && o.aboveNav, o);
   let called = {};

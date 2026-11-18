@@ -137,12 +137,15 @@ html.editor-v2 #e2Steps button.is-ok i::after,
 html.editor-v2 #e2Steps button.is-warn i::after { position: absolute; top: -5px; right: -6px; min-width: 14px; height: 14px; line-height: 14px; border-radius: 7px; border: 1.5px solid #fff; font-size: 10px; font-weight: 700; text-align: center; box-sizing: content-box; }
 html.editor-v2 #e2Steps button.is-ok i::after { content: "✓"; background: #1e7a4a; color: #fff; }
 html.editor-v2 #e2Steps button.is-warn i::after { content: "!"; background: #b45309; color: #fff; }
-/*      (c) 右のレール（費用／金額／サブコン／チャージ…）は、広い画面（1500px 以上）では閉じている間も縦の帯として常時表示。
-            そのぶん下の合計バーの［数量登録］［費用の内訳］［参考］は出さない */
-@media (min-width: 1500px) {
+/*      (c) 右のレール（費用／金額／サブコン／チャージ…）は、PC の幅（601px 以上）では閉じている間も縦の帯として常時表示（入口を右レールに一本化）。
+            そのぶん下の合計バーの［数量登録］［費用の内訳］［参考］は出さない（数量は「その他 ▾」の 🔢、費用は「費用」、類似は「その他 ▾」の中）。
+            2026-11：もとは 1500px 以上だけで、それより狭い画面（ノート PC の 1366px など）は合計バーのボタンから開く別の入口だった → 全 PC 幅に広げた */
+@media (min-width: 601px) {
   html.editor-v2 body:not(.e2-drawer) #tab-quote-make:not(.qp-dash) .quote-right-col--rail { display: flex !important; width: auto; max-width: none; animation: none; box-shadow: none; padding: 8px 6px; top: var(--e2-rail-top, 224px); }   /* 上のツールバー（保存・PDF）の下に付いて動く（editor-v2.js が --e2-rail-top を更新） */
   html.editor-v2 #e2Total .e2t-btns button[data-e2q], html.editor-v2 #e2Total .e2t-btns button[data-e2d] { display: none; }
 }
+/* 右レールの帯（約 72px）に本文が重ならないよう、1500px 未満では本文の右に余白を取る（1500px 以上は下の max-width の規則で収める） */
+@media (min-width: 601px) and (max-width: 1499px) { html.editor-v2 #tab-quote-make:not(.qp-dash) { padding-right: 72px; } }
 /*      (d) ⑤の「出力する」枠の［📁 一時ファイル］（見積に添える資料の置き場。出力と近い場所へ） */
 #e2Out .e2o-files { border-color: #98a2b3; }
 
