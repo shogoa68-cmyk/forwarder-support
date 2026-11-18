@@ -2608,6 +2608,9 @@ html.theme-industry {
   font-size: var(--fs-11-5);
   line-height: 1.5;
 }
+:where(html.theme-industry) #tab-quote-make .qf-attach-hint small {
+  color: var(--c-9a8a70);
+}
 :where(html.theme-industry) #tab-quote-make .qf-meter-bar {
   border-radius: 0;
 }
@@ -3325,6 +3328,7 @@ html.theme-industry {
   color: #584522;
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-close {
+  color: var(--gray-lt);
   border-radius: 0;
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-close:hover {
@@ -3344,6 +3348,7 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num {
   background: #b79546;
+  color: var(--surface);
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-footer {
   border-top: 1px solid #e5dbbb;
@@ -3354,6 +3359,7 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-btn-next {
   background: #b79546;
+  color: var(--surface);
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-btn-next:hover {
   background: #906e37;
@@ -6754,6 +6760,7 @@ html.theme-industry {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
 }
 :where(html.theme-industry) .um-search {
+  flex: 1;
   border-radius: 0;
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
 }
@@ -10621,4 +10628,11 @@ html.theme-industry {
   font-size: var(--text-sm, 13px);
   font-weight: 700;
   color: #1a7f6e;
+}
+:where(html.theme-industry) #tab-quote-make .pv-wg-btn-next,
+:where(html.theme-industry) #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num {
+  color: #2b1d00;
+}
+:where(html.theme-industry) #tab-quote-make .pv-wg-close {
+  color: #666;
 }

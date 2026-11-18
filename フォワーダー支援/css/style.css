@@ -93,10 +93,7 @@ body {
 }
 
 /* ===== タブレット幅：ボタンが多く、見出しが 1 文字ずつ縦に潰れる／ページが横に溢れるため折り返す ===== */
-@media (min-width: 601px) and (max-width: 1000px) {
-  .header { flex-wrap: wrap; row-gap: var(--sp-10); }
-  .header-main { flex: 1 1 100%; }
-}
+/* ヘッダーのリンクは ☰ メニューへ集約したため、折り返しは不要（折り返すと ☰ とログインだけの行が空いて間延びした） */
 
 /* ===== スマホ：ヘッダーをコンパクト化 ===== */
 @media (max-width: 600px) {
@@ -1089,7 +1086,7 @@ body:has(#tab-quote-make.active) .app { padding-bottom: var(--sp-8); }
 }
 .cat-btn:hover { background: var(--accent-lt); color: var(--accent-dk); border-color: var(--accent); }
 /* スマホ幅：折り返すと 4 段（約 200px）になり、画面上部に固定されたまま入力欄を隠すため、1 段の横スクロールにする */
-@media (max-width: 680px) {
+@media (max-width: 800px) {
   .cat-nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .cat-nav::-webkit-scrollbar { display: none; }
   .cat-btn { flex: 0 0 auto; min-width: 0; }
@@ -1119,7 +1116,7 @@ body:has(#tab-quote-make.active) .app { padding-bottom: var(--sp-8); }
 }
 .cat-more-panel[hidden] { display: none; }
 .cat-more-panel .cat-btn { flex: none; width: 100%; text-align: left; min-height: 40px; }
-@media (max-width: 680px) {
+@media (max-width: 800px) {
   .cat-more { flex: 0 0 auto; }
   .cat-more-btn { flex: 0 0 auto; }
 }
@@ -5832,7 +5829,7 @@ tr.is-open .master-name-toggle::before { content: "▾ "; }
   body { padding-bottom: calc(64px + 72px + env(safe-area-inset-bottom)); }
 }
 /* 上段のタブ列：右に続きがあるときだけ、右端に薄いグラデーション（js/cat-more.js が cn-end を付け外し） */
-@media (max-width: 680px) {
+@media (max-width: 800px) {
   .cat-nav::after { content: ''; position: sticky; right: 0; flex: 0 0 28px; margin-left: -28px; pointer-events: none; background: linear-gradient(to right, rgba(255,255,255,0), var(--bg, #f5ede0) 80%); }
   .cat-nav.cn-end::after { display: none; }
 }

@@ -309,9 +309,10 @@
 }
 #tab-quote-make #srcAddBox .qf-attach-drop:hover { background: var(--accent-lt); border-color: #b8a98f; }
 #tab-quote-make #srcAddBox .qf-attach-drop.is-drag { background: #eef4e6; border-color: var(--green-leaf); }
-#tab-quote-make #srcAddBox .qf-attach-drop.is-disabled { opacity: .55; }
+/* 無効（未ログイン）でも案内の文字が読めるよう、全体を薄くせず背景とカーソルだけで無効を示す（opacity .55 だと 1.9:1 になった） */
+#tab-quote-make #srcAddBox .qf-attach-drop.is-disabled { background: var(--bg, #f2f2f2); cursor: not-allowed; }
 #tab-quote-make .qf-attach-hint { font-size: var(--fs-12); color: var(--text-muted); line-height: 1.7; }
-#tab-quote-make .qf-attach-hint small { color: var(--c-9a8a70); }
+#tab-quote-make .qf-attach-hint small { color: var(--text-muted); }
 #tab-quote-make .src-drop-ic { display: block; font-size: 22px; line-height: 1; margin-bottom: 8px; color: var(--text-muted); }
 #tab-quote-make .src-note { margin: 10px 4px 0; font-size: var(--fs-11-5); color: #8a5a00; background: #fff6e0; border-radius: var(--r-6); padding: 6px 10px; }
 #tab-quote-make .src-note[hidden] { display: none; }
@@ -1772,7 +1773,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--gray-lt);
+  color: #666;
   font-size: var(--fs-14);
   padding: var(--sp-2) var(--sp-4);
   line-height: 1;
@@ -1819,7 +1820,7 @@
 }
 #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num {
   background: #e6a817;
-  color: var(--surface);
+  color: #3d2700; /* 白文字は琥珀色の上でコントラスト不足（2.1:1）だった */
 }
 #tab-quote-make .pv-wg-footer {
   display: flex;
@@ -1839,7 +1840,7 @@
   cursor: pointer;
   transition: background 0.12s;
 }
-#tab-quote-make .pv-wg-btn-next { background: #e6a817; color: var(--surface); }
+#tab-quote-make .pv-wg-btn-next { background: #e6a817; color: #3d2700; }
 #tab-quote-make .pv-wg-btn-next:hover { background: #c77b00; }
 #tab-quote-make .pv-wg-btn-skip { background: var(--bg); color: #555; }
 #tab-quote-make .pv-wg-btn-skip:hover { background: #ddd8d0; }
@@ -9624,9 +9625,9 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 .um-tab.is-active { color: var(--accent-dk); border-bottom-color: var(--accent); }
 
 .um-pane { flex: 1 1 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-.um-toolbar { display: flex; align-items: center; gap: var(--sp-8); padding: var(--sp-10) var(--sp-16); border-bottom: 1px solid var(--accent-lt); background: var(--card-bg); flex-shrink: 0; }
-.um-search { flex: 1; border: 1px solid var(--border); border-radius: var(--r-6); padding: var(--sp-6) var(--sp-11); font-size: var(--fs-12-5); font-family: inherit; background: var(--surface); }
-.um-filter { font-size: var(--fs-12); padding: var(--sp-6) var(--sp-9); border: 1px solid var(--border); border-radius: var(--r-6); background: var(--surface); color: var(--brown-25); font-family: inherit; cursor: pointer; }
+.um-toolbar { display: flex; align-items: center; gap: var(--sp-8); padding: var(--sp-10) var(--sp-16); border-bottom: 1px solid var(--accent-lt); background: var(--card-bg); flex-shrink: 0; flex-wrap: wrap; }
+.um-search { flex: 1 1 160px; min-width: 0; border: 1px solid var(--border); border-radius: var(--r-6); padding: var(--sp-6) var(--sp-11); font-size: var(--fs-12-5); font-family: inherit; background: var(--surface); }
+.um-filter { max-width: 100%; font-size: var(--fs-12); padding: var(--sp-6) var(--sp-9); border: 1px solid var(--border); border-radius: var(--r-6); background: var(--surface); color: var(--brown-25); font-family: inherit; cursor: pointer; }
 .um-invite-btn { flex-shrink: 0; white-space: nowrap; background: var(--accent); color: var(--surface); border: none; border-radius: var(--r-6); padding: var(--sp-7) 13px; font-size: var(--fs-12-5); font-weight: 600; font-family: inherit; cursor: pointer; }
 .um-invite-btn:hover { background: var(--c-5a4a35); }
 
