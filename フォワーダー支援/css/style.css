@@ -6214,3 +6214,10 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 .fl-dlg { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .fl-dlg label { display: block; font-size: var(--text-sm, 13px); font-weight: 600; }
 .fl-dlg input, .fl-dlg select { display: block; width: 100%; box-sizing: border-box; min-height: 40px; margin-top: 4px; padding: 0 10px; font: inherit; font-size: var(--text-base, 14px); }
+
+/* メール取込ルール：取り込まない行／確認済みの行の「形」 */
+.ir-shapes { margin: 6px 0; }
+.ir-shapes > summary { cursor: pointer; font-size: var(--text-sm, 13px); font-weight: 600; }
+.ir-shape { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: var(--text-xs, 12px); }
+.ir-shape-t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, monospace; }
+.ir-shape-del { min-width: 32px; min-height: 28px; border: 1px solid var(--border-md, #d0d7de); border-radius: 6px; background: #fff; cursor: pointer; }

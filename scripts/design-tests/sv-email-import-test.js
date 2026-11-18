@@ -422,6 +422,49 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => document.querySelector('#eiReviewWrap .ei-unread-copy').click()); await p.waitForTimeout(300);
     const clip = await p.evaluate(() => window.__clip);
     ok('「📋 改善用にコピー」で、数字を 9 に伏せた形がコピーされる', /数字は 9 に伏せています/.test(clip) && /・特殊作業 ABC999 XYZ 999 要相談/.test(clip) && !/[0-8]/.test(clip.split('\n').slice(1).join('')), clip);
+
+    // ===== 行の評価（✅合っている／❌明細ではない）→ 覚える → 次回から反映 =====
+    const abcRules = () => p.evaluate(() => ((window.__db.master_details.find(r => r.field === 'sv' && r.value === 'ABCキャリア') || {}).details || {}).importRules || null);
+    const RATE_TXT = "海上運賃 USD 1,200 /20GP\nTHC USD 150 /20GP\n注意書き USD 50 at cost\nTYPE 40HQ 99";
+    await p.evaluate(t => { window.closeEmailImport(); window.eiOpenForSubcon('ABCキャリア'); document.getElementById('eiText').value = t; window.eiParse(); }, RATE_TXT); await p.waitForTimeout(500);
+    const r0 = await p.evaluate(() => ({ rows: document.querySelectorAll('#eiReviewWrap .ei-table tbody tr').length, btns: document.querySelectorAll('#eiReviewWrap .ei-rate-btn').length, src: [...document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')].map(t => t.dataset.src) }));
+    ok('サブコン専用の取込では、各行に ✅／❌ の評価ボタンが出て、元の行の文を持つ', r0.rows >= 3 && r0.btns === r0.rows * 2 && /海上運賃/.test(r0.src[0]), r0);
+    const r1 = await p.evaluate(() => {
+      const trs = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr');
+      trs[0].querySelector('.ei-rate-btn[data-k="ok"]').click();
+      trs[2].querySelector('.ei-rate-btn[data-k="ng"]').click();
+      return { okOn: trs[0].querySelector('.ei-rate-btn[data-k="ok"]').classList.contains('on'), ngChk: trs[2].querySelector('.ei-chk').checked, ngRate: trs[2].dataset.rate };
+    });
+    ok('❌ を押した行は、挿入のチェックが外れて印が付く（もう一度押すと取り消し）', r1.okOn && r1.ngChk === false && r1.ngRate === 'ng', r1);
+    const r2 = await p.evaluate(() => { const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[2]; tr.querySelector('.ei-rate-btn[data-k="ng"]').click(); const a = tr.querySelector('.ei-chk').checked; tr.querySelector('.ei-rate-btn[data-k="ng"]').click(); return a; });
+    ok('❌ をもう一度押すと取り消されてチェックが戻る', r2 === true, r2);
+    await p.evaluate(() => window.eiLearnFromCorrections()); await p.waitForTimeout(700);
+    let rr = await abcRules();
+    ok('「覚える」で、❌の形が ignore に・✅の形が ok に保存される（数字は 9 に伏せた形）', rr && rr.ignore && rr.ignore.length === 1 && /注意書き USD 99 at cost/.test(rr.ignore[0].shape) && rr.ok && rr.ok.length === 1 && /海上運賃 USD 9,999 \/9GP|海上運賃/.test(rr.ok[0].shape) && !/1,200/.test(rr.ok[0].shape), rr);
+    // 金額が違っても同じ形として当たる
+    await p.evaluate(() => { document.getElementById('eiText').value = "海上運賃 USD 2,500 /20GP\n注意書き USD 80 at cost\nTHC USD 300 /20GP"; window.eiParse(); }); await p.waitForTimeout(500);
+    const r3 = await p.evaluate(() => ({ names: [...document.querySelectorAll('#eiReviewWrap .ei-name')].map(x => x.value), confs: [...document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')].map(t => t.querySelector('.ei-conf')?.textContent), ign: document.querySelector('#eiReviewWrap .ei-ignored')?.textContent || '' }));
+    ok('次回：❌の形の行（金額違い）は自動で除外され、「ルールで除外した行」に出る', r3.names.length === 2 && !r3.names.some(n => /注意書き/.test(n)) && /ルールで除外した行（1 件）/.test(r3.ign), r3);
+    ok('次回：✅の形の行は確度が「高」になる（ほかの行は変わらない）', r3.confs[0] === '高' && r3.confs[1] !== '高', r3.confs);
+    // 読めなかった行を「今後は無視」
+    await p.evaluate(() => { document.getElementById('eiText').value = "海上運賃 USD 2,500 /20GP\nTYPE 40HQ 99 ref"; window.eiParse(); }); await p.waitForTimeout(400);
+    const hasIgn = await p.evaluate(() => !!document.querySelector('#eiReviewWrap .ei-unread .ei-ign-btn'));
+    if (hasIgn) {
+      await p.evaluate(() => document.querySelector('#eiReviewWrap .ei-unread .ei-ign-btn').click()); await p.waitForTimeout(600);
+      rr = await abcRules();
+      ok('「読めなかった行」の「🚫 今後は無視」で、その形が ignore に保存される', rr.ignore.length === 2, rr.ignore);
+    } else ok('（読めなかった行の無視ボタンの試験は、この文面では読めなかった行が出ないためスキップ）', true, null);
+    // 通常（サブコンなし）の取込には評価ボタンが出ない
+    await p.evaluate(t => { window.closeEmailImport(); window.openEmailImport(); document.getElementById('eiText').value = t; window.eiParse(); }, RATE_TXT); await p.waitForTimeout(400);
+    ok('サブコンを決めない通常の取込には、評価ボタンは出ない', await p.evaluate(() => document.querySelectorAll('#eiReviewWrap .ei-rate-btn').length === 0), null);
+    // マスターのパネル：形の一覧・✕で外して保存
+    await p.evaluate(() => { window.closeEmailImport(); window.statsToggleMasterDetail('sv', 'ABCキャリア'); }); await p.waitForTimeout(700);
+    const pn = await p.evaluate(() => ({ ign: document.querySelectorAll('#irPanel .ir-shapes[data-kind="ignore"] .ir-shape').length, ok: document.querySelectorAll('#irPanel .ir-shapes[data-kind="ok"] .ir-shape').length }));
+    ok('マスターの「メール取込ルール」に、取り込まない形・確認済みの形の一覧が出る', pn.ign >= 1 && pn.ok === 1, pn);
+    await p.evaluate(() => { const m = document.getElementById('mdDetailModal'); m.querySelector('#irPanel .ir-shapes[data-kind="ok"] .ir-shape-del').click(); m.querySelector('#irPanel .ir-save').click(); }); await p.waitForTimeout(700);
+    rr = await abcRules();
+    ok('パネルで ✕ を押した形だけが外れる（ほかの形は残る）', rr.ok.length === 0 && rr.ignore.length >= 1, rr);
+    await p.evaluate(() => window.statsCloseMasterDetail());
     ok('画面のエラーが出ていない', errs.length === 0, errs);
     await ctx.close();
   }
