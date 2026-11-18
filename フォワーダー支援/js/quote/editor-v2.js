@@ -181,7 +181,7 @@
     const main = ws.querySelector('.quote-main'); (main || ws).appendChild(foot);
     const tot = document.createElement('div'); tot.id = 'e2Total';
     tot.innerHTML = '<div class="e2t-amts"><span><i>売</i><b id="e2tSell">—</b></span><span><i>仕入</i><b id="e2tCost">—</b></span><span><i>粗利</i><b id="e2tProfit">—</b></span></div>' +
-      '<div class="e2t-btns"><button type="button" data-e2q="1" title="単位ごとの数量をまとめて登録・変更する">数量登録</button><button type="button" data-e2p="1" title="数量パターン（FCL案／LCL案など）を追加する">パターン登録</button><button type="button" data-e2d="digest">費用の内訳 ▸</button><button type="button" data-e2d="ref">参考 ▸</button></div>';
+      '<div class="e2t-btns"><button type="button" data-e2f="1" class="e2t-files" title="案件に添える参考資料を置く場所（置いてから3時間で自動的に消えます）">📁 一時ファイル</button><button type="button" data-e2q="1" title="単位ごとの数量をまとめて登録・変更する">数量登録</button><button type="button" data-e2p="1" title="数量パターン（FCL案／LCL案など）を追加する">パターン登録</button><button type="button" data-e2d="digest">費用の内訳 ▸</button><button type="button" data-e2d="ref">参考 ▸</button></div>';
     document.getElementById('tab-quote-make').appendChild(tot);
     steps.addEventListener('click', e => {
       if (e.target.closest('.e2-rail-toggle')) { setRail(!railOpen); return; }
@@ -197,6 +197,7 @@
     });
     foot.addEventListener('click', e => { if (e.target.id === 'e2Prev') go(step - 1); if (e.target.id === 'e2Next') go(step + 1); });
     tot.addEventListener('click', e => {
+      if (e.target.closest('[data-e2f]')) { if (window.rmsIsOpen && window.rmsIsOpen() && window.rmsPane && window.rmsPane() === 'files') window.rmsClose(); else if (window.rmsShowFiles) window.rmsShowFiles(); return; }
       if (e.target.closest('[data-e2q]')) toggleDrawer('scenario');
       if (e.target.closest('[data-e2p]') && typeof window.addPackingPattern === 'function') window.addPackingPattern();
     });
