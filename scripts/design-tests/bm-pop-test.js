@@ -16,14 +16,14 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
   const p=await ctx.newPage();p.setDefaultTimeout(8000);
   await p.goto(URL,{waitUntil:'domcontentloaded'});await p.waitForTimeout(800);
   await p.evaluate(()=>{
-   const rows=[];for(let i=0;i<60;i++)rows.push({id:'b'+i,label:'リンク'+i,url:'https://example.com/'+i,carrier:'ONE',function:'',note:''});
+   const rows=[];for(let i=0;i<200;i++)rows.push({id:'b'+i,label:'リンク'+i,url:'https://example.com/'+i,carrier:'ONE',function:'',note:''});
    const q={select(){return q},in(){return q},or(){return Promise.resolve({data:rows,error:null})},eq(){return q},then(r){return Promise.resolve({data:[],error:null}).then(r)}};
    window.SupabaseClient={auth:{getSession:async()=>({data:{session:{user:{email:'a@b'}}}})},from(){return q}};
    const d=document.createElement('button');d.id='tbtn';d.textContent='x';d.style.cssText='position:fixed;top:300px;left:'+(innerWidth-60)+'px;z-index:5';document.body.appendChild(d);d.onclick=e=>bmShowForCarrier('ONE',e);
   });
   await p.click('#tbtn');await p.waitForTimeout(900);
   const r=await p.evaluate(()=>{const e=document.querySelector('.sv-bm-pop');if(!e)return null;const q=e.getBoundingClientRect();return {t:q.top,b:q.bottom,vh:innerHeight,scroll:e.scrollHeight>e.clientHeight}});
-  ok(`W=${W} リンクが 60 件でも吹き出しは画面の高さに収まり、中でスクロールできる`,!!r&&r.t>=0&&r.b<=r.vh&&r.scroll,r);
+  ok(`W=${W} リンクが 200 件でも吹き出しは画面の高さに収まり、中でスクロールできる`,!!r&&r.t>=0&&r.b<=r.vh&&r.scroll,r);
   await p.keyboard.press('Escape');await p.waitForTimeout(200);
   ok(`W=${W} Esc で閉じる`,!(await p.evaluate(()=>document.querySelector('.sv-bm-pop'))),null);
   await ctx.close();
