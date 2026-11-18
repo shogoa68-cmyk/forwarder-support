@@ -49,3 +49,12 @@
 .hint-pop .hp-acts button { min-height: 44px; padding: 0 12px; border: 1px solid var(--border, #d9cfc2); background: var(--surface, #fff); color: var(--text, #1d1f20); border-radius: 8px; font-size: var(--text-xs, 12px); font-weight: 700; cursor: pointer; }
 .hint-pop .hp-acts button.hp-gl { border-color: var(--accent, #2f5fb3); background: var(--accent-lt, #eef3fb); color: var(--accent-dk, #234a8f); }
 @media (max-width: 600px) { .hint-pop { left: 8px !important; right: 8px; width: auto; max-width: none; } }
+
+/* 行の［その他 ▾］の中の設定ボタンの説明バー（Design 36 案P）：触れたボタンを青い枠で示し、列の下に 1 つだけ説明を出す */
+.row-mode-btns > .mode-hint { flex: 1 0 100%; box-sizing: border-box; min-height: 72px; height: 72px; padding: 6px 12px; margin-top: 2px; background: var(--accent-50, #f1f6fd); border: 1px solid #bcd0ee; border-radius: 8px; overflow: hidden; font-size: var(--text-sm, 13px); line-height: 1.5; text-align: left; white-space: normal; }
+.row-mode-btns > .mode-hint .mh-idle { color: var(--text-sub, #667085); }
+.row-mode-btns > .mode-hint .mh-name { font-weight: 700; color: var(--text, #1d1f20); }
+.row-mode-btns > .mode-hint .mh-desc { color: var(--text-sub, #475467); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.row-mode-btns > button.is-touch { outline: 2px solid var(--accent, #2f5fb3); outline-offset: 1px; }
+@media (max-width: 600px) { .row-mode-btns > button { min-height: 44px; } .row-mode-btns { gap: 8px; } }
+@media print { .row-mode-btns > .mode-hint { display: none !important; } }

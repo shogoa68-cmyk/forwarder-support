@@ -4719,6 +4719,7 @@
           <button type="button" class="cn-mode-btn" tabindex="-1" title="表示条件：数量・総個数・コンテナ本数・輸送モード・貿易条件などが条件に合うときだけ、この行を見積書・合計に含めます（例：数量 20 以上 40 以下のときだけ有効）。合わない行は画面に薄く残り、客先向けの出力と合計から外れます。もう一度クリックで解除。">表示条件</button>
           <button type="button" class="min-mode-btn" tabindex="-1" title="ミニマム（最低料金）：金額を「数量 × 単価」と最低料金の高いほうにします（例：Min. $28.00 or $0.15/kg）。もう一度クリックで解除。">MIN</button>
           <button type="button" class="range-mode-btn" tabindex="-1" title="幅（金額の範囲）：売単価を「1,000〜2,500」のように幅で示します（上限を入力）。客先向けの出力は単価・金額を「〜」で表示し、合計・小計は売単価で計算します。もう一度クリックで解除。">幅</button>
+          <div class="mode-hint" role="status" aria-live="polite"><span class="mh-idle">ボタンを押すと、ここに説明が出ます</span></div>
         </div>
         <span class="min-group" title="ミニマム（最低料金）：金額は「数量 × 単価」と最低料金の高いほうになります。仕入・売値それぞれに設定できます（空欄なら適用しない）">
           <span class="min-lbl">最低料金（MIN）</span>
@@ -5154,6 +5155,7 @@
 <!-- 欄ごとの説明書きを「？」にしまう（マウスを乗せる／タップで読める） -->
 <script src="js/hint-fold.js"></script>
 <script src="js/help-hints.js"></script>
+<script src="js/option-hints.js"></script>
 <script src="js/workfolder.js"></script>
 <script src="js/integrations/cyberport.js"></script>
 <script src="js/integrations/cp-events.js"></script>
