@@ -253,7 +253,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     if (process.env.OUT) { await p.evaluate(() => window.scrollTo(0, 0)); await p.screenshot({ path: path.join(process.env.OUT, 'master-approval.png') }); }
     // 📋 今日やること（Design 29 ②）：お知らせを 1 枚に・承認待ちがあれば開いて始まる・畳める
     const td = await p.evaluate(() => { const t = document.getElementById('mhTodo'); const b = t && t.querySelector('.mh-todo-b'); return { has: !!t, open: !!t && !t.classList.contains('is-closed'), inside: !!b && !!b.querySelector('#driftCard') && !!b.querySelector('.stats-req-section'), n: t && t.querySelector('.mh-todo-n') && t.querySelector('.mh-todo-n').textContent }; });
-    ok(L + '[今日やること] 申請・ゆらぎチェックが 1 枚の中に入り、承認待ちがあるので開いている', td.has && td.open && td.inside && /承認待ち 1/.test(td.n || ''), td);
+    ok(L + '[今日やること] 申請・表記ゆれチェックが 1 枚の中に入り、承認待ちがあるので開いている', td.has && td.open && td.inside && /承認待ち 1/.test(td.n || ''), td);
     await p.evaluate(() => statsMhTodoToggle()); await p.waitForTimeout(100);
     ok(L + '[今日やること] 押すと畳まれ、本文が隠れる', await p.evaluate(() => { const t = document.getElementById('mhTodo'); return t.classList.contains('is-closed') && getComputedStyle(t.querySelector('.mh-todo-b')).display === 'none'; }));
     await p.evaluate(() => statsMhTodoToggle()); await p.waitForTimeout(100);
@@ -273,7 +273,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
       document.getElementById('statsPane-master').appendChild(t); mmMarksEnhance();
       const hidden = td.querySelectorAll('.mm-hide').length, btn = td.querySelector('.mm-more'); const ok1 = hidden === 2 && btn && btn.textContent === '他2' && getComputedStyle(td.querySelector('.mn-chip')).display === 'none';
       btn.click(); const ok2 = td.classList.contains('mm-open') && btn.textContent === '閉じる'; t.remove(); return ok1 && ok2; }));
-    ok(L + '[ゆらぎ ▸ 直す] ゆらぎのあるカードにだけ出て、押すと「ゆらぎ・未登録」へ', await p.evaluate(() => {
+    ok(L + '[表記ゆれ ▸ 直す] 表記ゆれのあるカードにだけ出て、押すと「表記ゆれ・未登録」へ', await p.evaluate(() => {
       const f0 = window.statsMasterFieldFilter, h0 = window.statsMasterHasDrift, m0 = window.masterSetPane, k0 = window.fixSetKind; let got = [];
       window.statsMasterFieldFilter = () => 'customer'; window.statsMasterHasDrift = (f, n) => n === '乱れ商事'; window.masterSetPane = x => got.push('m:' + x); window.fixSetKind = x => got.push('k:' + x);
       const mk = nm => { const td = document.createElement('td'); td.className = 'stats-val'; td.innerHTML = '<span class="master-name-toggle">' + nm + '</span>'; const t = document.createElement('table'); t.className = 'master-grid'; const tr = document.createElement('tr'); tr.appendChild(td); t.appendChild(tr); document.getElementById('statsPane-master').appendChild(t); return [t, td]; };

@@ -1,7 +1,7 @@
 // マスター管理のスマホ版（Design 案A「今日やること」・2026-11・第1〜3回）。
 // 〜600px のときだけ、既存の #tab-master（#statsPane-master／#statsPane-alias）の上に薄い表示層を足す。PC は変えない。
 // 既存の DOM・id・onclick は残し、CSS（css/master-mobile.css）で出し分ける（統計のスマホ版 js/stats-mobile.js と同じ方針）。
-//  ・第1回：今日やること（承認待ち／ゆらぎ／マスター一覧）＋作業画面（承認・却下の理由シート／ゆらぎは既存カードを作業画面に出す）
+//  ・第1回：今日やること（承認待ち／表記ゆれ／マスター一覧）＋作業画面（承認・却下の理由シート／表記ゆれは既存カードを作業画面に出す）
 //  ・第2回：一覧（検索→種別チップ→「絞り込み・並び順」シート／カードは「詳細」と「⋯」だけ／印は 3 つまで）
 //  ・第3回：詳細は全画面（CSS のみ・master-tabs.js のタブをそのまま使う）
 // 却下の理由は保存しない（確認のための入力のみ・SQL なし）。
@@ -35,7 +35,7 @@
     r.classList.toggle('mm-on', mobile());
     ['home', 'work', 'list', 'alias'].forEach(k => r.classList.toggle('mm-view-' + k, mobile() && v === k));
     r.classList.toggle('mm-wtab-drift', mobile() && v === 'work' && wtab === 'drift');
-    const cur = $('mmCur'); if (cur) cur.textContent = { home: '', work: wtab === 'drift' ? 'ゆらぎ' : '承認待ち', list: 'マスター一覧', alias: 'エイリアス是正' }[v] || '';
+    const cur = $('mmCur'); if (cur) cur.textContent = { home: '', work: wtab === 'drift' ? '表記ゆれ' : '承認待ち', list: 'マスター一覧', alias: 'エイリアス是正' }[v] || '';
     if (mobile() && typeof window.masterSetPane === 'function') {
       if (v === 'alias') window.masterSetPane('alias'); else if (v !== 'home' && !$('statsPane-master').classList.contains('is-active')) window.masterSetPane('master');
     }
@@ -56,17 +56,17 @@
     let s = '<p class="mm-lead">今日やること</p>';
     if (i.approvalOn && i.admin) s += act('req', '📨', '承認待ち ' + i.pending.length + ' 件', i.pending.length ? 'マスター登録・別名の申請を確認します' : '承認待ちの申請はありません', i.pending.length ? 'warn' : '');
     else if (i.approvalOn && i.mine.length) s += '<button type="button" class="mm-myreq" data-go="mine">📨 申請中 ' + i.mine.length + ' 件 ›</button>';
-    if (i.admin) s += act('drift', '🔍', 'ゆらぎチェック ' + (d.review + d.human) + ' 件', nd ? '表記ゆれの確認が必要です' + (d.auto ? '（自動で別名にできるもの ' + d.auto + ' 件）' : '') : '確認が必要なゆらぎはありません', d.review + d.human ? 'warn' : '');
+    if (i.admin) s += act('drift', '🔍', '表記ゆれチェック ' + (d.review + d.human) + ' 件', nd ? '表記ゆれの確認が必要です' + (d.auto ? '（自動で別名にできるもの ' + d.auto + ' 件）' : '') : '確認が必要な表記ゆれはありません', d.review + d.human ? 'warn' : '');
     s += act('list', '🗂', 'マスター一覧', '検索・絞り込み・詳細の確認');
     h.innerHTML = s;
   }
 
-  // ---- 作業画面（承認待ち／ゆらぎ）----
+  // ---- 作業画面（承認待ち／表記ゆれ）----
   function renderWork() {
     const w = $('mmWork'); if (!w) return;
     const i = info(), d = drift();
     const tab = (k, l) => '<button type="button" class="mm-wt' + (wtab === k ? ' is-on' : '') + '" data-wt="' + k + '">' + l + '</button>';
-    let s = '<div class="mm-wtabs">' + tab('req', (i.admin ? '承認待ち ' + i.pending.length : '申請中 ' + i.mine.length)) + (i.admin ? tab('drift', 'ゆらぎ ' + (d.review + d.human)) : '') + '</div>';
+    let s = '<div class="mm-wtabs">' + tab('req', (i.admin ? '承認待ち ' + i.pending.length : '申請中 ' + i.mine.length)) + (i.admin ? tab('drift', '表記ゆれ ' + (d.review + d.human)) : '') + '</div>';
     if (wtab === 'req') {
       const list = i.admin ? i.pending : i.mine;
       if (!list.length) s += '<p class="mm-empty">' + (i.admin ? '承認待ちの申請はありません。' : '申請中のものはありません。') + '</p>';
@@ -76,7 +76,7 @@
           : '<div class="mm-card-b"><button type="button" class="mm-btn" data-cancel="' + esc(r.id) + '">取り消す</button></div>') + '</div>').join('');
     }
     w.innerHTML = s;
-    const cur = $('mmCur'); if (cur) cur.textContent = wtab === 'drift' ? 'ゆらぎ' : (i.admin ? '承認待ち' : '申請中');
+    const cur = $('mmCur'); if (cur) cur.textContent = wtab === 'drift' ? '表記ゆれ' : (i.admin ? '承認待ち' : '申請中');
     root().classList.toggle('mm-wtab-drift', mobile() && view === 'work' && wtab === 'drift');
   }
   function openDriftSecs() { document.querySelectorAll('#driftCard details.drift-sec').forEach(d => { d.open = true; }); }

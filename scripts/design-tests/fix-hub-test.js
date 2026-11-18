@@ -1,4 +1,4 @@
-// 🔧 ゆらぎ・未登録の「1 行＋主ボタン」（Design 29 ①b）の確認。node scripts/design-tests/fix-hub-test.js
+// 🔧 表記ゆれ・未登録の「1 行＋主ボタン」（Design 29 ①b）の確認。node scripts/design-tests/fix-hub-test.js
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.resolve(__dirname, '..', '..', 'フォワーダー支援');
@@ -32,7 +32,7 @@ srv.listen(0, async () => {
   await p.evaluate(() => window.statsSetPane('sv')); await p.waitForTimeout(1500);
   const rows = await p.evaluate(() => [...document.querySelectorAll('#statsPane-sv .stats-nm-table tbody > tr')].map(t => ({ tog: !!t.querySelector('.fh-tog'), open: t.classList.contains('fh-open'), chipsShown: getComputedStyle(t.querySelector('td.stats-chips-cell')).display, st: t.querySelector('.fh-st')?.textContent || '', badge: !!t.querySelector('.stats-variant-badge') })));
   ok('行ごとに開閉ボタンがあり、最初は畳んである', rows.length >= 3 && rows.every(r => r.tog && !r.open && r.chipsShown === 'none'), rows);
-  ok('未登録の札・ゆらぎの札が出る', rows.some(r => r.st === '未登録') && rows.some(r => r.badge), rows);
+  ok('未登録の札・表記ゆれの札が出る', rows.some(r => r.st === '未登録') && rows.some(r => r.badge), rows);
   const vi = await p.evaluate(() => [...document.querySelectorAll('#statsPane-sv .stats-nm-table tbody > tr')].findIndex(t => t.classList.contains('stats-has-variant')));
   await p.evaluate(i => document.querySelectorAll('#statsPane-sv .stats-nm-table tbody > tr')[i].querySelector('.fh-tog').click(), vi);
   const op = await p.evaluate(i => { const t = document.querySelectorAll('#statsPane-sv .stats-nm-table tbody > tr')[i]; const m = t.querySelector('.fh-main'); return { open: t.classList.contains('fh-open'), main: m && m.textContent, chips: getComputedStyle(t.querySelector('td.stats-chips-cell')).display, btnHidden: [...t.querySelectorAll('.stats-chip button')].every(b => getComputedStyle(b).display === 'none'), canon: t.querySelector('.fh-canon') && t.querySelector('.fh-canon').value }; }, vi);

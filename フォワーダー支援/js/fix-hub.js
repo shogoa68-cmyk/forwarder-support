@@ -1,7 +1,7 @@
-// 🔧 ゆらぎ・未登録（マスター管理のハブ・Design 29 案B ①b）：名寄せの表を「1 行＝名前・件数・状態の札」に畳み、
+// 🔧 表記ゆれ・未登録（マスター管理のハブ・Design 29 案B ①b）：名寄せの表を「1 行＝名前・件数・状態の札」に畳み、
 // 開くと表記の一覧と「主ボタン 1 つ」を出す薄い表示層。既存の表（stats.js _renderGrouped）の DOM・ボタン・onclick は残し、
 // 行に要素を足して CSS（css/fix-hub.css）で出し分けるだけ。実際の登録・別名は既存の関数（statsToggleVote／synAddAlias）を呼ぶ。
-//   ・［この名前にまとめる］＝ゆらぎのある行（確認ダイアログ → 別名にまとめる → 下のバーに［元に戻す］）
+//   ・［この名前にまとめる］＝表記ゆれのある行（確認ダイアログ → 別名にまとめる → 下のバーに［元に戻す］）
 //   ・［☆ マスターに登録］＝未登録の単独の行（→ 下のバーに［元に戻す］）
 //   ・メンバー（承認制）は「申請」の文言・元に戻すは出さない（申請は管理者が承認するまで確定しない）
 //   ・☆登録・→別名にする・≠別物 などは行の［⋯ その他 ▾］の中
@@ -23,7 +23,7 @@
     const field = FIELD[kind], chips = chipsOf(tr), isSyn = tr.classList.contains('stats-syn-row'), hasV = tr.classList.contains('stats-has-variant') && chips.length > 1;
     const tog = document.createElement('button'); tog.type = 'button'; tog.className = 'fh-tog'; tog.setAttribute('aria-expanded', 'false'); tog.title = '開く／閉じる'; tog.textContent = '▶';
     val.insertBefore(tog, val.firstChild);
-    // 状態の札（ゆらぎは既存の「ゆらぎ N種」の札を使う）
+    // 状態の札（表記ゆれは既存の「表記ゆれ N種」の札を使う）
     let st = '';
     if (isSyn) st = '<span class="fh-st fh-st-ok">整理済み</span>';
     else if (!hasV) st = chips[0] && chips[0].voted ? '<span class="fh-st fh-st-ok">登録済み</span>' : '<span class="fh-st fh-st-new">未登録</span>';

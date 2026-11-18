@@ -49,7 +49,7 @@
   .mm-btn.is-primary { background: var(--accent, #2c455d); border-color: var(--accent, #2c455d); color: #fff; }
   .mm-btn.is-danger { background: #b3261e; border-color: #b3261e; color: #fff; }
   .mm-btn:disabled { opacity: .45; }
-  /* ゆらぎ（既存カードを作業画面に出す）：タップしやすく */
+  /* 表記ゆれ（既存カードを作業画面に出す）：タップしやすく */
   #tab-master.mm-wtab-drift #driftCard .drift-btn { min-height: 44px; }
   #tab-master.mm-wtab-drift #driftCard .drift-head { flex-wrap: wrap; }
   #tab-master.mm-on.mm-view-work.mm-wtab-drift #mmWork { padding-bottom: 0; }

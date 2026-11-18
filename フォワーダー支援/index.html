@@ -382,7 +382,7 @@
               <option value="none">グループなし</option>
             </select>
           </label>
-          <button class="lc-variant-btn" onclick="lcToggleVariants()">🔀 ゆらぎ</button>
+          <button class="lc-variant-btn" onclick="lcToggleVariants()">🔀 表記ゆれ</button>
           <button class="lc-variant-btn" onclick="lcRpOpenList()">📋 明細プリセット</button>
           <button class="lc-add-btn" onclick="lcOpenForm(null)">＋ 新規登録</button>
         </div>
@@ -4855,7 +4855,7 @@
       </div>
       <div class="stats-card">
         <div class="stats-card-value" id="statsBlurCount">—</div>
-        <div class="stats-card-label">ゆらぎグループ</div>
+        <div class="stats-card-label">表記ゆれグループ</div>
       </div>
       <div class="stats-card">
         <div class="stats-card-value" id="statsMasterCount">—</div>
@@ -4874,12 +4874,12 @@
         <div class="stats-help-step">
           <div class="stats-help-step-head">
             <span class="stats-help-step-num">1</span>
-            <span class="stats-help-step-title">ゆらぎを確認する</span>
+            <span class="stats-help-step-title">表記ゆれを確認する</span>
           </div>
-          <p>🏢 サブコン・📝 品名・📐 単位 の各タブで、表記を「読み方が同じもの」でグループ化して表示します。同じ意味なのに入力者によって表記が違うものがあれば <span class="sh-badge">ゆらぎ N種</span> バッジが付きます。</p>
+          <p>🏢 サブコン・📝 品名・📐 単位 の各タブで、表記を「読み方が同じもの」でグループ化して表示します。同じ意味なのに入力者によって表記が違うものがあれば <span class="sh-badge">表記ゆれ N種</span> バッジが付きます。</p>
           <ul>
             <li>バッジをクリック → エイリアス是正タブへジャンプ</li>
-            <li>チップの <strong>≠</strong> ボタン → 「別物として扱う」（ゆらぎ判定から除外）</li>
+            <li>チップの <strong>≠</strong> ボタン → 「別物として扱う」（表記ゆれ判定から除外）</li>
           </ul>
         </div>
 
@@ -4905,7 +4905,7 @@
             <span class="stats-help-step-num">3</span>
             <span class="stats-help-step-title">エイリアスルールで一括是正</span>
           </div>
-          <p><span class="sh-badge">ゆらぎ N種</span> バッジをクリックすると「エイリアス是正」タブへジャンプし、⚡ショートカットが開きます。「＋ 登録」で <em>古い表記 → 正規形</em> のルールを保存し、「💾 ローカルに適用」または「☁️ クラウドに適用」を押すと既存プリセットを一括置換できます。</p>
+          <p><span class="sh-badge">表記ゆれ N種</span> バッジをクリックすると「エイリアス是正」タブへジャンプし、⚡ショートカットが開きます。「＋ 登録」で <em>古い表記 → 正規形</em> のルールを保存し、「💾 ローカルに適用」または「☁️ クラウドに適用」を押すと既存プリセットを一括置換できます。</p>
           <ul>
             <li>ルールはローカル保存、クラウドログイン時は自動同期</li>
             <li class="sh-warn">⚠️ 一括置換は元に戻せません。適用前に CSV/Excel でエクスポートを推奨します。</li>
@@ -4915,11 +4915,11 @@
       </div>
       <div class="stats-help-flow">
         <span class="sh-flow-label">流れ：</span>
-        <span class="sh-flow-item">ゆらぎ発見</span>
+        <span class="sh-flow-item">表記ゆれ発見</span>
         <span class="sh-flow-arrow">→</span>
         <span class="sh-flow-item">☆ 投票 でマスター昇格</span>
         <span class="sh-flow-arrow">→</span>
-        <span class="sh-flow-item">ゆらぎバッジ → ルール登録</span>
+        <span class="sh-flow-item">表記ゆれバッジ → ルール登録</span>
         <span class="sh-flow-arrow">→</span>
         <span class="sh-flow-item">一括置換 で過去データも是正</span>
         <span class="sh-flow-arrow">→</span>
@@ -4939,7 +4939,7 @@
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-kpi"      id="statsTabBtn-kpi"      onclick="statsSetPane('kpi')">🎯 KPI</button>
     </div>
 
-    <div class="stats-moved-note" id="statsMovedNote">🔧 名前のゆらぎ・未登録の確認は「🗂 マスター管理」へ移りました。<button type="button" class="stats-moved-btn" onclick="statsSetPane('sv')">開く →</button></div>
+    <div class="stats-moved-note" id="statsMovedNote">🔧 名前の表記ゆれ・未登録の確認は「🗂 マスター管理」へ移りました。<button type="button" class="stats-moved-btn" onclick="statsSetPane('sv')">開く →</button></div>
     <div id="statsPane-svport"   class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-svport"></div>
     <div id="statsPane-custitem" class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-custitem"></div>
     <div id="statsPane-ledger" class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-ledger"></div>
@@ -4953,12 +4953,12 @@
   <!-- ===================== Tab: マスター管理（統計から独立したトップレベルタブ） ===================== -->
   <div class="tab-content" id="tab-master">
     <div class="stats-tabs" role="tablist" aria-label="マスター管理サブタブ">
-      <button class="stats-tab-btn" role="tab" aria-selected="false" aria-controls="statsPane-fix" id="masterTabBtn-fix" onclick="masterSetPane('fix')">🔧 ゆらぎ・未登録</button>
+      <button class="stats-tab-btn" role="tab" aria-selected="false" aria-controls="statsPane-fix" id="masterTabBtn-fix" onclick="masterSetPane('fix')">🔧 表記ゆれ・未登録</button>
       <button class="stats-tab-btn is-active" role="tab" aria-selected="true"  aria-controls="statsPane-master" id="masterTabBtn-master" onclick="masterSetPane('master')">⭐ マスター管理</button>
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-alias"  id="masterTabBtn-alias"  onclick="masterSetPane('alias')">🔀 エイリアス是正</button>
     </div>
     <div id="statsPane-fix" class="stats-pane" role="tabpanel" aria-labelledby="masterTabBtn-fix">
-      <div class="fix-head"><b>🔧 ゆらぎ・未登録</b><span class="fix-sub">入力された名前の表記ゆれを正しい名前（マスター）にまとめる／未登録の名前をマスターに登録します</span></div>
+      <div class="fix-head"><b>🔧 表記ゆれ・未登録</b><span class="fix-sub">同じ会社・同じものなのに書き方が違う名前（例：「ＣＭＡ ＣＧＭ」と「CMA CGM」＝<b>表記ゆれ</b>）を、正しい名前（<b>マスター</b>）にまとめます。まだ登録されていない名前は、ここでマスターに登録できます。過去の案件の入力は書き換わりません。</span></div>
       <div id="fixChips" class="fix-chips" role="tablist" aria-label="種別"></div>
     <div id="statsPane-sv"       class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-sv">
       <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('sv')">📥 CSV</button></div>

@@ -373,7 +373,7 @@
     }
     return out;
   }
-  // お客様名を全プリセットから収集（ゆらぎ件数の集計用。お客様タブ自体は別途集計）。
+  // お客様名を全プリセットから収集（表記ゆれ件数の集計用。お客様タブ自体は別途集計）。
   function _gatherCustomers(source) {
     const out = [];
     if (source !== 'cloud') _getLocalPresets().forEach(p => { const v = (((p.data || {}).fields || {})['qf-customer'] || '').trim(); if (v) out.push(v); });
@@ -394,7 +394,7 @@
     return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count }));
   }
 
-  // ゆらぎ判定用の正規化キー。NFKC で全角英数・半角カナ・㈱等の互換文字を統一し、
+  // 表記ゆれ判定用の正規化キー。NFKC で全角英数・半角カナ・㈱等の互換文字を統一し、
   // 記号・空白・長音等を除去、カタカナはひらがなへ寄せる。
   // field==='customer' のときは日本の法人格（株式会社／(株)／㈱／有限会社／合同会社…）を
   // 社名本体から切り離し、位置（前置・後置）の違いだけを吸収する（「株式会社ハブネット」＝「ハブネット(株)」）。
@@ -665,7 +665,7 @@
       h += `<span class="stats-syn-into" title="「${_eav(canon)}」の別名になっています">→${_esc(canon)}</span>` +
            `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('${_ea(field)}','${_ea(value)}')" title="別名から外す">✕</button>`;
     } else if (canons.size) {
-      h += `<button class="stats-syn-merge" onclick="statsSynMergePicker('${_ea(field)}','${_ea(value)}',this)" title="既存のマスターの別名にする（件数が合算されます）">→ 別名にする</button>`;
+      h += `<button class="stats-syn-merge" onclick="statsSynMergePicker('${_ea(field)}','${_ea(value)}',this)" title="この名前も、選んだマスターと同じものとして扱います。件数が合算されます（過去の案件の入力は書き換わりません）">→ 別名にする</button>`;
     }
     return h;
   }
@@ -818,9 +818,9 @@
     return h;
   }
 
-  // ゆらぎグループ表示（nm/sv/carrier/port 共通）。
+  // 表記ゆれグループ表示（nm/sv/carrier/port 共通）。
   // 手動の同義グループ（⭐代表→統合）は単位タブと同様に1行へ統合表示し、
-  // それ以外は従来どおり自動ゆらぎ検出グループとして表示（併存）。
+  // それ以外は従来どおり自動表記ゆれ検出グループとして表示（併存）。
   // === 並べ替え（件数順／名前順）===
   // 名前順にすると似た表記が隣接し、代表登録（⭐代表→統合）作業がしやすくなる。
   let _statsSort = 'count';   // 'count' | 'name'
@@ -854,7 +854,7 @@
     _listLimit = {};
     _renderActivePane();
   };
-  // 「ゆらぎありのみ」表示フィルタ：表記ゆれ（同じ読みで複数の表記）がある項目だけを表示する。
+  // 「表記ゆれありのみ」表示フィルタ：表記ゆれ（同じ読みで複数の表記）がある項目だけを表示する。
   let _statsFluctOnly = false;
   window.statsToggleFluct = function () {
     _statsFluctOnly = !_statsFluctOnly;
@@ -869,7 +869,7 @@
            `<label class="stats-unorg-toggle sm-f-unorg" title="⭐マスター登録済み・別名として整理済みの項目を隠し、未整理の項目だけ表示します">` +
            `<input type="checkbox" onchange="statsToggleUnorganized()"${_statsUnorganizedOnly ? ' checked' : ''}> 未整理のみ表示</label>` +
            `<label class="stats-unorg-toggle sm-f-fluct" title="表記ゆれ（同じ読みで複数の表記）がある項目だけ表示します">` +
-           `<input type="checkbox" onchange="statsToggleFluct()"${_statsFluctOnly ? ' checked' : ''}> ゆらぎありのみ表示</label></div>`;
+           `<input type="checkbox" onchange="statsToggleFluct()"${_statsFluctOnly ? ' checked' : ''}> 表記ゆれありのみ表示</label></div>`;
   }
 
   // サブコン・キャリア：「所属グループ」ごとの合計（グループ傘下の会社の件数を合算して内訳を出す）
@@ -917,7 +917,7 @@
       return { g, own, aliasCnt, total: own + aliasCnt };
     });
     synRows.sort((a, b) => _statsSort === 'name' ? _cmpName(a.g.canonical, b.g.canonical) : b.total - a.total);
-    // 残りの自動ゆらぎグループ（同義グループに取り込まれた値を除外）
+    // 残りの自動表記ゆれグループ（同義グループに取り込まれた値を除外）
     const restGroups = [];
     groups.forEach((g, gIdx) => {
       const variants = g.variants.filter(v => !consumed.has(v.value));
@@ -927,9 +927,9 @@
     if (_statsSort === 'name') restGroups.sort((a, b) => _cmpName(a.variants[0].value, b.variants[0].value));
 
     // 「未整理のみ」フィルタ：同義グループ行（＝整理済み）を隠し、まだ手つかずの
-    // 単独項目（個別マスター登録もされていないもの）だけ残す。ゆらぎ複数種の行は
+    // 単独項目（個別マスター登録もされていないもの）だけ残す。表記ゆれ複数種の行は
     // まだ同義グループに統合されていない＝手つかずなので常に表示する。
-    // 「ゆらぎありのみ」：同義グループ（整理済み）は隠し、複数表記のある自動ゆらぎグループだけ残す。
+    // 「表記ゆれありのみ」：同義グループ（整理済み）は隠し、複数表記のある自動表記ゆれグループだけ残す。
     const visSynRows  = (_statsUnorganizedOnly || _statsFluctOnly) ? [] : synRows;
     let visRestGroups = _statsUnorganizedOnly
       ? restGroups.filter(g => g.variants.length > 1 || !_masterRegistered(mf, g.variants[0].value, null, synCanons))
@@ -939,7 +939,7 @@
     if (!visSynRows.length && !visRestGroups.length) {
       e.innerHTML = _sortToolbar() + (synRows.length || restGroups.length
         ? (_statsFluctOnly
-            ? '<p class="stats-empty">ゆらぎのある項目はありません。</p>'
+            ? '<p class="stats-empty">表記ゆれのある項目はありません。</p>'
             : '<p class="stats-empty">🎉 未整理の項目はありません。すべてマスター登録済み（または別名として整理済み）です。</p>')
         : '<p class="stats-empty">データなし</p>');
       return;
@@ -954,7 +954,7 @@
     const shownRest = visRestGroups.slice(0, Math.max(0, pageLimit - shownSyn.length));
 
     let h = _sortToolbar() + _groupSummaryHtml(mf, cntMap, synAliasOf) +
-            '<p class="stats-syn-hint">「☆ マスターに登録」で正しい名前を決め、他の表記を「→ 別名にする」でまとめると、⭐行に集約され件数が合算されます（非破壊）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
+            '<p class="stats-syn-hint">「☆ マスターに登録」で正しい名前を決め、他の表記を「→ 別名にする」でまとめると、⭐行に集約され件数が合算されます（非破壊）。表記ゆれの一括置換は「表記ゆれ N種」バッジから。</p>' +
             (field === 'carrier' ? '<p class="stats-syn-hint">🔀 キャリアはサブコンのマスターとして登録します（ここでの登録・別名は、マスター管理の「サブコン」に入ります。集計は幹線輸送の入力から数えます）。</p>' : '') +
             `<table class="stats-table stats-nm-table"><thead><tr>` +
             `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>別名・略称 / バリアント</th>` +
@@ -985,7 +985,7 @@
            `</td></tr>`;
     });
 
-    // --- 残りの自動ゆらぎグループ ---
+    // --- 残りの自動表記ゆれグループ ---
     shownRest.forEach(g => {
       const hasV = g.variants.length > 1;
       const gId  = paneId + '-' + g.origIdx;
@@ -996,7 +996,7 @@
         if (g.isAbbrevGroup) {
           h += ` <span class="stats-variant-badge stats-variant-badge--abbrev" title="別名として登録された表記">別名 ${g.variants.length}種</span>`;
         } else {
-          h += ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">ゆらぎ ${g.variants.length}種</button>`;
+          h += ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">表記ゆれ ${g.variants.length}種</button>`;
         }
       }
       h += `</td>`;
@@ -1010,7 +1010,7 @@
              `<span class="stats-chip-text">${_usageSpan(field, v.value)}</span>` +
              `<span class="stats-chip-cnt">×${v.count}</span>` +
              _voteBtn(mf, v.value, synCanons) +
-             (hasV ? `<button class="stats-excl-chip-btn" onclick="statsExcludeVariant('${_ea(field)}','${_ea(v.value)}')" title="ゆらぎ判定から除外（別物として扱う）">≠</button>` : '') +
+             (hasV ? `<button class="stats-excl-chip-btn" onclick="statsExcludeVariant('${_ea(field)}','${_ea(v.value)}')" title="表記ゆれ判定から除外（別物として扱う）">≠</button>` : '') +
              _synBtns(aliasField, v.value, synCanons, synAliasOf, cntMap) +
              `</span>`;
       });
@@ -2100,8 +2100,8 @@
       const aliasCount = (g.aliases || []).reduce((s, a) => s + (countMap[a] || 0), 0);
       displayList.push({ type: 'canonical', canonical: g.canonical, ownCount, aliasCount, total: ownCount + aliasCount, aliases: g.aliases || [] });
     });
-    // 代表・統合済みでない表記だけを未整理として並べる。正規化キーが同じ表記（ゆらぎ）は
-    // 隣り合う行にまとめ、先頭行に「ゆらぎ N種」バッジを付ける。
+    // 代表・統合済みでない表記だけを未整理として並べる。正規化キーが同じ表記ゆれは
+    // 隣り合う行にまとめ、先頭行に「表記ゆれ N種」バッジを付ける。
     const ungroupedGroups = [];
     rawGroups.forEach(g => {
       const rest = g.variants.filter(v => !canonicalSet.has(v.value) && !aliasToCanon[v.value]);
@@ -2117,14 +2117,14 @@
     }));
 
     // 「未整理のみ」フィルタ：代表（⭐）に統合済みの単位グループを隠し、
-    // まだ代表未設定の単位（ungrouped）だけ表示する。「ゆらぎありのみ」は複数表記のある未整理単位だけ。
+    // まだ代表未設定の単位（ungrouped）だけ表示する。「表記ゆれありのみ」は複数表記のある未整理単位だけ。
     let visList = displayList;
     if (_statsUnorganizedOnly) visList = visList.filter(it => it.type !== 'canonical');
     if (_statsFluctOnly)       visList = visList.filter(it => it.type === 'ungrouped' && it.fluct);
 
     if (!visList.length) {
       e.innerHTML = _sortToolbar() + (_statsFluctOnly
-        ? '<p class="stats-empty">ゆらぎのある単位はありません。</p>'
+        ? '<p class="stats-empty">表記ゆれのある単位はありません。</p>'
         : '<p class="stats-empty">🎉 未整理の単位はありません。すべてマスター登録・別名の整理済みです。</p>');
       return;
     }
@@ -2152,7 +2152,7 @@
              `</tr>`;
       } else {
         const badge = (item.fluct && item.first)
-          ? ` <span class="stats-variant-badge" title="読みが同じ表記が複数あります（${item.fluctN}種）。マスターを決めて別名にすると件数が合算されます">ゆらぎ ${item.fluctN}種</span>`
+          ? ` <span class="stats-variant-badge" title="読みが同じ表記が複数あります（${item.fluctN}種）。マスターを決めて別名にすると件数が合算されます">表記ゆれ ${item.fluctN}種</span>`
           : '';
         h += `<tr class="ua-ungrouped-row${item.fluct ? ' stats-has-variant' : ''}">` +
              `<td class="stats-val">${_usageSpan('un', item.value)}${badge}</td>` +
@@ -2160,7 +2160,7 @@
              `<td></td>` +
              `<td class="ua-ops">` +
              `<button class="ua-set-canon" onclick="uaSetCanonical('${_ea(item.value)}')" title="この単位をマスター（正しい名前）として登録">⭐ マスターに</button>` +
-             `<button class="ua-merge-btn" onclick="uaShowMergePicker('${_ea(item.value)}',this)" title="既存のマスターの別名にする">→ 別名にする</button>` +
+             `<button class="ua-merge-btn" onclick="uaShowMergePicker('${_ea(item.value)}',this)" title="この名前も、選んだマスターと同じものとして扱います（過去の案件の入力は書き換わりません）">→ 別名にする</button>` +
              `</td></tr>`;
       }
     });
@@ -2533,14 +2533,14 @@
     });
     const groups = [...map.values()].sort((a, b) => b.count - a.count);
 
-    // ゆらぎグループ化（表記ゆれを検出）
+    // 表記ゆれグループ化（表記ゆれを検出）
     const custExcl = new Set(
       (typeof window.arGetExclusions === 'function' ? window.arGetExclusions() : [])
         .filter(e => e.field === 'customer').map(e => e.value)
     );
     const custNames = groups.map(g => g.customer).filter(Boolean);
     const custGroups = _groupSimilar(custNames, custExcl, 'customer');
-    // 正規化キー → グループ先頭名のマップ（ゆらぎバッジ用）
+    // 正規化キー → グループ先頭名のマップ（表記ゆれバッジ用）
     const normToCanon = new Map();
     custGroups.forEach(cg => {
       if (cg.variants.length > 1) cg.variants.forEach(v => normToCanon.set(_normalize(v.value, 'customer'), cg));
@@ -2614,8 +2614,8 @@
            `</tr>`;
     });
 
-    // --- 残りのお客様（自動ゆらぎ検出は従来表示）---
-    // ゆらぎありのみ：同じゆらぎクラスタの表記が隣り合うよう正規化キー順に並べる
+    // --- 残りのお客様（自動表記ゆれ検出は従来表示）---
+    // 表記ゆれありのみ：同じ表記ゆれクラスタの表記が隣り合うよう正規化キー順に並べる
     const restCust = _statsFluctOnly
       ? [...groups].sort((a, b) => _cmpName(_normalize(a.customer, 'customer'), _normalize(b.customer, 'customer')) || b.count - a.count)
       : (_statsSort === 'name'
@@ -2632,7 +2632,7 @@
       const persons = [...g.persons].join('、') || '—';
       const stHtml = _stHtml(g.statuses);
 
-      // ゆらぎバッジ（同じ正規化キーに複数表記がある場合）
+      // 表記ゆれバッジ（同じ正規化キーに複数表記がある場合）
       const cg = cg0;
       let variantBadge = '';
       if (cg && cg.variants.length > 1 && cg.variants[0].value === g.customer) {
@@ -2641,7 +2641,7 @@
         _renderedGroups[gId] = { aliasField: 'customer', variants: cg.variants };
         variantBadge = cg.isAbbrevGroup
           ? ` <span class="stats-variant-badge stats-variant-badge--abbrev" title="別名として登録された表記">別名 ${cg.variants.length}種</span>`
-          : ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">ゆらぎ ${cg.variants.length}種</button>`;
+          : ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">表記ゆれ ${cg.variants.length}種</button>`;
         gIdx++;
       }
 
@@ -2662,7 +2662,7 @@
     e.innerHTML = shownRows
       ? h + '</tbody></table>' + _moreHtml('statsPane-customer', shownRows)
       : _sortToolbar() + (_statsFluctOnly
-          ? '<p class="stats-empty">ゆらぎのある項目はありません。</p>'
+          ? '<p class="stats-empty">表記ゆれのある項目はありません。</p>'
           : '<p class="stats-empty">🎉 未整理の項目はありません。すべてマスター登録済み（または別名として整理済み）です。</p>');
   }
 
@@ -2946,14 +2946,14 @@
     _todoOpen = !(_todoOpen === null ? false : _todoOpen);
     const t = document.getElementById('mhTodo'); if (!t) return;
     t.classList.toggle('is-closed', !_todoOpen);
-    const h = t.querySelector('.mh-todo-h'); if (h) { h.setAttribute('aria-expanded', _todoOpen); const c = h.querySelector('.mh-todo-c'); if (c) c.textContent = _todoOpen ? '▲ 閉じる' : '▼ 開く（ゆらぎチェック・申請・お知らせ）'; }
+    const h = t.querySelector('.mh-todo-h'); if (h) { h.setAttribute('aria-expanded', _todoOpen); const c = h.querySelector('.mh-todo-c'); if (c) c.textContent = _todoOpen ? '▲ 閉じる' : '▼ 開く（表記ゆれチェック・申請・お知らせ）'; }
   };
   function _renderMaster() {
     const act = document.activeElement;
     const keep = act && act.id === 'masterSearch' ? { s: act.selectionStart, e: act.selectionEnd } : null;
     _renderMasterInner();
     _applyIndexBar();
-    if (typeof window.driftRenderCard === 'function') window.driftRenderCard();   // 🔍 ゆらぎチェックのカード（js/drift-check.js）
+    if (typeof window.driftRenderCard === 'function') window.driftRenderCard();   // 🔍 表記ゆれチェックのカード（js/drift-check.js）
     const inp = document.getElementById('masterSearch');
     if (inp && keep) { inp.focus(); try { inp.setSelectionRange(keep.s, keep.e); } catch (e) { /* 無視 */ } }
     const c = document.getElementById('masterSearchCount');
@@ -3177,13 +3177,13 @@
       _masterHitCount = rowsAll.length;
     }
 
-    // 画面の上に縦に積んでいたお知らせ（ゆらぎチェック・取引ルールの再確認・移行の案内・申請）を「📋 今日やること」の 1 枚にまとめる（Design 29・案B ②）。
+    // 画面の上に縦に積んでいたお知らせ（表記ゆれチェック・取引ルールの再確認・移行の案内・申請）を「📋 今日やること」の 1 枚にまとめる（Design 29・案B ②）。
     // 件数のタイルは上に残し、本体は開閉できる（承認待ちがあるときは開いて始まる・選んだ開閉は覚える）。DOM・id（#driftCard など）は不変。
     const _todoBody = '<div id="driftCard" class="drift-card"></div>' + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
     const _pendN = _approvalOn() ? (_isAdmin() ? _reqs.filter(r => r.status === 'pending').length : _reqs.filter(r => r.requested_by === _me() && r.status === 'pending').length) : 0;
     if (_todoOpen === null) _todoOpen = _pendN > 0;
     const headH = _masterHeadHtml(totalCount, allSyn.length) +
-      '<div id="mhTodo" class="mh-todo' + (_todoOpen ? '' : ' is-closed') + '"><button type="button" class="mh-todo-h" aria-expanded="' + _todoOpen + '" onclick="statsMhTodoToggle()">📋 今日やること' + (_pendN ? ' <span class="mh-todo-n">' + (_isAdmin() ? '承認待ち ' : '申請中 ') + _pendN + '</span>' : '') + '<span class="mh-todo-c">' + (_todoOpen ? '▲ 閉じる' : '▼ 開く（ゆらぎチェック・申請・お知らせ）') + '</span></button><div class="mh-todo-b">' + _todoBody + '</div></div>';
+      '<div id="mhTodo" class="mh-todo' + (_todoOpen ? '' : ' is-closed') + '"><button type="button" class="mh-todo-h" aria-expanded="' + _todoOpen + '" onclick="statsMhTodoToggle()">📋 今日やること' + (_pendN ? ' <span class="mh-todo-n">' + (_isAdmin() ? '承認待ち ' : '申請中 ') + _pendN + '</span>' : '') + '<span class="mh-todo-c">' + (_todoOpen ? '▲ 閉じる' : '▼ 開く（表記ゆれチェック・申請・お知らせ）') + '</span></button><div class="mh-todo-b">' + _todoBody + '</div></div>';
     if (!rowsAll.length) {
       e.innerHTML = headH + formH + chipsH + (_terms.length
         ? '<p class="stats-empty">「' + _esc(_masterQuery.trim()) + '」に一致するマスターはありません。<br><button type="button" class="master-type-preset" onclick="statsMasterClearQuery()">検索をクリア</button>（種別の絞り込みも確認してください）</p>'
@@ -3835,7 +3835,7 @@
     set('statsRows',     _data.totalRows);
     set('statsSvCount',  _data.svGroups.length + _data.carrierGroups.length);
     set('statsNmGroups', _data.nmGroups.length);
-    // ゆらぎ件数 = バリアントが2種以上のグループ数の合計
+    // 表記ゆれ件数 = バリアントが2種以上のグループ数の合計
     const blur = [..._data.svGroups, ..._data.carrierGroups, ..._data.nmGroups, ..._data.unGroups, ..._data.customerGroups]
       .filter(g => g.variants.length > 1).length;
     set('statsBlurCount', blur);
@@ -3846,7 +3846,7 @@
   }
 
   // ===== スマホ版「今日の確認」（js/stats-mobile.js）用の要約 =====
-  // 読み取りだけ（保存・表示は変えない）。ゆらぎ・未整理・粗利率の低い明細・受注率と失注の件数を返す。
+  // 読み取りだけ（保存・表示は変えない）。表記ゆれ・未整理・粗利率の低い明細・受注率と失注の件数を返す。
   window.statsLowMarginPct = function (v) {
     if (v !== undefined) { try { localStorage.setItem('statsLowMarginPct', String(v)); } catch (e) {} }
     let n = 10;
@@ -3857,7 +3857,7 @@
     const source = document.getElementById('statsSource')?.value || 'both';
     if (!_data) { try { _data = _build(source); } catch (e) { return null; } }
     const out = { blur: 0, unorg: 0, low: { n: 0, th: window.statsLowMarginPct(), worst: null, skipped: 0 }, win: { won: 0, sent: 0, rate: null, lost: 0, topReason: null, topN: 0, reasoned: 0 } };
-    // ゆらぎ（複数表記のグループ）と未整理（まだマスターにも別名にもなっていない項目）
+    // 表記ゆれ（複数表記のグループ）と未整理（まだマスターにも別名にもなっていない項目）
     const FIELDS = [['sv', _data.svGroups, 'sv'], ['sv', _data.carrierGroups, 'carrier'], ['customer', _data.customerGroups, 'customer'], ['nm', _data.nmGroups, 'nm'], ['un', _data.unGroups, 'un']];
     out.byPane = {};
     FIELDS.forEach(([mf, groups, pane]) => {
@@ -4113,7 +4113,7 @@
 
   // === サブタブ切替 ===
 
-  // 名寄せ 6 種（サブコン／キャリア／お客様／品名／単位／チャージ）は「🗂 マスター管理 → 🔧 ゆらぎ・未登録」へ移設した（Design 29・案B）。
+  // 名寄せ 6 種（サブコン／キャリア／お客様／品名／単位／チャージ）は「🗂 マスター管理 → 🔧 表記ゆれ・未登録」へ移設した（Design 29・案B）。
   // 統計から呼ばれても（statsSetPane('sv') など）マスター管理のその種別を開く。
   const _FIX_KINDS = ['sv', 'carrier', 'customer', 'nm', 'un', 'charges'];
   const _FIX_LABEL = { sv: '🏢 サブコン', carrier: '🚢 キャリア', customer: '👤 お客様', nm: '📝 品名', un: '📐 単位', charges: '💰 チャージ' };
@@ -4499,13 +4499,13 @@
     });
   };
 
-  // ゆらぎチェック（js/drift-check.js）用：全期間の表記グループと、判定に使う正規化・読み込み状態
+  // 表記ゆれチェック（js/drift-check.js）用：全期間の表記グループと、判定に使う正規化・読み込み状態
   window.statsDriftInput = function () {
     const d = _build('both', true);
     return { customer: d.customerGroups, sv: d.svGroups, port: d.portGroups, nm: d.nmGroups, un: d.unGroups };
   };
   window.statsNormalizeKey = _normalize;
-  // マスター一覧のカード用：この名前に表記ゆれ（同じ読みで別の綴り）があるか。読み取りだけ・30 秒使い回す（Design 29 ③の［ゆらぎ ▸ 直す］）
+  // マスター一覧のカード用：この名前に表記ゆれ（同じ読みで別の綴り）があるか。読み取りだけ・30 秒使い回す（Design 29 ③の［表記ゆれ ▸ 直す］）
   let _driftCache = null;
   window.statsMasterHasDrift = function (field, name) {
     try {

@@ -3523,7 +3523,7 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
 }
 .stats-master-jump-hl { animation: statsMasterJumpFlash 2.2s ease; }
 
-/* 品名ゆらぎ */
+/* 品名表記ゆれ */
 .stats-nm-table .stats-chips-cell { white-space: normal; }
 .stats-has-variant td:first-child { background: var(--card-bg); }
 .stats-variant-badge--link {
@@ -4779,7 +4779,7 @@ a.lc-source-icon { cursor: pointer; }
 a.lc-source-icon:hover { opacity: 0.75; }
 .lc-updated-by { font-size: var(--fs-10); color: var(--c-9a8878); margin-top: var(--sp-2); }
 
-/* ゆらぎパネル */
+/* 表記ゆれパネル */
 .lc-variant-btn {
   background: var(--bg);
   border: 1px solid var(--border-md);
@@ -5990,7 +5990,7 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 #crBanner .cc-chip { margin-left: 6px; }
 @media (max-width: 600px) { .cc-item { grid-template-columns: 1fr; } .cc-btns { flex-direction: row; flex-wrap: wrap; } .cc-sec { flex-direction: column; gap: 0; } }
 =======
-/* ===== 🔍 ゆらぎチェックのカード（マスター管理の上部・js/drift-check.js／2026-11） ===== */
+/* ===== 🔍 表記ゆれチェックのカード（マスター管理の上部・js/drift-check.js／2026-11） ===== */
 .drift-card { margin: 0 0 var(--sp-12, 12px); }
 .drift-card:empty { display: none; }
 .drift-card { border: 1px solid var(--border, #d9dee5); border-radius: 10px; padding: 10px 12px; background: var(--surface, #fff); }

@@ -14,7 +14,7 @@
 #mdDetailModal .mt-dirty { flex: none; padding: 2px 10px; border-radius: 999px; background: #fff3dc; color: #8a5a00; font-size: var(--text-xs, 12px); font-weight: 700; white-space: nowrap; }
 #mdDetailModal .mt-dirty[hidden] { display: none; }
 
-/* 🔧 ゆらぎ・未登録（統計から移設した名寄せ・Design 29 案B）の種別チップと案内 */
+/* 🔧 表記ゆれ・未登録（統計から移設した名寄せ・Design 29 案B）の種別チップと案内 */
 #statsPane-fix .fix-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0 10px; }
 #statsPane-fix .fix-head b { font-size: var(--text-lg, 16px); }
 #statsPane-fix .fix-sub { color: var(--text-muted, #667); font-size: var(--text-sm, 13px); }
@@ -48,6 +48,6 @@
 .mm-more { border: 1px dashed var(--border, #d0d5dd); background: transparent; border-radius: 999px; padding: 2px 10px; font-size: var(--text-xs); cursor: pointer; color: var(--text-muted, #667085); margin-left: 4px; }
 @media (max-width: 600px) { .mm-more { min-height: 44px; } }
 
-/* ③ ゆらぎのあるマスターの［ゆらぎ ▸ 直す］ */
+/* ③ 表記ゆれのあるマスターの［表記ゆれ ▸ 直す］ */
 .mm-fix { border: 1px solid #f0c98b; background: #fdecc8; color: #8a5a00; border-radius: 999px; padding: 2px 10px; font-size: var(--text-xs, 12px); cursor: pointer; margin-left: 4px; }
 @media (max-width: 600px) { .mm-fix { min-height: 44px; } }

@@ -49,7 +49,7 @@ srv.listen(0, async () => {
     ok('SP: タブ・数字カード・各ペインは隠れる', !(await vis(p, '#tab-stats .stats-tabs')) && !(await vis(p, '#tab-stats .stats-summary-cards')) && !(await vis(p, '#statsPane-sv')));
     const cards = await p.$$eval('#smHome .sm-act', els => els.map(e => e.innerText.replace(/\s+/g, ' ')));
     ok('SP: カード 3 枚', cards.length === 3, cards);
-    ok('SP: ゆらぎ（未整理・ゆらぎの件数）', /未整理 \d+件・ゆらぎ \d+件/.test(cards[0]), cards[0]);
+    ok('SP: 表記ゆれ（未整理・表記ゆれの件数）', /未整理 \d+件・表記ゆれ \d+件/.test(cards[0]), cards[0]);
     ok('SP: 粗利率の低い明細（10%未満 1件）', /10%未満 1件/.test(cards[1]) && /CFS作業料/.test(cards[1]), cards[1]);
     ok('SP: 受注率と失注（失注 2件・最多は価格）', /失注 2件/.test(cards[2]) && /価格」2件/.test(cards[2]), cards[2]);
     ok('SP: 横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -87,18 +87,18 @@ srv.listen(0, async () => {
     }
     // ---- 第 2 回：名寄せは 1 表記＝1 カード ----
     await p.evaluate(() => { const o = document.getElementById('smSheet'); if (o) o.remove(); document.body.classList.remove('sm-sheet-open'); });
-    // 名寄せ（サブコン等）はマスター管理の「ゆらぎ・未登録」へ移設（Design 29）。スマホの 1 件 1 カード表示は段階⑥で作り直すため、いまは確認しない。
+    // 名寄せ（サブコン等）はマスター管理の「表記ゆれ・未登録」へ移設（Design 29）。スマホの 1 件 1 カード表示は段階⑥で作り直すため、いまは確認しない。
     if (false) {
-    const chips = await p.$$eval('#statsPane-sv .sm-fchip', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()).join('|')); ok('SP2: 名寄せの絞り込みチップ（すべて・未整理のみ N・ゆらぎあり N）', chips === 'すべて|未整理のみ 3|ゆらぎあり 1', chips);
+    const chips = await p.$$eval('#statsPane-sv .sm-fchip', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()).join('|')); ok('SP2: 名寄せの絞り込みチップ（すべて・未整理のみ N・表記ゆれあり N）', chips === 'すべて|未整理のみ 3|表記ゆれあり 1', chips);
     ok('SP2: 元のチェック 2 つは隠れる（DOM は残る）', !(await vis(p, '#statsPane-sv .sm-f-unorg')) && (await p.$$eval('#statsPane-sv .sm-f-unorg input, #statsPane-sv .sm-f-fluct input', e => e.length)) === 2);
     ok('SP2: 表のヘッダーは隠れ、行はカード（縦並び・枠つき）', !(await vis(p, '#statsPane-sv thead')) && await p.$eval('#statsPane-sv tbody > tr', e => { const c = getComputedStyle(e); return c.display === 'flex' && c.flexDirection === 'column' && parseFloat(c.borderTopWidth) >= 1; }));
     ok('SP2: 使用 N件 の表示', await p.$$eval('#statsPane-sv td.stats-num-col', els => els.length > 0 && els.every(e => getComputedStyle(e, '::before').content.includes('使用'))));
     ok('SP2: カード内のボタンは 44px 以上', await p.$$eval('#statsPane-sv td.stats-chips-cell button', els => els.filter(b => b.getBoundingClientRect().height > 0).every(b => b.getBoundingClientRect().height >= 43.5)));
     ok('SP2: カードが横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await p.click('#statsPane-sv .sm-fchip[data-f="fluct"]'); await p.waitForTimeout(500);
-    ok('SP2: ゆらぎありで絞る（カード 1 枚・チップが押された状態）', (await p.$$eval('#statsPane-sv tbody > tr', e => e.length)) === 1 && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="fluct"]', 'aria-pressed')) === 'true' && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="all"]', 'aria-pressed')) === 'false');
+    ok('SP2: 表記ゆれありで絞る（カード 1 枚・チップが押された状態）', (await p.$$eval('#statsPane-sv tbody > tr', e => e.length)) === 1 && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="fluct"]', 'aria-pressed')) === 'true' && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="all"]', 'aria-pressed')) === 'false');
     await p.click('#statsPane-sv .sm-fchip[data-f="unorg"]'); await p.waitForTimeout(500);
-    ok('SP2: 未整理のみに切り替え（ゆらぎは外れる）', (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="unorg"]', 'aria-pressed')) === 'true' && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="fluct"]', 'aria-pressed')) === 'false');
+    ok('SP2: 未整理のみに切り替え（表記ゆれは外れる）', (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="unorg"]', 'aria-pressed')) === 'true' && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="fluct"]', 'aria-pressed')) === 'false');
     await p.click('#statsPane-sv .sm-fchip[data-f="all"]'); await p.waitForTimeout(500);
     const nAll = await p.$$eval('#statsPane-sv tbody > tr', e => e.length); ok('SP2: すべてで元に戻る', nAll === 3, nAll);
     await p.click('#smPick'); await p.click('#smSheet [data-pane="customer"]'); await p.waitForTimeout(800);
