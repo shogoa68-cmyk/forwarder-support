@@ -203,7 +203,7 @@ body {
 .lookup-form select:focus,
 .lookup-form input[type="text"]:focus { border-color: var(--accent); }
 .lookup-form select { min-width: 200px; cursor: pointer; }
-.lookup-form input[type="text"] { flex: 1; min-width: 200px; }
+.lookup-form input[type="text"] { flex: 1; min-width: 200px; max-width: 640px; }
 
 /* ===== Buttons ===== */
 .btn-primary {
@@ -4505,7 +4505,8 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--sp-12); margin-bottom: var(--sp-12); flex-wrap: wrap;
 }
-.lc-topbar-right { display: flex; align-items: center; gap: var(--sp-10); }
+.lc-topbar-right { display: flex; align-items: center; gap: var(--sp-10); flex-wrap: wrap; min-width: 0; }
+.lc-topbar-right > *, .lc-topbar-right .lc-add-btn, .lc-topbar-right .lc-variant-btn { white-space: nowrap; }
 
 /* 方向タブ */
 .lc-dir-tabs { display: flex; gap: var(--sp-4); }
@@ -4630,7 +4631,7 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
 .lc-edit-btn:hover { background: #e8f4ec; border-color: #a8d8c0; }
 .lc-del-btn:hover  { background: #fde8e8; border-color: #f0a8a8; }
 .lc-future { opacity: 0.6; }
-.lc-empty  { color: var(--c-9a8878); font-size: var(--fs-13); padding: var(--sp-20) var(--sp-4); text-align: center; }
+.lc-empty  { color: #6f5f50; font-size: var(--fs-13); padding: var(--sp-20) var(--sp-4); text-align: center; }
 
 /* カテゴリバッジ */
 .lc-cat-badge { font-size: var(--fs-11); padding: var(--sp-2) var(--sp-8); border-radius: var(--r-8); background: var(--accent-lt); color: var(--c-5a4a38); }
@@ -5060,7 +5061,7 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 .rn-link-btn { background: none; border: none; color: var(--c-8a7a64); cursor: pointer; font-size: var(--fs-12); text-decoration: underline; }
 
 .rn-plan-list { display: flex; flex-direction: column; gap: var(--sp-8); }
-.rn-empty { padding: var(--sp-20); text-align: center; color: var(--c-9a8878); font-size: var(--fs-13); line-height: 1.6; }
+.rn-empty { padding: var(--sp-20); text-align: center; color: #6f5f50; font-size: var(--fs-13); line-height: 1.6; }
 .rn-plan-row {
   display: flex; align-items: center; gap: var(--sp-10); padding: var(--sp-10) var(--sp-12);
   border: 1px solid var(--accent-lt); border-radius: var(--r-8); background: var(--surface-warm); cursor: pointer;
@@ -6177,3 +6178,10 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 .fl-dlg { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .fl-dlg label { display: block; font-size: var(--text-sm, 13px); font-weight: 600; }
 .fl-dlg input, .fl-dlg select { display: block; width: 100%; box-sizing: border-box; min-height: 40px; margin-top: 4px; padding: 0 10px; font: inherit; font-size: var(--text-base, 14px); }
+
+/* 狭い画面で、インラインの 2 列グリッド（表を 2 つ並べた枠）が画面の外へはみ出さないよう 1 列に積む（2026-11・ファイリングルール等） */
+@media (max-width: 760px) {
+  :is(#tab-filing, #tab-booking-tab, #tab-si, #tab-bldo, #tab-regs, #tab-incoterms, #tab-insurance, #tab-blclause, #tab-sizes) div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: minmax(0, 1fr) !important; }
+  /* 2 列だけの小さな表（枠の中に直に置かれたもの）は 680px の最小幅をやめ、枠の幅に収める */
+  :is(#tab-filing, #tab-booking-tab, #tab-si) div[style*="grid-template-columns:1fr 1fr"] > div > .inco-table { min-width: 0; }
+}

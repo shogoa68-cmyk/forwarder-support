@@ -370,3 +370,11 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-m { width: 70px !important; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-mg { display: inline-flex; align-items: center; gap: 6px; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-mg-lbl { font-size: var(--text-sm, 13px); font-weight: 700; color: #1a7f6e; }
+
+/* 「その他」メニュー内タブの崩れ直し（2026-11・Industry は Design の元の値へ戻すため、ここで打ち消す）
+   ①諸チャージの上部ボタンが狭い画面で 1 文字幅に潰れる→折り返す ②1 行の検索欄が大画面で 1500px 超に伸びる→640px まで
+   ③「データなし」の薄い文字（コントラスト不足）を読める濃さに */
+.lc-topbar-right { flex-wrap: wrap; min-width: 0; }
+.lc-topbar-right > *, .lc-topbar-right .lc-add-btn, .lc-topbar-right .lc-variant-btn { white-space: nowrap; }
+.lookup-form input[type="text"] { max-width: 640px; }
+.lc-empty, .rn-empty { color: #6f5f50; }

@@ -1783,6 +1783,9 @@ html.theme-industry {
   background: #f8eded;
   border-color: #e3b5b5;
 }
+:where(html.theme-industry) .lc-empty {
+  color: var(--c-9a8878);
+}
 :where(html.theme-industry) .lc-cat-badge {
   border-radius: 0;
 }
@@ -2072,6 +2075,9 @@ html.theme-industry {
 }
 :where(html.theme-industry) .rn-ghost-btn:hover {
   background: #eaeff3;
+}
+:where(html.theme-industry) .rn-empty {
+  color: var(--c-9a8878);
 }
 :where(html.theme-industry) .rn-plan-row {
   border-radius: 0;
@@ -10621,4 +10627,20 @@ html.theme-industry {
   font-size: var(--text-sm, 13px);
   font-weight: 700;
   color: #1a7f6e;
+}
+:where(html.theme-industry) .lc-topbar-right {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+:where(html.theme-industry) .lc-topbar-right > *,
+:where(html.theme-industry) .lc-topbar-right .lc-add-btn,
+:where(html.theme-industry) .lc-topbar-right .lc-variant-btn {
+  white-space: nowrap;
+}
+:where(html.theme-industry) .lookup-form input[type="text"] {
+  max-width: 640px;
+}
+:where(html.theme-industry) .lc-empty,
+:where(html.theme-industry) .rn-empty {
+  color: #6f5f50;
 }
