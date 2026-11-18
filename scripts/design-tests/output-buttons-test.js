@@ -31,8 +31,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
   }
   // ステップ⑤の出力パネル
   await p.evaluate(() => window.editorV2Go(5)); await p.waitForTimeout(400);
-  const o = await p.evaluate(() => { const e = document.getElementById('e2Out'); if (!e) return null; const r = e.getBoundingClientRect(), n = document.getElementById('e2Nav').getBoundingClientRect(); return { shown: getComputedStyle(e).display !== 'none' && r.height > 0, btns: Array.from(e.querySelectorAll('button')).map(x => x.textContent.trim()), aboveNav: r.bottom <= n.top + 1 }; });
-  ok('ステップ⑤の最後に出力パネル（PDF・プレビュー・保存）が出る', o && o.shown && o.btns.length === 3 && /PDF/.test(o.btns[0]) && /プレビュー/.test(o.btns[1]) && /保存/.test(o.btns[2]), o);
+  const o = await p.evaluate(() => { const e = document.getElementById('e2Out'); if (!e) return null; const r = e.getBoundingClientRect(), n = document.getElementById('e2Nav').getBoundingClientRect(); return { shown: getComputedStyle(e).display !== 'none' && r.height > 0, btns: Array.from(e.querySelectorAll('button')).filter(x => !x.hidden).map(x => x.textContent.trim()), aboveNav: r.bottom <= n.top + 1 }; });
+  ok('ステップ⑤の最後に出力パネル（プレビュー・PDF・保存の順）が出る', o && o.shown && o.btns.length === 3 && /プレビュー/.test(o.btns[0]) && /PDF/.test(o.btns[1]) && /保存/.test(o.btns[2]), o);
   ok('出力パネルは［戻る］［次へ］の上にある', o && o.aboveNav, o);
   let called = {};
   await p.evaluate(() => { window.__c = []; window.quickQuotePdf = () => window.__c.push('pdf'); window.openPreview = () => window.__c.push('pv'); });

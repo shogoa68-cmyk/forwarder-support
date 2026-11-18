@@ -293,15 +293,26 @@
     if (!gh) { gh = document.createElement('button'); gh.type = 'button'; gh.id = 'e2SaveGhost'; gh.className = 'qad-btn qad-save'; gh.disabled = true; gh.textContent = '💾 保存'; gh.title = '編集を始めると保存できます'; dock.insertBefore(gh, mb); }
     const locked = mb.dataset.e2lock === '1';
     const view = mb.classList.contains('qad-edit') || locked;
-    eb.hidden = !view; gh.hidden = !view;
-    const et = locked ? '🔒 閲覧のみ' : '✏️ 編集を始める';
-    if (eb.textContent !== et) eb.textContent = et;
-    if (eb.disabled !== locked) eb.disabled = locked;
-    // 未保存の点（保存ボタンの上に・編集中で未保存のときだけ）
+    // 閲覧中（ロックでない）だけ［✏️ 編集を始める］（主）。ロック／閲覧のみ権限は［🔒 閲覧のみ］（薄い・押せない）を保存の位置に出す
+    eb.hidden = !view || locked; gh.hidden = !view;
+    if (eb.textContent !== '✏️ 編集を始める') eb.textContent = '✏️ 編集を始める';
+    if (eb.disabled) eb.disabled = false;
+    const gt = locked ? '🔒 閲覧のみ' : '💾 保存';
+    if (gh.textContent !== gt) gh.textContent = gt;
+    gh.title = locked ? '他の人が編集中、または閲覧のみの権限です' : '編集を始めると保存できます';
+    // 未保存の点（保存ボタンの右上・編集中で未保存のときだけ）
     const dirty = !view && dirtyNow();
     if (mb.classList.contains('is-dirty') !== dirty) mb.classList.toggle('is-dirty', dirty);
-    const tt = dirty ? '未保存の変更があります（保存して作業終了）' : '保存して作業終了';
+    const tt = dirty ? '未保存の変更があります' : '保存して作業終了';
     if (!view && mb.title !== tt) mb.title = tt;
+    // ⑤の「出力する」枠：閲覧中の編集ボタン・保存の薄い表示・未保存の一文
+    const out = $('e2Out');
+    if (out) {
+      const oe = out.querySelector('[data-e2o="edit"]'), os = out.querySelector('[data-e2o="save"]'), ow = out.querySelector('.e2o-warn');
+      if (oe) oe.hidden = !view || locked;
+      if (os) { os.classList.toggle('is-off', view); os.textContent = locked ? '🔒 閲覧のみ' : '💾 保存'; }
+      if (ow) ow.hidden = !dirty;
+    }
   }
   const dirtyNow = () => !!(window.quoteIsDirty && window.quoteIsDirty());
   function watchMode() {
@@ -319,14 +330,16 @@
     if ($('e2Out')) return;
     const nav = $('e2Nav'); if (!nav || !nav.parentNode) return;
     const out = document.createElement('div'); out.id = 'e2Out';
-    out.innerHTML = '<p class="e2o-t">出力する</p><p class="e2o-d">できあがったら、ここから御見積書を出せます（上のバーのボタンと同じです）。</p>' +
-      '<div class="e2o-btns"><button type="button" data-e2o="pdf" class="e2o-pdf">📄 PDF 出力</button><button type="button" data-e2o="pv">📋 プレビュー</button><button type="button" data-e2o="save" class="e2o-save">💾 保存</button></div>';
+    out.innerHTML = '<p class="e2o-t">出力する</p><p class="e2o-d">できあがったら、ここから御見積書を出せます。</p>' +
+      '<p class="e2o-warn" hidden>● 未保存の変更があります。先に［💾 保存］をおすすめします。</p>' +
+      '<div class="e2o-btns"><button type="button" data-e2o="pv" class="e2o-pv">📋 プレビュー</button><button type="button" data-e2o="pdf" class="e2o-pdf">📄 PDF 出力</button><button type="button" data-e2o="edit" class="e2o-edit" hidden>✏️ 編集を始める</button><button type="button" data-e2o="save" class="e2o-save">💾 保存</button></div>';
     nav.parentNode.insertBefore(out, nav);
     out.addEventListener('click', e => {
       const b = e.target.closest('[data-e2o]'); if (!b) return;
-      if (b.dataset.e2o === 'pdf' && typeof window.quickQuotePdf === 'function') window.quickQuotePdf();
+      if (b.dataset.e2o === 'edit') { if (typeof window.qpDockAction === 'function') window.qpDockAction(); }
+      else if (b.dataset.e2o === 'pdf' && typeof window.quickQuotePdf === 'function') window.quickQuotePdf();
       else if (b.dataset.e2o === 'pv' && typeof window.openPreview === 'function') window.openPreview();
-      else if (b.dataset.e2o === 'save') { const mb = $('qadMode'); if (mb && !mb.disabled) mb.click(); else if (typeof window.quoteShowToast === 'function') window.quoteShowToast('編集を始めると保存できます（上の［✏️ 編集を始める］）', 'info', 3000); }
+      else if (b.dataset.e2o === 'save') { const mb = $('qadMode'); if (b.classList.contains('is-off')) return; if (mb && !mb.disabled) mb.click(); else if (typeof window.quoteShowToast === 'function') window.quoteShowToast('編集を始めると保存できます（上の［✏️ 編集を始める］）', 'info', 3000); }
     });
   }
   const placeOut = () => { const out = $('e2Out'), nav = $('e2Nav'); if (out && nav && nav.parentNode && out.nextSibling !== nav) nav.parentNode.insertBefore(out, nav); };

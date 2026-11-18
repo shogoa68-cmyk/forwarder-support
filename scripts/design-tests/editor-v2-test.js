@@ -85,7 +85,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // ロック中（他の人が編集中）：札が「🔒 ○○さんが編集中」・主ボタンが［🔒 閲覧のみ］（押せない）。外れたら元に戻る
     await p.evaluate(() => { document.getElementById('qmBanner').textContent = '🔒 閲覧モード — 編集するには「✏️ 編集」'; window.__qlb = window.quoteLockedByOther; window.quoteLockedByOther = () => ({ email: 't@x.com', name: '田中' }); document.getElementById('qf-case-name').dispatchEvent(new Event('input', { bubbles: true })); });
     await p.waitForTimeout(300);
-    ok('[T3] ロック中：札が「🔒 田中さんが編集中」・［✏️ 編集を始める］は［🔒 閲覧のみ］で押せず、保存も押せない', await p.evaluate(() => { const b = document.getElementById('e2State'), m = document.getElementById('qadMode'), e = document.getElementById('e2EditBtn'); return /田中さんが編集中/.test(b.textContent) && b.classList.contains('is-lock') && m.disabled && !!e && e.disabled && /閲覧のみ/.test(e.textContent); }));
+    ok('[T3] ロック中：札が「🔒 田中さんが編集中」・［✏️ 編集を始める］は［🔒 閲覧のみ］で押せず、保存も押せない', await p.evaluate(() => { const b = document.getElementById('e2State'), m = document.getElementById('qadMode'), e = document.getElementById('e2EditBtn'), g = document.getElementById('e2SaveGhost'); return /田中さんが編集中/.test(b.textContent) && b.classList.contains('is-lock') && m.disabled && !!e && e.hidden && !!g && !g.hidden && g.disabled && /閲覧のみ/.test(g.textContent); }));
     await p.evaluate(() => { window.quoteLockedByOther = window.__qlb || (() => null); window.quoteLockedByOther = () => null; document.getElementById('qf-case-name').dispatchEvent(new Event('input', { bubbles: true })); });
     await p.waitForTimeout(300);
     ok('[T3] ロックが外れたら［✏️ 編集を始める］が押せるように戻る', await p.evaluate(() => { const e = document.getElementById('e2EditBtn'); return !!e && !e.disabled && /編集/.test(e.textContent); }));

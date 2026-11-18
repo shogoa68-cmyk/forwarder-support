@@ -79,3 +79,48 @@ html.editor-v2 #tab-quote-make[data-e2="5"] #e2Out { display: block; }
   html.editor-v2 #quoteActionDock .qad-btn { flex: 1 1 0; min-width: 0; padding-left: 6px; padding-right: 6px; font-size: var(--text-sm, 13px); white-space: nowrap; }
   #e2Out .e2o-btns button { flex: 1 1 100%; }
 }
+
+/* ⑩ 出力ボタンは案1（Design 37）：主ボタンは右端の 1 つだけ濃色。並び＝［✏️ 編集を始める（閲覧中）］［📋 プレビュー］［📄 PDF 出力］［💾 保存］。
+      並びは CSS の order だけ（DOM・id・onclick は不変）。新画面のみ */
+html.editor-v2 #quoteActionDock .qad-edit-start { order: 0; }
+html.editor-v2 #quoteActionDock .qad-preview { order: 1; }
+html.editor-v2 #quoteActionDock .qad-pdf { order: 2; }
+html.editor-v2 #quoteActionDock #e2SaveGhost,
+html.editor-v2 #quoteActionDock #qadMode { order: 3; }
+html.editor-v2 #quoteActionDock .qad-btn { min-height: 38px; border-radius: 6px; font-size: var(--text-sm, 13px); font-weight: 700; box-shadow: none; transform: none; }
+/* 副ボタン：白地・枠 1px・濃い文字 */
+html.editor-v2 #quoteActionDock .qad-preview,
+html.editor-v2 #quoteActionDock .qad-pdf,
+html.editor-v2 #quoteActionDock #e2SaveGhost { background: var(--surface, #fff); color: var(--text, #101828); border: 1px solid #98a2b3; }
+html.editor-v2 #quoteActionDock .qad-preview:hover,
+html.editor-v2 #quoteActionDock .qad-pdf:hover { background: var(--bg-soft, #f2f4f7); }
+html.editor-v2 #quoteActionDock .qad-preview { border-radius: 6px; margin-right: 0; }
+/* 主ボタン：濃色・白文字（保存／閲覧中は編集を始める） */
+html.editor-v2 #quoteActionDock #qadMode:not(.qad-edit),
+html.editor-v2 #quoteActionDock .qad-edit-start { background: var(--text, #101828); color: #fff; border: 1px solid var(--text, #101828); }
+html.editor-v2 #quoteActionDock #qadMode:not(.qad-edit):hover:not(:disabled),
+html.editor-v2 #quoteActionDock .qad-edit-start:hover:not(:disabled) { background: #1d2939; }
+/* 閲覧中の保存／ロック中の［🔒 閲覧のみ］：薄い副・押せない */
+html.editor-v2 #quoteActionDock #e2SaveGhost { opacity: .4; cursor: not-allowed; }
+/* 橙の点：12px・白い縁 2px（保存の右上） */
+html.editor-v2 #quoteActionDock #qadMode.is-dirty::after { top: -5px; right: -5px; width: 12px; height: 12px; border: 2px solid #fff; background: #f79009; box-sizing: content-box; }
+/* ⑤の「出力する」枠：薄い青・副（プレビュー・PDF）／主（保存）・閲覧中は編集を始める */
+#e2Out { background: #eef3fb; border-color: #bcd0ee; padding: 14px 16px; }
+#e2Out .e2o-t { font-size: var(--text-xl, 18px); }
+#e2Out .e2o-warn { margin: 0 0 10px; font-size: var(--text-xs, 12px); font-weight: 700; color: #b54708; }
+#e2Out .e2o-warn[hidden], #e2Out .e2o-btns [hidden] { display: none; }
+#e2Out .e2o-btns button { border-color: #98a2b3; color: var(--text, #101828); }
+#e2Out .e2o-btns .e2o-save, #e2Out .e2o-btns .e2o-edit { background: var(--text, #101828); border-color: var(--text, #101828); color: #fff; }
+#e2Out .e2o-btns .e2o-save.is-off { background: var(--surface, #fff); color: var(--text, #101828); border-color: #98a2b3; opacity: .4; cursor: not-allowed; }
+@media (max-width: 600px) {
+  /* ⑤の枠：プレビュー・PDF を横 2 つ、その下に保存（閲覧中は編集を始めるを全幅） */
+  #e2Out .e2o-btns button { flex: 1 1 calc(50% - 4px); }
+  #e2Out .e2o-btns .e2o-save, #e2Out .e2o-btns .e2o-edit { flex: 1 1 100%; }
+  #e2Out .e2o-btns .e2o-edit { order: 3; } #e2Out .e2o-btns .e2o-save { order: 4; }
+  /* 下の固定：プレビュー／PDF／保存の 3 等分（保存はやや広く）。閲覧中は右端が編集を始める（保存は出さない） */
+  html.editor-v2 #quoteActionDock .qad-btn { flex: 1 1 0; min-height: 44px; }
+  html.editor-v2 #quoteActionDock #qadMode, html.editor-v2 #quoteActionDock .qad-edit-start, html.editor-v2 #quoteActionDock #e2SaveGhost { flex: 1.3 1 0; }
+  html.editor-v2 #quoteActionDock .qad-edit-start:not([hidden]) ~ #e2SaveGhost { display: none; }
+  /* ❓は入力中だけ隠す（入力欄に重なって見えにくくなるため） */
+  body:has(#tab-quote-make.active input:focus:not([type=checkbox]):not([type=radio]):not([type=button]), #tab-quote-make.active textarea:focus) #fbQuickFab { display: none; }
+}
