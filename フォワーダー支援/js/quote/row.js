@@ -4068,7 +4068,7 @@
 
   // 折りたたみ・除外状態の取得／復元（保存データへの永続化用）
   // パターンキーは内部的に NUL 文字（\x00）区切りの合成キーだが、そのまま
-  // 保存すると Postgres(jsonb) が   を含む文字列を拒否し保存失敗になる
+  // 保存すると Postgres(jsonb) が \x00 を含む文字列を拒否し保存失敗になる
   // ため、[svKey, ptKey] のペア配列に変換してから永続化する。
   function _splitPatternKey(compKey) {
     const idx = compKey.indexOf('\x00');

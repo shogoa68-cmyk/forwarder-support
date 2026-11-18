@@ -177,6 +177,8 @@ async function main() {
   await page.evaluate(() => createFclLclPatterns());
   const pats = await page.evaluate(() => calcPatternTotals().map(t => t.name + ':' + t.totalJPY));
   check('FCL案／LCL案の作成とパターン別合計', pats.length === 2, pats.join(' / '));
+  // FCL/LCL 損益分岐は右レールの「その他（⋯）」の中に格納されている。見えていなければ先に開く。
+  if (!(await page.isVisible('.qrc-rail-btn[data-mod="fcllcl"]'))) { await page.click('#qrcMore2'); await page.waitForTimeout(200); }
   await page.click('.qrc-rail-btn[data-mod="fcllcl"]'); await page.waitForTimeout(250);
   await shot('04-rail-fcl-lcl', '.quote-right-col');
   await page.evaluate(() => { const f = document.getElementById('qf-multi-out'); if (f) f.value = '0'; });

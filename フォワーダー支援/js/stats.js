@@ -1146,7 +1146,7 @@
     const svMap   = typeof window.synGetNormalizeMap === 'function' ? window.synGetNormalizeMap('sv')   : {};
     const portMap = typeof window.synGetNormalizeMap === 'function' ? window.synGetNormalizeMap('port') : {};
     const norm = (v, m) => (m && m[v]) || v;
-    const pairs = new Map();   // `${sv} ${port}` → { sv, port, count }
+    const pairs = new Map();   // `${sv}\x00${port}` → { sv, port, count }
     const add = p => {
       const d = p.data || {};
       const rows = Array.isArray(d.rows) ? d.rows : [];
@@ -1159,7 +1159,7 @@
       const ports = new Set(_portValsFromFields(d.fields || {}).map(pt => norm(pt, portMap)));
       if (!subs.size || !ports.size) return;
       subs.forEach(sv => ports.forEach(pt => {
-        const k = sv + ' ' + pt;
+        const k = sv + '\x00' + pt;
         if (!pairs.has(k)) pairs.set(k, { sv, port: pt, count: 0 });
         pairs.get(k).count++;
       }));

@@ -1420,13 +1420,13 @@ async function seedCarrierBookmarks() {
   // 最新の既存行で重複判定（carrier + url）
   const { data: existing, error: e0 } = await db.from('bookmarks').select('carrier,url');
   if (e0) { quoteShowToast('⚠️ 既存取得エラー：' + e0.message, 'warn', 6000); restore(); return; }
-  const seen = new Set((existing || []).map((r) => (r.carrier || '') + ' ' + (r.url || '')));
+  const seen = new Set((existing || []).map((r) => (r.carrier || '') + '\x00' + (r.url || '')));
 
   const all = _buildCarrierSeedRows();
   const within = new Set();
   const fresh = [];
   all.forEach((r) => {
-    const k = (r.carrier || '') + ' ' + (r.url || '');
+    const k = (r.carrier || '') + '\x00' + (r.url || '');
     if (seen.has(k) || within.has(k)) return;
     within.add(k);
     fresh.push(r);
@@ -1564,7 +1564,7 @@ let _bmDupGroups = [];
 
 function _bmDupKey(r) {
   const c = r.carrier || '';
-  return r.url ? c + ' U:' + r.url.trim() : c + ' L:' + (r.label || '');
+  return r.url ? c + '\x00U:' + r.url.trim() : c + '\x00L:' + (r.label || '');
 }
 
 function _bmFindDuplicates() {
