@@ -3263,10 +3263,10 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
   background: var(--accent); border-color: var(--accent); color: var(--surface);
 }
 .master-filter-count {
-  font-size: var(--fs-10); font-weight: 700;
+  font-size: var(--fs-10); font-weight: 700; color: var(--text);
   background: rgba(0,0,0,.08); border-radius: var(--r-8); padding: 1px var(--sp-6);
 }
-.master-filter-chip.is-active .master-filter-count { background: rgba(255,255,255,.25); }
+.master-filter-chip.is-active .master-filter-count { background: rgba(0,0,0,.3); color: #fff; }
 .stats-master-rename {
   font-size: var(--fs-11); border: 1px solid #cdbb97; background: var(--surface-warm); color: var(--accent);
   border-radius: var(--r-4); padding: var(--sp-2) var(--sp-8); cursor: pointer; margin-right: var(--sp-4);
@@ -3601,7 +3601,7 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
   background: none;
   border: 1px dashed var(--border-md);
   border-radius: var(--r-10);
-  color: var(--c-a08060);
+  color: var(--text-muted);
   cursor: pointer;
   font-size: var(--fs-11);
   padding: 1px var(--sp-8);
@@ -4054,7 +4054,7 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
   background: none;
   border: none;
   cursor: pointer;
-  color: #b39a82;
+  color: var(--text-muted);
   font-size: var(--fs-10);
   padding: 0 var(--sp-2);
   line-height: 1;

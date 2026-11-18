@@ -370,3 +370,9 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-m { width: 70px !important; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-mg { display: inline-flex; align-items: center; gap: 6px; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-mg-lbl { font-size: var(--text-sm, 13px); font-weight: 700; color: #1a7f6e; }
+
+/* マスター管理：件数バッジ・「＋ 別名」・別名の ✕ のコントラスト（Design の元の値は 2.6〜3.7 で読みにくい） */
+html.theme-industry .master-filter-chip.is-active .master-filter-count { background: rgba(0,0,0,.3); color: #fff; }
+html.theme-industry .master-filter-count { color: var(--text); }
+html.theme-industry .stats-master-abbrev-add { color: var(--text-muted); }
+html.theme-industry .ua-chip-del { color: var(--text-muted); }

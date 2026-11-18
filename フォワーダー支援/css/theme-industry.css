@@ -1128,6 +1128,9 @@ html.theme-industry {
 :where(html.theme-industry) .master-filter-count {
   border-radius: 0;
 }
+:where(html.theme-industry) .master-filter-chip.is-active .master-filter-count {
+  background: rgba(255,255,255,.25);
+}
 :where(html.theme-industry) .stats-master-rename {
   border: 1px solid #afb1b5;
   border-radius: 0;
@@ -1258,6 +1261,7 @@ html.theme-industry {
 }
 :where(html.theme-industry) .stats-master-abbrev-add {
   border-radius: 0;
+  color: var(--c-a08060);
 }
 :where(html.theme-industry) .stats-master-abbrev-add:hover {
   border-color: #70747a;
@@ -10621,4 +10625,17 @@ html.theme-industry {
   font-size: var(--text-sm, 13px);
   font-weight: 700;
   color: #1a7f6e;
+}
+html.theme-industry.theme-industry .master-filter-chip.is-active .master-filter-count {
+  background: rgba(0,0,0,.3);
+  color: #fff;
+}
+html.theme-industry.theme-industry .master-filter-count {
+  color: var(--text);
+}
+html.theme-industry.theme-industry .stats-master-abbrev-add {
+  color: var(--text-muted);
+}
+html.theme-industry.theme-industry .ua-chip-del {
+  color: var(--text-muted);
 }
