@@ -1060,6 +1060,9 @@
     }
   }
 
+  // 外部の画面（メール取込の確認画面など）から、品名などの欄に「マスターに無い」印を付け外しする
+  window.arMarkUnregistered = function (input, field) { if (input && field) _markUnregistered(input, field, !_canonicalFor(field, input.value)); };
+
   // 印は欄を確定（change）したときにだけ付け外ししていたため、あとからマスターに登録しても点線が残った。
   // 印が付いている欄だけ、マスターの変更のたびに判定し直す（新しく印を付けることはしない＝入力していない欄は触らない）
   function _remarkUnregistered() {

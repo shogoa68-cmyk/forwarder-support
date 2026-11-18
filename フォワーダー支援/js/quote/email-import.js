@@ -834,12 +834,70 @@
     if (typeof window.cloudSaveCurrent === 'function') await window.cloudSaveCurrent({ stay: true });
   }
 
+  // ====== 📚 品名・単位のマスターを参照する（解析のとき／確認画面で直したとき）======
+  //   品名：マスター（または別名）に当たれば、マスターの名前にそろえ、マスターの既定のカテゴリ・単位を補う。
+  //   行頭の番号（「2. 」「(3) 」）と、「品名: 説明」の説明は外して照合する。単位も単位のマスターの名前にそろえる。
+  //   マスターに無い名前はそのまま（確認画面の欄に「マスターに無い」印が付く）。マスターが読み込まれていない間は何もしない。
+  const _masterNames = listId => { const dl = document.getElementById(listId); return new Set(dl ? Array.from(dl.children).map(o => o.value) : []); };
+  function _masterNmCanon(raw, known) {
+    const t = String(raw || '').trim();
+    if (!t || !known.size || typeof window.nameCanon !== 'function') return '';
+    const c1 = t.replace(/^\s*[(（]?\d{1,3}\s*[.)）、:：]\s*/, '');
+    const cands = [t]; if (c1 !== t) cands.push(c1);
+    [t, c1].forEach(x => { const c2 = x.replace(/\s*[:：].*$/, '').trim(); if (c2 && !cands.includes(c2)) cands.push(c2); });
+    for (const c of cands) { const canon = window.nameCanon('nm', c); if (known.has(canon)) return canon; }
+    return '';
+  }
+  const _normCatSafe = v => (typeof normCat === 'function' ? normCat(v) : v);
+  function _applyMaster(parsed) {
+    if (!parsed || !parsed.entries || typeof window.nameCanon !== 'function') return parsed;
+    const nmKnown = _masterNames('nmSuggestions'), unKnown = _masterNames('unit-list');
+    parsed.entries.forEach(e => {
+      if (e._kind !== 'item') return;
+      if (!e.ruleHit) {   // このサブコンの「呼び名の置き換え」ルールが当たった行は、そちらを優先
+        const canon = _masterNmCanon(e.name, nmKnown);
+        if (canon && canon !== e.name) { e.masterFrom = e.name; e.name = canon; e.masterHit = true; }
+      }
+      const canonNm = nmKnown.size ? window.nameCanon('nm', e.name) : '';
+      const rec = (canonNm && nmKnown.has(canonNm) && typeof window.mdGet === 'function') ? window.mdGet('nm', canonNm) : null;
+      const d = (rec && rec.details) || {};
+      if (d.defaultCat && !e.ruleCat) { const c = _normCatSafe(d.defaultCat); if (c) { e.ruleCat = c; e.masterCat = true; } }
+      if (!e.unit && d.defaultUnit) { e.unit = d.defaultUnit; e.unitFilled = true; }
+      if (e.unit && unKnown.size) { const cu = window.nameCanon('un', e.unit); if (cu && cu !== e.unit && unKnown.has(cu)) { e.unitFrom = e.unit; e.unit = cu; e.unitMaster = true; } }
+    });
+    return parsed;
+  }
+  // 確認画面で品名・単位を直したとき：マスターに合わせる（品名→マスターの名前＋既定のカテゴリ・単位／単位→単位のマスターの名前）
+  function eiOnReviewChange(ev) {
+    const t = ev && ev.target; if (!t || !t.classList) return;
+    const tr = t.closest && t.closest('tr.ei-row'); if (!tr) return;
+    const toast = m => { if (window.quoteShowToast) quoteShowToast(m, 'info', 2200); };
+    if (t.classList.contains('ei-cat')) { tr.dataset.catUser = '1'; return; }
+    if (t.classList.contains('ei-unit')) {
+      tr.dataset.unAuto = '';
+      const v = t.value.trim(), unKnown = _masterNames('unit-list');
+      if (v && unKnown.size && typeof window.nameCanon === 'function') { const cu = window.nameCanon('un', v); if (cu && cu !== v && unKnown.has(cu)) { t.value = cu; toast('📚 単位マスターの「' + cu + '」にそろえました'); } }
+      return;
+    }
+    if (!t.classList.contains('ei-name')) return;
+    const nmKnown = _masterNames('nmSuggestions');
+    const canon = _masterNmCanon(t.value, nmKnown);
+    if (!canon) return;   // マスターに無い名前はそのまま
+    if (canon !== t.value.trim()) { t.value = canon; toast('📚 マスターの名前「' + canon + '」にそろえました'); }
+    const rec = typeof window.mdGet === 'function' ? window.mdGet('nm', canon) : null, d = (rec && rec.details) || {};
+    const unEl = tr.querySelector('.ei-unit');
+    if (unEl && d.defaultUnit && (!unEl.value.trim() || tr.dataset.unAuto === '1')) { unEl.value = d.defaultUnit; tr.dataset.unAuto = '1'; }
+    const catEl = tr.querySelector('.ei-cat');
+    if (catEl && d.defaultCat && tr.dataset.catUser !== '1') { const c = _normCatSafe(d.defaultCat); if (c) catEl.value = c; }
+  }
+
   function eiParse() {
     const text = document.getElementById('eiText')?.value || '';
     if (!text.trim()) { if (window.quoteShowToast) quoteShowToast('⚠️ メール本文を貼り付けてください', 'warn'); return; }
     const rules = _svCtx ? _rulesOf(_svCtx.canon) : null;
     _parsed = parseQuoteEmail(text, { defaultCcy: rules && rules.ccy, qtyAsUnit: rules && rules.qtyAsUnit });
     if (rules) _applyRules(_parsed, rules);
+    _applyMaster(_parsed);   // 品名・単位はマスターにそろえる
     renderEiReview();
     _recordUnread(_parsed.unread);   // 読めなかった行（数字を伏せた形）を、改善用に自動で記録する（待たない）
   }
@@ -893,16 +951,16 @@
       if (e._kind === 'group') { curGroup = e.label; return; }
       gi++;
       const cat = e.ruleCat || inferCat(e.name);
-      const flags = (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費 ' : '') + (e.priceHi != null ? '幅〜' + Math.round(e.priceHi * 100) / 100 : '') + (e.ccyAssumed ? ' 通貨は既定' : '') + (e.ruleHit ? ' 🧠置換' : '') + (e.okHit ? ' ✅確認済みの形' : '') + (e.unitFilled ? ' 単位は既定' : '');
-      html += `<tr data-gi="${gi}" data-src="${_esc(e.src || '')}" data-orig-name="${_esc(e.origName || e.name)}" data-orig-cat="${_esc(cat)}" data-orig-unit="${_esc(e.unit || '')}" class="ei-row ei-${e.conf}">` +
+      const flags = (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費 ' : '') + (e.priceHi != null ? '幅〜' + Math.round(e.priceHi * 100) / 100 : '') + (e.ccyAssumed ? ' 通貨は既定' : '') + (e.ruleHit ? ' 🧠置換' : '') + (e.okHit ? ' ✅確認済みの形' : '') + (e.masterHit ? ' 📚マスター名' : '') + (e.unitMaster ? ' 📚単位' : '') + (e.unitFilled ? ' 単位は既定' : '');
+      html += `<tr data-gi="${gi}" data-src="${_esc(e.src || '')}" data-un-auto="${e.unitFilled ? '1' : ''}" data-orig-name="${_esc(e.origName || e.name)}" data-orig-cat="${_esc(cat)}" data-orig-unit="${_esc(e.unit || '')}" class="ei-row ei-${e.conf}">` +
         `<td><input type="checkbox" class="ei-chk" checked></td>` +
         `<td class="ei-group-cell"><input type="text" class="ei-in ei-group" value="${_esc(curGroup)}" title="挿入時：小計行のラベル、かつ各行の「パターン（任意）」に登録されます（空欄可）">` +
         `<button type="button" class="ei-group-pattern-btn" title="同じグループのチェック済み行を「行パターン」として登録" onclick="eiSaveGroupAsPattern(this)">🔖</button></td>` +
         `<td><select class="ei-in ei-cat">${_catOptions(cat)}</select></td>` +
         `<td><input type="text" class="ei-in ei-sv" value="${_esc(_svCtx ? _svCtx.canon : '')}" list="svSuggestions" placeholder="任意"></td>` +
-        `<td><input type="text" class="ei-in ei-name" value="${_esc(e.name)}"></td>` +
+        `<td><input type="text" class="ei-in ei-name" value="${_esc(e.name)}" list="nmSuggestions"></td>` +
         `<td><input type="number" class="ei-in ei-qty" value="${e.qty ?? ''}" step="any"></td>` +
-        `<td><input type="text" class="ei-in ei-unit" value="${_esc(e.unit || '')}"></td>` +
+        `<td><input type="text" class="ei-in ei-unit" value="${_esc(e.unit || '')}" list="unit-list"></td>` +
         `<td><input type="text" class="ei-in ei-ccy" value="${_esc(e.ccy || 'JPY')}" list="eiCcyList"></td>` +
         `<td><input type="number" class="ei-in ei-price" value="${e.price != null ? Math.round(e.price * 100) / 100 : ''}" step="any"></td>` +
         `<td class="ei-tax-cell"><input type="checkbox" class="ei-tax"${e.taxed ? ' checked' : ''} title="${e.taxSrc === 'on' ? '本文の語（[課税]・課税対象・税別 等）から課税と判定' : e.taxSrc === 'off' ? '本文の語（非課税・免税 等）から非課税と判定' : '判定できなかったため非課税（必要ならチェック）'}"></td>` +
@@ -921,6 +979,8 @@
       (_svCtx ? '' : '「💰 単価を売値として取り込む」をONにすると、単価は売値としてのみ登録され、挿入後に仕入単価を入力すれば乗せ幅が自動算出されます。') +
       '「課税」列は本文の語（[課税]・課税対象・税別・非課税・免税 等）から判定した結果です。違う行はチェックで直してください。「要確認」行は品名・金額を必ず確認。</p>';
     wrap.innerHTML = html;
+    wrap.onchange = eiOnReviewChange;   // 品名・単位を直したら、マスターに合わせる
+    if (typeof window.arMarkUnregistered === 'function') wrap.querySelectorAll('.ei-name').forEach(i => window.arMarkUnregistered(i, 'nm'));   // マスターに無い品名に印
     document.getElementById('eiActions').hidden = false;
     _updateInsertTarget();
   }
@@ -1528,7 +1588,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     eiOpenStored, eiStoreRaw, eiFeImport, eiFeView, eiFeToggle, eiFeDelete,
     openImportChooser, closeImportChooser, icChoose, icPdfSelected, openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiToggleAllTax, eiInsertRows, eiApplyAsNew,
     eiSaveGroupAsPattern, eiApplyBulkSv, eiCopyAiPrompt,
-    eiCopyUnread, eiMaskLine, eiOpenForSubcon, eiRuleSaveDefaults, eiRuleDel, eiLearnFromCorrections, eiRate, eiIgnoreUnread, eiMountRulesPanel,
+    eiCopyUnread, eiMaskLine, eiOpenForSubcon, eiRuleSaveDefaults, eiRuleDel, eiLearnFromCorrections, eiOnReviewChange, eiRate, eiIgnoreUnread, eiMountRulesPanel,
     eiApplyRules: _applyRules,   // テスト用
     parseQuoteEmail,   // テスト・将来の AI パーサー差し替え用に公開
   });
