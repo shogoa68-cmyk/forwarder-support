@@ -43,7 +43,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const shot = async n => { if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'dt-' + (th || 'industry') + (mobile ? '-sp' : '') + '-' + n + '.png') }); };
   const out = process.env.OUT;
   await p.evaluate(() => { try { window.cloudLoadPreset('1'); } catch (e) {} }); await p.waitForTimeout(2500);
-  await p.evaluate(() => { const b = document.getElementById('qadMode'); b && b.click(); }); await p.waitForTimeout(1500);
+  await p.evaluate(() => { const b = document.getElementById('e2EditBtn') || document.getElementById('qadMode'); b && b.click(); }); await p.waitForTimeout(1500);
   await p.evaluate(() => { for (let i = 0; i < 3; i++) { try { window.addRow(); } catch (e) {} } }); await p.waitForTimeout(800);
   ok('新画面が有効（html.editor-v2）', await p.evaluate(() => document.documentElement.classList.contains('editor-v2')));
   ok('ステップ 5 つ', (await p.$$('#e2Steps [data-e2s]')).length === 5);
@@ -56,7 +56,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   // ===== Design 31・案T3：ツールバー 1 段（48px）＋左の開閉レール =====
   if (mobile) {
     ok('[T3スマホ] 上のバーに題名・⋯が 1 段目、状態札が 2 段目に出る', await p.evaluate(() => { const r = id => { const e = document.getElementById(id) || document.querySelector(id); return e ? e.getBoundingClientRect() : null; }; const t = r('e2tName'), m = r('#saveToolbar .tb-menu'), s = r('e2State'); return !!t && t.width > 40 && !!m && !!s && s.top > t.bottom - 4 && Math.abs(m.top - t.top) < 30; }));
-    ok('[T3スマホ] 下に［プレビュー ▾］と主ボタンが固定（高さ 56px 前後）', await p.evaluate(() => { const d = document.getElementById('quoteActionDock').getBoundingClientRect(); return Math.abs(d.bottom - innerHeight) < 2 && d.height >= 54 && !!document.getElementById('e2PvMore'); }));
+    ok('[T3スマホ] 下に［PDF］［プレビュー］［保存］が固定（高さ 56px 前後）', await p.evaluate(() => { const d = document.getElementById('quoteActionDock').getBoundingClientRect(); return Math.abs(d.bottom - innerHeight) < 2 && d.height >= 54 && !document.getElementById('e2PvMore') && getComputedStyle(document.querySelector('#quoteActionDock .qad-pdf')).display !== 'none'; }));
   }
   if (!mobile) {
     const g = (sel, f) => p.evaluate(([s, fn]) => { const e = document.querySelector(s); return e ? new Function('e', 'return ' + fn)(e) : null; }, [sel, f]);
@@ -64,9 +64,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('[T3] 旧いステップのカード行はなく、レールはしまった状態（幅 56px）', (await g('#e2Steps', 'Math.round(e.getBoundingClientRect().width)')) === 56);
     ok('[T3] 見出しにステップ名と要約が出る', /1 基本/.test((await p.textContent('#e2Head')) || ''));
     ok('[T3] 作業状態の札は 1 つ（閲覧中／編集中）', /閲覧中|編集中/.test((await p.textContent('#e2State')) || '') && (await p.$$('#e2State')).length === 1);
-    ok('[T3] ［PDF出力］は［プレビュー ▾］の中に移り、元のボタン（onclick）が残る', await p.evaluate(() => { const m = document.getElementById('e2PvMenu'), b = m && m.querySelector('.qad-pdf'); return !!b && /quickQuotePdf/.test(b.getAttribute('onclick')) && getComputedStyle(document.querySelector('#quoteActionDock .qad-preview')).display !== 'none'; }));
-    await p.click('#e2PvMore'); await p.waitForTimeout(150);
-    ok('[T3] ▾ を押すと PDF 出力が出る', await vis('#e2PvMenu .qad-pdf'));
+    ok('[出力ボタン] ［PDF］は▾の中に隠さず、［PDF］［プレビュー］［保存］が別々に見える（元の onclick も残る）', await p.evaluate(() => { const d = document.querySelector('#quoteActionDock'), pdf = d.querySelector('.qad-pdf'), pv = d.querySelector('.qad-preview'), sv = d.querySelector('#qadMode'); const vis = e => !!e && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0; return vis(pdf) && vis(pv) && vis(sv) && /quickQuotePdf/.test(pdf.getAttribute('onclick')) && !document.getElementById('e2PvMore'); }));
+    ok('[出力ボタン] 閲覧中は［✏️ 編集を始める］が出て、［💾 保存］は押せない（保存はいつも「保存」）', await p.evaluate(() => { const eb = document.getElementById('e2EditBtn'), sv = document.getElementById('qadMode'), gh = document.getElementById('e2SaveGhost'); const view = sv.classList.contains('qad-edit'); if (!view) return true; return !!eb && !eb.hidden && /編集/.test(eb.textContent) && !!gh && !gh.hidden && gh.disabled && /保存/.test(gh.textContent); }));
     await p.keyboard.press('Escape'); await p.evaluate(() => document.body.click()); await p.waitForTimeout(100);
     ok('[T3] 数量パターンが 1 つ以下なら出ない', !(await vis('#e2Pat')));
     await p.click('#e2Steps .e2-rail-toggle'); await p.waitForTimeout(300);
@@ -86,10 +85,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // ロック中（他の人が編集中）：札が「🔒 ○○さんが編集中」・主ボタンが［🔒 閲覧のみ］（押せない）。外れたら元に戻る
     await p.evaluate(() => { document.getElementById('qmBanner').textContent = '🔒 閲覧モード — 編集するには「✏️ 編集」'; window.__qlb = window.quoteLockedByOther; window.quoteLockedByOther = () => ({ email: 't@x.com', name: '田中' }); document.getElementById('qf-case-name').dispatchEvent(new Event('input', { bubbles: true })); });
     await p.waitForTimeout(300);
-    ok('[T3] ロック中：札が「🔒 田中さんが編集中」・主ボタンは［🔒 閲覧のみ］で押せない', await p.evaluate(() => { const b = document.getElementById('e2State'), m = document.getElementById('qadMode'); return /田中さんが編集中/.test(b.textContent) && b.classList.contains('is-lock') && m.disabled && /閲覧のみ/.test(m.textContent); }));
+    ok('[T3] ロック中：札が「🔒 田中さんが編集中」・［✏️ 編集を始める］は［🔒 閲覧のみ］で押せず、保存も押せない', await p.evaluate(() => { const b = document.getElementById('e2State'), m = document.getElementById('qadMode'), e = document.getElementById('e2EditBtn'), g = document.getElementById('e2SaveGhost'); return /田中さんが編集中/.test(b.textContent) && b.classList.contains('is-lock') && m.disabled && !!e && e.hidden && !!g && !g.hidden && g.disabled && /閲覧のみ/.test(g.textContent); }));
     await p.evaluate(() => { window.quoteLockedByOther = window.__qlb || (() => null); window.quoteLockedByOther = () => null; document.getElementById('qf-case-name').dispatchEvent(new Event('input', { bubbles: true })); });
     await p.waitForTimeout(300);
-    ok('[T3] ロックが外れたら主ボタンが［✏️ 編集］に戻る', await p.evaluate(() => { const m = document.getElementById('qadMode'); return !m.disabled && /編集/.test(m.textContent); }));
+    ok('[T3] ロックが外れたら［✏️ 編集を始める］が押せるように戻る', await p.evaluate(() => { const e = document.getElementById('e2EditBtn'); return !!e && !e.disabled && /編集/.test(e.textContent); }));
     ok('[T3] 題名は 1 行（最大幅 380px）', await p.evaluate(() => { const b = document.getElementById('e2tName'); return b.getBoundingClientRect().width <= 381 && getComputedStyle(b).whiteSpace === 'nowrap'; }));
   }
   if (out) await p.screenshot({ path: path.join(out, 'e2-top.png') });
@@ -172,7 +171,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('右レール：よく使う 5 つ＋その他（数量はその他の中・開いて見える）', rc.main.slice().sort().join() === 'charges,chat,digest,fin,subcon' && rc.more.includes('scenario') && rc.more.length === 6 && rc.moreOpen && rc.lab === '🔢', rc);
     ok('「数量登録」は開いている間、押された見た目', rc.pressed, rc);
     await p.keyboard.press('Escape'); await p.waitForTimeout(300);
-    ok('Esc で引き出しが閉じる（ボタンの押された見た目も戻る）', await p.evaluate(() => !document.body.classList.contains('e2-drawer') && !document.querySelector('#e2Total .is-open')));
+    { const st = await p.evaluate(() => ({ d: document.body.classList.contains('e2-drawer'), o: [...document.querySelectorAll('#e2Total .is-open')].map(x => x.textContent.trim().slice(0, 8)), act: document.activeElement && (document.activeElement.id || document.activeElement.tagName), ov: !!document.querySelector('.confirm-overlay, #previewOverlay.open, #fbOverlay.open, #mdDetailModal.open, .nq-overlay') })); ok('Esc で引き出しが閉じる（ボタンの押された見た目も戻る）', !st.d && st.o.length === 0, st); }
     await p.click('#e2Total [data-e2q]'); await p.waitForTimeout(300);
   }
   // 明細 1 行：使っていない「その他 ▾」は行に乗せるまで隠す

@@ -1154,6 +1154,43 @@ body:has(#tab-quote-make.active) .app { padding-bottom: var(--sp-8); }
   color: #ecfeff;
   border-color: #0e6683;
 }
+/* 「見る・管理する」系ボタン（統計・マスター管理）：作業系（ティール）と見分けるグレー系 */
+.cat-btn-admin {
+  background: linear-gradient(135deg, #f1f3f6 0%, #e1e5eb 100%);
+  color: #475467;
+  border-color: #b8c0cc;
+}
+.cat-btn-admin:hover {
+  background: linear-gradient(135deg, #e1e5eb 0%, #cfd6df 100%);
+  color: #344054;
+  border-color: #98a2b3;
+}
+.cat-btn-admin.active {
+  background: linear-gradient(135deg, #475467 0%, #344054 100%);
+  color: #f9fafb;
+  border-color: #2b3445;
+}
+/* 「その他」メニューの見出しと 1 行説明（説明は data-desc を ::after で出す＝ボタンの textContent は変わらない） */
+.cat-more-head {
+  padding: 6px 10px 2px;
+  font-size: var(--text-xs, 12px);
+  font-weight: 700;
+  color: var(--text-md);
+  opacity: .75;
+  letter-spacing: .04em;
+}
+.cat-more-head:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--border-md); padding-top: 8px; }
+.cat-more-panel .cat-btn[data-desc] { padding-top: 6px; padding-bottom: 6px; line-height: 1.3; }
+.cat-more-panel .cat-btn[data-desc]::after {
+  content: attr(data-desc);
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs, 12px);
+  font-weight: 400;
+  color: var(--text-md);
+  opacity: .8;
+}
+.cat-more-panel .cat-btn.active[data-desc]::after { color: inherit; }
 /* サブタブナビ（2段タブ下段）*/
 .sub-nav { display: none !important; margin-bottom: var(--sp-14); }
 .sub-nav.active {
@@ -3483,7 +3520,7 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
 }
 .stats-master-jump-hl { animation: statsMasterJumpFlash 2.2s ease; }
 
-/* 品名ゆらぎ */
+/* 品名表記ゆれ */
 .stats-nm-table .stats-chips-cell { white-space: normal; }
 .stats-has-variant td:first-child { background: var(--card-bg); }
 .stats-variant-badge--link {
@@ -4740,7 +4777,7 @@ a.lc-source-icon { cursor: pointer; }
 a.lc-source-icon:hover { opacity: 0.75; }
 .lc-updated-by { font-size: var(--fs-10); color: var(--c-9a8878); margin-top: var(--sp-2); }
 
-/* ゆらぎパネル */
+/* 表記ゆれパネル */
 .lc-variant-btn {
   background: var(--bg);
   border: 1px solid var(--border-md);
@@ -5951,7 +5988,7 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 .cc-chip.has-open { background: #fde8e4; border-color: #c0392b; color: #8a1f14; font-weight: 700; }
 #crBanner .cc-chip { margin-left: 6px; }
 @media (max-width: 600px) { .cc-item { grid-template-columns: 1fr; } .cc-btns { flex-direction: row; flex-wrap: wrap; } .cc-sec { flex-direction: column; gap: 0; } }
-/* ===== 🔍 ゆらぎチェックのカード（マスター管理の上部・js/drift-check.js／2026-11） ===== */
+/* ===== 🔍 表記ゆれチェックのカード（マスター管理の上部・js/drift-check.js／2026-11） ===== */
 .drift-card { margin: 0 0 var(--sp-12, 12px); }
 .drift-card:empty { display: none; }
 .drift-card { border: 1px solid var(--border, #d9dee5); border-radius: 10px; padding: 10px 12px; background: var(--surface, #fff); }

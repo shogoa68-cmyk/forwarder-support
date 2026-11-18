@@ -132,8 +132,9 @@
     const t = ro ? '🔒 閲覧のみ（権限）' : lk ? '🔒 ' + lk.name + 'さんが編集中' : view ? '👁 閲覧中' : edit ? '✏️ 編集中' + (dirty ? '　● 未保存' : '') : '';
     b.hidden = !t; if (b.textContent !== t) b.textContent = t;
     b.className = (lk || ro) ? 'is-lock' : view ? 'is-view' : edit ? 'is-edit' : '';
-    const mb = $('qadMode');   // ロック中は主ボタンを［🔒 閲覧のみ］（押せない）に。ロックが外れたら（一覧の再読み込みで）元に戻る
-    if (mb) { if (lk || ro) { mb.dataset.e2lock = '1'; mb.disabled = true; if (mb.textContent !== '🔒 閲覧のみ') mb.textContent = '🔒 閲覧のみ'; } else if (mb.dataset.e2lock === '1') { delete mb.dataset.e2lock; mb.disabled = false; mb.textContent = view ? '✏️ 編集' : '💾 保存'; } }
+    const mb = $('qadMode');   // ロック中・閲覧のみ権限のとき：［✏️ 編集を始める］が［🔒 閲覧のみ］（押せない）になる（文字は syncMode が決める。保存ボタンは「保存」のまま押せない）。ロックが外れたら元に戻る
+    if (mb) { if (lk || ro) { if (mb.dataset.e2lock !== '1') mb.dataset.e2lock = '1'; if (!mb.disabled) mb.disabled = true; } else if (mb.dataset.e2lock === '1') { delete mb.dataset.e2lock; mb.disabled = false; } }
+    syncMode();
     const pop = $('e2StatePop'); if (pop && pop.textContent !== (q || '')) pop.textContent = q || '';
     b.title = q || '';
   }
@@ -181,7 +182,7 @@
     const main = ws.querySelector('.quote-main'); (main || ws).appendChild(foot);
     const tot = document.createElement('div'); tot.id = 'e2Total';
     tot.innerHTML = '<div class="e2t-amts"><span><i>売</i><b id="e2tSell">—</b></span><span><i>仕入</i><b id="e2tCost">—</b></span><span><i>粗利</i><b id="e2tProfit">—</b></span></div>' +
-      '<div class="e2t-btns"><button type="button" data-e2q="1" title="単位ごとの数量をまとめて登録・変更する">数量登録</button><button type="button" data-e2p="1" title="数量パターン（FCL案／LCL案など）を追加する">パターン登録</button><button type="button" data-e2d="digest">費用の内訳 ▸</button><button type="button" data-e2d="ref">参考 ▸</button></div>';
+      '<div class="e2t-btns"><button type="button" data-e2f="1" class="e2t-files" title="案件に添える参考資料を置く場所（置いてから3時間で自動的に消えます）">📁 一時ファイル</button><button type="button" data-e2q="1" title="単位ごとの数量をまとめて登録・変更する">数量登録</button><button type="button" data-e2p="1" title="数量パターン（FCL案／LCL案など）を追加する">パターン登録</button><button type="button" data-e2d="digest">費用の内訳 ▸</button><button type="button" data-e2d="ref">参考 ▸</button></div>';
     document.getElementById('tab-quote-make').appendChild(tot);
     steps.addEventListener('click', e => {
       if (e.target.closest('.e2-rail-toggle')) { setRail(!railOpen); return; }
@@ -197,6 +198,7 @@
     });
     foot.addEventListener('click', e => { if (e.target.id === 'e2Prev') go(step - 1); if (e.target.id === 'e2Next') go(step + 1); });
     tot.addEventListener('click', e => {
+      if (e.target.closest('[data-e2f]')) { if (window.rmsIsOpen && window.rmsIsOpen() && window.rmsPane && window.rmsPane() === 'files') window.rmsClose(); else if (window.rmsShowFiles) window.rmsShowFiles(); return; }
       if (e.target.closest('[data-e2q]')) toggleDrawer('scenario');
       if (e.target.closest('[data-e2p]') && typeof window.addPackingPattern === 'function') window.addPackingPattern();
     });
@@ -273,22 +275,75 @@
   }
   // 右下の固定ボタン（PDF／プレビュー／保存）を上部ツールバーへ。切り戻すときは元の場所へ
   const phone = () => window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
-  // ［プレビュー ▾］：▾ の中に［PDF 出力］（元のボタンを要素ごと移すだけ。id・onclick は不変。旧画面へ戻すときは元の位置へ返す）
+  // 出力ボタンは［📄 PDF］［📋 プレビュー］［💾 保存］を別々に見せる（以前は PDF を［プレビュー ▾］の中に入れていたが、新人が見つけられなかった＝ボタン配置レビュー）。
+  // ここでは、以前の▾メニューが残っていれば元に戻すだけ。［✏️ 編集］は閲覧中だけ保存ボタンの隣に出す（下の syncMode）
   function pvMenu(dock, on) {
-    const pdf = dock.querySelector('.qad-pdf'), pv = dock.querySelector('.qad-preview'); if (!pdf || !pv) return;
-    if (on) {
-      if ($('e2PvMore')) return;
-      const more = document.createElement('button'); more.type = 'button'; more.id = 'e2PvMore'; more.textContent = '▾'; more.setAttribute('aria-label', 'PDF 出力などのメニュー'); more.setAttribute('aria-haspopup', 'true');
-      const menu = document.createElement('div'); menu.id = 'e2PvMenu'; menu.hidden = true;
-      pv.after(more); more.after(menu); menu.appendChild(pdf);
-      more.addEventListener('click', e => { e.stopPropagation(); menu.hidden = !menu.hidden; });
-      menu.addEventListener('click', () => { menu.hidden = true; });
-      document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) menu.hidden = true; });
-    } else {
-      const m = $('e2PvMenu'); if (m) { const p = m.querySelector('.qad-pdf'); if (p) dock.insertBefore(p, dock.firstChild); m.remove(); }
-      const mo = $('e2PvMore'); if (mo) mo.remove();
+    if (on) return;
+    const pdf = dock.querySelector('.qad-pdf'); const m = $('e2PvMenu');
+    if (m) { const p = m.querySelector('.qad-pdf'); if (p) dock.insertBefore(p, dock.firstChild); m.remove(); }
+    const mo = $('e2PvMore'); if (mo) mo.remove();
+  }
+  // ［✏️ 編集］と［💾 保存］を別のボタンにする：閲覧中は［✏️ 編集を始める］と、押せない［💾 保存］（見た目だけの別ボタン）を出し、本物の保存ボタン（#qadMode）は隠す。
+  // 編集中は本物の［💾 保存］だけ出す。#qadMode の文字・動きは cloud.js が決めるので、ここでは書き換えない（書き換えると cloud.js と取り合いになる）
+  let modeObs = null;
+  function syncMode() {
+    const mb = $('qadMode'), dock = $('quoteActionDock'); if (!mb || !dock) return;
+    let eb = $('e2EditBtn'), gh = $('e2SaveGhost');
+    if (!eb) { eb = document.createElement('button'); eb.type = 'button'; eb.id = 'e2EditBtn'; eb.className = 'qad-btn qad-edit-start'; eb.addEventListener('click', () => { if (!eb.disabled && typeof window.qpDockAction === 'function') window.qpDockAction(); }); dock.insertBefore(eb, mb); }
+    if (!gh) { gh = document.createElement('button'); gh.type = 'button'; gh.id = 'e2SaveGhost'; gh.className = 'qad-btn qad-save'; gh.disabled = true; gh.textContent = '💾 保存'; gh.title = '編集を始めると保存できます'; dock.insertBefore(gh, mb); }
+    const locked = mb.dataset.e2lock === '1';
+    const view = mb.classList.contains('qad-edit') || locked;
+    // 閲覧中（ロックでない）だけ［✏️ 編集を始める］（主）。ロック／閲覧のみ権限は［🔒 閲覧のみ］（薄い・押せない）を保存の位置に出す
+    eb.hidden = !view || locked; gh.hidden = !view;
+    if (eb.textContent !== '✏️ 編集を始める') eb.textContent = '✏️ 編集を始める';
+    if (eb.disabled) eb.disabled = false;
+    const gt = locked ? '🔒 閲覧のみ' : '💾 保存';
+    if (gh.textContent !== gt) gh.textContent = gt;
+    gh.title = locked ? '他の人が編集中、または閲覧のみの権限です' : '編集を始めると保存できます';
+    // 未保存の点（保存ボタンの右上・編集中で未保存のときだけ）
+    const dirty = !view && dirtyNow();
+    if (mb.classList.contains('is-dirty') !== dirty) mb.classList.toggle('is-dirty', dirty);
+    const tt = dirty ? '未保存の変更があります' : '保存して作業終了';
+    if (!view && mb.title !== tt) mb.title = tt;
+    // ⑤の「出力する」枠：閲覧中の編集ボタン・保存の薄い表示・未保存の一文
+    const out = $('e2Out');
+    if (out) {
+      const oe = out.querySelector('[data-e2o="edit"]'), os = out.querySelector('[data-e2o="save"]'), ow = out.querySelector('.e2o-warn');
+      if (oe) oe.hidden = !view || locked;
+      if (os) { os.classList.toggle('is-off', view); os.textContent = locked ? '🔒 閲覧のみ' : '💾 保存'; }
+      if (ow) ow.hidden = !dirty;
     }
   }
+  const dirtyNow = () => !!(window.quoteIsDirty && window.quoteIsDirty());
+  function watchMode() {
+    const mb = $('qadMode'); if (!mb || modeObs) return;
+    modeObs = new MutationObserver(() => syncMode());
+    modeObs.observe(mb, { attributes: true, attributeFilter: ['class'] });
+  }
+  function unwatchMode() {
+    if (modeObs) { modeObs.disconnect(); modeObs = null; }
+    ['e2EditBtn', 'e2SaveGhost'].forEach(id => { const e = $(id); if (e) e.remove(); });
+    const mb = $('qadMode'); if (mb) { mb.classList.remove('is-dirty'); mb.removeAttribute('title'); mb.title = '閲覧中は編集を開始／編集中は保存して作業終了'; }
+  }
+  // ステップ⑤の最後に、出力の 3 つのボタン（PDF・プレビュー・保存）をもう一度出す。上のバーのボタンは残したまま、元の関数を呼ぶだけ
+  function buildOut() {
+    if ($('e2Out')) return;
+    const nav = $('e2Nav'); if (!nav || !nav.parentNode) return;
+    const out = document.createElement('div'); out.id = 'e2Out';
+    out.innerHTML = '<p class="e2o-t">出力する</p><p class="e2o-d">できあがったら、ここから御見積書を出せます。</p>' +
+      '<p class="e2o-warn" hidden>● 未保存の変更があります。先に［💾 保存］をおすすめします。</p>' +
+      '<div class="e2o-btns"><button type="button" data-e2o="pv" class="e2o-pv">📋 プレビュー</button><button type="button" data-e2o="pdf" class="e2o-pdf">📄 PDF 出力</button><button type="button" data-e2o="edit" class="e2o-edit" hidden>✏️ 編集を始める</button><button type="button" data-e2o="save" class="e2o-save">💾 保存</button></div>';
+    nav.parentNode.insertBefore(out, nav);
+    out.addEventListener('click', e => {
+      const b = e.target.closest('[data-e2o]'); if (!b) return;
+      if (b.dataset.e2o === 'edit') { if (typeof window.qpDockAction === 'function') window.qpDockAction(); }
+      else if (b.dataset.e2o === 'pdf' && typeof window.quickQuotePdf === 'function') window.quickQuotePdf();
+      else if (b.dataset.e2o === 'pv' && typeof window.openPreview === 'function') window.openPreview();
+      else if (b.dataset.e2o === 'save') { const mb = $('qadMode'); if (b.classList.contains('is-off')) return; if (mb && !mb.disabled) mb.click(); else if (typeof window.quoteShowToast === 'function') window.quoteShowToast('編集を始めると保存できます（上の［✏️ 編集を始める］）', 'info', 3000); }
+    });
+  }
+  const placeOut = () => { const out = $('e2Out'), nav = $('e2Nav'); if (out && nav && nav.parentNode && out.nextSibling !== nav) nav.parentNode.insertBefore(out, nav); };
+
   function moveDock(on) {
     const dock = $('quoteActionDock'), tb = $('saveToolbar'); if (!dock || !tb) return;
     if (on && phone()) { pvMenu(dock, true); return; }   // スマホ幅はドックを下に固定のまま、［プレビュー ▾］だけ付ける
@@ -299,7 +354,7 @@
   function apply(on) {
     root.classList.toggle('editor-v2', on);
     ls.set(KEY, on ? '1' : '0');
-    if (on) { build(); moveDock(true); moveRemark(true); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(step, true); } else { moveRemark(false); try { window.lcCheck && window.lcCheck(); } catch (e) {} moveDock(false); document.body.classList.remove('e2-drawer'); const tab = $('tab-quote-make'); if (tab) delete tab.dataset.e2; try { window.rmsClose && 0; } catch (e) {} }
+    if (on) { build(); buildOut(); moveDock(true); moveRemark(true); placeOut(); watchMode(); syncMode(); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(step, true); } else { unwatchMode(); { const o = $('e2Out'); if (o) o.remove(); } moveRemark(false); try { window.lcCheck && window.lcCheck(); } catch (e) {} moveDock(false); document.body.classList.remove('e2-drawer'); const tab = $('tab-quote-make'); if (tab) delete tab.dataset.e2; try { window.rmsClose && 0; } catch (e) {} }
     syncBtn();
   }
   window.editorV2Set = apply;
@@ -313,12 +368,13 @@
     const ref = $('hdrDesignBtn'), b = document.createElement('a');
     b.id = 'hdrEditorV2Btn'; b.href = '#'; b.className = ref ? ref.className : ''; b.setAttribute('role', 'button');
     b.addEventListener('click', e => { e.preventDefault(); window.editorV2Toggle(); });
-    panel.appendChild(b); syncBtn(); return true;
+    const lab = document.createElement('p'); lab.className = 'hdr-panel-label'; lab.textContent = '画面の切替';
+    panel.appendChild(lab); panel.appendChild(b); syncBtn(); return true;
   }
 
   document.addEventListener('DOMContentLoaded', () => {
     let tries = 0; const t = setInterval(() => { if (addMenuBtn() || ++tries > 20) clearInterval(t); }, 300);
-    if (isOn()) { build(); moveDock(true); moveRemark(true); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(1, true); }
+    if (isOn()) { build(); buildOut(); moveDock(true); moveRemark(true); placeOut(); watchMode(); syncMode(); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(1, true); }
     // 入力のたびに要約・合計を更新（軽く間引く）
     let raf = 0; const kick = () => { if (!isOn()) return; cancelAnimationFrame(raf); raf = requestAnimationFrame(refresh); };
     window.addEventListener('resize', () => { if (isOn()) moveDock(true); });

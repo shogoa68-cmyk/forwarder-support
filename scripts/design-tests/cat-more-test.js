@@ -1,4 +1,4 @@
-// カテゴリナビ：BOOKMARK・見積・統計・マスター管理の 4 つ（同じ色）＋「📂 その他」（諸チャージ・作業フォルダ含む 8 カテゴリ）。
+// カテゴリナビ（2026-11 整理）：作業系 5 つ（リンク集・見積を作る・計算・書類・通関・Booking/SI＝ティール）＋見る・管理系 2 つ（実績を見る・マスター管理＝グレー）＋「📂 その他」（調べる 3＋ほか 3＝6 カテゴリ・各項目に 1 行説明）。
 //   node scripts/design-tests/cat-more-test.js            （現行）
 //   THEME=1 node scripts/design-tests/cat-more-test.js    （Industry）
 const { chromium } = (()=>{try{return require('playwright-core')}catch(e){return require('playwright')}})();
@@ -18,21 +18,24 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
  await p.goto(URL,{waitUntil:'domcontentloaded'});await p.waitForTimeout(800);
  const top=()=>p.evaluate(()=>[...document.querySelectorAll('.cat-nav > .cat-btn, .cat-nav > .cat-more > .cat-btn')].filter(b=>b.offsetParent!==null).map(b=>b.textContent.replace(/\s+/g,' ').trim()));
  const t0=await top();
- ok('上段は BOOKMARK・見積・統計・マスター管理・サイバーポート・「その他」の順',t0.length===6&&/BOOKMARK/.test(t0[0])&&/見積/.test(t0[1])&&/統計/.test(t0[2])&&/マスター管理/.test(t0[3])&&/サイバーポート/.test(t0[4])&&/その他/.test(t0[5]),t0);
+ ok('上段は リンク集・見積を作る・計算・書類・通関・Booking/SI・実績を見る・マスター管理・「その他」の順',t0.length===8&&/リンク集/.test(t0[0])&&/見積を作る/.test(t0[1])&&/計算/.test(t0[2])&&/書類/.test(t0[3])&&/Booking/.test(t0[4])&&/実績を見る/.test(t0[5])&&/マスター管理/.test(t0[6])&&/その他/.test(t0[7]),t0);
  const col=await p.evaluate(()=>[...document.querySelectorAll('.cat-nav > .cat-btn')].map(b=>({t:b.textContent.trim().slice(0,6),act:b.classList.contains('active'),bg:getComputedStyle(b).backgroundImage+getComputedStyle(b).backgroundColor,fg:getComputedStyle(b).color,bd:getComputedStyle(b).borderColor})));
- const idle=col.filter(c=>!c.act&&!/その他/.test(c.t));
+ const work=col.filter(c=>!c.act&&/^(🔖|🧮|📄|📋)/.test(c.t));
+ const adm=col.filter(c=>/^(📊|🗂)/.test(c.t));
  const actv=col.filter(c=>c.act);
- ok('5 つのカテゴリ（BOOKMARK・見積・統計・マスター管理・サイバーポート）は同じ色（選択中の見積だけ濃い）',idle.length===4&&idle.every(c=>c.bg===idle[0].bg&&c.fg===idle[0].fg&&c.bd===idle[0].bd)&&actv.length===1&&actv[0].bg!==idle[0].bg,col);
- ok('「その他」は別の色（地味なまま）',await p.evaluate(()=>{const o=getComputedStyle(document.getElementById('catMoreBtn'));return o.backgroundImage+o.backgroundColor;})!==idle[0].bg,col);
- const vis=await p.evaluate(()=>['tab-local-charges','tab-calendar','tab-tracking','tab-booking-tab','tab-bldo','tab-calc','tab-incoterms'].map(id=>{const b=document.querySelector(`.cat-btn[aria-controls="${id}"]`);return !!b&&b.offsetParent===null;}));
- ok('7 カテゴリのボタンは DOM に残り（情報は残る）、閉じている間は見えない',vis.every(Boolean),vis);
+ ok('作業系 4 つ（選択中を除く）は同じ色',work.length===4&&work.every(c=>c.bg===work[0].bg&&c.fg===work[0].fg&&c.bd===work[0].bd),col);
+ ok('見る・管理系 2 つは同じ色で、作業系とは別の色',adm.length===2&&adm.every(c=>c.bg===adm[0].bg)&&adm[0].bg!==work[0].bg,col);
+ ok('選択中（見積を作る）だけ濃い',actv.length===1&&/見積/.test(actv[0].t)&&actv[0].bg!==work[0].bg,col);
+ ok('「その他」は別の色（地味なまま）',await p.evaluate(()=>{const o=getComputedStyle(document.getElementById('catMoreBtn'));return o.backgroundImage+o.backgroundColor;})!==work[0].bg,col);
+ const vis=await p.evaluate(()=>['tab-local-charges','tab-calendar','tab-tracking','tab-incoterms','tab-workfolder','tab-cptest'].map(id=>{const b=document.querySelector(`.cat-btn[aria-controls="${id}"]`);return !!b&&b.offsetParent===null;}));
+ ok('「その他」の 6 カテゴリのボタンは DOM に残り（情報は残る）、閉じている間は見えない',vis.every(Boolean),vis);
  await p.click('#catMoreBtn');await p.waitForTimeout(200);
  const open=await p.evaluate(()=>{const pn=document.getElementById('catMorePanel');const r=pn.getBoundingClientRect();const items=[...pn.querySelectorAll('.cat-btn')];const bad=items.filter(b=>{const q=b.getBoundingClientRect();const e=document.elementFromPoint(q.left+q.width/2,q.top+q.height/2);return !(e&&(e===b||b.contains(e)));});return {hidden:pn.hidden,exp:document.getElementById('catMoreBtn').getAttribute('aria-expanded'),labels:items.map(b=>b.textContent.trim()),top:Math.round(r.top),covered:bad.length};});
- ok('開くと 8 項目（先頭が諸チャージ・作業フォルダを含む）が出る（隠れずに押せる）',!open.hidden&&open.exp==='true'&&open.labels.length===8&&/諸チャージ/.test(open.labels[0])&&open.covered===0,open);
+ ok('開くと 6 項目（調べる 3＋ほか 3）が出る（隠れずに押せる）',!open.hidden&&open.exp==='true'&&open.labels.length===6&&/本船・航路/.test(open.labels[0])&&/サイバーポート/.test(open.labels[3])&&open.covered===0,open);
  await p.screenshot({path:OUT+'/cat-more-open.png',clip:{x:0,y:0,width:1400,height:420}});
- await p.click('.cat-btn[aria-controls="tab-calc"]');await p.waitForTimeout(500);
- const s1=await p.evaluate(()=>({hidden:document.getElementById('catMorePanel').hidden,label:document.querySelector('#catMoreBtn .cat-more-label').textContent,act:document.getElementById('catMoreBtn').classList.contains('active'),calc:document.getElementById('tab-calc').classList.contains('active'),sub:!!document.querySelector('#sub-calc.active'),quoteAct:document.querySelector('.cat-btn[aria-controls="tab-quote-make"]').classList.contains('active')}));
- ok('選ぶと閉じて、画面が切り替わり、「その他」に選択中の名前が出る（強調）',s1.hidden&&/計算/.test(s1.label)&&s1.act&&s1.calc&&s1.sub&&!s1.quoteAct,s1);
+ await p.click('.cat-btn[aria-controls="tab-incoterms"]');await p.waitForTimeout(500);
+ const s1=await p.evaluate(()=>({hidden:document.getElementById('catMorePanel').hidden,label:document.querySelector('#catMoreBtn .cat-more-label').textContent,act:document.getElementById('catMoreBtn').classList.contains('active'),calc:document.getElementById('tab-incoterms').classList.contains('active'),sub:true,quoteAct:document.querySelector('.cat-btn[aria-controls="tab-quote-make"]').classList.contains('active')}));
+ ok('選ぶと閉じて、画面が切り替わり、「その他」に選択中の名前が出る（強調）',s1.hidden&&/知識・参考/.test(s1.label)&&s1.act&&s1.calc&&s1.sub&&!s1.quoteAct,s1);
  await p.screenshot({path:OUT+'/cat-more-selected.png',clip:{x:0,y:0,width:1400,height:200}});
  await p.click('.cat-btn[aria-controls="tab-quote-make"]');await p.waitForTimeout(400);
  const s2=await p.evaluate(()=>({label:document.querySelector('#catMoreBtn .cat-more-label').textContent,act:document.getElementById('catMoreBtn').classList.contains('active')}));
@@ -42,8 +45,11 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
  await p.click('#catMoreBtn');await p.waitForTimeout(150);await p.mouse.click(700,500);await p.waitForTimeout(150);
  ok('外側を押すと閉じる',await p.evaluate(()=>document.getElementById('catMorePanel').hidden),null);
  // 既存コードからの切替（計算ボタンを探して switchCategory を呼ぶ経路）
- await p.evaluate(()=>{const c=document.querySelector('.cat-btn[aria-controls="tab-calc"]');switchCategory('calc',c);});await p.waitForTimeout(300);
- ok('コードから switchCategory で切り替えても「その他」が追従する',await p.evaluate(()=>/計算/.test(document.querySelector('#catMoreBtn .cat-more-label').textContent)),null);
+ await p.evaluate(()=>{const c=document.querySelector('.cat-btn[aria-controls="tab-incoterms"]');switchCategory('ref',c);});await p.waitForTimeout(300);
+ ok('コードから switchCategory で切り替えても「その他」が追従する',await p.evaluate(()=>/知識・参考/.test(document.querySelector('#catMoreBtn .cat-more-label').textContent)),null);
+ ok('その他の項目に 1 行説明（data-desc）があり、ボタンの文字には混ざらない',await p.evaluate(()=>{const bs=[...document.querySelectorAll('#catMorePanel .cat-btn')];return bs.length===6&&bs.every(b=>b.dataset.desc&&!b.textContent.includes(b.dataset.desc))&&getComputedStyle(bs[0],'::after').content.length>3;}),null);
+ await p.evaluate(()=>{switchCategory('calc',document.querySelector('.cat-btn[aria-controls="tab-calc"]'));});await p.waitForTimeout(300);
+ ok('外に出した「計算」を押すと計算の画面になり、「その他」は元の表示のまま',await p.evaluate(()=>document.getElementById('tab-calc').classList.contains('active')&&document.querySelector('#catMoreBtn .cat-more-label').textContent==='その他'&&document.querySelector('.cat-btn[aria-controls="tab-calc"]').classList.contains('active')),null);
  // スマホ幅
  await p.setViewportSize({width:390,height:800});await p.waitForTimeout(300);
  await p.click('#catMoreBtn');await p.waitForTimeout(200);

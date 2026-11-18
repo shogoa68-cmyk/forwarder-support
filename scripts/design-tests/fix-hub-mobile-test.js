@@ -36,7 +36,7 @@ srv.listen(0, async () => {
   ok('下の 3 タブが出ている', await vis('#ptBar'));
   await p.evaluate(() => window.fixSetKind && window.fixSetKind('sv')); await p.waitForTimeout(1200);
   const vi = await p.evaluate(() => [...document.querySelectorAll('#statsPane-sv .stats-nm-table tbody > tr')].findIndex(t => t.classList.contains('stats-has-variant')));
-  ok('ゆらぎのある行が 1 件＝1 カードで出る', vi >= 0 && await p.evaluate(i => { const t = document.querySelectorAll('#statsPane-sv .stats-nm-table tbody > tr')[i]; return t.getBoundingClientRect().width <= innerWidth && !!t.querySelector('.fh-tog'); }, vi));
+  ok('表記ゆれのある行が 1 件＝1 カードで出る', vi >= 0 && await p.evaluate(i => { const t = document.querySelectorAll('#statsPane-sv .stats-nm-table tbody > tr')[i]; return t.getBoundingClientRect().width <= innerWidth && !!t.querySelector('.fh-tog'); }, vi));
   await p.evaluate(i => document.querySelectorAll('#statsPane-sv .stats-nm-table tbody > tr')[i].querySelector('.fh-tog').click(), vi); await p.waitForTimeout(300);
   const sz = await p.evaluate(i => { const t = document.querySelectorAll('#statsPane-sv .stats-nm-table tbody > tr')[i]; const m = t.querySelector('.fh-main'), c = t.querySelector('.fh-canon'), g = t.querySelector('.fh-tog'); const h = e => e ? Math.round(e.getBoundingClientRect().height) : 0; return { main: h(m), canon: h(c), tog: h(g), w: Math.round(m.getBoundingClientRect().width), vw: innerWidth }; }, vi);
   ok('主ボタン・選択・開閉は 44px 以上で幅いっぱい', sz.main >= 44 && sz.canon >= 44 && sz.tog >= 44 && sz.w > sz.vw * 0.7, sz);
