@@ -77,6 +77,10 @@ begin
   perform t.as_user('alice@example.com');
   p1 := A || '/1_x_plan.pdf';
   -- 先に保存領域へ置く
+  -- 保存領域の API は INSERT … RETURNING で書く（SELECT のポリシーも通る必要がある）。以前はここで拒否されていた
+  perform t.err('（旧不具合の再現）行がまだ無い置いたばかりのファイルでも、RETURNING つきの INSERT が通る',
+    format($q$with i as (insert into storage.objects (bucket_id, name, metadata) values ('quote-temp', %L, '{"size":1}') returning name) select 1/0 from i$q$, A || '/ret.bin'), 'division by zero');
+  delete from storage.objects where name = A || '/ret.bin';
   insert into storage.objects (bucket_id, name, metadata) values ('quote-temp', p1, jsonb_build_object('size', 3 * MB));
   perform t.ok('案件のフォルダ名の形なら、保存領域に置ける', true);
   perform t.err('案件のフォルダ名でない場所には置けない', $q$insert into storage.objects (bucket_id, name, metadata) values ('quote-temp', 'x/y.pdf', '{"size":1}')$q$, 'row-level security');
@@ -149,7 +153,7 @@ begin
   -- 掃除：期限切れの行・古い実体・行のない古いファイルを消し、新しいものは残す
   insert into storage.objects (bucket_id, name, metadata, created_at) values ('quote-temp', orphan, '{"size":1}', now() - interval '20 minutes');
   insert into storage.objects (bucket_id, name, metadata, created_at) values ('quote-temp', fresh, '{"size":1}', now() - interval '1 minute');
-  update storage.objects set created_at = now() - interval '4 hours' where name = p1;
+  update storage.objects set created_at = now() - interval '3 hours 1 minute' where name = p1;   -- 期限が来たばかり（3 時間 10 分は経っていない）
   perform public.quote_temp_files_purge();
   select count(*) into n from public.quote_temp_files where storage_path = p1;
   perform t.ok('掃除：期限切れの行が消える', n = 0);

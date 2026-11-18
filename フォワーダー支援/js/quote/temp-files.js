@@ -405,9 +405,10 @@
       : window.confirm(names.join('\n') + '\n\n削除しますか？');
     if (!ok) return;
     const ids = list.map(f => f.id);
+    // 先に実体、次に行（行を先に消すと、保存領域の読み取りポリシー＝「期限内の行がある」を満たさず、実体を消せなくなる）
+    try { await c.storage.from(BUCKET).remove(list.map(f => f.storage_path)); } catch (e) { /* 失敗しても行は消す。実体は掃除が消す */ }
     const del = await c.from('quote_temp_files').delete().in('id', ids);
     if (del.error) { toast('⚠️ 削除できませんでした：' + del.error.message, 'warn', 6000); return; }
-    try { await c.storage.from(BUCKET).remove(list.map(f => f.storage_path)); } catch (e) { /* 実体は掃除が消す */ }
     files = files.filter(f => ids.indexOf(f.id) < 0); sel = new Set();
     renderAll(); toast('🗑 ' + list.length + ' 個を削除しました', 'info', 2200);
   }

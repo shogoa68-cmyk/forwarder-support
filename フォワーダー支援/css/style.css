@@ -5950,7 +5950,6 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 .cc-chip.has-open { background: #fde8e4; border-color: #c0392b; color: #8a1f14; font-weight: 700; }
 #crBanner .cc-chip { margin-left: 6px; }
 @media (max-width: 600px) { .cc-item { grid-template-columns: 1fr; } .cc-btns { flex-direction: row; flex-wrap: wrap; } .cc-sec { flex-direction: column; gap: 0; } }
-=======
 /* ===== 🔍 ゆらぎチェックのカード（マスター管理の上部・js/drift-check.js／2026-11） ===== */
 .drift-card { margin: 0 0 var(--sp-12, 12px); }
 .drift-card:empty { display: none; }
@@ -6182,3 +6181,9 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
   /* 2 列だけの小さな表（枠の中に直に置かれたもの）は 680px の最小幅をやめ、枠の幅に収める */
   :is(#tab-filing, #tab-booking-tab, #tab-si) div[style*="grid-template-columns:1fr 1fr"] > div > .inco-table { min-width: 0; }
 }
+/* メール取込ルール：取り込まない行／確認済みの行の「形」 */
+.ir-shapes { margin: 6px 0; }
+.ir-shapes > summary { cursor: pointer; font-size: var(--text-sm, 13px); font-weight: 600; }
+.ir-shape { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: var(--text-xs, 12px); }
+.ir-shape-t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, monospace; }
+.ir-shape-del { min-width: 32px; min-height: 28px; border: 1px solid var(--border-md, #d0d7de); border-radius: 6px; background: #fff; cursor: pointer; }
