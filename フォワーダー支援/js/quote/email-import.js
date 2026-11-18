@@ -393,8 +393,8 @@
       }
 
       // パターンB（自形式・実費）
-      if (/(^|\s)実費(\s|$)/.test(body)) {
-        const nm2 = body.replace(/(^|\s)実費(\s|$)/, ' ').replace(/\s+/g, ' ').trim();
+      if (/(^|[\s:：])実費(\s|$)/.test(body)) {   // 「諸掛り：実費」のようにコロンで区切った書き方も
+        const nm2 = body.replace(/(^|[\s:：])実費(\s|$)/, ' ').replace(/\s+/g, ' ').replace(/[\s:：]+$/, '').trim();
         if (nm2) {
           pushItem({ _kind: 'item', conf: 'high', name: nm2, qty: '', unit: '', ccy: 'JPY', price: null, actual: true, taxed, taxSrc: tax, cond, ref: refFlg, note });
           return;
