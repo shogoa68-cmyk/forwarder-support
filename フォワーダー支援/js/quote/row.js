@@ -2183,6 +2183,7 @@
       }
       _updateBpBaseHint(id);
       calc(id);
+      _recalcPctDependents(id);   // この行を基準にした % 行は、売通貨が変わると換算も変わる
     }
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
