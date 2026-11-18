@@ -200,7 +200,7 @@
     list = list.slice().sort((a, b) => { const x = val(a), y = val(b); return (txt ? nat(x, y) : (x < y ? -1 : x > y ? 1 : 0)) * d || nat(a.file_name || '', b.file_name || ''); });
     return list;
   }
-  function renderAll() { if (!ready) return; syncToolbar(); renderMain(); renderStatus(); renderBadges(); renderBanner(); }
+  function renderAll() { if (!ready) return; syncToolbar(); renderMain(); renderStatus(); renderBadges(); renderBanner(); try { document.dispatchEvent(new CustomEvent('tf:changed')); } catch (e) {} }
 
   // ---- うまく置けなかったときの表示と、原因を調べる「診断」 ---------------------
   // 吹き出し（toast）は数秒で消えるため、置けなかった理由は画面に残す。診断は「どの段階で止まるか」を 1 ステップずつ確かめる
@@ -520,6 +520,11 @@
   // ---- remark-sheet.js から ----------------------------------------------
   window.tfOnShow = function () { if (!ready) return; load(false); const m = $('tfMain'); if (m && m.offsetParent) { /* 焦点は奪わない */ } };
   window.tfRefresh = function (force) { load(force !== false); };
+  // 「案件のファイル」（case-files.js）から使う窓口：一覧・追加・ダウンロード・削除
+  window.tfList = function () { return { state, error: errMsg, files: files.slice(), pending: pending.slice() }; };
+  window.tfUploadFiles = function (list) { return upload(Array.prototype.slice.call(list || [])); };
+  window.tfDownloadId = function (id) { const f = files.find(x => x.id === id); return f ? (canPreview(f) ? openFile(f) : downloadFiles([f])) : null; };
+  window.tfDeleteId = function (id) { const f = files.find(x => x.id === id); return f ? deleteFiles([f]) : null; };
   window.tfState = function () { return { state, count: files.length, selected: sel.size, view }; };
 
   function init() {

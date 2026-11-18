@@ -1,0 +1,66 @@
+/* 📎 案件のファイル（js/quote/case-files.js・Design 38 案X）。共通トークン・文字は 12／13／14／16／18px */
+.cf-overlay { position: fixed; inset: 0; z-index: 2400; display: flex; align-items: flex-start; justify-content: center; padding: 8vh 12px 12px; background: rgba(16, 24, 40, .38); }
+.cf-overlay[hidden] { display: none; }
+.cf-box { width: min(720px, 100%); max-height: 82vh; display: flex; flex-direction: column; background: var(--surface, #fff); color: var(--text, #101828); border: 1px solid var(--border, #d0d5dd); border-radius: 12px; box-shadow: 0 16px 48px rgba(16, 24, 40, .28); overflow: hidden; }
+.cf-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border, #e4e7ec); }
+.cf-head b { font-size: var(--text-base, 14px); }
+.cf-sp { flex: 1; }
+.cf-count { font-size: var(--text-xs, 12px); padding: 2px 9px; border-radius: 999px; background: #e4e7ec; color: #475467; }
+.cf-add, .cf-primary { min-height: 34px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--text, #101828); background: var(--text, #101828); color: #fff; font: inherit; font-size: var(--text-sm, 13px); font-weight: 700; cursor: pointer; }
+.cf-add:disabled, .cf-primary:disabled { opacity: .4; cursor: not-allowed; }
+.cf-x { width: 34px; height: 34px; border: 0; background: none; font-size: var(--text-lg, 16px); cursor: pointer; border-radius: 8px; }
+.cf-x:hover { background: var(--bg-soft, #f2f4f7); }
+.cf-body { overflow: auto; padding: 8px 12px 14px; }
+.cf-note { margin: 6px 4px; padding: 8px 10px; border-radius: 8px; background: #eef3fb; font-size: var(--text-sm, 13px); }
+.cf-soon { margin: 6px 4px; font-size: var(--text-xs, 12px); font-weight: 700; color: #b54708; }
+.cf-empty { display: flex; flex-direction: column; gap: 4px; align-items: center; padding: 34px 12px; color: var(--text-sub, #475467); font-size: var(--text-sm, 13px); text-align: center; }
+.cf-empty b { font-size: var(--text-base, 14px); color: var(--text, #101828); }
+.cf-row { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 6px; border-bottom: 1px solid var(--border, #eef0f3); }
+.cf-row:hover { background: var(--bg-soft, #f9fafb); }
+.cf-ico { flex: 0 0 24px; text-align: center; font-size: var(--text-lg, 16px); }
+.cf-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm, 13px); }
+.cf-name small { margin-left: 8px; color: #667085; font-size: var(--text-xs, 12px); }
+.cf-lab { flex: 0 0 auto; height: 22px; line-height: 22px; padding: 0 10px; border-radius: 999px; font-size: var(--text-xs, 12px); white-space: nowrap; }
+.cf-lab.is-int { background: #e4e7ec; color: #475467; }
+.cf-lab.is-send { background: #eef3fb; color: #234a8f; }
+.cf-left { flex: 0 0 auto; height: 22px; line-height: 20px; box-sizing: border-box; padding: 0 9px; border-radius: 999px; border: 1px solid #c8cfd9; color: #475467; font-size: var(--text-xs, 12px); white-space: nowrap; }
+.cf-left.is-none { border-style: dashed; color: #667085; }
+.cf-left.is-orange { border-color: #f7b955; color: #b54708; background: #fffaeb; }
+.cf-left.is-red { border-color: #f3b7b0; color: #b42318; background: #fdecea; }
+.cf-ic { flex: 0 0 auto; min-width: 36px; height: 36px; border: 0; border-radius: 8px; background: none; font-size: var(--text-base, 14px); cursor: pointer; }
+.cf-ic:hover { background: var(--bg-soft, #f2f4f7); }
+.cf-menu { position: fixed; z-index: 2500; min-width: 150px; padding: 6px; background: var(--surface, #fff); border: 1px solid var(--border, #d0d5dd); border-radius: 10px; box-shadow: 0 8px 24px rgba(16, 24, 40, .18); }
+.cf-menu button { display: block; width: 100%; min-height: 40px; text-align: left; border: 0; background: none; border-radius: 6px; font: inherit; font-size: var(--text-sm, 13px); color: #b42318; cursor: pointer; padding: 0 10px; }
+.cf-menu button:hover { background: #fdecea; }
+/* 追加の画面（460px） */
+.cf-add-overlay { z-index: 2450; align-items: center; padding-top: 12px; }
+.cf-add-box { width: min(460px, 100%); padding: 16px; gap: 10px; overflow: auto; }
+.cf-add-t { font-size: var(--text-lg, 16px); font-weight: 700; }
+.cf-drop { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 12px; border: 2px dashed #98a2b3; border-radius: 10px; text-align: center; cursor: pointer; font-size: var(--text-sm, 13px); }
+.cf-drop small { color: #667085; font-size: var(--text-xs, 12px); }
+.cf-drop.is-over, .cf-drop:focus-visible { border-color: #2f5fb3; background: #eef3fb; outline: none; }
+.cf-picked { display: flex; flex-wrap: wrap; gap: 6px; }
+.cf-picked:empty { display: none; }
+.cf-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 999px; background: #f2f4f7; font-size: var(--text-xs, 12px); max-width: 100%; }
+.cf-chip small { color: #667085; }
+.cf-chip button { width: 24px; height: 24px; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.cf-per[hidden] { display: none; }
+.cf-per-q { font-size: var(--text-sm, 13px); font-weight: 700; margin-bottom: 6px; }
+.cf-seg { display: flex; gap: 6px; }
+.cf-seg button { flex: 1; min-height: 44px; border: 1px solid #98a2b3; border-radius: 8px; background: var(--surface, #fff); font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; }
+.cf-seg button.is-on { background: var(--text, #101828); border-color: var(--text, #101828); color: #fff; font-weight: 700; }
+.cf-per-d { margin: 6px 0 0; font-size: var(--text-xs, 12px); color: #667085; }
+.cf-url label { display: block; font-size: var(--text-xs, 12px); color: #475467; margin-bottom: 4px; }
+.cf-url input { width: 100%; box-sizing: border-box; min-height: 40px; padding: 0 10px; border: 1px solid #98a2b3; border-radius: 8px; font: inherit; font-size: var(--text-sm, 13px); }
+.cf-msg { margin: 0; font-size: var(--text-xs, 12px); color: #1e7a4a; }
+.cf-msg.is-err { color: #b42318; }
+.cf-add-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.cf-add-foot button { min-height: 40px; padding: 0 18px; border-radius: 8px; border: 1px solid #98a2b3; background: var(--surface, #fff); font: inherit; font-size: var(--text-sm, 13px); font-weight: 700; cursor: pointer; }
+.cf-add-foot .cf-primary { background: var(--text, #101828); border-color: var(--text, #101828); color: #fff; }
+/* ①：参照資料の場所の入口。新画面では古い一覧・追加ボタンを隠し、この 1 つのボタンだけにする（旧画面は従来のまま） */
+.cf-ref-btn { display: none; min-height: 40px; padding: 0 16px; border: 1px solid #98a2b3; border-radius: 8px; background: var(--surface, #fff); font: inherit; font-size: var(--text-sm, 13px); font-weight: 700; cursor: pointer; }
+html.editor-v2 #qfSources .src-list, html.editor-v2 #qfSources #srcAddBtn { display: none; }
+html.editor-v2 #cfRefBtn { display: inline-block; }
+#e2Out .e2o-files small { margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: #eef3fb; color: #234a8f; font-size: var(--text-xs, 12px); }
+@media (max-width: 600px) { .cf-overlay { padding-top: 0; align-items: flex-end; } .cf-box { width: 100%; max-height: 88vh; border-radius: 14px 14px 0 0; } .cf-row { flex-wrap: wrap; } .cf-name { flex-basis: 60%; } }
+@media print { .cf-overlay { display: none; } }
