@@ -1081,6 +1081,7 @@
     const line = _parsed.unread[i]; if (line == null) return;
     const r = _rulesOf(_svCtx.canon);
     _upsertShape(r.ignore, line);
+    _recordFeedback([{ kind: 'ignore', shape: line }]);
     if (await _saveRules(_svCtx.canon, r)) {
       const li = btn && btn.closest('li');
       if (li) li.innerHTML = '<s>' + _esc(line) + '</s> 🚫 次回から無視します';
@@ -1092,9 +1093,10 @@
     const r = _rulesOf(_svCtx.canon);
     let added = 0;
     let ignN = 0, okN = 0;
+    const fbItems = [];
     document.querySelectorAll('#eiReviewWrap .ei-table tbody tr').forEach(tr => {
       const rate = tr.dataset.rate || '', src = tr.dataset.src || '';
-      if (rate === 'ng' && src) { if (_upsertShape(r.ignore, src)) ignN++; return; }   // ❌＝明細ではない行の形（直した内容は覚えない）
+      if (rate === 'ng' && src) { fbItems.push({ kind: 'ignore', shape: src }); if (_upsertShape(r.ignore, src)) ignN++; return; }   // ❌＝明細ではない行の形（直した内容は覚えない）
       if (rate === 'ok' && src && _upsertShape(r.ok, src)) okN++;
       const orig = (tr.dataset.origName || '').trim();
       const cur = (tr.querySelector('.ei-name')?.value || '').trim();
@@ -1104,12 +1106,15 @@
       const nameChanged = cur !== orig;
       const catChanged = cat && cat !== (tr.dataset.origCat || '');
       const unitChanged = unit && unit !== (tr.dataset.origUnit || '');   // 単位を直した行は、その単位も覚える
+      if (src && (nameChanged || catChanged || unitChanged)) fbItems.push({ kind: 'fix', shape: src, hint: '解析=' + orig + ' / ' + (tr.dataset.origUnit || '') + ' 直し=' + cur + ' / ' + (cat || '') + ' / ' + unit });
+      else if (rate === 'ok' && src) fbItems.push({ kind: 'ok', shape: src });   // 直さずに✅＝解析の正解例
       if (!nameChanged && !catChanged && !unitChanged) return;
       const na = { from: orig, to: cur, cat: cat || '' };
       if (unitChanged) na.unit = unit;   // 単位は、直した行だけ覚える（直していない行の単位で上書きしない）
       _upsertAlias(r.aliases, na);   // 同じ呼び名は更新（使った回数は引き継ぐ）
       added++;
     });
+    _recordFeedback(fbItems);   // 待たない（共有の表が無くても取込は動く）
     if (!added && !ignN && !okN) { if (window.quoteShowToast) quoteShowToast('ℹ️ 覚えさせる内容がありません（品名・カテゴリ・単位を直すか、行の ✅／❌ を押してから押してください）', 'info'); return; }
     if (await _saveRules(_svCtx.canon, r)) {
       if (window.quoteShowToast) quoteShowToast('🧠 「' + _svCtx.canon + '」のルールとして覚えました（チーム共有）：' + [added ? '修正 ' + added + ' 件' : '', ignN ? '取り込まない行 ' + ignN + ' 件' : '', okN ? '確認済みの形 ' + okN + ' 件' : ''].filter(Boolean).join('・') + '。次回から自動で反映されます', 'success');
@@ -1224,6 +1229,28 @@
       shapes.forEach(x => _unreadSent.add(x));
       const { error } = await c.rpc('email_unread_record', { shapes });
       if (error && /PGRST202|42883|42P01|does not exist|could not find/i.test(String(error.code || '') + ' ' + String(error.message || ''))) _unreadOff = true;
+    } catch (e) { /* 記録できなくても取込は止めない */ }
+  }
+  // 評価（✅合っていた／❌明細ではない／✏️直した）も、数字を 9 に伏せた形で共有の表（email_import_feedback）へ記録する。
+  //   解析パターンを増やす材料にするため。金額・社名・メール・URL は送らない。SQL 未実行・未ログインのときは何もしない（取込は止めない）
+  const _fbSent = new Set();
+  let _fbOff = false;
+  async function _recordFeedback(items) {
+    try {
+      if (_fbOff || !items || !items.length) return;
+      const c = typeof window.cloudGetClient === 'function' ? window.cloudGetClient() : null;
+      const me = typeof window.cloudCurrentUser === 'function' ? window.cloudCurrentUser() : null;
+      if (!c || !me || !me.email) return;
+      const list = [];
+      items.forEach(it => {
+        const shape = eiMaskLine(it.shape), hint = eiMaskLine(it.hint || '');
+        const key = it.kind + '|' + shape + '|' + hint;
+        if (!shape || _fbSent.has(key)) return;
+        _fbSent.add(key); list.push({ kind: it.kind, shape, hint });
+      });
+      if (!list.length) return;
+      const { error } = await c.rpc('email_feedback_record', { items: list.slice(0, 20) });
+      if (error && /PGRST202|42883|42P01|does not exist|could not find/i.test(String(error.code || '') + ' ' + String(error.message || ''))) _fbOff = true;
     } catch (e) { /* 記録できなくても取込は止めない */ }
   }
   function _copyText(text, done) {
