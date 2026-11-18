@@ -3316,6 +3316,7 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .pv-warn-guide {
   border: 1.5px solid #b79546;
   border-radius: 0;
+  z-index: 1200;
 }
 :where(html.theme-industry) #tab-quote-make .pv-wg-header {
   border-bottom: 1px solid #e5dbbb;
@@ -10621,4 +10622,7 @@ html.theme-industry {
   font-size: var(--text-sm, 13px);
   font-weight: 700;
   color: #1a7f6e;
+}
+:where(html.theme-industry) #tab-quote-make .pv-warn-guide {
+  z-index: 9200;
 }

@@ -1749,7 +1749,7 @@
   border: 1.5px solid #e6a817;
   border-radius: var(--r-10);
   box-shadow: 0 6px 28px rgba(0,0,0,0.20);
-  z-index: 1200;
+  z-index: 9200;   /* 付箋（9100）に隠れて「このまま出力」を押せなくならないよう、付箋より上 */
   font-size: var(--fs-13);
 }
 #tab-quote-make .pv-wg-header {
