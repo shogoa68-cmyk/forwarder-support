@@ -94,7 +94,8 @@
   #mdDetailModal .mt-tab { flex: none; min-height: 44px; border-radius: 22px; white-space: nowrap; }
   #mdDetailModal .mt-body { padding-bottom: 72px; }
   #mdDetailModal .mt-foot { position: sticky; bottom: 0; z-index: 3; display: flex; gap: 8px; padding: 8px 12px; background: var(--surface, #fff); border-top: 1px solid var(--border, #ddd); }
-  #mdDetailModal .mt-foot button { min-height: 44px; flex: 1; }
+  #mdDetailModal .mt-foot button { min-height: 44px; flex: 1; white-space: nowrap; }
+  #mdDetailModal .mt-foot .master-detail-actions { flex: 1 1 auto; min-width: 0; }
   #mdDetailModal .cr-item, #mdDetailModal .cc-item, #mdDetailModal .mn-item { margin-bottom: 8px; padding: 10px; border: 1px solid var(--border, #ddd); border-radius: 10px; }
   #mdDetailModal .cr-item.cr-lv-strict { border-color: #8a5a2b; background: #f7efe6; }
   #mdDetailModal .cr-item.cr-lv-strict .cr-lv, #mdDetailModal .cr-item.cr-lv-strict b { color: #8a5a2b; }

@@ -375,3 +375,9 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
    生成される Industry 版は Design の元の値（白文字／--gray-lt）へ戻すため、ここで打ち消す */
 #tab-quote-make .pv-wg-btn-next, #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num { color: #2b1d00; }
 #tab-quote-make .pv-wg-close { color: #666; }
+
+/* マスター管理：件数バッジ・「＋ 別名」・別名の ✕ のコントラスト（Design の元の値は 2.6〜3.7 で読みにくい） */
+html.theme-industry .master-filter-chip.is-active .master-filter-count { background: rgba(0,0,0,.3); color: #fff; }
+html.theme-industry .master-filter-count { color: var(--text); }
+html.theme-industry .stats-master-abbrev-add { color: var(--text-muted); }
+html.theme-industry .ua-chip-del { color: var(--text-muted); }
