@@ -946,7 +946,7 @@
     const list = document.getElementById('userCatList');
     if (!list) return;
     if (!cats.length) {
-      list.innerHTML = '<span style="color:#aaa;font-size:12px;">カスタムカテゴリなし</span>';
+      list.innerHTML = '<span style="color:#6b7280;font-size:12px;">カスタムカテゴリなし</span>';
       return;
     }
     list.innerHTML = cats.map(c =>

@@ -62,6 +62,10 @@
 .wf-row.is-drop, .wf-card.is-drop, .wf-tnode.is-drop, .wf-crumb.is-drop { background: #d9e8c8 !important; border-color: var(--green-olive) !important; }
 .wf-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .wf-name > b { font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 名前は実際には <span style="min-width:0"><b>名前</b></span> の入れ子（b は直下の子ではない）。長い名前が 2 行に折り返して隣の行と重なっていたため、入れ子の span で 1 行に「…」で省く */
+.wf-name > span:not(.wf-ico) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-name .wf-path { overflow: hidden; text-overflow: ellipsis; }
+.wf-name b { font-weight: 400; }
 .wf-pend { margin-left: 6px; padding: 0 6px; font-size: 12px; color: #8a5a00; background: #fff1cf; border: 1px solid #e3c06a; border-radius: 9px; white-space: nowrap; }
 .wf-ico { flex: none; font-size: 16px; width: 20px; text-align: center; }
 .wf-dim { color: var(--text-muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

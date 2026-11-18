@@ -371,6 +371,38 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-mg { display: inline-flex; align-items: center; gap: 6px; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-mg-lbl { font-size: var(--text-sm, 13px); font-weight: 700; color: #1a7f6e; }
 
+/* 出力前の確認ガイド：琥珀色の「次の箇所へ」「現在の番号」が白文字でコントラスト不足（2.8:1）、✕ も薄い灰（2.2:1）。
+   生成される Industry 版は Design の元の値（白文字／--gray-lt）へ戻すため、ここで打ち消す */
+#tab-quote-make .pv-wg-btn-next, #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num { color: #2b1d00; }
+#tab-quote-make .pv-wg-close { color: #666; }
+
+/* マスター管理：件数バッジ・「＋ 別名」・別名の ✕ のコントラスト（Design の元の値は 2.6〜3.7 で読みにくい） */
+html.theme-industry .master-filter-chip.is-active .master-filter-count { background: rgba(0,0,0,.3); color: #fff; }
+html.theme-industry .master-filter-count { color: var(--text); }
+html.theme-industry .stats-master-abbrev-add { color: var(--text-muted); }
+html.theme-industry .ua-chip-del { color: var(--text-muted); }
+
+/* === リンク系画面（サイバーポート・不具合報告）の白文字ボタン／アクセント文字のコントラスト補正（2026-11・点検第4弾）
+   Industry のアクセント #5980a6 は白地・白文字で 3.7〜4.2:1 と AA（4.5）に届かないため、この 2 画面だけ少し濃い青にする */
+#tab-cptest .cpt-btn.is-primary.is-primary,
+#tab-bugreports .fbr-btn-primary,
+#tab-bugreports .fbr-chip.is-on,
+#tab-bugreports .fbr-mode.is-on .fbr-mode-n { background: #4a6d91; border-color: #4a6d91; }
+#tab-cptest .cpt-btn.is-g.is-g,
+#tab-cptest .cpt-chip.is-now.is-now,
+#tab-cptest .cpt-gb.cpt-gb[aria-pressed="true"],
+#tab-bugreports .fbr-mode.is-on { color: #3e5f82; }
+
+/* BOOKMARK：未確認の ✓ が背景と 2.3:1 でほぼ読めなかったのを補正（2026-11・点検第4弾） */
+.bm-verify.bm-verify-0 { color: #6b6e73; }
+
+/* 「その他」メニュー内タブの崩れ直し（2026-11・Industry は Design の元の値へ戻すため、ここで打ち消す）
+   ①諸チャージの上部ボタンが狭い画面で 1 文字幅に潰れる→折り返す ②1 行の検索欄が大画面で 1500px 超に伸びる→640px まで
+   ③「データなし」の薄い文字（コントラスト不足）を読める濃さに */
+.lc-topbar-right { flex-wrap: wrap; min-width: 0; }
+.lc-topbar-right > *, .lc-topbar-right .lc-add-btn, .lc-topbar-right .lc-variant-btn { white-space: nowrap; }
+.lookup-form input[type="text"] { max-width: 640px; }
+.lc-empty, .rn-empty { color: #6f5f50; }
 /* 入力確認ガイド（#pvWarnGuide）は付箋（z-index 9100）より上に出す。Design の元の値（1200）だと付箋に隠れて「このまま出力」を押せない */
 #tab-quote-make .pv-warn-guide { z-index: 9200; }
 

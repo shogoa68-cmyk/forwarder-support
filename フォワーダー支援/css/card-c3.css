@@ -17,7 +17,7 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left {
   background: var(--bg, #f6f7f9); border-right: 1px solid var(--border, #e2e6ec);
 }
 #tab-quote-make #qpDashboard #qpdListWrap .cc3-lbl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: var(--text-xs, 12px); color: var(--text-muted, #667); font-weight: 600; }
-#tab-quote-make #qpDashboard #qpdListWrap .cc3-kind { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; font-size: var(--text-xs, 12px); font-weight: 700; color: #fff; background: #667085; white-space: nowrap; }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-kind { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; font-size: var(--text-xs, 12px); font-weight: 700; color: #fff; background: #5a6475; white-space: nowrap; }
 #tab-quote-make #qpDashboard #qpdListWrap .cc3-cust { font-size: var(--text-xl, 18px); line-height: 1.35; display: -webkit-box !important; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
 #tab-quote-make #qpDashboard #qpdListWrap .cc3-cust.is-empty { font-size: var(--text-sm, 13px); color: var(--text-muted, #667); font-weight: 500; }
 #tab-quote-make #qpDashboard #qpdListWrap .cc3-cust.is-link { cursor: pointer; }
@@ -29,7 +29,7 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="ship"] { b
 html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="fwd"] { background: #fdebd8; } html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="fwd"] .cc3-kind { background: #d9822b; }
 html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="agent"] { background: #eee6fb; } html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="agent"] .cc3-kind { background: #7c52d1; }
 html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="otsu"] { background: #eaf6f4; } html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="otsu"] .cc3-kind { background: #2f8f83; }
-html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="other"] .cc3-kind { background: #667085; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-left[data-deal="other"] .cc3-kind { background: #5a6475; }
 
 /* 右・1 行目：ステータス・案件番号・コピー・案件名 …｜進捗の帯｜読込・⋯ */
 html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card-row1 { grid-column: 2; grid-row: 1; padding: 12px 8px 4px 16px; min-width: 0; flex-wrap: wrap; }
@@ -202,4 +202,36 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .cloud-card.cloud-card-labeled.
 @media (max-width: 600px) {
   #tab-quote-make #qpDashboard #qpdListWrap .cc3-fl-btn { min-height: 44px; padding: 0 14px; font-size: var(--text-sm, 14px); }
   #tab-quote-make #qpDashboard #qpdListWrap .cc3-follow { min-height: 44px; flex-wrap: wrap; row-gap: 4px; white-space: normal; }
+}
+
+/* ---- 文字の読みやすさ（コントラスト 4.5:1 以上へ・全テーマ共通・2026-11）---- */
+/* 申し送りの開閉（💬 申し送り ▾）・「＋ タグ」・タグの ×・「作業者」・「→」・案件名なし：薄すぎて読みにくかった */
+#tab-quote-make #qpDashboard #qpdListWrap .ccc-toggle { color: var(--accent-dk, #2c455d); }
+#tab-quote-make #qpDashboard #qpdListWrap .ccc-caret { color: #5a6475; }
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-card-chat.ccc-has .ccc-count { color: #8a5200; }
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-tag-add-btn { color: var(--accent-dk, #2c455d); }
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-tag-chip button { color: #5a6475; }
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-tag-chip button:hover { color: var(--red, #c0392b); }
+#tab-quote-make #qpDashboard #qpdListWrap .cc3-who-l { color: #5a6475; }
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-kv-arrow { color: #5a6475; }
+html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-title.is-empty { color: #5a6475; }
+/* ランキング（順位の数字・タブ・説明）・「さらに読み込む」・「受信から N日」の薄い文字 */
+#tab-quote-make #qpDashboard .qpd-rank-no { color: #5a6475; }
+#tab-quote-make #qpDashboard .qpd-rank-tab:not(.is-active) { color: #5a6475; }
+#tab-quote-make #qpDashboard .qpd-side-note, #tab-quote-make #qpDashboard .qpd-side-note b { color: #5a6475; }
+#tab-quote-make #qpDashboard .qpd-load-more { color: var(--accent-dk, #2c455d); }
+#tab-quote-make #qpdListWrap .cloud-recv { color: var(--accent-dk, #2c455d); }
+/* リスト表示の日時・担当・見出し行、タグのパネルのリンク、新規見積の入口の補足文 */
+#tab-quote-make #qpDashboard .qpd-row-ts, #tab-quote-make #qpDashboard .qpd-row-cust small { color: #5a6475; }
+#tab-quote-make #qpDashboard .qpd-rows-head { color: #5a6475; }
+#qpDashboard.dt-on .dt-pop .dt-link { color: var(--accent-dk, #2c455d); }
+#nqOverlay .nq-card small { color: #5a6475; }
+/* 「⋯」メニューの補足文（サブ案件を作成／代替わり元を設定…）が項目名の直後にくっついて読みにくかったので、次の行へ */
+#tab-quote-make #qpDashboard .cloud-menu-item small, .cloud-menu-panel .cloud-menu-item small { display: block; margin-top: 2px; font-size: var(--text-xs, 12px); font-weight: 400; color: var(--text-muted, #5a6475); }
+/* リスト表示：右端のボタン 4 つ（👁 📄 📋 ✕）が最後の列（64px）に入りきらず、左の「更新」の日時に重なって切れていた → 列を 4 つ分の幅（120px）に */
+@media (min-width: 721px) {
+  #tab-quote-make #qpDashboard .qpd-rows-head:not(.qpd-rows-head--simple),
+  #tab-quote-make #qpDashboard .qpd-row:not(.qpd-row--simple) { grid-template-columns: 84px minmax(120px, 1.4fr) minmax(120px, 1.6fr) 110px 92px 120px; }
+  #tab-quote-make #qpDashboard .qpd-rows-head.qpd-row--linkmode:not(.qpd-rows-head--simple),
+  #tab-quote-make #qpDashboard .qpd-row.qpd-row--linkmode:not(.qpd-row--simple) { grid-template-columns: 24px 84px minmax(120px, 1.4fr) minmax(120px, 1.6fr) 110px 92px 120px; }
 }
