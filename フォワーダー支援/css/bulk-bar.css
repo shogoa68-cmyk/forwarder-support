@@ -38,7 +38,7 @@
 #tab-quote-make .z2-route-planwrap .z2-route-plan { border-style: solid; background: #eef3fb; color: #24467a; font-weight: 700; }
 #tab-quote-make .z2-route-adopt { padding: 0 8px; min-height: 24px; border: 1px solid var(--border, #b9c2cc); border-radius: 999px; background: #fff; font-size: var(--text-xs, 12px); cursor: pointer; white-space: nowrap; }
 #tab-quote-make .z2-route-planwrap.is-adopt .z2-route-adopt { background: #e3f4e8; border-color: #3f9a5a; color: #1d6a3a; font-weight: 700; }
-#tab-quote-make .z2-route-planwrap.is-reject .z2-route-adopt, #tab-quote-make .z2-route-planwrap.is-reject .z2-route-plan { background: #f1f1f1; color: #888; text-decoration: line-through; }
+#tab-quote-make .z2-route-planwrap.is-reject .z2-route-adopt, #tab-quote-make .z2-route-planwrap.is-reject .z2-route-plan { background: #f1f1f1; color: #6b7280; text-decoration: line-through; }
 
 /* 航路の「区間」（区間ごとのモード・キャリア・ETD の控え。見積書の出力には影響しない） */
 #tab-quote-make .z2-route-seg { padding: 0 8px; min-height: 24px; border: 1px dashed var(--border, #b9c2cc); border-radius: 999px; background: transparent; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); cursor: pointer; white-space: nowrap; max-width: 360px; overflow: hidden; text-overflow: ellipsis; }
@@ -56,5 +56,5 @@
 /* ダッシュボードのカード／航路ポップアップに出す、ルート案・区間の印（表示だけ） */
 .cc3-rt-plan { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: #eef3fb; color: #24467a; font-size: var(--text-xs, 12px); font-weight: 700; white-space: nowrap; }
 .cc3-rt-plan.is-adopt { background: #e3f4e8; color: #1d6a3a; }
-.cc3-rt-plan.is-reject { background: #f1f1f1; color: #888; text-decoration: line-through; }
+.cc3-rt-plan.is-reject { background: #f1f1f1; color: #6b7280; text-decoration: line-through; }
 .cc3-rt-segs { display: block; margin-top: 2px; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); }
