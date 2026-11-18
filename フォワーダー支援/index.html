@@ -47,6 +47,7 @@
   <link rel="stylesheet" href="css/bulk-bar.css">
 <link rel="stylesheet" href="css/dash-top.css">
 <link rel="stylesheet" href="css/card-c3.css">
+<link rel="stylesheet" href="css/button-layout.css">
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
@@ -4706,19 +4707,22 @@
         <input type="hidden" data-field="cn" value="">
         <input type="hidden" data-field="ins" value="">
         <div class="row-mode-btns">
+          <span class="mh-grp">単価の扱い</span>
           <button type="button" class="zero-confirm-btn" tabindex="-1" title="あえて0円にする（0円であることを確認済みの目印。もう一度クリックで解除）">あえて¥0</button>
           <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
           <button type="button" class="profit-share-btn" tabindex="-1" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内の利益・粗利率にのみ計上します（もう一度クリックで解除）。">PS</button>
           <button type="button" class="cond-charge-btn" tabindex="-1" title="必要時のみ請求。金額は客先にも表示しますが、見積もり合計には加算しません（もう一度クリックで解除）。">必要時</button>
           <button type="button" class="ref-info-btn" tabindex="-1" title="参考情報。金額は客先にも表示しますが、見積もり合計には加算しません。「必要時（必要なときだけ請求）」とは別に、参考として提示したい行に使用します（もう一度クリックで解除）。">参考</button>
           <button type="button" class="est-btn" tabindex="-1" title="概算（金額は目安）。単価・金額の前に「約」を付けて表示します。見積もり合計には通常どおり加算されます（もう一度クリックで解除）。">概算</button>
+          <span class="mh-grp">計算のしかた</span>
           <button type="button" class="sell-mode-btn" tabindex="-1" title="売値ベース：売単価を先に決め、仕入単価を入力すると乗せ幅（売−仕入）が自動算出されます。もう一度クリックで通常（仕入＋乗せ幅＝売値）に戻ります。">売値ベース</button>
           <button type="button" class="pct-mode-btn" tabindex="-1" title="仕入単価を「○○の何%」として計算（%率と基準額を入力）。もう一度クリックで直接入力に戻す。">%</button>
-          <button type="button" class="ic-mode-btn" tabindex="-1" title="適用する貿易条件：選んだ貿易条件（インコタームズ）のときだけ、この行を見積書・合計に含めます（例：EXW・FCA のときだけ有効）。いまの貿易条件に合わない行は画面に薄く残り、客先向けの出力と合計から外れます。もう一度クリックで解除。">貿易条件</button>
           <button type="button" class="ins-mode-btn" tabindex="-1" title="保険料の計算：貨物価額（インボイス金額）× 保険価額率（既定 110%）× 保険料率 から、仕入単価の保険料を自動計算します。売値は乗せ幅で上乗せします。もう一度クリックで解除（金額はそのまま残ります）。">🛡️ 保険料</button>
-          <button type="button" class="cn-mode-btn" tabindex="-1" title="表示条件：数量・総個数・コンテナ本数・輸送モード・貿易条件などが条件に合うときだけ、この行を見積書・合計に含めます（例：数量 20 以上 40 以下のときだけ有効）。合わない行は画面に薄く残り、客先向けの出力と合計から外れます。もう一度クリックで解除。">表示条件</button>
           <button type="button" class="min-mode-btn" tabindex="-1" title="ミニマム（最低料金）：金額を「数量 × 単価」と最低料金の高いほうにします（例：Min. $28.00 or $0.15/kg）。もう一度クリックで解除。">MIN</button>
           <button type="button" class="range-mode-btn" tabindex="-1" title="幅（金額の範囲）：売単価を「1,000〜2,500」のように幅で示します（上限を入力）。客先向けの出力は単価・金額を「〜」で表示し、合計・小計は売単価で計算します。もう一度クリックで解除。">幅</button>
+          <span class="mh-grp">適用の条件</span>
+          <button type="button" class="ic-mode-btn" tabindex="-1" title="適用する貿易条件：選んだ貿易条件（インコタームズ）のときだけ、この行を見積書・合計に含めます（例：EXW・FCA のときだけ有効）。いまの貿易条件に合わない行は画面に薄く残り、客先向けの出力と合計から外れます。もう一度クリックで解除。">貿易条件</button>
+          <button type="button" class="cn-mode-btn" tabindex="-1" title="表示条件：数量・総個数・コンテナ本数・輸送モード・貿易条件などが条件に合うときだけ、この行を見積書・合計に含めます（例：数量 20 以上 40 以下のときだけ有効）。合わない行は画面に薄く残り、客先向けの出力と合計から外れます。もう一度クリックで解除。">表示条件</button>
           <div class="mode-hint" role="status" aria-live="polite"><span class="mh-idle">ボタンを押すと、ここに説明が出ます</span></div>
         </div>
         <span class="min-group" title="ミニマム（最低料金）：金額は「数量 × 単価」と最低料金の高いほうになります。仕入・売値それぞれに設定できます（空欄なら適用しない）">

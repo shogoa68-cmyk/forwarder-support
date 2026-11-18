@@ -1,0 +1,35 @@
+/* ボタン配置レビュー（4 体のサブエージェント）の共通指摘への対応。どのテーマでも同じ。 */
+
+/* ① 通知（トースト）が上段ナビに重なっていた → 画面の上端・中央（ヘッダーの上の空き）へ。押せない通知なので操作を邪魔しない */
+#toast-container { top: 10px !important; right: auto !important; left: 50%; transform: translateX(-50%); align-items: center; max-width: calc(100vw - 24px); }
+
+/* ② 行の［その他 ▾］：設定ボタンを 3 グループ（単価の扱い／計算のしかた／適用の条件）に分けて見出しを付け、ON は塗りつぶしにする */
+.row-mode-btns > .mh-grp { flex: 1 0 100%; margin: 6px 0 0; font-size: var(--text-xs, 12px); font-weight: 700; letter-spacing: .04em; color: var(--text-sub, #475467); line-height: 1.4; }
+.row-mode-btns > .mh-grp:first-child { margin-top: 0; }
+.row-mode-btns > button.is-on,
+.row-mode-btns > button.on { background: var(--accent, #2f5fb3) !important; border-color: var(--accent, #2f5fb3) !important; color: #fff !important; font-weight: 700; }
+
+/* ③ 取り消しにくい操作（未入力行を削除・リセット・一括削除）は、通常のボタンと見分けがつく赤系に */
+html #tab-quote-make .btn-clean-empty, html #tab-quote-make .btn-reset, html #tab-quote-make .btn-bulk-delete { background: #fff5f4; border-color: #f1a9a0; color: #b42318; }
+html #tab-quote-make .btn-clean-empty:hover, html #tab-quote-make .btn-reset:hover, html #tab-quote-make .btn-bulk-delete:hover { background: #fee4e2; border-color: #d92d20; }
+
+/* ④ 新画面の［←］は、PC では「案件一覧」の文字つきにする（アイコンだけだと意味が分からない） */
+@media (min-width: 601px) {
+  html.editor-v2 #qmDash { width: auto; min-width: 36px; padding: 0 12px; }
+  html.editor-v2 #qmDash::before { content: "← 案件一覧"; font-size: var(--text-sm, 13px); font-weight: 700; white-space: nowrap; }
+}
+
+/* ⑤ スマホの合計バーの［数量登録］［パターン登録］が 2 行に折れていた → 折らない */
+@media (max-width: 600px) {
+  #e2Total .e2t-btns button { white-space: nowrap; font-size: var(--text-xs, 12px); padding-left: 8px; padding-right: 8px; }
+}
+
+/* ⑥ 指で触る端末（スマホ・タブレット）では、小さな操作ボタンを 44px の押せる大きさに */
+@media (pointer: coarse), (max-width: 600px) {
+  #tab-quote-make .subcon-group-header button, #tab-quote-make .subcon-subgroup-header button,
+  #tab-quote-make .cmdbar-main button, #tab-quote-make #qtyPatternBar button,
+  #tab-quote-make #saveToolbar .tb-menu-btn, #tab-quote-make #saveToolbar button { min-height: 44px; min-width: 44px; }
+}
+
+/* 「幅」だけが灰色塗りで ON と紛らわしかった → OFF のときは全部同じ白地にそろえる */
+html #tab-quote-make .row-mode-btns > button:not(.is-on):not(.on):not(.master-reg-btn):not(.master-detail-jump-btn) { background: var(--surface, #fff); }
