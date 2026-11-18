@@ -408,3 +408,7 @@ html.theme-industry .ua-chip-del { color: var(--text-muted); }
 
 /* Ctrl+K の一覧は背の低い画面で下が切れないよう、画面の高さに合わせて縮める（Design の元の値は 340px 固定） */
 #tab-quote-make #cmdList { max-height: max(120px, min(340px, calc(100vh - 240px))); }
+
+/* 統計タブ：空の案内・グループ見出しの横の数字が薄くて読みにくい（3.2〜3.7:1）ので濃くする（Industry は元デザインの薄い色へ戻されるため） */
+#tab-stats .stats-empty, #tab-stats .stats-empty small { color: #5a6475; }
+#tab-stats .stats-sv-detail-meta, #tab-stats .stats-sv-detail-meta .sd-margin-pos, #tab-stats .stats-sv-detail-meta .sd-margin-neg { color: #5a6475; }

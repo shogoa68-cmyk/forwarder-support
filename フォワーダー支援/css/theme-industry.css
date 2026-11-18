@@ -1410,11 +1410,17 @@ html.theme-industry {
 :where(html.theme-industry) .stats-sv-detail > summary::before {
   color: #888c92;
 }
+:where(html.theme-industry) .stats-sv-detail-meta {
+  color: var(--c-a08060);
+}
 :where(html.theme-industry) .stats-sv-charge-table {
   border-top: 1px solid #dbdcdd;
 }
 :where(html.theme-industry) .stats-pt-badge {
   border-radius: 0;
+}
+:where(html.theme-industry) .stats-empty {
+  color: var(--c-9a8878);
 }
 :where(html.theme-industry) .stats-cloud-on {
   color: #283b4e;
@@ -10704,4 +10710,13 @@ html.theme-industry.theme-industry .ua-chip-del {
 }
 :where(html.theme-industry) #tab-quote-make #cmdList {
   max-height: max(120px, min(340px, calc(100vh - 240px)));
+}
+:where(html.theme-industry) #tab-stats .stats-empty,
+:where(html.theme-industry) #tab-stats .stats-empty small {
+  color: #5a6475;
+}
+:where(html.theme-industry) #tab-stats .stats-sv-detail-meta,
+:where(html.theme-industry) #tab-stats .stats-sv-detail-meta .sd-margin-pos,
+:where(html.theme-industry) #tab-stats .stats-sv-detail-meta .sd-margin-neg {
+  color: #5a6475;
 }
