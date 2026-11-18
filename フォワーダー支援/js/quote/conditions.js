@@ -850,6 +850,7 @@
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
     if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
+    if (typeof window.qmfSync === 'function') window.qmfSync();
     if (typeof window.ciSync === 'function') window.ciSync();
     if (typeof window.cfSync === 'function') window.cfSync();
     if (typeof window.htSync === 'function') window.htSync();
@@ -1143,6 +1144,19 @@
   function _initMemoFloat() {
     const src = document.getElementById('qf-memo');
     const fta = document.getElementById('qf-memo-float-ta');
+
+    // 付箋は「管理番号入力」セクションの中に書かれているため、そのままだと新画面でステップを切り替えたとき（セクションごと隠れる）や、
+    // セクションを畳んだときに一緒に消える。見積タブ直下へ移し、どのステップでも・畳んでいても表示する。
+    // （ダッシュボード・ほかのタブでは出さない＝css/quote.css の `#tab-quote-make.qp-dash > #qfMemoFloat`）
+    {
+      const fl0 = document.getElementById('qfMemoFloat'), tab0 = document.getElementById('tab-quote-make');
+      if (fl0 && tab0 && fl0.parentElement !== tab0) tab0.appendChild(fl0);
+    }
+    // 案件を開く・新規にするとき、開いている付箋の中身も新しい案件のメモに合わせる
+    window.qmfSync = function () {
+      const fl = document.getElementById('qfMemoFloat');
+      if (fl && !fl.hasAttribute('hidden') && fta && src) fta.value = src.value;
+    };
 
     // #qf-memo → float 同期（float が開いているときのみ）
     if (src) {

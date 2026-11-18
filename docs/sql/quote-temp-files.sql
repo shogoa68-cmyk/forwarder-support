@@ -81,11 +81,22 @@ drop policy if exists "qtf obj insert" on storage.objects;
 create policy "qtf obj insert" on storage.objects for insert to authenticated
   with check (bucket_id = 'quote-temp' and public.is_team_member()
               and name ~ '^[0-9a-fA-F-]{36}/[A-Za-z0-9._-]+$');
--- 読めるのは「期限内の行がある」ファイルだけ（期限が来たら、掃除の前でも署名つきの URL は使えなくなる）
+-- 読めるのは「期限内の行がある」ファイルだけ（期限が来たら、掃除の前でも署名つきの URL は使えなくなる）。
+-- 例外：置いたばかりで、まだ行を作っていないファイル（15 分以内・行なし）。保存領域の API は「置いた行をそのまま読み返す」ため、
+-- この例外が無いと、アップロードそのものが拒否される（INSERT … RETURNING は SELECT のポリシーも通る必要がある）。
+-- 行の有無は、期限切れの行も見える関数（security definer）で調べる（表の RLS は期限切れの行を隠すため、ポリシーの中では「行なし」に見えてしまう）
+create or replace function public.quote_temp_file_state(p_path text) returns text
+language sql security definer stable set search_path = public as $$
+  select coalesce((select case when f.expires_at > now() then 'live' else 'expired' end
+                   from public.quote_temp_files f where f.storage_path = p_path), 'none')
+$$;
+grant execute on function public.quote_temp_file_state(text) to authenticated;
+
 drop policy if exists "qtf obj select" on storage.objects;
 create policy "qtf obj select" on storage.objects for select to authenticated
   using (bucket_id = 'quote-temp' and public.is_team_member()
-         and exists (select 1 from public.quote_temp_files f where f.storage_path = name and f.expires_at > now()));
+         and (public.quote_temp_file_state(name) = 'live'
+              or (public.quote_temp_file_state(name) = 'none' and created_at > now() - interval '15 minutes')));
 drop policy if exists "qtf obj delete" on storage.objects;
 create policy "qtf obj delete" on storage.objects for delete to authenticated
   using (bucket_id = 'quote-temp' and public.is_team_member());
@@ -94,7 +105,9 @@ create policy "qtf obj delete" on storage.objects for delete to authenticated
 create or replace function public.quote_temp_files_purge() returns void
 language plpgsql security definer set search_path = public, storage as $$
 begin
-  delete from public.quote_temp_files where expires_at <= now();
+  -- 期限切れの行を消し、その実体も同じ処理の中で消す（行だけ先に消えて、実体が読める隙間を作らない）
+  with d as (delete from public.quote_temp_files where expires_at <= now() returning storage_path)
+  delete from storage.objects o using d where o.bucket_id = 'quote-temp' and o.name = d.storage_path;
   delete from storage.objects o
    where o.bucket_id = 'quote-temp'
      and (o.created_at < now() - interval '3 hours 10 minutes'
