@@ -52,3 +52,30 @@ html.editor-v2 #tab-quote-make #rmSheet:not([data-open="1"]) { display: none; }
 td.handle-cell:hover .row-acts-hint { color: var(--accent, #2f5fb3); border-color: var(--accent, #2f5fb3); background: var(--accent-lt, #eef3fb); }
 @media (pointer: coarse) { .row-acts-hint { width: 32px; height: 28px; line-height: 24px; } }
 @media print { .row-acts-hint { display: none !important; } }
+
+/* ⑨ 新画面の出力まわり（保存を右上に置くのは良いが、4 点を直す＝ボタン配置の再レビュー）
+      (a) PDF は［プレビュー ▾］の中に隠さず、［📄 PDF］［📋 プレビュー］［💾 保存］を別々のボタンで見せる */
+html.editor-v2 #quoteActionDock > .qad-pdf { display: inline-flex; }
+/*      (b) 編集と保存は別のボタン：閲覧中は［✏️ 編集を始める］を出し、［💾 保存］は押せない（いつも「保存」）。 */
+html.editor-v2 #quoteActionDock .qad-edit-start { background: var(--surface, #fff); color: var(--accent-dk, #1c6fa6); border: 1px solid var(--accent, #1c6fa6); font-weight: 700; }
+html.editor-v2 #quoteActionDock .qad-edit-start:hover:not(:disabled) { background: var(--accent-lt, #eef3fb); }
+html.editor-v2 #quoteActionDock .qad-edit-start[hidden] { display: none; }
+html.editor-v2 #quoteActionDock .qad-edit-start:disabled { opacity: .6; cursor: not-allowed; }
+html.editor-v2 #quoteActionDock #qadMode.qad-edit { display: none; }
+html.editor-v2 #quoteActionDock #e2SaveGhost { opacity: .45; cursor: not-allowed; }
+html.editor-v2 #quoteActionDock #e2SaveGhost[hidden] { display: none; }
+/*      (c) 未保存の変更があるとき、保存ボタンに橙の点（題名の横の札と同じ情報を、押す場所のそばにも出す） */
+html.editor-v2 #quoteActionDock #qadMode { position: relative; }
+html.editor-v2 #quoteActionDock #qadMode.is-dirty::after { content: ""; position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; border-radius: 50%; background: #f79009; border: 2px solid #fff; }
+/*      (d) ステップ⑤の最後に、出力の 3 つのボタン（上のバーと同じ）をもう一度出す */
+#e2Out { display: none; margin: 20px 0 8px; padding: 14px 16px; border: 1px solid #bcd0ee; background: #f1f6fd; border-radius: 12px; }
+html.editor-v2 #tab-quote-make[data-e2="5"] #e2Out { display: block; }
+#e2Out .e2o-t { margin: 0 0 2px; font-size: var(--text-lg, 16px); font-weight: 700; }
+#e2Out .e2o-d { margin: 0 0 10px; font-size: var(--text-sm, 13px); color: var(--text-sub, #475467); }
+#e2Out .e2o-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+#e2Out .e2o-btns button { min-height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid var(--border-md, #b7b7ba); background: var(--surface, #fff); color: var(--text, #1d1f20); font-size: var(--text-base, 14px); font-weight: 700; cursor: pointer; }
+#e2Out .e2o-btns .e2o-save { background: var(--accent-dk, #1d2f43); border-color: var(--accent-dk, #1d2f43); color: #fff; }
+@media (max-width: 600px) {
+  html.editor-v2 #quoteActionDock .qad-btn { flex: 1 1 0; min-width: 0; padding-left: 6px; padding-right: 6px; font-size: var(--text-sm, 13px); white-space: nowrap; }
+  #e2Out .e2o-btns button { flex: 1 1 100%; }
+}
