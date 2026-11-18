@@ -465,6 +465,19 @@ const http = require('http'), fs = require('fs'), path = require('path');
     rr = await abcRules();
     ok('パネルで ✕ を押した形だけが外れる（ほかの形は残る）', rr.ok.length === 0 && rr.ignore.length >= 1, rr);
     await p.evaluate(() => window.statsCloseMasterDetail());
+    // ===== 評価の記録（email_feedback_record・数字を 9 に伏せた形だけ） =====
+    const fbCalls = () => p.evaluate(() => (window.__rpc || []).filter(c => c.name === 'email_feedback_record').flatMap(c => c.args.items));
+    let fb = await fbCalls();
+    ok('「覚える」の評価が、伏せた形で記録される（❌＝ignore・直さず✅＝ok）', fb.some(x => x.kind === 'ignore' && /注意書き USD 99 at cost/.test(x.shape)) && fb.some(x => x.kind === 'ok' && /海上運賃/.test(x.shape)) && fb.every(x => !/[0-8]/.test(x.shape + x.hint) && !/1,200|150/.test(x.shape)), fb);
+    await p.evaluate(() => { window.eiOpenForSubcon('ABCキャリア'); document.getElementById('eiText').value = "ドキュメント代 USD 75 /BL"; window.eiParse(); }); await p.waitForTimeout(400);
+    await p.evaluate(() => { const tr = document.querySelector('#eiReviewWrap .ei-table tbody tr'); tr.querySelector('.ei-name').value = 'DOC FEE'; window.eiLearnFromCorrections(); }); await p.waitForTimeout(600);
+    fb = await fbCalls();
+    const fx = fb.find(x => x.kind === 'fix');
+    ok('品名を直した行は fix として記録される（元の行＋「解析 → 直し」・数字は 9 に伏せる）', fx && /ドキュメント代 USD 99 \/BL/.test(fx.shape) && /解析=ドキュメント代/.test(fx.hint) && /直し=DOC FEE/.test(fx.hint), fx);
+    const fbSent0 = (await fbCalls()).length;
+    await p.evaluate(() => window.eiLearnFromCorrections()); await p.waitForTimeout(300);
+    ok('同じ内容は、このページから二度送らない', (await fbCalls()).length === fbSent0, fbSent0);
+    await p.evaluate(() => window.closeEmailImport());
     ok('画面のエラーが出ていない', errs.length === 0, errs);
     await ctx.close();
   }
