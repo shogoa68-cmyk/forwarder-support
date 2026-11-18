@@ -777,12 +777,21 @@
         // サブコン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
         // 色・右揃えは quote.css のキャッシュに依存しないよう、描画側でインライン指定（最優先）
         const _scStyle = 'background:#ead29a;border-top:2px solid #c69a44;border-bottom:2px solid #c69a44;';
+        // Design 41-E：仕入合計は「仕入」の単価の列、粗利率は「利益」の列へ（仕入の列を隠したときだけラベルの中に出す）
+        const costCell = _scShowInternal ? `<span class="pv-scs-costv">${costTxt}</span>` : '';
+        const marginCell = _scShowInternal ? `<small class="pv-scs-marginv${(m !== null && m < 0) ? ' pv-neg' : ''}">粗利率 ${marginTxt}</small>` : '';
         html += `<tr class="pv-subcon-subtotal pv-grp-c${(d.gi ?? 0) % 4}">
-          <td colspan="12" class="pv-scs-label" style="${_scStyle}text-align:right !important;">↳ 小計${internalBits}</td>
+          <td colspan="6" class="pv-scs-label pv-scs-label--split" style="${_scStyle}text-align:right !important;">↳ 小計${internalBits}</td>
+          <td data-ft-col="pay" class="pv-num pv-scs-costcol" style="${_scStyle}">${costCell}</td>
+          <td data-ft-col="pay" style="${_scStyle}"></td>
+          <td data-ft-col="bill" style="${_scStyle}"></td>
+          <td data-ft-col="bill" style="${_scStyle}"></td>
+          <td data-ft-col="bill" style="${_scStyle}"></td>
+          <td data-ft-col="mk" style="${_scStyle}"></td>
           <td class="pv-num pv-subtotal" style="${_scStyle}">${sellTxt}</td>
           <td data-ft-col="jpy-conv" class="pv-jpy" style="${_scStyle}"></td>
           <td data-ft-col="tax-col" style="${_scStyle}"></td>
-          <td data-ft-col="profit" class="pv-num ${prCls}" style="${_scStyle}">¥${fmtMoney(prAmt)}</td>
+          <td data-ft-col="profit" class="pv-num ${prCls}" style="${_scStyle}">¥${fmtMoney(prAmt)}${marginCell}</td>
           <td data-ft-col="note" style="${_scStyle}"></td>
         </tr>`;
         return;
@@ -1265,8 +1274,18 @@
     Object.keys(_hgSpan).forEach(k => table.querySelectorAll('thead tr.pv-hgrp th.pv-hg-' + k).forEach(th => {
       th.colSpan = Math.max(1, _hgSpan[k]); th.style.display = _hgSpan[k] ? '' : 'none';
     }));
-    table.querySelectorAll('.pv-scs-label, .pv-subtotal-sep-label, .pv-pts-label').forEach(td => {
+    table.querySelectorAll('.pv-scs-label:not(.pv-scs-label--split), .pv-subtotal-sep-label, .pv-pts-label').forEach(td => {
       td.colSpan = Math.max(1, _leadingVisible);
+    });
+    // サブコン小計（分けた形）：ラベルは「仕入の単価の列」の手前まで。仕入の列を隠したときは、仕入合計をラベルの中に戻す
+    const _splitLead = (_isOn('cat') ? 1 : 0) + (_isOn('sv') ? 1 : 0) + 1 + (_isOn('pay') ? 2 : 0) + (_isOn('unit') ? 1 : 0);
+    table.querySelectorAll('.pv-scs-label--split').forEach(td => {
+      td.colSpan = Math.max(1, _splitLead);
+      const tr = td.parentElement;
+      const c = td.querySelector('.pv-scs-cost'), mg = td.querySelector('.pv-scs-margin');
+      if (c) c.style.display = (_isOn('profit') && !_isOn('pay')) ? 'inline' : 'none';
+      if (mg) mg.style.display = 'none';   // 粗利率は「利益」の列に出す
+      if (tr) tr.querySelectorAll('.pv-scs-marginv').forEach(e => { e.style.display = _isOn('profit') ? 'block' : 'none'; });
     });
     const _leadHead = 1 /* 項目名 */ + (_isOn('cat') ? 1 : 0) + (_isOn('sv') ? 1 : 0);
     table.querySelectorAll('tfoot tr.pv-total > td:first-child').forEach(td => {

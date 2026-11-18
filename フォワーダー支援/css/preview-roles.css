@@ -109,3 +109,10 @@ body:has(#quoteDocOverlay.open) #quoteActionDock { display: none !important; }
   #quoteDocOverlay .qd-panel.qd-panel-open .qd-panel-body .qd-toggle { min-height: 44px; }
 }
 @media print { #qdPreview { zoom: 1 !important; } }
+
+/* --- E（続き）：サブコン小計は、仕入合計を仕入の列・粗利率を利益の列へ --- */
+#tab-quote-make #previewTable .pv-scs-label--split .pv-scs-cost,
+#tab-quote-make #previewTable .pv-scs-label--split .pv-scs-margin { display: none; }
+#tab-quote-make #previewTable .pv-scs-costcol { color: #8a5a2b; font-weight: 700; white-space: nowrap; }
+#tab-quote-make #previewTable .pv-scs-marginv { display: block; font-size: var(--text-xs, 12px); font-weight: 400; color: var(--text-sub, #5a6475); white-space: nowrap; }
+#tab-quote-make #previewTable .pv-scs-marginv.pv-neg { color: #b42318; }
