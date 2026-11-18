@@ -38,7 +38,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
           then(res, rej) { return Promise.resolve(run()).then(res, rej); } }; return api; };
       const store = {};
       const storage = { from: bucket => ({
-        upload: (p, file) => { store[p] = file; (window.__sizes || (window.__sizes = {}))[p] = file.size; return Promise.resolve({ data: { path: p }, error: null }); },
+        upload: (p, file) => { if (window.__failUp) return Promise.resolve({ data: null, error: { message: window.__failUp } }); store[p] = file; (window.__sizes || (window.__sizes = {}))[p] = file.size; return Promise.resolve({ data: { path: p }, error: null }); },
         remove: ps => { window.__removed.push(...ps); ps.forEach(p => delete store[p]); return Promise.resolve({ data: [], error: null }); },
         createSignedUrl: (p, s, opt) => Promise.resolve({ data: { signedUrl: location.origin + '/__signed/' + encodeURIComponent(p) + (opt && opt.download ? '?download=' + encodeURIComponent(opt.download) : '') }, error: null }),
         createSignedUrls: (ps) => Promise.resolve({ data: ps.map(p => ({ path: p, signedUrl: location.origin + '/__signed/' + encodeURIComponent(p) })), error: null }) }) };
@@ -186,6 +186,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('取っ手の（タブ以外の）クリックで閉じる', await p.evaluate(() => !window.rmsIsOpen()));
     ok('閉じていても件数のバッジは見える', await vis(p, '#tfTabN'));
   }
+
+  // うまく置けないとき：理由が画面に残り、「原因を調べる」で止まった段階が分かる
+  await p.evaluate(() => window.rmsShowFiles()); await p.waitForTimeout(400);
+  await p.evaluate(() => { window.__failUp = 'new row violates row-level security policy'; });
+  await p.setInputFiles('#tfInput', [{ name: 'x.pdf', mimeType: 'application/pdf', buffer: Buffer.from('hello') }]); await p.waitForTimeout(500);
+  ok('置けなかった理由が画面に残る（吹き出しが消えても）', await vis(p, '#tfBanner') && /row-level security/.test(await p.textContent('#tfBanner')));
+  await p.click('#tfBanner [data-bn="diag"]'); await p.waitForTimeout(700);
+  const dg = await p.textContent('#tfBanner');
+  ok('診断：① 表は読めて ② 保存領域へ置く段階で止まると示す', /✓ ① 一覧の表を読む/.test(dg) && /✕ ② 保存領域へファイルを置く：new row violates row-level/.test(dg) && !/③/.test(dg), dg);
+  await p.evaluate(() => { window.__failUp = ''; });
+  await p.click('#tfBanner [data-bn="diag"]'); await p.waitForTimeout(900);
+  ok('診断：すべて通ると ①〜⑥ が ✓', (await p.textContent('#tfBanner')).match(/✓/g).length === 6, await p.textContent('#tfBanner'));
+  ok('診断の試験ファイルは残らない（行・実体とも）', (await rows()).every(r => !/diag/.test(r.nm)));
+  await p.click('#tfBanner [data-bn="close"]'); await p.waitForTimeout(200);
+  ok('「閉じる」で表示が消える', !(await vis(p, '#tfBanner')));
 
   // 案件が変わったら読み直す／保存前
   await p.evaluate(() => { window.cloudLoadedId = () => null; }); await p.waitForTimeout(1600);
