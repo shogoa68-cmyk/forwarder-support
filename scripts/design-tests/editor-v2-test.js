@@ -167,6 +167,14 @@ const http = require('http'), fs = require('fs'), path = require('path');
   d1 = await dr();
   ok('「数量登録」で「単位で数量を一括変更」が開く', d1.open && d1.mod === 'scenario' && d1.vis.includes('scPanel'), d1);
   if (out) await p.screenshot({ path: path.join(out, 'e2-drawer.png') });
+  { // 右カラム 案A（Design 33）
+    const rc = await p.evaluate(() => { const r = document.getElementById('qrcRail'); const main = [...r.children].filter(x => x.matches('.qrc-rail-btn:not(.qrc-more2-btn)')).map(x => x.dataset.mod); const more = [...document.querySelectorAll('#qrcRailMore .qrc-rail-btn')].map(x => x.dataset.mod); const b = document.querySelector('#e2Total [data-e2q]'); return { main, more, moreOpen: !document.getElementById('qrcRailMore').hidden, pressed: b.classList.contains('is-open'), lab: document.querySelector('[data-mod="scenario"] .qrc-rail-ico').textContent }; });
+    ok('右レール：よく使う 5 つ＋その他（数量はその他の中・開いて見える）', rc.main.slice().sort().join() === 'charges,chat,digest,fin,subcon' && rc.more.includes('scenario') && rc.more.length === 6 && rc.moreOpen && rc.lab === '🔢', rc);
+    ok('「数量登録」は開いている間、押された見た目', rc.pressed, rc);
+    await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+    ok('Esc で引き出しが閉じる（ボタンの押された見た目も戻る）', await p.evaluate(() => !document.body.classList.contains('e2-drawer') && !document.querySelector('#e2Total .is-open')));
+    await p.click('#e2Total [data-e2q]'); await p.waitForTimeout(300);
+  }
   // 明細 1 行：使っていない「その他 ▾」は行に乗せるまで隠す
   if (!mobile) {
     await p.evaluate(() => { document.querySelector('[data-e2s="4"]').click(); window.addRow(); }); await p.waitForTimeout(400);

@@ -33,18 +33,18 @@
   function show(v) {
     view = v; const r = root(); if (!r) return;
     r.classList.toggle('mm-on', mobile());
-    ['home', 'work', 'list', 'alias'].forEach(k => r.classList.toggle('mm-view-' + k, mobile() && v === k));
+    ['home', 'work', 'list', 'alias', 'fix'].forEach(k => r.classList.toggle('mm-view-' + k, mobile() && v === k));
     r.classList.toggle('mm-wtab-drift', mobile() && v === 'work' && wtab === 'drift');
-    const cur = $('mmCur'); if (cur) cur.textContent = { home: '', work: wtab === 'drift' ? 'ゆらぎ' : '承認待ち', list: 'マスター一覧', alias: 'エイリアス是正' }[v] || '';
+    const cur = $('mmCur'); if (cur) cur.textContent = { home: '', work: wtab === 'drift' ? 'ゆらぎ' : '承認待ち', list: 'マスター一覧', alias: 'エイリアス是正', fix: '名前の整理' }[v] || '';
     if (mobile() && typeof window.masterSetPane === 'function') {
-      if (v === 'alias') window.masterSetPane('alias'); else if (v !== 'home' && !$('statsPane-master').classList.contains('is-active')) window.masterSetPane('master');
+      if (v === 'alias') window.masterSetPane('alias'); else if (v === 'fix') window.masterSetPane('fix'); else if (v !== 'home' && !$('statsPane-master').classList.contains('is-active')) window.masterSetPane('master');
     }
     if (v === 'home') renderHome(); if (v === 'work') renderWork();
     if (v === 'work' && wtab === 'drift') openDriftSecs();
     try { window.scrollTo({ top: 0 }); } catch (e) {}
   }
   function go(k) {
-    if (k === 'req') { wtab = 'req'; show('work'); } else if (k === 'drift') { wtab = 'drift'; show('work'); } else if (k === 'list') show('list'); else if (k === 'mine') { wtab = 'req'; show('work'); }
+    if (k === 'req') { wtab = 'req'; show('work'); } else if (k === 'drift') { wtab = 'drift'; show('work'); } else if (k === 'list') show('list'); else if (k === 'fix') show('fix'); else if (k === 'mine') { wtab = 'req'; show('work'); }
   }
 
   function act(go, icon, title, sub, tone) {
@@ -57,6 +57,9 @@
     if (i.approvalOn && i.admin) s += act('req', '📨', '承認待ち ' + i.pending.length + ' 件', i.pending.length ? 'マスター登録・別名の申請を確認します' : '承認待ちの申請はありません', i.pending.length ? 'warn' : '');
     else if (i.approvalOn && i.mine.length) s += '<button type="button" class="mm-myreq" data-go="mine">📨 申請中 ' + i.mine.length + ' 件 ›</button>';
     if (i.admin) s += act('drift', '🔍', 'ゆらぎチェック ' + (d.review + d.human) + ' 件', nd ? '表記ゆれの確認が必要です' + (d.auto ? '（自動で別名にできるもの ' + d.auto + ' 件）' : '') : '確認が必要なゆらぎはありません', d.review + d.human ? 'warn' : '');
+    let nf = null; try { nf = typeof window.statsTodaySummary === 'function' ? window.statsTodaySummary({ names: true }) : null; } catch (e) {}
+    const nfN = nf ? (nf.blur || 0) + (nf.unorg || 0) : 0;
+    s += act('fix', '🧹', '名前の整理' + (nfN ? ' ' + nfN + ' 件' : ''), nfN ? '表記ゆれ・未登録の名前を 1 件ずつ整えます' : '整理が必要な名前は見つかっていません', nfN ? 'warn' : '');
     s += act('list', '🗂', 'マスター一覧', '検索・絞り込み・詳細の確認');
     h.innerHTML = s;
   }
