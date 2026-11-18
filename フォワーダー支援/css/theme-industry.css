@@ -648,6 +648,7 @@ html.theme-industry {
   border-radius: 0;
 }
 :where(html.theme-industry) .bm-fcount {
+  color: var(--c-9a8a70);
   border-radius: 0;
 }
 :where(html.theme-industry) .bm-rel-chip {
@@ -10633,6 +10634,11 @@ html.theme-industry {
   border-color: #4a6d91;
 }
 :where(html.theme-industry) #tab-cptest .cpt-btn.is-g.is-g,
+:where(html.theme-industry) #tab-cptest .cpt-chip.is-now.is-now,
+:where(html.theme-industry) #tab-cptest .cpt-gb.cpt-gb[aria-pressed="true"],
 :where(html.theme-industry) #tab-bugreports .fbr-mode.is-on {
   color: #3e5f82;
+}
+:where(html.theme-industry) .bm-verify.bm-verify-0 {
+  color: #6b6e73;
 }

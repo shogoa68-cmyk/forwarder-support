@@ -378,4 +378,9 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 #tab-bugreports .fbr-chip.is-on,
 #tab-bugreports .fbr-mode.is-on .fbr-mode-n { background: #4a6d91; border-color: #4a6d91; }
 #tab-cptest .cpt-btn.is-g.is-g,
+#tab-cptest .cpt-chip.is-now.is-now,
+#tab-cptest .cpt-gb.cpt-gb[aria-pressed="true"],
 #tab-bugreports .fbr-mode.is-on { color: #3e5f82; }
+
+/* BOOKMARK：未確認の ✓ が背景と 2.3:1 でほぼ読めなかったのを補正（2026-11・点検第4弾） */
+.bm-verify.bm-verify-0 { color: #6b6e73; }
