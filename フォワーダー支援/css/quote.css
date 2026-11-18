@@ -9624,9 +9624,9 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 .um-tab.is-active { color: var(--accent-dk); border-bottom-color: var(--accent); }
 
 .um-pane { flex: 1 1 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-.um-toolbar { display: flex; align-items: center; gap: var(--sp-8); padding: var(--sp-10) var(--sp-16); border-bottom: 1px solid var(--accent-lt); background: var(--card-bg); flex-shrink: 0; }
-.um-search { flex: 1; border: 1px solid var(--border); border-radius: var(--r-6); padding: var(--sp-6) var(--sp-11); font-size: var(--fs-12-5); font-family: inherit; background: var(--surface); }
-.um-filter { font-size: var(--fs-12); padding: var(--sp-6) var(--sp-9); border: 1px solid var(--border); border-radius: var(--r-6); background: var(--surface); color: var(--brown-25); font-family: inherit; cursor: pointer; }
+.um-toolbar { display: flex; align-items: center; gap: var(--sp-8); padding: var(--sp-10) var(--sp-16); border-bottom: 1px solid var(--accent-lt); background: var(--card-bg); flex-shrink: 0; flex-wrap: wrap; }
+.um-search { flex: 1 1 160px; min-width: 0; border: 1px solid var(--border); border-radius: var(--r-6); padding: var(--sp-6) var(--sp-11); font-size: var(--fs-12-5); font-family: inherit; background: var(--surface); }
+.um-filter { max-width: 100%; font-size: var(--fs-12); padding: var(--sp-6) var(--sp-9); border: 1px solid var(--border); border-radius: var(--r-6); background: var(--surface); color: var(--brown-25); font-family: inherit; cursor: pointer; }
 .um-invite-btn { flex-shrink: 0; white-space: nowrap; background: var(--accent); color: var(--surface); border: none; border-radius: var(--r-6); padding: var(--sp-7) 13px; font-size: var(--fs-12-5); font-weight: 600; font-family: inherit; cursor: pointer; }
 .um-invite-btn:hover { background: var(--c-5a4a35); }
 

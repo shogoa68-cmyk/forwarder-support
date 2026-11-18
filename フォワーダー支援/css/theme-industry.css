@@ -6754,6 +6754,7 @@ html.theme-industry {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
 }
 :where(html.theme-industry) .um-search {
+  flex: 1;
   border-radius: 0;
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
 }
