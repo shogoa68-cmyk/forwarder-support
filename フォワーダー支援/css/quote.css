@@ -4125,7 +4125,7 @@ body:has(#previewOverlay.open) #qfMemoFloat, body:has(#previewOverlay.open) .qf-
 #tab-quote-make .pv-rail-head { padding-bottom: var(--sp-4); }
 #tab-quote-make .pv-rail-grp { display: flex; flex-direction: column; gap: var(--sp-5); }
 #tab-quote-make .pv-rail-h3 {
-  font-size: var(--fs-11); color: #9a8f7a; letter-spacing: .06em; text-transform: uppercase;
+  font-size: var(--fs-11); color: #6f6552; letter-spacing: .06em; text-transform: uppercase;
   font-weight: 700; margin-bottom: var(--sp-4);
 }
 #tab-quote-make .pv-rail-seg { display: flex; flex-direction: column; gap: var(--sp-6); }
