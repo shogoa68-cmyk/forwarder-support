@@ -219,8 +219,8 @@
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape' || !state.active) return;
     if (document.querySelector('.confirm-overlay, #previewOverlay.open, #fbOverlay.open, #mdDetailModal.open, .nq-overlay')) return;
-    const col = document.querySelector('#tab-quote-make .quote-right-col--rail'); if (!col || !col.offsetParent) return;
-    if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+    const col = document.querySelector('#tab-quote-make .quote-right-col--rail'); if (!col || !col.getClientRects().length) return;
+    if (e.target && /TEXTAREA|SELECT/.test(e.target.tagName)) return;   // 文章の入力中は譲る（欄が 1 行の入力なら Esc で閉じてよい）
     setActive(null);
   });
 

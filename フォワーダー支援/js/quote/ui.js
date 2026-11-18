@@ -4161,7 +4161,8 @@
             const mgPart = (g.marginPct != null)
               ? '<span class="qsp-dig-row-mg' + (g.marginPct < 0 ? ' is-neg' : '') + '" title="粗利率（JPY換算・行単位）">粗利 ' + g.marginPct.toFixed(1) + '%</span>'
               : '';
-            if (mkPart || mgPart) metaBits = '<span class="qsp-dig-row-meta">' + mkPart + mgPart + '</span>';
+            const csPart = g.costTxt ? '<span class="qsp-dig-row-cs" title="仕入（JPY換算）">仕入 ' + escapeHtml(g.costTxt) + '</span>' : '';
+            if (csPart || mkPart || mgPart) metaBits = '<span class="qsp-dig-row-meta">' + csPart + mkPart + mgPart + '</span>';
           }
           const priceStack = '<span class="qsp-dig-row-price">' + sumHtml + metaBits + '</span>';
           return '<div class="qsp-dig-grp-item is-row' + stateCls + (hideOn ? ' is-hidden-row' : '') + '" ' +
@@ -4289,7 +4290,8 @@
       // これが無いと、パターンの後に続く「パターン無し」の行まで見た目上その
       // パターンの子として並んでしまい、折りたたみ状態も誤って引き継いでしまう。
       const inPattern = tr.classList.contains('subcon-subchild');
-      out.push({ level: 2, rowId: tr.id, mkTxt, marginPct, isActual, inPattern,
+      const costTxt = cost ? '¥' + Math.round(cost).toLocaleString('ja-JP') : '';   // 仕入（JPY換算・MIN適用後）
+      out.push({ level: 2, rowId: tr.id, mkTxt, costTxt, marginPct, isActual, inPattern,
                  label: (nm || '（名称未入力）') + suffix,
                  sum, isCollapsed: false, isExcluded, isHidden, el: tr });
     });

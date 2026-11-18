@@ -172,7 +172,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('右レール：よく使う 5 つ＋その他（数量はその他の中・開いて見える）', rc.main.slice().sort().join() === 'charges,chat,digest,fin,subcon' && rc.more.includes('scenario') && rc.more.length === 6 && rc.moreOpen && rc.lab === '🔢', rc);
     ok('「数量登録」は開いている間、押された見た目', rc.pressed, rc);
     await p.keyboard.press('Escape'); await p.waitForTimeout(300);
-    ok('Esc で引き出しが閉じる（ボタンの押された見た目も戻る）', await p.evaluate(() => !document.body.classList.contains('e2-drawer') && !document.querySelector('#e2Total .is-open')));
+    { const st = await p.evaluate(() => ({ d: document.body.classList.contains('e2-drawer'), o: [...document.querySelectorAll('#e2Total .is-open')].map(x => x.textContent.trim().slice(0, 8)), act: document.activeElement && (document.activeElement.id || document.activeElement.tagName), ov: !!document.querySelector('.confirm-overlay, #previewOverlay.open, #fbOverlay.open, #mdDetailModal.open, .nq-overlay') })); ok('Esc で引き出しが閉じる（ボタンの押された見た目も戻る）', !st.d && st.o.length === 0, st); }
     await p.click('#e2Total [data-e2q]'); await p.waitForTimeout(300);
   }
   // 明細 1 行：使っていない「その他 ▾」は行に乗せるまで隠す
