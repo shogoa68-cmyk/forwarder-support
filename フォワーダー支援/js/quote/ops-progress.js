@@ -5,7 +5,7 @@
  *    まだ一度も触っていない案件は、輸出入の向き（cond-direction）と輸送モード（cond-mode）からひな形を出すだけ（保存しない）。
  *  - 書き込み：cloud.js の cloudWriteCaseFields（案件を開かずに fields の一部だけ更新・他メンバーが編集中なら拒否）。
  *  - 表示：①案件カードの札（受注の案件・または記録のある案件）②ダッシュボード上部の帯（進行中・期限切れ・今日まで）
- *    ③チェックリストの画面（#opmModal）④進行中の一覧（#opmList）。
+ *    ③チェックリストの画面（#opmModal）④独立したタブ「📦 進行管理」（#tab-ops・進行中／期限切れ／今日まで／7日以内…の一覧）。
  */
 (function () {
   'use strict';
@@ -148,7 +148,7 @@
       else if (act === 'add') add();
       else if (act === 'rename') rename(i);
       else if (act === 'reset') reset();
-      else if (act === 'list') { close(); opsOpenList(); }
+      else if (act === 'list') { close(); opsGoTab('active'); }
     });
     ov.addEventListener('change', e => {
       const t = e.target;
@@ -160,7 +160,6 @@
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
       if ($('opmModal') && !$('opmModal').hidden && !document.querySelector('.confirm-overlay')) { e.stopPropagation(); close(); }
-      else if ($('opmList') && !$('opmList').hidden) { e.stopPropagation(); closeList(); }
     }, true);
   }
   function readOnly() {
@@ -197,7 +196,7 @@
     if (!st.s.length) h += '<p class="opm-empty">作業がありません。下から足してください。</p>';
     if (!ro) h += '<div class="opm-add"><input type="text" id="opmAddIn" maxlength="60" placeholder="作業を追加（例：保険の手配）"><button type="button" class="opm-btn" data-opm="add">＋ 追加</button></div>';
     h += '<div class="opm-foot">' + (ro ? '' : '<button type="button" class="opm-link" data-opm="reset">ひな形から作り直す…</button>') +
-      '<button type="button" class="opm-link" data-opm="list">進行中の一覧を見る</button>' +
+      '<button type="button" class="opm-link" data-opm="list">📦 進行管理で一覧を見る</button>' +
       '<button type="button" class="opm-btn opm-btn-pri" data-opm="close">閉じる</button></div>';
     $('opmBody').innerHTML = h;
   }
@@ -206,6 +205,7 @@
     const id = _cur.id, snapshot = JSON.parse(JSON.stringify(_cur.st));
     render();
     const ok = await save(id, snapshot, comment);
+    renderTab();
     if (!ok && _cur && _cur.id === id) {   // 書けなかったら、保存されている内容へ戻す
       const r = rowById(id); _cur.st = r ? stateOf(r) : _cur.st; render();
     }
@@ -283,100 +283,191 @@
     _cur = null;
   }
 
-  // ---------- ②ダッシュボード上部の帯・④進行中の一覧 ----------
+  // ---------- ②ダッシュボード上部の帯（押すと「進行管理」タブへ） ----------
   function collect() {
-    const today = todayStr();
-    return rowsAll().filter(isTarget).map(r => {
-      const st = stateOf(r), sm = summary(st);
-      return { r, st, sm, today };
-    });
+    return rowsAll().filter(isTarget).map(r => { const st = stateOf(r); return { r, st, sm: summary(st) }; });
+  }
+  function weekStr() { const t = new Date(); t.setDate(t.getDate() + 7); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); }
+  function groupsOf(all) {
+    const today = todayStr(), wk = weekStr();
+    const active = all.filter(x => !x.sm.all);
+    return {
+      active,
+      over: active.filter(x => x.sm.overdue),
+      today: active.filter(x => !x.sm.overdue && x.sm.dueToday),
+      week: active.filter(x => !x.sm.overdue && x.sm.nearest && x.sm.nearest <= wk),
+      nodue: active.filter(x => !x.sm.nearest),
+      done: all.filter(x => x.sm.all),
+      all,
+      _today: today,
+    };
   }
   function renderBand() {
     const dash = $('qpDashboard'); if (!dash) return;
     let band = $('opsBand');
-    const list = collect();
-    const active = list.filter(x => !x.sm.all);
     if (!band) {
       band = document.createElement('div'); band.id = 'opsBand'; band.className = 'ops-band'; band.setAttribute('role', 'group'); band.setAttribute('aria-label', '受注後の業務');
       const anchor = $('dtFollow') || $('dtChips');
       if (anchor) anchor.after(band);
       else { const lw = $('qpdListWrap'); if (!lw) return; lw.before(band); }
-      band.addEventListener('click', e => { if (e.target.closest('[data-ops-list]')) opsOpenList(e.target.closest('[data-ops-list]').dataset.opsList); });
+      band.addEventListener('click', e => { const b = e.target.closest('[data-ops-list]'); if (b) opsGoTab(b.dataset.opsList); });
     }
-    if (!list.length) { band.hidden = true; band.innerHTML = ''; return; }
-    const over = active.filter(x => x.sm.overdue).length;
-    const today = active.filter(x => !x.sm.overdue && x.sm.dueToday).length;
+    const g = groupsOf(collect());
+    if (!g.all.length) { band.hidden = true; band.innerHTML = ''; return; }
     band.hidden = false;
     band.innerHTML = '<span class="ops-band-l" title="受注した案件の、手配から請求までの作業の進み具合">📦 受注後の業務</span>' +
-      '<button type="button" class="ops-band-b" data-ops-list="active">進行中 <b>' + active.length + '</b></button>' +
-      (over ? '<button type="button" class="ops-band-b is-over" data-ops-list="over">⚠ 期限切れ <b>' + over + '</b></button>' : '') +
-      (today ? '<button type="button" class="ops-band-b is-today" data-ops-list="today">今日まで <b>' + today + '</b></button>' : '') +
-      '<button type="button" class="ops-band-b" data-ops-list="all">完了 <b>' + (list.length - active.length) + '</b></button>';
-  }
-  let _listFilter = 'active';
-  function opsOpenList(filter) {
-    _listFilter = filter || 'active';
-    let ov = $('opmList');
-    if (!ov) {
-      ov = document.createElement('div'); ov.id = 'opmList'; ov.className = 'opm-overlay'; ov.hidden = true;
-      ov.innerHTML = '<div class="opm-box opm-box-list" role="dialog" aria-modal="true" aria-labelledby="opmListTitle">' +
-        '<div class="opm-head"><div class="opm-head-t"><b id="opmListTitle">📦 受注後の業務の一覧</b><small>期限切れ・期限の近い順</small></div>' +
-        '<button type="button" class="opm-x" data-opl="close" aria-label="閉じる">✕</button></div><div class="opm-body" id="opmListBody"></div></div>';
-      document.body.appendChild(ov);
-      ov.addEventListener('click', e => {
-        if (e.target === ov) return closeList();
-        const b = e.target.closest('[data-opl]'); if (!b) return;
-        if (b.dataset.opl === 'close') closeList();
-        else if (b.dataset.opl === 'f') { _listFilter = b.dataset.f; renderList(); }
-        else if (b.dataset.opl === 'open') { closeList(); opsOpen(b.dataset.id); }
-      });
-    }
-    renderList();
-    ov.hidden = false; document.body.classList.add('opm-open');
-  }
-  function closeList() { if ($('opmList')) $('opmList').hidden = true; if (!$('opmModal') || $('opmModal').hidden) document.body.classList.remove('opm-open'); }
-  function renderList() {
-    const all = collect(), today = todayStr();
-    const groups = {
-      active: all.filter(x => !x.sm.all), over: all.filter(x => !x.sm.all && x.sm.overdue),
-      today: all.filter(x => !x.sm.all && !x.sm.overdue && x.sm.dueToday), done: all.filter(x => x.sm.all),
-    };
-    if (_listFilter === 'all') _listFilter = 'done';
-    const rows = (groups[_listFilter] || groups.active).slice().sort((a, b) =>
-      (b.sm.overdue ? 1 : 0) - (a.sm.overdue ? 1 : 0) || (a.sm.nearest || '9999') .localeCompare(b.sm.nearest || '9999') || (a.sm.done / (a.sm.total || 1)) - (b.sm.done / (b.sm.total || 1)));
-    const tab = (k, l) => '<button type="button" class="opm-tab' + (_listFilter === k ? ' is-on' : '') + '" data-opl="f" data-f="' + k + '" aria-pressed="' + (_listFilter === k) + '">' + l + ' <b>' + groups[k].length + '</b></button>';
-    let h = '<div class="opm-tabs">' + tab('active', '進行中') + tab('over', '⚠ 期限切れ') + tab('today', '今日まで') + tab('done', '完了') + '</div>';
-    if (!rows.length) h += '<p class="opm-empty">当てはまる案件はありません。</p>';
-    else h += '<ul class="opm-cases">' + rows.map(x => {
-      const pct = x.sm.total ? Math.round(x.sm.done / x.sm.total * 100) : 0;
-      const nx = x.sm.next;
-      return '<li><button type="button" class="opm-case" data-opl="open" data-id="' + esc(encodeURIComponent(x.r.id)) + '">' +
-        '<span class="opm-case-t"><b>' + esc(caseTitle(x.r) || '（案件名なし）') + '</b><small>' + esc(x.r.customer || '') + '</small></span>' +
-        '<span class="opm-case-p"><span class="opm-bar"><span style="width:' + pct + '%"></span></span>' + x.sm.done + '/' + x.sm.total + '</span>' +
-        '<span class="opm-case-n">' + (x.sm.all ? '✅ すべて完了' : (nx ? '次：' + esc(nx.l) + (nx.due ? ' <span class="ops-due' + dueCls(nx.due, today) + '">期限 ' + md(nx.due) + '</span>' : '') : '')) +
-          (x.sm.overdue ? ' <span class="ops-warn">⚠ 期限切れ ' + x.sm.overdue + '</span>' : '') + '</span>' +
-        '</button></li>';
-    }).join('') + '</ul>';
-    $('opmListBody').innerHTML = h;
+      '<button type="button" class="ops-band-b" data-ops-list="active">進行中 <b>' + g.active.length + '</b></button>' +
+      (g.over.length ? '<button type="button" class="ops-band-b is-over" data-ops-list="over">⚠ 期限切れ <b>' + g.over.length + '</b></button>' : '') +
+      (g.today.length ? '<button type="button" class="ops-band-b is-today" data-ops-list="today">今日まで <b>' + g.today.length + '</b></button>' : '') +
+      '<button type="button" class="ops-band-b" data-ops-list="done">完了 <b>' + g.done.length + '</b></button>' +
+      '<button type="button" class="ops-band-go" data-ops-list="active">進行管理を開く ›</button>';
   }
 
-  // ダッシュボードの描き直し（cloud.js → dtRefresh）のたびに帯も更新する。dash-top.js が無い構成では一覧の描画後に追従
+  // ---------- ④「📦 進行管理」タブ（#tab-ops・独立した画面） ----------
+  const TAB = { f: 'active', q: '', sort: 'due', loading: false, asked: false };
+  const FILTERS = [['active', '進行中'], ['over', '⚠ 期限切れ'], ['today', '今日まで'], ['week', '7日以内'], ['nodue', '期限なし'], ['done', '完了'], ['all', 'すべて']];
+  const SORTS = [['due', '期限の近い順'], ['progress', '進み具合の少ない順'], ['updated', '更新が新しい順'], ['name', '案件名順']];
+  const tabActive = () => { const t = $('tab-ops'); return !!(t && t.classList.contains('active')); };
+  const norm = s => String(s || '').normalize('NFKC').toLowerCase().replace(/\s+/g, '');
+  function sortRows(list) {
+    const k = TAB.sort;
+    return list.slice().sort((a, b) => {
+      if (k === 'progress') return (a.sm.done / (a.sm.total || 1)) - (b.sm.done / (b.sm.total || 1));
+      if (k === 'updated') return String(b.r.updated_at || '').localeCompare(String(a.r.updated_at || ''));
+      if (k === 'name') return caseTitle(a.r).localeCompare(caseTitle(b.r), 'ja');
+      return (b.sm.overdue ? 1 : 0) - (a.sm.overdue ? 1 : 0) || (a.sm.nearest || '9999').localeCompare(b.sm.nearest || '9999') ||
+        (a.sm.all ? 1 : 0) - (b.sm.all ? 1 : 0);
+    });
+  }
+  function ensureTab() {
+    const root = $('opsRoot'); if (!root || root.dataset.wired) return root;
+    root.dataset.wired = '1';
+    root.addEventListener('click', e => {
+      const b = e.target.closest('[data-opt]'); if (!b) return;
+      const a = b.dataset.opt, id = b.dataset.id;
+      if (a === 'f') { TAB.f = b.dataset.f; renderTab(); }
+      else if (a === 'list') opsOpen(id);
+      else if (a === 'quote') openQuote(id);
+      else if (a === 'next') quickDone(id, b);
+      else if (a === 'dash') goDash();
+      else if (a === 'reload') reload();
+    });
+    root.addEventListener('input', e => { if (e.target.id === 'optQ' && !e.isComposing) { TAB.q = e.target.value; renderTab(true); } });
+    root.addEventListener('compositionend', e => { if (e.target.id === 'optQ') { TAB.q = e.target.value; renderTab(true); } });
+    root.addEventListener('change', e => { if (e.target.id === 'optSort') { TAB.sort = e.target.value; renderTab(); } });
+    return root;
+  }
+  function renderTab(keepSearch) {
+    const root = ensureTab(); if (!root || !tabActive()) return;
+    const logged = typeof window.cloudIsLoggedIn === 'function' && window.cloudIsLoggedIn();
+    if (!logged) {
+      root.innerHTML = '<div class="opt-head"><h2>📦 進行管理</h2></div><div class="opt-empty">ログインすると、受注した案件の作業の進み具合を見られます。<br><small>右上の「ログイン」からどうぞ。</small></div>';
+      return;
+    }
+    const all = collect();
+    if (!all.length && !rowsAll().length && !TAB.asked && typeof window.cloudListPresets === 'function') {   // まだ案件一覧を読んでいない（見積タブを開いていない）
+      TAB.asked = true; TAB.loading = true;
+      Promise.resolve(window.cloudListPresets(true)).catch(() => {}).then(() => { TAB.loading = false; renderTab(); });
+    }
+    const g = groupsOf(all), today = g._today;
+    const q = norm(TAB.q);
+    let list = g[TAB.f] || g.active;
+    if (q) list = list.filter(x => norm(caseTitle(x.r) + ' ' + (x.r.customer || '') + ' ' + x.st.s.map(s => s.l).join(' ')).includes(q));
+    list = sortRows(list);
+    const tile = (k, lbl, n, cls) => '<button type="button" class="opt-tile' + (cls ? ' ' + cls : '') + (TAB.f === k ? ' is-on' : '') + '" data-opt="f" data-f="' + k + '" aria-pressed="' + (TAB.f === k) + '"><span>' + lbl + '</span><b>' + n + '</b></button>';
+    let h = '<div class="opt-head"><div><h2>📦 進行管理</h2><p class="opt-lead">受注した案件の、手配から請求までの作業を一覧で見ます。チェックリストは案件ごとに、見積ダッシュボードのカードからも開けます。</p></div>' +
+      '<div class="opt-head-acts"><button type="button" class="opt-btn" data-opt="reload" title="最新の状態に読み直す">↻ 更新</button><button type="button" class="opt-btn" data-opt="dash">💼 見積ダッシュボードへ</button></div></div>';
+    h += '<div class="opt-tiles" role="group" aria-label="絞り込み">' +
+      tile('active', '進行中', g.active.length) + tile('over', '⚠ 期限切れ', g.over.length, g.over.length ? 'is-over' : '') +
+      tile('today', '今日まで', g.today.length, g.today.length ? 'is-today' : '') + tile('week', '7日以内', g.week.length) +
+      tile('done', '完了', g.done.length, 'is-done') + '</div>';
+    h += '<div class="opt-bar"><div class="opt-chips">' + FILTERS.filter(f => !['active', 'over', 'today', 'week', 'done'].includes(f[0])).map(f =>
+        '<button type="button" class="opt-chip' + (TAB.f === f[0] ? ' is-on' : '') + '" data-opt="f" data-f="' + f[0] + '" aria-pressed="' + (TAB.f === f[0]) + '">' + f[1] + ' <b>' + g[f[0]].length + '</b></button>').join('') + '</div>' +
+      '<input type="search" id="optQ" class="opt-q" placeholder="🔍 案件名・お客様・作業名で探す" value="' + esc(TAB.q) + '" aria-label="検索">' +
+      '<label class="opt-sort"><span>並び順</span><select id="optSort">' + SORTS.map(s => '<option value="' + s[0] + '"' + (TAB.sort === s[0] ? ' selected' : '') + '>' + s[1] + '</option>').join('') + '</select></label></div>';
+    if (TAB.loading && !all.length) h += '<div class="opt-empty">読み込み中…</div>';
+    else if (!all.length) h += '<div class="opt-empty">まだ受注した案件はありません。<br><small>見積ダッシュボードで案件のステータスを「受注」にすると、ここに作業のチェックリストが出ます。</small><br><button type="button" class="opt-btn opt-btn-pri" data-opt="dash">💼 見積ダッシュボードへ</button></div>';
+    else if (!list.length) h += '<div class="opt-empty">当てはまる案件はありません。</div>';
+    else h += '<ul class="opt-list">' + list.map(x => rowHtml(x, today)).join('') + '</ul>';
+    const hadFocus = document.activeElement && document.activeElement.id === 'optQ';
+    const pos = hadFocus ? document.activeElement.selectionStart : 0;
+    root.innerHTML = h;
+    if (hadFocus || keepSearch) { const qi = $('optQ'); if (qi && hadFocus) { qi.focus(); try { qi.setSelectionRange(pos, pos); } catch (e) {} } }
+  }
+  function rowHtml(x, today) {
+    const r = x.r, sm = x.sm, id = esc(encodeURIComponent(r.id));
+    const f = (r.data && r.data.fields) || {};
+    const lockedBy = typeof window.cloudIsLockedByOther === 'function' ? window.cloudIsLockedByOther(r.id) : null;
+    const segs = x.st.s.map(s => '<i class="' + (s.d ? 'is-done' : (s.due && s.due < today ? 'is-over' : '')) + '" title="' + esc(s.l + (s.d ? '（済み）' : (s.due ? '（期限 ' + md(s.due) + '）' : ''))) + '"></i>').join('');
+    const nx = sm.next;
+    const meta = [r.customer || '', f['cond-mode'] || '', savedOf(r) ? '' : '未着手'].filter(Boolean);
+    return '<li class="opt-row' + (sm.all ? ' is-all' : '') + (sm.overdue ? ' has-over' : '') + '">' +
+      '<div class="opt-main"><b title="' + esc(caseTitle(r)) + '">' + esc(caseTitle(r) || '（案件名なし）') + '</b><small>' + esc(meta.join(' · ')) + (lockedBy ? ' · 🔒 ' + esc(nameOf(lockedBy)) + ' さんが編集中' : '') + '</small></div>' +
+      '<div class="opt-prog"><span class="ops-segs" aria-hidden="true">' + segs + '</span><b>' + sm.done + '/' + sm.total + '</b></div>' +
+      '<div class="opt-next">' + (sm.all ? '<span class="ops-next is-all">✅ すべて完了</span>' : (nx ? '次：<b>' + esc(nx.l) + '</b>' + (nx.due ? '<span class="ops-due' + dueCls(nx.due, today) + '">期限 ' + md(nx.due) + '</span>' : '') : '')) +
+        (sm.overdue ? ' <span class="ops-warn">⚠ 期限切れ ' + sm.overdue + '</span>' : '') + '</div>' +
+      '<div class="opt-acts">' +
+        (!sm.all && nx && !lockedBy ? '<button type="button" class="opt-btn opt-btn-ok" data-opt="next" data-id="' + id + '" title="「' + esc(nx.l) + '」を完了にする">✓ 次を完了</button>' : '') +
+        '<button type="button" class="opt-btn" data-opt="list" data-id="' + id + '">☑ チェックリスト</button>' +
+        '<button type="button" class="opt-btn" data-opt="quote" data-id="' + id + '" title="この案件の見積を開く">💼 見積</button>' +
+      '</div></li>';
+  }
+  async function quickDone(idAttr, btn) {
+    const id = decodeURIComponent(idAttr), r = rowById(id); if (!r) return;
+    const st = JSON.parse(JSON.stringify(stateOf(r))), x = st.s.find(s => !s.d); if (!x) return;
+    x.d = true; x.at = new Date().toISOString(); x.by = typeof window.cloudCurrentEmail === 'function' ? window.cloudCurrentEmail() : '';
+    if (btn) btn.disabled = true;
+    const all = st.s.every(s => s.d);
+    const ok = await save(id, st, '✅ 業務：「' + x.l + '」を完了' + (all ? '（すべての作業が完了）' : ''));
+    if (ok) toast('✅ 「' + x.l + '」を完了にしました', 'success', 2500);
+    renderTab();
+  }
+  function openQuote(idAttr) {
+    const btn = document.querySelector('.cat-btn[aria-controls="tab-quote-make"]');
+    if (typeof window.switchCategory === 'function') window.switchCategory('quote', btn);
+    setTimeout(() => { if (typeof window.cloudLoadPreset === 'function') window.cloudLoadPreset(idAttr); }, 0);
+  }
+  function goDash() {
+    const btn = document.querySelector('.cat-btn[aria-controls="tab-quote-make"]');
+    if (typeof window.switchCategory === 'function') window.switchCategory('quote', btn);
+    if (typeof window.qpShowDashboard === 'function') setTimeout(() => window.qpShowDashboard(), 0);
+  }
+  async function reload() {
+    if (typeof window.cloudListPresets !== 'function') return;
+    TAB.loading = true; renderTab();
+    try { await window.cloudListPresets(true); } catch (e) {}
+    TAB.loading = false; renderTab();
+  }
+  // ダッシュボードの帯・カードの札から：「進行管理」タブを開いて、その絞り込みにする
+  function opsGoTab(filter) {
+    if (filter && FILTERS.some(f => f[0] === filter)) TAB.f = filter;
+    if (_cur) close();
+    const btn = document.querySelector('.cat-btn[aria-controls="tab-ops"]');
+    if (typeof window.switchCategory === 'function') window.switchCategory('ops', btn);
+    else renderTab();
+  }
+  window.initOpsTab = function () { renderTab(); };
+
+  // 一覧が描き直されるたび（cloud.js → dtRefresh）に、帯とタブを更新する
+  function refreshAll() { renderBand(); renderTab(); }
   function hook() {
     const orig = window.dtRefresh;
-    window.dtRefresh = function () { const r = orig ? orig.apply(this, arguments) : undefined; setTimeout(renderBand, 0); return r; };
+    window.dtRefresh = function () { const r = orig ? orig.apply(this, arguments) : undefined; setTimeout(refreshAll, 0); return r; };
   }
   hook();
   document.addEventListener('DOMContentLoaded', () => {
     const lw = $('qpdListWrap');
     if (lw && 'MutationObserver' in window) {
-      let t = 0; new MutationObserver(() => { clearTimeout(t); t = setTimeout(renderBand, 50); }).observe(lw, { childList: true });
+      let t = 0; new MutationObserver(() => { clearTimeout(t); t = setTimeout(refreshAll, 50); }).observe(lw, { childList: true });
     }
   });
 
   window.opsCardHtml = opsCardHtml;
   window.opsOpen = opsOpen;
-  window.opsOpenList = opsOpenList;
+  window.opsGoTab = opsGoTab;
+  window.opsOpenList = opsGoTab;   // 互換（以前の一覧モーダルの入口）
   window.opsRenderBand = renderBand;
+  window.opsRenderTab = renderTab;
   window.opsTemplateKeys = tplKeysOf;   // 試験・ほかの機能から
   window.opsSummaryOf = r => (isTarget(r) ? summary(stateOf(r)) : null);
 })();

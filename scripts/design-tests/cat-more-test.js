@@ -18,7 +18,7 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
  await p.goto(URL,{waitUntil:'domcontentloaded'});await p.waitForTimeout(800);
  const top=()=>p.evaluate(()=>[...document.querySelectorAll('.cat-nav > .cat-btn, .cat-nav > .cat-more > .cat-btn')].filter(b=>b.offsetParent!==null).map(b=>b.textContent.replace(/\s+/g,' ').trim()));
  const t0=await top();
- ok('上段は リンク集・見積を作る・計算・書類・通関・Booking/SI・実績を見る・マスター管理・「その他」の順',t0.length===8&&/リンク集/.test(t0[0])&&/見積を作る/.test(t0[1])&&/計算/.test(t0[2])&&/書類/.test(t0[3])&&/Booking/.test(t0[4])&&/実績を見る/.test(t0[5])&&/マスター管理/.test(t0[6])&&/その他/.test(t0[7]),t0);
+ ok('上段は リンク集・見積を作る・進行管理・計算・書類・通関・Booking/SI・実績を見る・マスター管理・「その他」の順',t0.length===9&&/リンク集/.test(t0[0])&&/見積を作る/.test(t0[1])&&/進行管理/.test(t0[2])&&/計算/.test(t0[3])&&/書類/.test(t0[4])&&/Booking/.test(t0[5])&&/実績を見る/.test(t0[6])&&/マスター管理/.test(t0[7])&&/その他/.test(t0[8]),t0);
  const col=await p.evaluate(()=>[...document.querySelectorAll('.cat-nav > .cat-btn')].map(b=>({t:b.textContent.trim().slice(0,6),act:b.classList.contains('active'),bg:getComputedStyle(b).backgroundImage+getComputedStyle(b).backgroundColor,fg:getComputedStyle(b).color,bd:getComputedStyle(b).borderColor})));
  const work=col.filter(c=>!c.act&&/^(🔖|🧮|📄|📋)/.test(c.t));
  const adm=col.filter(c=>/^(📊|🗂)/.test(c.t));

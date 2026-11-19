@@ -161,13 +161,36 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('カードの札が 1/8・期限切れ', !!c1b && c1b.includes('1/8') && c1b.includes('期限切れ') && !c1b.includes('未着手'), c1b);
   const band2 = await p.evaluate(() => document.getElementById('opsBand').textContent.replace(/\s+/g, ' '));
   ok('帯に「⚠ 期限切れ 1」', band2.includes('期限切れ 1'), band2);
-  // 一覧
-  await p.evaluate(() => document.querySelector('#opsBand [data-ops-list="over"]').click()); await p.waitForTimeout(300);
-  const ls = await p.evaluate(() => [...document.querySelectorAll('#opmList .opm-case')].map(x => x.textContent.replace(/\s+/g, ' ')));
-  ok('一覧（期限切れ）に該当の案件だけ', ls.length === 1 && ls[0].includes('輸出FCL案件'), ls);
-  await p.evaluate(() => document.querySelector('#opmList .opm-case').click()); await p.waitForTimeout(300);
-  ok('一覧から押すとチェックリストが開く', await p.evaluate(() => !document.getElementById('opmModal').hidden && document.getElementById('opmList').hidden));
+  // 帯から「進行管理」タブへ（期限切れで絞り込み）
+  await p.evaluate(() => document.querySelector('#opsBand [data-ops-list="over"]').click()); await p.waitForTimeout(500);
+  const tabOn = await p.evaluate(() => ({ tab: document.getElementById('tab-ops').classList.contains('active'), nav: document.querySelector('.cat-btn[aria-controls="tab-ops"]').classList.contains('active'), quote: document.getElementById('tab-quote-make').classList.contains('active') }));
+  ok('帯の「期限切れ」を押すと「進行管理」タブへ移る', tabOn.tab && tabOn.nav && !tabOn.quote, tabOn);
+  let ls = await p.evaluate(() => [...document.querySelectorAll('#opsRoot .opt-row')].map(x => x.textContent.replace(/\s+/g, ' ')));
+  ok('タブは期限切れで絞り込まれ、該当の案件だけ', ls.length === 1 && ls[0].includes('R-B1'), ls);
+  const tiles = await p.evaluate(() => [...document.querySelectorAll('#opsRoot .opt-tile')].map(x => x.textContent.replace(/\s+/g, '')));
+  ok('タイル：進行中 3・期限切れ 1・完了 0', tiles.some(t => t === '進行中3') && tiles.some(t => t.includes('期限切れ1')) && tiles.some(t => t === '完了0'), tiles);
+  await p.evaluate(() => document.querySelector('#opsRoot .opt-tile[data-f="active"]').click()); await p.waitForTimeout(200);
+  ls = await p.evaluate(() => [...document.querySelectorAll('#opsRoot .opt-row')].map(x => x.textContent.replace(/\s+/g, ' ')));
+  ok('「進行中」で 3 件・期限切れが先頭', ls.length === 3 && ls[0].includes('R-B1'), ls);
+  await p.fill('#optQ', 'R-B2'); await p.waitForTimeout(200);
+  ls = await p.evaluate(() => [...document.querySelectorAll('#opsRoot .opt-row')].length);
+  ok('検索で絞り込める', ls === 1, ls);
+  await p.fill('#optQ', ''); await p.waitForTimeout(200);
+  // 「✓ 次を完了」
+  await p.evaluate(() => { const r = [...document.querySelectorAll('#opsRoot .opt-row')].find(x => x.textContent.includes('R-B1')); r.querySelector('[data-opt="next"]').click(); });
+  await p.waitForTimeout(800);
+  o = await ops(p, 'B1');
+  ok('「✓ 次を完了」で次の作業が済みになる（2/8）', o.s[1].d === true && o.s.filter(x => x.d).length === 2, o.s.map(x => x.d));
+  const rowTxt = await p.evaluate(() => [...document.querySelectorAll('#opsRoot .opt-row')].find(x => x.textContent.includes('R-B1')).textContent);
+  ok('タブの行がその場で 2/8 に更新', rowTxt.includes('2/8'), rowTxt);
+  ok('編集中（他の人）の案件には「次を完了」が出ない', await p.evaluate(() => { const r = [...document.querySelectorAll('#opsRoot .opt-row')].find(x => x.textContent.includes('R-B4')); return r && !r.querySelector('[data-opt="next"]'); }));
+  // タブから チェックリスト／見積
+  await p.evaluate(() => { const r = [...document.querySelectorAll('#opsRoot .opt-row')].find(x => x.textContent.includes('R-B1')); r.querySelector('[data-opt="list"]').click(); });
+  await p.waitForTimeout(300);
+  ok('タブの「チェックリスト」でチェックリストが開く', await p.evaluate(() => !document.getElementById('opmModal').hidden));
   await click(p, '#opmModal [data-opm="close"]');
+  await p.evaluate(() => document.querySelector('#opsRoot [data-opt="dash"]').click()); await p.waitForTimeout(800);
+  ok('「見積ダッシュボードへ」で見積タブのダッシュボードに戻る', await p.evaluate(() => document.getElementById('tab-quote-make').classList.contains('active') && document.body.classList.contains('qp-dash-active')));
   // 編集中（他の人）の案件は見るだけ
   await p.evaluate(() => { const c = [...document.querySelectorAll('#qpdListWrap .cloud-card')].find(c => c.querySelector('.cloud-card-links') && c.querySelector('.cloud-card-links').dataset.lid === 'B4'); c.querySelector('.ops-chip').click(); });
   await p.waitForTimeout(300);
@@ -195,6 +218,20 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => window.cloudSaveCurrent()); await p.waitForTimeout(1500);
   o = await ops(p, 'B1');
   ok('編集画面で保存しても進捗は残る', !!o && o.s[0].d === true, o && o.s[0]);
+  // 見積タブを開かずに、いきなり「進行管理」を開いても一覧が出る（案件一覧を自分で読み込む）
+  {
+    const p2 = await ctx.newPage(); const e2 = []; p2.on('pageerror', e => e2.push(e.message));
+    await p2.goto(URL, { waitUntil: 'domcontentloaded' }); await p2.waitForTimeout(800);
+    await p2.evaluate(() => { const b = document.querySelector('.cat-btn[aria-controls="tab-ops"]'); b.click(); }); await p2.waitForTimeout(2500);
+    const n = await p2.evaluate(() => document.querySelectorAll('#opsRoot .opt-row').length);
+    ok('いきなり「進行管理」を開いても受注の案件が並ぶ', n >= 3, n);
+    await p2.evaluate(() => { const r = [...document.querySelectorAll('#opsRoot .opt-row')].find(x => x.textContent.includes('R-B2')); r.querySelector('[data-opt="quote"]').click(); });
+    await p2.waitForTimeout(2000);
+    const q = await p2.evaluate(() => ({ tab: document.getElementById('tab-quote-make').classList.contains('active'), ref: (document.getElementById('qf-ref') || {}).value }));
+    ok('「💼 見積」でその案件の見積を開く', q.tab && q.ref === 'R-B2', q);
+    ok('（2 枚目）ページのエラーなし', e2.length === 0, e2);
+    await p2.close();
+  }
   ok('ページのエラーなし', errs.length === 0, errs);
   await ctx.close();
   await b.close(); srv.close();
