@@ -21,17 +21,7 @@ const _SQ_W = { mode: 4, inco: 3, pol: 3, pod: 3, customer: 2 };
 const _SQ_MAX = 15;
 
 function initSimilarQuotes() {
-  ['cond-incoterms', 'cond-mode'].forEach(id => {
-    document.getElementById(id)?.addEventListener('change', _sqSchedule);
-  });
-  ['z2Pol', 'z2Pod', 'qf-customer'].forEach(id => {
-    document.getElementById(id)?.addEventListener('input', _sqSchedule);
-  });
-}
-
-function _sqSchedule() {
-  clearTimeout(_sqTimer);
-  _sqTimer = setTimeout(_sqFetch, 700);
+  // 2026-11：入力のたびに自動で候補を出す動きはやめ、「類似の案件を探す」を押したときだけ検索する
 }
 
 function _sqGetParams() {
@@ -47,62 +37,80 @@ function _sqGetParams() {
 async function _sqFetch() {
   const panel = document.getElementById('sqPanel');
   if (!panel) return;
-
   await _sqFetchLinks();
-
-  const p = _sqGetParams();
-  const hasCriteria = !!(p.inco || p.mode || p.pol || p.pod || p.customer);
   const loadedId = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
+  panel.hidden = false;
+  if (!loadedId && !_sqLinks.length && !_sqSearching) { /* 新規案件でも探せるよう入口は常に出す */ }
+  _sqRenderPanel();
+}
 
-  // 自動サジェスト条件が無くても、案件を開いていれば「🔗 関連付けた案件」だけは表示する
-  if (!hasCriteria) {
-    if (!loadedId && !_sqLinks.length) { panel.hidden = true; return; }
-    panel.hidden = false;
-    panel.innerHTML = _sqLinksHtml();
-    return;
-  }
+// 状態：入口カード（_sqSearching=false）／検索画面（true）
+let _sqSearching = false;
+let _sqSearched  = false;                 // 「探す」を押したか（押すまで結果は出さない）
+let _sqForm = { q: '', ref: '', pol: '', pod: '', mode: '', st: '' };
 
-  const db = window.SupabaseClient;
-  if (!db) return;
-  const { data: sd } = await db.auth.getSession();
-  if (!sd?.session?.user) return;
+function _sqRenderPanel() {
+  const panel = document.getElementById('sqPanel');
+  if (!panel) return;
+  panel.hidden = false;
+  panel.classList.toggle('sq-panel--collapsed', false);
+  panel.innerHTML = _sqLinksHtml() + (_sqSearching ? _sqSearchHtml() : _sqIntroHtml());
+  if (_sqSearching && _sqSearched) _sqListRender(_sqAllResults.slice(0, _sqShowCount), _sqAllResults.length);
+}
 
-  // 全条件 OR で広めに取得（最大 25 件）
-  const orParts = [];
-  if (p.inco)     orParts.push(`incoterms.eq.${p.inco}`);
-  if (p.mode)     orParts.push(`transport_mode.eq.${p.mode}`);
-  // 港・お客様は、代表名と登録済みの別名でも探す（例：「横浜」と「Yokohama」）。PostgREST の or 構文を壊す文字を含む名前は除く
-  const _sqOrSafe = v => v && !/[,()%]/.test(v);
-  if (p.pol)      _sqVariants('port', p.pol).filter(_sqOrSafe).forEach(v => orParts.push(`pol.ilike.%${v}%`));
-  if (p.pod)      _sqVariants('port', p.pod).filter(_sqOrSafe).forEach(v => orParts.push(`pod.ilike.%${v}%`));
-  if (p.customer) _sqVariants('customer', p.customer).filter(_sqOrSafe).forEach(v => orParts.push(`customer.ilike.%${v}%`));
+function _sqIntroHtml() {
+  return `<button type="button" class="sq-intro" onclick="sqStartSearch()">
+    <span class="sq-intro-ico" aria-hidden="true">🔍</span>
+    <b>似ている案件を探す</b>
+    <small>過去の案件から、お客様・積み港・揚げ港・モードで探します。見つけた案件はプレビューで中身を確認でき、行を追加できます</small>
+  </button>`;
+}
 
-  let { data, error } = await db.from('quote_presets')
-    .select('id,name,ref,status,customer,person,incoterms,transport_mode,pol,pod,carrier,updated_at')
-    .or(orParts.join(','))
-    .order('updated_at', { ascending: false })
-    .limit(25);
-  // ref 列が未マイグレーション（docs/sql/quote-preset-ref.sql 未実行）の環境でも
-  // 自動サジェスト自体は動くよう、ref 抜きで再試行する
-  if (error && _sqIsMissingRefColumn(error)) {
-    ({ data, error } = await db.from('quote_presets')
-      .select('id,name,status,customer,person,incoterms,transport_mode,pol,pod,carrier,updated_at')
-      .or(orParts.join(','))
-      .order('updated_at', { ascending: false })
-      .limit(25));
-  }
+function _sqSearchHtml() {
+  const f = _sqForm;
+  const chip = (cls, key, val, label) =>
+    `<button type="button" class="${cls}${f[key] === val ? ' is-on' : ''}" data-${key === 'mode' ? 'mode' : 'status'}="${escHtml(val)}" onclick="${key === 'mode' ? 'sqModeFilter' : 'sqStatusFilter'}(this)">${label}</button>`;
+  return `<div class="sq-head"><span class="sq-head-main"><span class="sq-head-title">🔍 似ている案件を探す</span></span>
+      <button type="button" class="sq-search-toggle" onclick="sqBackToIntro()" title="閉じる">✕</button></div>
+    <div class="sq-search-bar">
+      <div class="sq-search-row"><input id="sqSearchText" class="sq-search-input" placeholder="お客様名・見積名" value="${escHtml(f.q)}" oninput="sqFormInput(this)" onkeydown="if(event.key==='Enter'&&!event.isComposing)sqDoSearch()"></div>
+      <div class="sq-search-row"><input id="sqSearchRef" class="sq-search-input" placeholder="見積もり番号（例：05-2606100-02）" value="${escHtml(f.ref)}" oninput="sqFormInput(this)" onkeydown="if(event.key==='Enter'&&!event.isComposing)sqDoSearch()"></div>
+      <div class="sq-search-row sq-search-row-2col">
+        <input id="sqSearchPol" class="sq-search-input" placeholder="POL（積み港）" value="${escHtml(f.pol)}" oninput="sqFormInput(this)" onkeydown="if(event.key==='Enter'&&!event.isComposing)sqDoSearch()">
+        <input id="sqSearchPod" class="sq-search-input" placeholder="POD（揚げ港）" value="${escHtml(f.pod)}" oninput="sqFormInput(this)" onkeydown="if(event.key==='Enter'&&!event.isComposing)sqDoSearch()">
+      </div>
+      <div class="sq-search-row sq-status-row"><span class="sq-search-label">輸送モード</span>
+        ${chip('sq-mode-chip', 'mode', '', 'すべて')}${chip('sq-mode-chip', 'mode', '海上（FCL）', 'FCL')}${chip('sq-mode-chip', 'mode', '海上（LCL）', 'LCL')}${chip('sq-mode-chip', 'mode', '航空（AIR）', 'AIR')}
+      </div>
+      <div class="sq-search-row sq-status-row"><span class="sq-search-label">状態</span>
+        ${chip('sq-status-chip', 'st', '', 'すべて')}${chip('sq-status-chip', 'st', '提示済み', '提示済み')}${chip('sq-status-chip', 'st', '受注', '受注')}${chip('sq-status-chip', 'st', '失注', '失注')}
+      </div>
+      <div class="sq-search-row sq-go-row">
+        <button type="button" class="sq-go-btn" onclick="sqDoSearch()">🔍 探す</button>
+        <button type="button" class="sq-clear-btn" onclick="sqClearSearch()">条件をクリア</button>
+      </div>
+    </div>
+    <div class="sq-list">${_sqSearched ? '' : '<div class="sq-empty-msg">条件を入れて「探す」を押してください（条件なしでも新しい順に探せます）</div>'}</div>`;
+}
 
-  if (error) { panel.hidden = true; return; }
-
-  // クライアント側スコアリング → スコア降順 → updated_at 降順
-  _sqAllResults = (data || [])
-    .map(r => ({ ...r, _score: _sqScore(r, p) }))
-    .filter(r => r._score > 0)
-    .sort((a, b) => b._score - a._score || new Date(b.updated_at) - new Date(a.updated_at));
-
-  _sqShowCount  = 5;
-  _sqSearchOpen = false;
-  _sqRender(_sqAllResults.slice(0, _sqShowCount), panel, p, _sqAllResults.length);
+// 入口カードを押す：いま開いている見積の条件を初期値に入れて検索画面へ
+function sqStartSearch() {
+  const p = _sqGetParams();
+  _sqForm = { q: p.customer, ref: '', pol: p.pol, pod: p.pod, mode: p.mode, st: '' };
+  if (!/^(海上（FCL）|海上（LCL）|航空（AIR）)$/.test(_sqForm.mode)) _sqForm.mode = '';
+  _sqSearching = true; _sqSearched = false; _sqAllResults = [];
+  _sqRenderPanel();
+  document.getElementById('sqSearchText')?.focus();
+}
+function sqBackToIntro() { _sqSearching = false; _sqSearched = false; _sqRenderPanel(); }
+function sqClearSearch() {
+  _sqForm = { q: '', ref: '', pol: '', pod: '', mode: '', st: '' };
+  _sqSearched = false; _sqAllResults = [];
+  _sqRenderPanel();
+}
+function sqFormInput(el) {
+  const m = { sqSearchText: 'q', sqSearchRef: 'ref', sqSearchPol: 'pol', sqSearchPod: 'pod' };
+  if (m[el.id]) _sqForm[m[el.id]] = el.value;
 }
 
 // 代表名と別名（多すぎると検索条件が長くなるため上限あり）
@@ -371,64 +379,50 @@ function sqToggleSearch() {
   if (_sqSearchOpen) document.getElementById('sqSearchText')?.focus();
 }
 
-// ---- インライン検索 -------------------------------------------------------
-function sqScheduleSearch() {
-  clearTimeout(_sqSearchTimer);
-  _sqSearchTimer = setTimeout(sqDoSearch, 400);
-}
+// ---- 検索（「探す」を押したときだけ実行）----------------------------------
+function sqScheduleSearch() { /* 互換のため残置（自動検索はしない） */ }
 
 async function sqDoSearch() {
-  const q    = (document.getElementById('sqSearchText')?.value || '').trim();
-  const ref  = (document.getElementById('sqSearchRef')?.value  || '').trim();
-  const pol  = (document.getElementById('sqSearchPol')?.value  || '').trim();
-  const pod  = (document.getElementById('sqSearchPod')?.value  || '').trim();
-  const st   = document.querySelector('#sqPanel .sq-status-chip.is-on')?.dataset.status || '';
-  const mode = document.querySelector('#sqPanel .sq-mode-chip.is-on')?.dataset.mode || '';
-
-  // 何も入力なければ auto 結果を表示
-  if (!q && !ref && !pol && !pod && !st && !mode) {
-    _sqListRender(_sqAllResults.slice(0, _sqShowCount), _sqAllResults.length);
-    return;
-  }
-
+  const f = _sqForm;
+  const q = f.q.trim(), ref = f.ref.trim(), pol = f.pol.trim(), pod = f.pod.trim();
   const db = window.SupabaseClient;
-  if (!db) return;
+  if (!db) { quoteShowToast('⚠️ ログインすると探せます', 'warn'); return; }
   const { data: sd } = await db.auth.getSession();
-  if (!sd?.session?.user) return;
+  if (!sd?.session?.user) { quoteShowToast('⚠️ ログインすると探せます', 'warn'); return; }
 
-  let dbq = db.from('quote_presets')
-    .select('id,name,ref,status,customer,person,incoterms,transport_mode,pol,pod,carrier,updated_at')
-    .order('updated_at', { ascending: false })
-    .limit(20);
-
-  if (q)    dbq = dbq.or(`name.ilike.%${q}%,customer.ilike.%${q}%`);
-  if (ref)  dbq = dbq.ilike('ref', `%${ref}%`);
-  if (pol)  dbq = dbq.ilike('pol', `%${pol}%`);
-  if (pod)  dbq = dbq.ilike('pod', `%${pod}%`);
-  if (st)   dbq = dbq.eq('status', st);
-  if (mode) dbq = dbq.eq('transport_mode', mode);
-
-  let { data, error } = await dbq;
-  if (error && _sqIsMissingRefColumn(error)) {
-    // ref 列が未マイグレーションの環境：ref 検索は使えないが他の絞り込みは続行する
-    if (ref) quoteShowToast('⚠️ 見積もり番号での検索はまだ使えません（DB側の設定が必要です）', 'warn', 4000);
-    let dbq2 = db.from('quote_presets')
-      .select('id,name,status,customer,person,incoterms,transport_mode,pol,pod,carrier,updated_at')
+  const safe = v => v && !/[,()%]/.test(v);
+  const build = (withRef) => {
+    let dbq = db.from('quote_presets')
+      .select((withRef ? 'id,name,ref,' : 'id,name,') + 'status,customer,person,incoterms,transport_mode,pol,pod,carrier,updated_at')
       .order('updated_at', { ascending: false })
-      .limit(20);
-    if (q)    dbq2 = dbq2.or(`name.ilike.%${q}%,customer.ilike.%${q}%`);
-    if (pol)  dbq2 = dbq2.ilike('pol', `%${pol}%`);
-    if (pod)  dbq2 = dbq2.ilike('pod', `%${pod}%`);
-    if (st)   dbq2 = dbq2.eq('status', st);
-    if (mode) dbq2 = dbq2.eq('transport_mode', mode);
-    ({ data, error } = await dbq2);
+      .limit(60);
+    if (q) {
+      const parts = [`name.ilike.%${q}%`];
+      _sqVariants('customer', q).filter(safe).forEach(v => parts.push(`customer.ilike.%${v}%`));
+      dbq = dbq.or(parts.join(','));
+    }
+    if (ref && withRef) dbq = dbq.ilike('ref', `%${ref}%`);
+    if (pol) dbq = dbq.or(_sqVariants('port', pol).filter(safe).map(v => `pol.ilike.%${v}%`).join(',') || `pol.ilike.%${pol}%`);
+    if (pod) dbq = dbq.or(_sqVariants('port', pod).filter(safe).map(v => `pod.ilike.%${v}%`).join(',') || `pod.ilike.%${pod}%`);
+    if (f.st)   dbq = dbq.eq('status', f.st);
+    if (f.mode) dbq = dbq.eq('transport_mode', f.mode);
+    return dbq;
+  };
+  let { data, error } = await build(true);
+  if (error && _sqIsMissingRefColumn(error)) {
+    if (ref) quoteShowToast('⚠️ 見積もり番号での検索はまだ使えません（DB側の設定が必要です）', 'warn', 4000);
+    ({ data, error } = await build(false));
   }
-  if (error) return;
+  if (error) { quoteShowToast('⚠️ 検索に失敗しました', 'warn'); return; }
 
-  // auto-params でスコアも付与（参考表示）
-  const p = _sqGetParams();
-  const rows = (data || []).map(r => ({ ...r, _score: _sqScore(r, p) }));
-  _sqListRender(rows, rows.length);
+  const p = { customer: q, pol, pod, mode: f.mode, inco: '' };
+  _sqAllResults = (data || [])
+    .map(r => ({ ...r, _score: _sqScore(r, p) }))
+    .sort((a, b) => b._score - a._score || new Date(b.updated_at) - new Date(a.updated_at));
+  _sqShowCount = 5;
+  _sqSearched = true;
+  const list = document.querySelector('#sqPanel .sq-list');
+  if (list) _sqListRender(_sqAllResults.slice(0, _sqShowCount), _sqAllResults.length);
 }
 
 // ref 列が未マイグレーション（Supabase 側で docs/sql/quote-preset-ref.sql 未実行）のときの
@@ -440,13 +434,13 @@ function _sqIsMissingRefColumn(error) {
 function sqStatusFilter(btn) {
   document.querySelectorAll('#sqPanel .sq-status-chip').forEach(b => b.classList.remove('is-on'));
   btn.classList.add('is-on');
-  sqDoSearch();
+  _sqForm.st = btn.dataset.status || '';
 }
 
 function sqModeFilter(btn) {
   document.querySelectorAll('#sqPanel .sq-mode-chip').forEach(b => b.classList.remove('is-on'));
   btn.classList.add('is-on');
-  sqDoSearch();
+  _sqForm.mode = btn.dataset.mode || '';
 }
 
 function sqLoadMore() {
@@ -621,6 +615,10 @@ window.sqToggleCollapse  = sqToggleCollapse;
 window.sqToggleSearch    = sqToggleSearch;
 window.sqScheduleSearch  = sqScheduleSearch;
 window.sqDoSearch        = sqDoSearch;
+window.sqStartSearch     = sqStartSearch;
+window.sqBackToIntro     = sqBackToIntro;
+window.sqClearSearch     = sqClearSearch;
+window.sqFormInput       = sqFormInput;
 window.sqStatusFilter    = sqStatusFilter;
 window.sqModeFilter      = sqModeFilter;
 window.sqLoadMore        = sqLoadMore;
