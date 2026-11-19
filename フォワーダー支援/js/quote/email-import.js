@@ -564,7 +564,19 @@
     } finally { input.value = ''; }
   }
 
-  function openEmailImport() {
+  // 取り込み画面の貼り付け文・確認画面は、閉じても残る（うっかり閉じても失わないため）。ただし、前の取り込みと「入口」が違う（別のサブコン見出し・通常の取込）か、
+  // 前の取り込みを挿入し終えているときは、別のサブコンの名前が入った確認画面が残らないよう、開くときに空にする。
+  let _bodyCtx = null;    // いま貼り付け文・確認画面にある取り込みの入口（''＝サブコンを決めない取込・サブコン名＝そのサブコン専用）。null＝なし
+  let _spent = false;     // 直前の取り込みを挿入し終えた
+  function _resetImportBody() {
+    const t = document.getElementById('eiText'); if (t) t.value = '';
+    _parsed = null; _bodyCtx = null; _spent = false;
+    const w = document.getElementById('eiReviewWrap'); if (w) w.innerHTML = '';
+    const a = document.getElementById('eiActions'); if (a) a.hidden = true;
+  }
+  function openEmailImport(ctx) {
+    const want = typeof ctx === 'string' ? ctx : '';
+    if (_spent || (_bodyCtx !== null && _bodyCtx !== want)) _resetImportBody();
     _svCtx = null; _renderSvCtx();
     _setStoreOnly(false);
     _curEntryId = null;
@@ -877,7 +889,27 @@
     return parsed;
   }
   // 確認画面で品名・単位を直したとき：マスターに合わせる（品名→マスターの名前＋既定のカテゴリ・単位／単位→単位のマスターの名前）
+  // 品名・カテゴリ・単位を、表示した時点の値から直した行は「修正済み」。✅（そのまま合っている）は選べない
+  function eiSyncEdited(tr) {
+    if (!tr) return;
+    const v = sel => (tr.querySelector(sel)?.value || '').trim(), d = tr.dataset;
+    const edited = v('.ei-name') !== (d.baseName || '').trim() || v('.ei-cat') !== (d.baseCat || '').trim() || v('.ei-unit') !== (d.baseUnit || '').trim();
+    d.edited = edited ? '1' : '';
+    tr.classList.toggle('ei-edited', edited);
+    const okB = tr.querySelector('.ei-rate-btn[data-k="ok"]'), tag = tr.querySelector('.ei-edited-tag');
+    if (okB) okB.disabled = edited;
+    if (tag) tag.hidden = !edited;
+    if (edited && d.rate === 'ok') {
+      d.rate = ''; tr.classList.remove('ei-rate-okrow');
+      tr.querySelectorAll('.ei-rate-btn').forEach(b => b.classList.remove('on'));
+    }
+  }
   function eiOnReviewChange(ev) {
+    _onReviewChangeCore(ev);
+    const t = ev && ev.target, tr = t && t.closest && t.closest('tr.ei-row');
+    if (tr && t.classList && (t.classList.contains('ei-name') || t.classList.contains('ei-cat') || t.classList.contains('ei-unit'))) eiSyncEdited(tr);
+  }
+  function _onReviewChangeCore(ev) {
     const t = ev && ev.target; if (!t || !t.classList) return;
     const tr = t.closest && t.closest('tr.ei-row'); if (!tr) return;
     const toast = m => { if (window.quoteShowToast) quoteShowToast(m, 'info', 2200); };
@@ -905,6 +937,7 @@
     if (!text.trim()) { if (window.quoteShowToast) quoteShowToast('⚠️ メール本文を貼り付けてください', 'warn'); return; }
     const rules = _svCtx ? _rulesOf(_svCtx.canon) : null;
     _parsed = parseQuoteEmail(text, { defaultCcy: rules && rules.ccy, qtyAsUnit: rules && rules.qtyAsUnit });
+    _bodyCtx = _svCtx ? _svCtx.canon : '';
     if (rules) _applyRules(_parsed, rules);
     _applyMaster(_parsed);   // 品名・単位はマスターにそろえる
     renderEiReview();
@@ -950,6 +983,7 @@
     html += unreadHtml(items.length);
     if (_parsed.ignored && _parsed.ignored.length) html += '<details class="ei-ignored"><summary>🚫 ルールで除外した行（' + _parsed.ignored.length + ' 件）</summary><ul>' + _parsed.ignored.slice(0, 12).map(x => '<li>' + _esc(x.src) + '</li>').join('') + '</ul><p>このサブコンの「取り込まない行」のルールに当たった行です。元に戻すときは、マスター管理のサブコン詳細「メール取込ルール」から外してください。</p></details>';
     if (!items.length) html += '<div class="ei-rem-only">💡 明細行は抽出できませんでした。リマークだけを取り込めます（下のリマーク候補）。</div>';
+    if (_svCtx && items.length) html += '<details class="ei-rate-guide"><summary>❓ ✅と❌の選び方</summary><div><p><b>✅ 合っている</b>：品名・数量・単位・通貨・金額が、<u>どれも直さなくてよい</u>とき。覚えさせると、同じ書き方の行が次回から確度「高」になります。</p><p><b>❌ 明細ではない</b>：費用の行ではないものが読まれたとき（合計・挨拶・署名・日付・電話・住所・注意書きなど）。覚えさせると、同じ書き方の行が次回から自動で除外されます。</p><p><b>直したとき</b>：品名・カテゴリ・単位を直した行は、✅は押せません（直した時点で「そのままでは合っていなかった」ため）。直した内容は自動で「直した例」として記録されます。</p><p><b>迷ったとき</b>：何も押さなくて大丈夫です。間違ったルールを覚えさせるより安全です。</p></div></details>';
     if (items.length) html += '<table class="ei-table"><thead><tr>' +
       '<th><input type="checkbox" id="eiChkAll" checked onchange="eiToggleAll(this.checked)"></th>' +
       '<th>グループ</th><th>カテゴリ</th><th>サブコン</th><th>品名</th><th>数量</th><th>単位</th><th>通貨</th><th>単価</th><th class="ei-tax-th" title="課税対象の行にチェック。見出しのチェックで全行を一括切替">課税 <input type="checkbox" id="eiTaxAll" onchange="eiToggleAllTax(this.checked)"></th><th>フラグ</th><th>備考</th><th>確度</th>' +
@@ -961,7 +995,7 @@
       gi++;
       const cat = e.ruleCat || inferCat(e.name);
       const flags = (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費 ' : '') + (e.priceHi != null ? '幅〜' + Math.round(e.priceHi * 100) / 100 : '') + (e.ccyAssumed ? ' 通貨は既定' : '') + (e.ruleHit ? ' 🧠置換' : '') + (e.okHit ? ' ✅確認済みの形' : '') + (e.masterHit ? ' 📚マスター名' : '') + (e.unitMaster ? ' 📚単位' : '') + (e.unitFilled ? ' 単位は既定' : '');
-      html += `<tr data-gi="${gi}" data-src="${_esc(e.src || '')}" data-un-auto="${e.unitFilled ? '1' : ''}" data-orig-name="${_esc(e.origName || e.name)}" data-orig-cat="${_esc(cat)}" data-orig-unit="${_esc(e.unit || '')}" class="ei-row ei-${e.conf}">` +
+      html += `<tr data-gi="${gi}" data-src="${_esc(e.src || '')}" data-un-auto="${e.unitFilled ? '1' : ''}" data-orig-name="${_esc(e.origName || e.name)}" data-orig-cat="${_esc(cat)}" data-orig-unit="${_esc(e.unit || '')}" data-base-name="${_esc(e.name || '')}" data-base-cat="${_esc(cat)}" data-base-unit="${_esc(e.unit || '')}" class="ei-row ei-${e.conf}">` +
         `<td><input type="checkbox" class="ei-chk" checked></td>` +
         `<td class="ei-group-cell"><input type="text" class="ei-in ei-group" value="${_esc(curGroup)}" title="挿入時：小計行のラベル、かつ各行の「パターン（任意）」に登録されます（空欄可）">` +
         `<button type="button" class="ei-group-pattern-btn" title="同じグループのチェック済み行を「行パターン」として登録" onclick="eiSaveGroupAsPattern(this)">🔖</button></td>` +
@@ -976,7 +1010,7 @@
         `<td class="ei-flags" title="解析されたフラグ（都度/参考/実費）">${_esc(flags.trim() || '—')}</td>` +
         `<td><input type="text" class="ei-in ei-note" value="${_esc(e.note || '')}"></td>` +
         `<td>${confBadge(e.conf)}</td>` +
-        (_svCtx ? `<td class="ei-rate-cell"><button type="button" class="ei-rate-btn" data-k="ok" onclick="eiRate(this,'ok')" title="この行の読み取りは合っている（覚えると、同じ形の行は確度「高」になります）">✅</button><button type="button" class="ei-rate-btn" data-k="ng" onclick="eiRate(this,'ng')" title="明細ではない行（覚えると、同じ形の行は次回から自動で除外されます）">❌</button></td>` : '') +
+        (_svCtx ? `<td class="ei-rate-cell"><button type="button" class="ei-rate-btn" data-k="ok" onclick="eiRate(this,'ok')" title="この行の読み取りは合っている（覚えると、同じ形の行は確度「高」になります）">✅</button><button type="button" class="ei-rate-btn" data-k="ng" onclick="eiRate(this,'ng')" title="明細ではない行（覚えると、同じ形の行は次回から自動で除外されます）">❌</button><span class="ei-edited-tag" hidden title="品名・カテゴリ・単位を直した行です。直した内容が「直した例」として記録されるので、✅は不要です">✏️ 修正済み</span></td>` : '') +
         `</tr>`;
     });
     if (items.length) html += '</tbody></table>';
@@ -1093,7 +1127,7 @@
     canon = String(canon || '').trim();
     if (!canon) return;
     if (_isViewMode()) { if (window.quoteShowToast) quoteShowToast('🔒 閲覧モードです。「✏️ 編集」を押してから取り込んでください', 'warn'); return; }
-    openEmailImport();
+    openEmailImport(canon);
     _svCtx = { canon };
     document.getElementById('emailImportBox')?.classList.add('ei-sv-ctx');
     const t = document.getElementById('eiTitle'); if (t) t.textContent = '📩 メール取込 — 📦 ' + canon;
@@ -1137,6 +1171,7 @@
   // 確認画面の行の評価（✅合っている／❌明細ではない）。もう一度押すと取り消し。❌の行は挿入のチェックも外す
   function eiRate(btn, kind) {
     const tr = btn && btn.closest('tr'); if (!tr) return;
+    if (kind === 'ok' && tr.dataset.edited === '1') { if (window.quoteShowToast) quoteShowToast('ℹ️ 直した行は ✅ を押せません（直した内容が「直した例」として記録されます）', 'info'); return; }
     const cur = tr.dataset.rate || '', next = cur === kind ? '' : kind;
     tr.dataset.rate = next;
     tr.classList.toggle('ei-rate-okrow', next === 'ok'); tr.classList.toggle('ei-rate-ngrow', next === 'ng');
@@ -1166,7 +1201,7 @@
     document.querySelectorAll('#eiReviewWrap .ei-table tbody tr').forEach(tr => {
       const rate = tr.dataset.rate || '', src = tr.dataset.src || '';
       if (rate === 'ng' && src) { fbItems.push({ kind: 'ignore', shape: src }); if (_upsertShape(r.ignore, src)) ignN++; return; }   // ❌＝明細ではない行の形（直した内容は覚えない）
-      if (rate === 'ok' && src && _upsertShape(r.ok, src)) okN++;
+      if (rate === 'ok' && tr.dataset.edited !== '1' && src && _upsertShape(r.ok, src)) okN++;
       const orig = (tr.dataset.origName || '').trim();
       const cur = (tr.querySelector('.ei-name')?.value || '').trim();
       const cat = tr.querySelector('.ei-cat')?.value || '';
@@ -1547,6 +1582,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
       if (usedKeys.length || okKeys.length || ignKeys.length) _bumpRuleUse(_svCtx.canon, usedKeys, { ok: okKeys, ignore: ignKeys });
     }   // 待たない（取込の動作を遅くしない）
     const remN = _applyGlobalRemarks(rem.global);
+    _spent = true;   // 挿入し終えた取り込みは、次に開くときに空にする
     // 保管した自由入力から取り込んだときは、その 1 件を取込済みにする（原文は案件に残る）。
     // それ以外（貼り付けから直接）は、原文を案件の取込元メモ（#qf-import-src）に残す
     const doneId = _curEntryId;

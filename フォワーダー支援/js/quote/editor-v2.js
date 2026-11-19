@@ -168,12 +168,12 @@
     const m = $('tbMenuMore'); if (!m) return;
     m.querySelectorAll('.tb-menu-group').forEach(g => { const t = g.textContent.trim(); g.dataset.e2mg = t === '操作' ? 'misc' : t === '取り込み・送る' ? 'case' : 'set'; });
   }
-  // ④ 費用：上に［すべて折りたたむ］［すべて展開］［＋ 行を追加］［📦 チャージ］（既存の関数を呼ぶだけ）
+  // ④ 費用：上に［すべて折りたたむ］［すべて展開］［＋ サブコンを追加］［📦 チャージ］（既存の関数を呼ぶだけ）
   function buildCostBar() {
     const w = $('tableWrap'); if (!w || $('e2CostBar')) return;
     const bar = document.createElement('div'); bar.id = 'e2CostBar';
-    bar.innerHTML = '<button type="button" data-f="collapseAllGroups">▶ すべて折りたたむ</button><button type="button" data-f="expandAllGroups">▼ すべて展開</button><button type="button" data-f="addRow">＋ 行を追加</button><button type="button" data-f="lcOpenPicker">📦 チャージ</button>';
-    bar.addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; const f = window[b.dataset.f]; if (typeof f === 'function') { try { f(); } catch (x) {} } });
+    bar.innerHTML = '<button type="button" data-f="collapseAllGroups">▶ すべて折りたたむ</button><button type="button" data-f="expandAllGroups">▼ すべて展開</button><button type="button" data-f="openAddSubconFrame" class="e2-primary" title="先にサブコン（費用の取引先）の枠をつくり、その中へ明細を入力します">＋ サブコンを追加</button><button type="button" data-f="lcOpenPicker">📦 チャージ</button>';
+    bar.addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; const f = window[b.dataset.f]; if (typeof f === 'function') { try { f(b); } catch (x) {} } });
     const c = w.querySelector(':scope > .container') || w.firstElementChild; w.insertBefore(bar, c);
   }
 
