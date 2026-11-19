@@ -4141,7 +4141,7 @@
                 <td colspan="4"></td>
                 <td style="text-align:right; color:#6b21a8; font-weight:bold;">社内利益<small style="font-weight:600;">（PS込み）</small></td>
                 <td colspan="3" class="tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#f5edfb;">
-                  <span class="t-sell">代理店収益</span> <span id="tot-ps-rev">—</span>
+                  <span class="t-sell" id="tot-ps-label">PS（代理店へ返す）</span> <span id="tot-ps-rev">—</span>
                 </td>
                 <td colspan="2" class="profit-cell pr-cell" id="tot-ps-profit">—</td>
               </tr>
@@ -4689,8 +4689,8 @@
             <span class="pct-group">
               <input type="number" data-field="pprate" class="w-pct-rate" min="0" step="0.01" value="0" placeholder="%" title="%率（例: 0.3 → 0.3%）" />
               <span class="pct-x">%×</span>
-              <select class="w-ppref" title="参照行（選択するとその行の仕入単価を基準額として使用。変更されると自動再計算）"><option value="">—</option></select>
-              <input type="number" data-field="ppbase" class="w-pct-base" min="0" value="0" placeholder="基準額" title="基準金額（例: CIF価格・保険価格など。仕入通貨と同じ通貨で入力）" />
+              <select class="w-ppref" title="参照行（選択するとその行の仕入単価を基準額として使用。変更されると自動再計算）"><option value="">—</option></select><button type="button" class="ppref-pick" title="明細テーブルの行を直接クリックして、％の基準にする行を選びます（同じ品名が複数あっても間違えません）">🎯 表から選ぶ</button>
+              <input type="number" data-field="ppbase" class="w-pct-base" min="0" value="0" placeholder="基準額" title="基準金額（例: CIF価格・保険価格など。仕入通貨と同じ通貨で入力）" /><span class="ppref-where" hidden><span class="ppref-where-txt"></span><button type="button" class="ppref-where-go" title="表で参照先の行を探して光らせます">📍 表で見る</button></span>
             </span>
           </span>
           <span class="stk-sell"><span class="stk-tag t-sell">売</span><span class="min-note" aria-hidden="true"></span><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly data-base="0" /><small class="bp-base-hint" hidden title="仕入単価を売通貨へ換算した正確な金額（端数切り捨て前）です。これを下回る売単価にすると赤字になります。※このライン自体が仕入通貨と売通貨の為替レートに基づく目安であり、実際のレートと差が出る場合があります"></small></span>
@@ -4713,7 +4713,7 @@
           <span class="mh-grp">単価の扱い</span>
           <button type="button" class="zero-confirm-btn" tabindex="-1" title="あえて0円にする（0円であることを確認済みの目印。もう一度クリックで解除）">あえて¥0</button>
           <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
-          <button type="button" class="profit-share-btn" tabindex="-1" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内の利益・粗利率にのみ計上します（もう一度クリックで解除）。">PS</button>
+          <button type="button" class="profit-share-btn" tabindex="-1" title="PROFIT SHARE。仕入（最低料金を含む）に金額があれば「代理店へ返す」扱いで売は 0・社内利益からマイナス、仕入が 0 で乗せ幅（売）に金額があれば「代理店から受け取る」扱いで社内利益にプラスします。客先見積もりには出しません（もう一度クリックで解除）。">PS</button>
           <button type="button" class="cond-charge-btn" tabindex="-1" title="必要時のみ請求。金額は客先にも表示しますが、見積もり合計には加算しません（もう一度クリックで解除）。">必要時</button>
           <button type="button" class="ref-info-btn" tabindex="-1" title="参考情報。金額は客先にも表示しますが、見積もり合計には加算しません。「必要時（必要なときだけ請求）」とは別に、参考として提示したい行に使用します（もう一度クリックで解除）。">参考</button>
           <button type="button" class="est-btn" tabindex="-1" title="概算（金額は目安）。単価・金額の前に「約」を付けて表示します。見積もり合計には通常どおり加算されます（もう一度クリックで解除）。">概算</button>
