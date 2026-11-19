@@ -1405,6 +1405,7 @@
           copiedFromHtml +
           linksSection +
           _cc3Who(r, lockedBy) +
+          (typeof window.opsCardHtml === 'function' ? window.opsCardHtml(r, lockedBy) : '') +
           (sd ? '' : chatFooter) +
           '<div class="cloud-card-foot">' +
             '<span class="cloud-card-who" title="' + escHtml(_whoTitle(r)) + '">🕒 ' + ts + '</span>' +
@@ -2823,6 +2824,35 @@
     }
     quoteShowToast('📝 自由入力を保管しました（📩 未取込）', 'success', 3500);
     cloudListPresets(true);
+    return true;
+  }
+  // 案件を開かずに、案件データ fields の一部だけを書き換える共通の入口（📦 受注後の業務の進捗 ops-progress.js が使う）。
+  // patch＝{ 'qf-xxx': 文字列 }。他メンバーが編集中なら書かない（RLS でも 0 行）。画面で開いている案件なら隠し入力にも反映（あとの保存で消さない）。
+  // opts.comment があれば申し送り（quote_comments）にも 1 行残す。戻り値 true＝書けた
+  async function cloudWriteCaseFields(rawId, patch, opts) {
+    opts = opts || {};
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return false; }
+    const id = decodeURIComponent(rawId);
+    const row = _cloudRows.find(r => r.id === id);
+    const lockedBy = row ? _lockedByOther(row) : null;
+    if (lockedBy) { quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません（作業が終わってからお試しください）', 'warn', 5000); return false; }
+    const base = await _freshRowData(id, row);
+    if (!base) { quoteShowToast('⚠️ 案件を読み込めませんでした', 'warn', 4000); return false; }
+    const me = _cloudUser.email, nowIso = new Date().toISOString();
+    const newData = Object.assign({}, base, { fields: Object.assign({}, base.fields, patch) });
+    const { data: upd, error } = await c.from(_table())
+      .update({ data: newData, owner_email: me, updated_at: nowIso }).eq('id', id).select('id');
+    if (error) { quoteShowToast('⚠️ 保存に失敗：' + error.message, 'warn', 5000); return false; }
+    if (!upd || !upd.length) { quoteShowToast('🔒 他メンバーが編集中のため変更できません（作業が終わってからお試しください）', 'warn', 6000); return false; }
+    if (row) { row.data = newData; row.owner_email = me; row.updated_at = nowIso; }
+    _bodyCacheDrop(id);
+    if (_loadedCloudId === id) {
+      Object.keys(patch).forEach(k => { const el = document.getElementById(k); if (el) el.value = patch[k]; });
+      _loadedCloudTs = nowIso;
+    }
+    if (opts.comment) await _followPostComment(c, id, opts.comment);
+    if (!opts.noRender) _applyCloudFilter();
     return true;
   }
   // ================================================================
@@ -4364,6 +4394,7 @@
     delete newData.fields['qf-versions'];   // 提示履歴（版）はコピー元の案件のものなので引き継がない
     if (_followOn()) newData.fields['qf-follower'] = (_cloudUser && _cloudUser.email) || ''; else delete newData.fields['qf-follower'];   // フォロー担当はコピーした人から（引き継ぎ履歴はコピー元のものなので消す）
     delete newData.fields['qf-follow-log'];
+    delete newData.fields['qf-ops'];   // 受注後の業務の進捗はコピー元の案件のもの
     delete newData.fields['qf-related-data'];   // 関連番号・メール件名も元の引き合いに固有のため引き継がない
     const existingNames = _cloudRows.map(r => r.name).concat(opts.usedNames ? Array.from(opts.usedNames) : []);
     let baseName = src.name + (asSub ? ' のサブ' : ' のコピー');
@@ -5408,6 +5439,8 @@
   window.cloudIsLoggedIn = () => !!_cloudUser;
   window.cloudConfirmLeaveUnsaved = _confirmLeaveUnsaved;
   window.cloudAddFreeEntry = cloudAddFreeEntry;
+  window.cloudWriteCaseFields = cloudWriteCaseFields;
+  window.cloudIsLockedByOther = id => { const r = (_cloudRows || []).find(x => x.id === id); return r ? _lockedByOther(r) : null; };
   window.cloudFollowMe = cloudFollowMe;
   window.cloudFollowAssign = cloudFollowAssign;
   window.cloudFollowRelease = cloudFollowRelease;
