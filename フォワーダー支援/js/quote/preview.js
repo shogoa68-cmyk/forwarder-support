@@ -879,7 +879,7 @@
       const pc = profitForDisplay > 0 ? 'pv-pos' : profitForDisplay < 0 ? 'pv-neg' : 'pv-zero';
       const _hqCls = d._hideQuote ? ' pv-row-hidden-quote' : '';
       const _hqBadge = d._ps
-        ? '<span class="pv-hq-badge pv-ps-badge" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内利益にのみ計上します">🤝 PROFIT SHARE</span> '
+        ? '<span class="pv-hq-badge pv-ps-badge" title="PROFIT SHARE（代理店へ返す＝マイナス／代理店から受け取る＝プラス）。客先見積もりには出さず、社内利益にだけ計上します">🤝 PROFIT SHARE</span> '
         : d._outRange && d._outReason === 'incoterms'
         ? '<span class="pv-hq-badge pv-oor-badge" title="いまの貿易条件には適用されない行のため、合計・PDF・CSV・Excel から除外されています（プレビューには打ち消し線で表示）">🏷️ 貿易条件外</span> '
         : d._outRange && d._outReason === 'condition'

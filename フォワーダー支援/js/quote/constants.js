@@ -515,7 +515,17 @@ function minAmt(amount, min) {
   return m > 0 ? Math.max(amount, m) : amount;
 }
 // 画面の行（id）から最低料金を読んで当てる。side：'cost'（仕入）／'sell'（売値）
+// PROFIT SHARE の向き：仕入（単価か最低料金）に金額がある行＝代理店へ返す（売は 0・マイナス計上）。
+// 仕入が 0 で乗せ幅（売）に金額がある行＝代理店から受け取る（売をそのままプラス計上）
+function psPayMode(id) {
+  if (document.getElementById('ps-' + id)?.value !== '1') return false;
+  const n = f => parseFloat(document.getElementById(f + '-' + id)?.value) || 0;
+  return n('pp') > 0 || n('ppmin') > 0;
+}
+window.psPayMode = psPayMode;
 function applyRowMin(amount, id, side) {
+  // PROFIT SHARE（代理店へ仕入の金額を返す）の行は売に数字を入れない＝売の最低料金も当てない
+  if (side === 'sell' && psPayMode(id)) return 0;
   const el = document.getElementById((side === 'cost' ? 'ppmin-' : 'bpmin-') + id);
   return minAmt(amount, el ? el.value : 0);
 }
