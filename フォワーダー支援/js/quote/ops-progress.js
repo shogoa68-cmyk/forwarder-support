@@ -19,8 +19,8 @@
     'exp-fcl': { name: '輸出・海上（FCL）', s: ['ブッキング依頼', 'ブッキング確定（B/K 番号の受領）', 'バンニング・CY 搬入の手配', 'SI（船積指示）の提出', '輸出通関', '本船出港', 'B/L の発行・送付', '請求書の発行'] },
     'exp-lcl': { name: '輸出・海上（LCL）', s: ['ブッキング依頼', 'ブッキング確定', 'CFS 搬入の手配', 'SI（船積指示）の提出', '輸出通関', '本船出港', 'B/L の発行・送付', '請求書の発行'] },
     'exp-air': { name: '輸出・航空', s: ['ブッキング（スペースの確保）', '搬入の手配', '輸出通関', '搭載・出発', 'AWB の送付', '請求書の発行'] },
-    'imp-fcl': { name: '輸入・海上（FCL）', s: ['到着案内（A/N）の受領', '書類の受領（B/L・INV・P/L）', '輸入通関', 'D/O の取得・搬出', '配送', '空コンテナの返却', '請求書の発行'] },
-    'imp-lcl': { name: '輸入・海上（LCL）', s: ['到着案内（A/N）の受領', '書類の受領（B/L・INV・P/L）', '輸入通関', '貨物の引き取り（CFS）', '配送', '請求書の発行'] },
+    'imp-fcl': { name: '輸入・海上（FCL）', s: ['到着案内（A/N）の受領', '本船の入港（到着）', '書類の受領（B/L・INV・P/L）', '輸入通関', 'D/O の取得・搬出', '配送', '空コンテナの返却', '請求書の発行'] },
+    'imp-lcl': { name: '輸入・海上（LCL）', s: ['到着案内（A/N）の受領', '本船の入港（到着）', '書類の受領（B/L・INV・P/L）', '輸入通関', '貨物の引き取り（CFS）', '配送', '請求書の発行'] },
     'imp-air': { name: '輸入・航空', s: ['到着案内の受領', '書類の受領（AWB・INV・P/L）', '輸入通関', '貨物の引き取り', '配送', '請求書の発行'] },
     'dom':     { name: '国内の手配', s: ['手配', '実施（集荷・配送など）', '請求書の発行'] },
     'gen':     { name: '一般', s: ['手配（ブッキング）', '書類の準備', '通関', '輸送', '請求書の発行'] },
@@ -83,7 +83,8 @@
     const p = n => String(n).padStart(2, '0');
     return (d.getFullYear() !== new Date().getFullYear() ? d.getFullYear() + '/' : '') + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
   }
-  const nameOf = e => (e && typeof window.cloudNameFor === 'function') ? (window.cloudNameFor(e) || e) : (e || '');
+  const AUTO_BY = 'auto:colins';   // サイバーポートの自動確認（COLINS の実績）で入ったチェックの印
+  const nameOf = e => e === AUTO_BY ? '🛰 サイバーポート（自動）' : (e && typeof window.cloudNameFor === 'function') ? (window.cloudNameFor(e) || e) : (e || '');
   const rowsAll = () => (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []);
   const rowById = id => rowsAll().find(r => r.id === id);
   const caseTitle = r => {
@@ -181,6 +182,7 @@
     $('opmTitle').textContent = isJob ? '☑ 作業の進み具合' : '📦 受注後の業務';
     const pct = sm.total ? Math.round(sm.done / sm.total * 100) : 0;
     let h = isJob ? '<p class="opm-note">' + (_cur.shipId ? 'この便の' : 'この進行の') + '、手配から請求までの作業を記録します（チームで共有）。チェックを入れると、日時と名前が残ります。</p>' : '<p class="opm-note">受注した案件の、手配から請求までの作業を記録します（チームで共有）。チェックを入れると、日時と名前が残ります。</p>';
+    if (!isJob && AUTO.map && AUTO.map.has(_cur.id) || isJob && autoTargetOfJob(jobById(_cur.jobId), _cur.shipId)) h += '<p class="opm-auto">🛰 サイバーポートで追跡中：出港・入港の実績、空コンテナの返却が入ると、当てはまる作業に自動でチェックが入ります（朝夕の自動確認の結果から）。</p>';
     if (lockedBy) h += '<p class="opm-lock">🔒 ' + esc(nameOf(lockedBy)) + ' さんがこの案件を編集中のため、いまは見るだけです。</p>';
     else if (ro) h += '<p class="opm-lock">ログインすると記録できます。</p>';
     h += '<div class="opm-prog"><div class="opm-bar"><span style="width:' + pct + '%"></span></div><b>' + sm.done + ' / ' + sm.total + ' 完了</b>' +
@@ -190,7 +192,7 @@
       return '<li class="opm-step' + (x.d ? ' is-done' : '') + (isNext ? ' is-next' : '') + '">' +
         '<button type="button" class="opm-chk" data-opm="toggle" data-i="' + i + '" role="checkbox" aria-checked="' + x.d + '"' + (ro ? ' disabled' : '') + ' title="' + (x.d ? '完了を取り消す' : '完了にする') + '">' + (x.d ? '✓' : '') + '</button>' +
         '<div class="opm-step-main"><span class="opm-step-l">' + (isNext ? '<em class="opm-next-tag">次</em>' : '') + esc(x.l) + '</span>' +
-          (x.d && x.at ? '<small class="opm-done-by">✓ ' + esc(whenText(x.at)) + (x.by ? ' ' + esc(nameOf(x.by)) : '') + '</small>' : '') + '</div>' +
+          (x.d && x.at ? '<small class="opm-done-by">✓ ' + esc(whenText(x.at)) + (x.by ? ' ' + esc(nameOf(x.by)) : '') + (x.src ? '（' + esc(x.src) + '）' : '') + '</small>' : '') + '</div>' +
         (x.d ? '' : '<label class="opm-due-w' + dueCls(x.due, today) + '"><span>期限</span><input type="date" class="opm-due" data-i="' + i + '" value="' + esc(x.due || '') + '"' + (ro ? ' disabled' : '') + '></label>') +
         (ro ? '' : '<span class="opm-tools">' +
           '<button type="button" data-opm="rename" data-i="' + i + '" title="作業名を変える">✎</button>' +
@@ -224,6 +226,7 @@
     const me = typeof window.cloudCurrentEmail === 'function' ? window.cloudCurrentEmail() : '';
     x.d = !x.d;
     if (x.d) { x.at = new Date().toISOString(); x.by = me; } else { x.at = ''; x.by = ''; }
+    x.src = '';   // 自動で入ったチェックを外しても、同じ作業へは二度と自動で入れない（st.ax に残る）
     const sm = summary(_cur.st);
     commit(x.d ? ('✅ 業務：「' + x.l + '」を完了' + (sm.all ? '（すべての作業が完了）' : '')) : '');
   }
@@ -909,8 +912,113 @@
     if (typeof ol === 'function' && !ol.__opsWrapped) { const wl = function () { _pendingLink = null; return ol.apply(this, arguments); }; wl.__opsWrapped = true; window.cloudLoadPreset = wl; }
   }
 
+  // ---------- 🛰 サイバーポートの自動確認（COLINS）の実績から、出港・入港・返却のチェックを自動で入れる ----------
+  // 朝夕の自動確認（cp_watch_targets.snapshot＝注目項目の写し）を読み、実績が入っていれば当てはまる作業を「済み」にする。
+  //  - 当てはまる作業：作業名で判断（出港／搭載・出発、入港・到着（「到着案内」は除く）、空コンテナの返却）
+  //  - 往復の案件：【往路】【復路】の作業は、追跡の向き（輸出／輸入）と合う側だけ
+  //  - 一度自動で入れた作業は st.ax に控え、人が外したら二度と自動では入れない
+  //  - 書き込みは人の操作と同じ入口（他のメンバーが編集中の案件は、次の機会に）。5 分に 1 回まで
+  const AUTO = { at: 0, busy: false, missing: false, map: null };
+  const AUTO_EV = [
+    { k: 'dep', re: /出港|出発/, name: '出港実績' },
+    { k: 'arr', re: /入港|到着(?!案内)/, name: '入港実績' },
+    { k: 'ret', re: /空コンテナの返却|空コン返却/, name: '空コンテナの返却実績' },
+  ];
+  function parseVal(v) {
+    const m = /^(\d{4})[-/](\d{2})[-/](\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(String(v || ''));
+    if (!m) return null;
+    const d = new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0));
+    return isNaN(d) ? null : d;
+  }
+  const valText = d => (d.getMonth() + 1) + '/' + d.getDate() + (d.getHours() || d.getMinutes() ? ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') : '');
+  // 追跡の写しから「済んだこと」を取り出す（{dep, arr, ret} → Date）
+  function autoEvents(t) {
+    const items = Array.isArray(t && t.snapshot) ? t.snapshot : [];
+    const ev = {};
+    const firstVal = re => { for (const it of items) if (re.test(String(it && it.k || '')) && it.val) { const d = parseVal(it.val); if (d) return d; } return null; };
+    ev.dep = firstVal(/^v:.*:pol:atd$/);
+    // 入港：積み替えがあれば最後の積み替え本船の入港、無ければ本船の荷揚港の入港
+    const tr = items.filter(it => /^v:.*:tr(\d+)pod:ata$/.test(String(it && it.k || '')));
+    if (tr.length) {
+      const last = tr.slice().sort((a, b) => +/tr(\d+)pod/.exec(b.k)[1] - +/tr(\d+)pod/.exec(a.k)[1])[0];
+      ev.arr = last.val ? parseVal(last.val) : null;
+    } else ev.arr = firstVal(/^v:.*:pod:ata$/);
+    const rets = items.filter(it => /^c:.*:retAct$/.test(String(it && it.k || '')));
+    if (rets.length && rets.every(it => it.val)) ev.ret = rets.map(it => parseVal(it.val)).filter(Boolean).sort((a, b) => b - a)[0] || null;
+    return ev;
+  }
+  // 作業の並び st に、追跡の結果 t を当てはめる。変えた作業の一覧を返す（st は書き換える）
+  function autoApply(st, t, dirField) {
+    if (!st || !Array.isArray(st.s) || !t) return [];
+    const ev = autoEvents(t);
+    if (!ev.dep && !ev.arr && !ev.ret) return [];
+    const legDir = { export_import: { '往路': 'export', '復路': 'import' }, import_export: { '往路': 'import', '復路': 'export' } }[dirField] || null;
+    st.ax = Array.isArray(st.ax) ? st.ax : [];
+    const done = [];
+    st.s.forEach(x => {
+      if (x.d || st.ax.includes(x.id)) return;
+      const m = /^【(往路|復路)】/.exec(x.l || '');
+      if (m && legDir && legDir[m[1]] !== t.direction) return;
+      const l = String(x.l || '').replace(/^【(往路|復路)】/, '');
+      const e = AUTO_EV.find(a => ev[a.k] && a.re.test(l));
+      if (!e) return;
+      const d = ev[e.k];
+      x.d = true; x.at = d.toISOString(); x.by = AUTO_BY; x.src = 'COLINS の' + e.name + ' ' + valText(d);
+      st.ax.push(x.id); done.push(x);
+    });
+    return done;
+  }
+  function autoTargetOfJob(j, shipId) {
+    if (!j || shipId || j.kind !== 'spot' || !j.preset_id || !AUTO.map) return null;
+    return AUTO.map.get(j.preset_id) || null;
+  }
+  async function autoLoad() {
+    const c = client(); if (!c) return null;
+    let res = await c.from('cp_watch_targets').select('preset_id,direction,snapshot,source,trace');
+    if (res.error && (res.error.code === '42703' || /source/.test(res.error.message || ''))) res = await c.from('cp_watch_targets').select('preset_id,direction,snapshot,trace');
+    if (res.error) {
+      if (res.error.code === '42P01' || res.error.code === 'PGRST205' || /cp_watch_targets/.test(res.error.message || '')) AUTO.missing = true;
+      return null;
+    }
+    const map = new Map();
+    (res.data || []).forEach(t => { if ((t.source || 'case') === 'case' && t.preset_id) map.set(t.preset_id, t); });
+    return map;
+  }
+  async function autoSync(force) {
+    if (AUTO.busy || AUTO.missing) return;
+    if (!force && Date.now() - AUTO.at < 5 * 60 * 1000) return;
+    if (!(typeof window.cloudIsLoggedIn === 'function' && window.cloudIsLoggedIn())) return;
+    if (!rowsAll().length && !JOBS.list.length) return;
+    AUTO.busy = true; AUTO.at = Date.now();
+    let n = 0;
+    try {
+      const map = await autoLoad();
+      if (!map) return;
+      AUTO.map = map;
+      for (const r of rowsAll()) {
+        const t = map.get(r.id); if (!t || !isTarget(r)) continue;
+        if (typeof window.cloudIsLockedByOther === 'function' && window.cloudIsLockedByOther(r.id)) continue;
+        if (_cur && _cur.id === r.id) continue;   // チェックリストを開いている間は触らない（閉じたあとの機会に）
+        const st = JSON.parse(JSON.stringify(stateOf(r)));
+        const f = (r.data && r.data.fields) || {};
+        const done = autoApply(st, t, f['cond-direction']);
+        if (!done.length) continue;
+        const ok = await save(r.id, st, done.map(x => '🛰 業務：「' + x.l + '」を自動で完了（' + x.src + '）').join('\n'));
+        if (ok) n += done.length;
+      }
+      for (const j of JOBS.list) {
+        const t = autoTargetOfJob(j); if (!t || j.status !== 'active') continue;
+        if (_cur && _cur.kind === 'job' && _cur.jobId === j.id) continue;
+        const d = jobData(j), done = autoApply(d.st, t, '');
+        if (done.length && await saveJob(j.id, { data: d })) n += done.length;
+      }
+    } catch (e) { /* 自動確認の読み取りに失敗しても、画面は止めない */ }
+    finally { AUTO.busy = false; }
+    if (n) { toast('🛰 サイバーポートの実績から、作業 ' + n + ' 件に自動でチェックを入れました', 'success', 4000); renderBand(); renderTab(); }
+  }
+
   // 一覧が描き直されるたび（cloud.js → dtRefresh）に、帯とタブを更新する
-  function refreshAll() { renderBand(); renderTab(); if ($('ojModal') && !$('ojModal').hidden) renderJob(); }
+  function refreshAll() { renderBand(); renderTab(); autoSync(); if ($('ojModal') && !$('ojModal').hidden) renderJob(); }
   function hook() {
     const orig = window.dtRefresh;
     window.dtRefresh = function () { const r = orig ? orig.apply(this, arguments) : undefined; setTimeout(refreshAll, 0); if (!JOBS.loaded) setTimeout(() => loadJobs(), 0); return r; };
@@ -935,5 +1043,7 @@
   window.opsCreateJob = openCreate;
   window.opsReloadJobs = () => loadJobs(true);
   window.opsTemplateKeys = tplKeysOf;   // 試験・ほかの機能から
+  window.opsAutoSync = () => autoSync(true);
+  window.opsAutoApply = autoApply;   // 試験用
   window.opsSummaryOf = r => (isTarget(r) ? summary(stateOf(r)) : null);
 })();
