@@ -2726,11 +2726,18 @@
     const m = _regModalEl(); if (!m) return;
     m.remove();
     if (!document.getElementById('mdDetailModal')) document.body.classList.remove('md-modal-open');
+    if (typeof window.cloudRefreshDashList === 'function') window.cloudRefreshDashList();   // ダッシュボードの「マスター登録」ボタン／詳細リンクを最新に（登録・申請したあと）
   };
-  window.statsMasterToggleRegister = function () {
+  // 種別・名前を入れた状態で登録モーダルを開く（ダッシュボードの未登録のお客様の「マスター登録」から）。画面は切り替えない
+  window.statsOpenRegister = function (field, value) {
+    if (_regModalEl()) window.statsMasterCloseRegister();
+    window.statsMasterToggleRegister({ field: field, value: value });
+  };
+  window.statsMasterToggleRegister = function (preset) {
     if (_regModalEl()) { window.statsMasterCloseRegister(); return; }
     window.statsCloseMasterDetail();
-    const cur = _REG_FIELDS.some(f => f[0] === _masterFieldFilter) ? _masterFieldFilter : 'sv';
+    const pf = preset && typeof preset === 'object' && _REG_FIELDS.some(f => f[0] === preset.field) ? preset.field : '';
+    const cur = pf || (_REG_FIELDS.some(f => f[0] === _masterFieldFilter) ? _masterFieldFilter : 'sv');
     const req = _approvalOn() && !_isAdmin();   // 承認制のメンバー：登録ではなく「申請」（管理者が承認するとマスターになる）
     const m = document.createElement('div');
     m.id = 'masterNewModal'; m.className = 'md-modal-overlay'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
@@ -2758,6 +2765,7 @@
       box.hidden = !box.innerHTML.trim();
     };
     sel.addEventListener('change', paint); paint();
+    if (pf && preset.value) inp.value = String(preset.value);   // 名前を入れた状態で開く
     inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); window.statsMasterAddCanonical(); } });
     m.addEventListener('click', e => { if (e.target === m || e.target.closest('.md-modal-close')) window.statsMasterCloseRegister(); });
     inp.focus();

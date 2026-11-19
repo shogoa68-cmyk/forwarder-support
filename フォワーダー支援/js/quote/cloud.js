@@ -1013,7 +1013,7 @@
       '<span class="cc3-lbl">' + (def ? '<span class="cc3-kind" title="取引形態：' + escHtml(d.dealType) + '">' + escHtml(def.lbl) + '</span>' : '') + '</span>' +
       (name ? (rec
         ? '<b class="cc3-cust is-link" role="button" tabindex="0" title="' + escHtml(name) + '（クリックでお客様の詳細）" onclick="event.stopPropagation();dashShowCustomerDetail(\'' + encodeURIComponent(name).replace(/'/g, '%27') + '\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.click();}">' + escHtml(name) + '</b>'
-        : '<b class="cc3-cust" title="' + escHtml(name) + '">' + escHtml(name) + '</b>')
+        : '<b class="cc3-cust" title="' + escHtml(name) + '">' + escHtml(name) + '</b>' + _custRegHtml(name))
         : '<b class="cc3-cust is-empty">（お客様未入力）</b>') +
       (personH ? '<span class="cc3-person" title="' + escHtml(personH) + '">' + escHtml(personH) + '</span>' : '<span class="cc3-person is-empty">（担当者なし）</span>') +
       (via ? '<span class="cc3-via" title="経由する同業者：' + escHtml(via) + '">↳ 経由：' + escHtml(via) + '</span>' : '') +
@@ -1040,11 +1040,24 @@
   }
   // お客様名。マスターに登録済みなら押せるボタンにし、押すとその場でお客様詳細（担当者・連絡先・取引形態・添付など）を
   // 読み取り専用のポップアップで開く（見積タブの「詳細」ボタンと同じ mdShowDetailPopup）。未登録は従来どおり文字のまま。
+  // マスターに無いお客様名の横に出す「マスター登録」のショートカット（登録済み・別名で入力・読み込み前・未ログインは出さない）。
+  // 承認制で申請済みなら「申請中」の印だけ。押すと、種別＝お客様・名前入りの登録モーダル（stats.js statsOpenRegister）をその場で開く
+  function _custRegHtml(name) {
+    if (!name || !_cloudUser || typeof window.statsMasterState !== 'function' || typeof window.statsOpenRegister !== 'function') return '';
+    const canon = typeof window.nameCanon === 'function' ? (window.nameCanon('customer', name) || name) : name;
+    if (canon !== name) return '';   // 別名として登録済み
+    const st = window.statsMasterState('customer', name);
+    if (st === 'pending') return '<span class="cust-reg-pend" title="マスター登録を申請済みです（管理者の承認待ち）">📨 申請中</span>';
+    if (st !== 'none') return '';
+    const req = typeof window.statsIsApprovalOn === 'function' && window.statsIsApprovalOn();
+    return '<button type="button" class="cust-reg-btn" onclick="event.stopPropagation();statsOpenRegister(\'customer\',decodeURIComponent(\'' + encodeURIComponent(name).replace(/'/g, '%27') + '\'))" ' +
+      'title="このお客様はマスターに未登録です。' + (req ? '登録を申請します（管理者の承認でマスターになります）' : 'マスター登録の画面を開きます') + '">' + (req ? '📨 マスター申請' : '＋ マスター登録') + '</button>';
+  }
   function _custNameHtml(customer) {
     const name = String(customer == null ? '' : customer).trim();
     if (!name) return '';
     const has = typeof window.mdGetCanon === 'function' && window.mdGetCanon('customer', name);
-    if (!has) return escHtml(name);
+    if (!has) return escHtml(name) + _custRegHtml(name);
     return '<button type="button" class="cloud-cust-link" onclick="event.stopPropagation();dashShowCustomerDetail(\'' + encodeURIComponent(name).replace(/'/g, '%27') + '\')" ' +
       'title="お客様の詳細を見る（担当者・連絡先・取引形態・添付など）">' + escHtml(name) + '</button>';
   }
