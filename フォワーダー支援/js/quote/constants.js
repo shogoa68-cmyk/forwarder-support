@@ -516,6 +516,8 @@ function minAmt(amount, min) {
 }
 // 画面の行（id）から最低料金を読んで当てる。side：'cost'（仕入）／'sell'（売値）
 function applyRowMin(amount, id, side) {
+  // PROFIT SHARE（代理店へ仕入の金額を返す）の行は売に数字を入れない＝売の最低料金も当てない
+  if (side === 'sell' && document.getElementById('ps-' + id)?.value === '1') return 0;
   const el = document.getElementById((side === 'cost' ? 'ppmin-' : 'bpmin-') + id);
   return minAmt(amount, el ? el.value : 0);
 }
