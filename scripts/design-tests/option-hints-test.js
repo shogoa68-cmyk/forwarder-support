@@ -26,7 +26,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const ps = '#tableBody tr .row-mode-btns > .profit-share-btn';
   await p.evaluate(s => document.querySelector(s).dispatchEvent(new PointerEvent('pointerover', { bubbles: true })), ps);
   const i1 = await info();
-  ok('乗せる（pointerover）と、そのボタンの説明（title）が出る', i1 && /PS/.test(i1.text) && /代理店収益/.test(i1.text), i1);
+  ok('乗せる（pointerover）と、そのボタンの説明（title）が出る', i1 && /PS/.test(i1.text) && /代理店へ返す/.test(i1.text), i1);
   ok('触れているボタンに印（青い枠）が付く', i1 && i1.touched.length === 1 && /PS/.test(i1.touched[0]), i1);
   await p.evaluate(() => document.querySelector('#tableBody tr .row-mode-btns > .est-btn').dispatchEvent(new FocusEvent('focusin', { bubbles: true })));
   const i2 = await info();

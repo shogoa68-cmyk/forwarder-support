@@ -363,6 +363,28 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('画面のエラーが出ていない', errs.length === 0, errs);
     await ctx.close();
   }
+  // ===== 別のサブコンの見出しから開き直したとき、前のサブコンの確認画面（一括設定・各行のサブコン）が残らない =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member' });
+    await setSv(p, 'テスト運送');
+    await p.evaluate(() => { document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); window.icChoose('text'); }); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.getElementById('eiText').value = '海上運賃 USD 1,200 /20GP'; window.eiParse(); }); await p.waitForTimeout(300);
+    ok('（前提）テスト運送の取込を解析すると、一括設定がテスト運送になる', await p.evaluate(() => document.getElementById('eiBulkSv').value === 'テスト運送'));
+    await p.evaluate(() => window.closeEmailImport()); await p.waitForTimeout(100);
+    await p.evaluate(() => window.eiOpenForSubcon('テスト運送')); await p.waitForTimeout(200);
+    ok('同じサブコンで閉じて開き直したときは、貼り付け文と確認画面を残す（うっかり閉じても失わない）', await p.evaluate(() => document.getElementById('eiText').value.includes('海上運賃') && !!document.getElementById('eiBulkSv')));
+    await p.evaluate(() => { window.closeEmailImport(); window.eiOpenForSubcon('ABCキャリア'); }); await p.waitForTimeout(300);
+    ok('別のサブコンの取込を開くと、前のサブコンの確認画面は残らない（貼り付け文・確認画面が空）', await p.evaluate(() => document.getElementById('eiText').value === '' && document.getElementById('eiReviewWrap').innerHTML === '' && !document.getElementById('eiBulkSv')), await p.evaluate(() => [document.getElementById('eiText').value.length, document.getElementById('eiReviewWrap').innerHTML.length]));
+    await p.evaluate(() => { document.getElementById('eiText').value = '海上運賃 USD 1,200 /20GP'; window.eiParse(); }); await p.waitForTimeout(300);
+    ok('解析すると、一括設定・各行のサブコンは今開いたサブコン（ABCキャリア）になる', await p.evaluate(() => document.getElementById('eiBulkSv').value === 'ABCキャリア' && [...document.querySelectorAll('#eiReviewWrap .ei-sv')].every(i => i.value === 'ABCキャリア')), await p.evaluate(() => document.getElementById('eiBulkSv').value));
+    await p.evaluate(() => { window.closeEmailImport(); window.openEmailImport(); }); await p.waitForTimeout(200);
+    ok('サブコンを決めない通常の取込を開くと、サブコン専用の確認画面は残らない', await p.evaluate(() => document.getElementById('eiText').value === '' && !document.getElementById('eiBulkSv')));
+    await p.evaluate(() => { document.getElementById('eiText').value = '海上運賃 USD 1,200 /20GP'; window.eiParse(); window.eiInsertRows && window.eiInsertRows(); }); await p.waitForTimeout(300);
+    await p.evaluate(() => { window.closeEmailImport(); window.openEmailImport(); }); await p.waitForTimeout(200);
+    ok('挿入し終えた取り込みは、次に開くとき空になる', await p.evaluate(() => document.getElementById('eiText').value === '' && !document.getElementById('eiBulkSv')));
+    ok('エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
   // ===== 実際の文面（円記号が「\\」）：読めなかった状態 → 読める → 直して覚える =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member' });
@@ -377,7 +399,6 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('サブコン専用の取込では、お客様・REF#・有効期限・「単価を売値として取り込む」は表示しない（サブコン一括設定は出す）', !(await vis('#eiF-customer')) && !(await vis('#eiF-ref')) && !(await vis('#eiF-valid')) && !(await vis('#eiSellMode')) && await vis('#eiBulkSv'), [await vis('#eiF-customer'), await vis('#eiSellMode'), await vis('#eiBulkSv')]);
     ok('サブコン専用の取込の説明文には、非表示にした「売値として取り込む」の説明が残らない', await p.evaluate(() => { const h = document.querySelector('#eiReviewWrap .ei-hint').textContent; return !/売値として取り込む/.test(h) && /課税/.test(h); }), await p.evaluate(() => document.querySelector('#eiReviewWrap .ei-hint').textContent));
     ok('読み取れなかった行の案内は出ない（すべて読めたため）', await p.evaluate(() => !document.querySelector('#eiReviewWrap .ei-unread')), null);
-
     // 直して覚える → 次回から自動
     await p.evaluate(() => { const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[3]; tr.querySelector('.ei-name').value = '東京CY搬入（ショートドレー）'; window.eiLearnFromCorrections(); }); await p.waitForTimeout(700);
     const learned = await p.evaluate(() => window.__db.master_details.find(r => r.field === 'sv' && r.value === 'テスト運送').details.importRules.aliases);

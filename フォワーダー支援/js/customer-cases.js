@@ -91,22 +91,32 @@
     return _write(t => t.update({ promoted_at: new Date().toISOString(), updated_by: _me(), updated_at: new Date().toISOString() }).eq('id', id), '📌 取引ルール（要確認）に登録しました');
   };
 
-  // ---- 表示 ----
-  function _itemHtml(c) {
+  // ---- 表示（Design 45 案A：一覧が主・［＋ 事例を記録］で同じ場所に入力欄） ----
+  const NOTE = '🔒 社内専用（見積書・メールには出ません）。「何が起き・どう解決し・次はどうするか」を残すと、次の担当者が同じ失敗を避けられます。';
+  const KIND_SHORT = { delay: '遅延', doc: '書類', cost: '費用・請求', cargo: '貨物・事故', comm: '連絡・手配', other: 'その他' };
+  function _itemHtml(c, ctx) {
     const k = KINDS[c.kind] || KINDS.other, open = c.status === 'open';
-    const sec = (lab, txt) => txt ? `<div class="cc-sec"><span class="cc-lab">${lab}</span><span class="cc-txt">${_esc(txt)}</span></div>` : '';
-    const meta = [c.ref ? '案件 ' + _esc(c.ref) : '', c.subcon ? 'サブコン：' + _esc(c.subcon) : '',
-      c.contact ? '先方：' + _esc(window.formatPersonWithHonorific ? window.formatPersonWithHonorific(c.contact) : c.contact + ' 様') : '', '登録：' + _esc(_who(c.created_by))].filter(Boolean).join(' ／ ');
-    return `<div class="cc-item cc-st-${open ? 'open' : 'done'}"><div class="cc-date">${_esc(_ymd(c.occurred_on))}</div><div class="cc-main">` +
-      `<div class="cc-head"><span class="cc-badge cc-badge-${_esc(c.kind)}">${k.icon} ${_esc(k.label)}</span><span class="cc-title">${_esc(c.title)}</span>` +
+    const sec = (lab, txt, cls) => txt ? `<div class="cc-sec${cls ? ' ' + cls : ''}"><span class="cc-lab">${lab}</span><span class="cc-txt">${_esc(txt)}</span></div>` : '';
+    const meta = [_esc(_ymd(c.occurred_on)), _esc(k.icon + ' ' + k.label), c.ref ? '案件 ' + _esc(c.ref) : '', '登録：' + _esc(_who(c.created_by))].filter(Boolean).join(' · ');
+    const sub = [c.subcon ? 'サブコン：' + _esc(c.subcon) : '', c.contact ? '先方：' + _esc(window.formatPersonWithHonorific ? window.formatPersonWithHonorific(c.contact) : c.contact + ' 様') : ''].filter(Boolean).join(' ／ ');
+    const menuOpen = ctx && ctx.menuId === c.id;
+    const promo = c.promoted_at
+      ? `<button type="button" class="cc-mi" data-cc="rules" data-id="${_esc(c.id)}">📌 取引ルールを見る</button>`
+      : c.improvement
+        ? `<button type="button" class="cc-mi" data-cc="promote" data-id="${_esc(c.id)}">📌 取引ルールに登録<small>「次回どうするか」を、見積入力の取引ルール（要確認）に出します</small></button>`
+        : `<div class="cc-mi is-off" aria-disabled="true">📌 取引ルールに登録<small>「次回どうするか」を書くと登録できます</small></div>`;
+    return `<div class="cc-item cc-st-${open ? 'open' : 'done'}${menuOpen ? ' cc-menu-open' : ''}" data-id="${_esc(c.id)}" tabindex="0">` +
+      `<div class="cc-head"><span class="cc-title">${_esc(c.title)}</span>` +
       `<span class="cc-state ${open ? 'is-open' : 'is-done'}">${open ? '未解決' : '解決済み'}</span>` +
-      (c.promoted_at ? '<span class="cc-promoted" title="取引ルールに登録済みです">📌 ルール化済み</span>' : '') + `</div>` +
-      sec('何が起きた', c.situation) + sec('どう解決した', c.action) + sec('次回どうすれば良いか', c.improvement) +
-      `<div class="cc-meta">${meta}</div></div><div class="cc-btns">` +
-      `<button type="button" data-cc="edit" data-id="${_esc(c.id)}">編集</button>` +
-      `<button type="button" data-cc="${open ? 'resolve' : 'reopen'}" data-id="${_esc(c.id)}">${open ? '解決済みにする' : '未解決に戻す'}</button>` +
-      (c.improvement && !c.promoted_at ? `<button type="button" data-cc="promote" data-id="${_esc(c.id)}" title="「次回どうすれば良いか」を取引ルール（要確認）として登録します">📌 ルールにする</button>` : '') +
-      `<button type="button" data-cc="del" data-id="${_esc(c.id)}">削除</button></div></div>`;
+      (c.promoted_at ? '<span class="cc-promoted" title="取引ルールに登録済みです">📌 ルール登録済み</span>' : '') + `</div>` +
+      `<div class="cc-meta">${meta}</div>` +
+      `<div class="cc-body">` + sec('何が起きた', c.situation) + sec('どう解決した', c.action) + sec('次回どうするか', c.improvement, 'cc-sec-next') +
+      (sub ? `<div class="cc-meta cc-meta-sub">${sub}</div>` : '') +
+      `<div class="cc-btns"><button type="button" data-cc="${open ? 'resolve' : 'reopen'}" data-id="${_esc(c.id)}">${open ? '✓ 解決済みにする' : '↩ 未解決に戻す'}</button>` +
+      `<button type="button" data-cc="edit" data-id="${_esc(c.id)}">✏️ 編集</button>` +
+      `<span class="cc-btns-sp"></span><span class="cc-more-wrap"><button type="button" class="cc-more" data-cc="menu" data-id="${_esc(c.id)}" aria-haspopup="menu" aria-expanded="${menuOpen}" title="その他の操作">⋯</button>` +
+      `<div class="cc-menu" role="menu">${promo}<div class="cc-sep"></div><button type="button" class="cc-mi is-danger" data-cc="del" data-id="${_esc(c.id)}">🗑 削除…</button></div></span></div>` +
+      `</div></div>`;
   }
   function _formHtml(ctx) {
     const edit = ctx.editId ? _items.find(x => x.id === ctx.editId) : null;
@@ -116,59 +126,133 @@
     if (edit && edit.contact && !names.some(n => _normPerson(n) === _normPerson(edit.contact))) names.push(edit.contact);
     const cur = edit ? (edit.contact || '') : '';
     const cOpts = '<option value="">（指定なし）</option>' + names.map(n => `<option value="${_esc(n)}"${cur && _normPerson(n) === _normPerson(cur) ? ' selected' : ''}>${_esc(n)} 様</option>`).join('');
-    const kOpts = Object.keys(KINDS).map(k => `<option value="${k}"${(edit ? edit.kind : 'other') === k ? ' selected' : ''}>${KINDS[k].icon} ${KINDS[k].label}</option>`).join('');
+    const kind = edit ? edit.kind : 'other';
+    const kOpts = Object.keys(KINDS).map(k => `<option value="${k}"${kind === k ? ' selected' : ''}>${KINDS[k].icon} ${KINDS[k].label}</option>`).join('');
+    const chips = Object.keys(KINDS).map(k => `<button type="button" class="cc-kchip${kind === k ? ' is-on' : ''}" data-cc="kind" data-k="${k}" aria-pressed="${kind === k}">${KINDS[k].icon} ${KIND_SHORT[k]}</button>`).join('');
     const v = (f, d) => _esc(edit ? (edit[f] || '') : (d || ''));
-    return `<div class="cc-form"><div class="cc-form-row"><label>発生日<input type="date" class="cc-f-date" value="${_esc(edit ? edit.occurred_on : _today())}"></label>` +
-      `<label>分類<select class="cc-f-kind">${kOpts}</select></label>` +
-      `<label>案件（管理番号）<input type="text" class="cc-f-ref" placeholder="例：05-2606100-02" value="${v('ref', ctx.refDefault)}"></label></div>` +
-      `<input type="text" class="cc-f-title" placeholder="見出し（例：書類の原本が間に合わず船積が1便遅れた）" value="${v('title')}">` +
-      `<textarea class="cc-f-situation" rows="2" placeholder="何が起きたか（状況・原因）">${v('situation')}</textarea>` +
-      `<textarea class="cc-f-action" rows="2" placeholder="どう解決したか（対応・結果）">${v('action')}</textarea>` +
-      `<textarea class="cc-f-improvement" rows="2" placeholder="次回どうすれば良いか（改善案・予防策）">${v('improvement')}</textarea>` +
-      `<div class="cc-form-row"><label>関係したサブコン（任意）<input type="text" class="cc-f-subcon" list="svSuggestions" value="${v('subcon')}"></label>` +
-      `<label>先方の担当者（任意）<select class="cc-f-contact">${cOpts}</select></label>` +
-      `<label class="cc-f-chk"><input type="checkbox" class="cc-f-resolved"${edit && edit.status === 'resolved' ? ' checked' : ''}> 解決済み</label></div>` +
-      `<div class="cc-form-actions"><button type="button" class="cc-save" data-cc="save">${edit ? '💾 更新' : '＋ 事例を追加'}</button>` + (edit ? '<button type="button" data-cc="cancel">やめる</button>' : '') + `</div>` +
-      `<div class="cc-hint">🔒 社内専用です。御見積書・メール・プレビューには出ません。繰り返し出る教訓は「📌 ルールにする」で取引ルールに昇格できます。</div></div>`;
+    const opt = '<em class="cc-opt">任意</em>', req = '<em class="cc-req">必須</em>';
+    return `<div class="cc-form"><div class="cc-form-ttl">${edit ? '✏️ 事例を編集' : '＋ 事例を記録'}</div>` +
+      `<div class="cc-form-row"><label class="cc-fl cc-fl-date"><span>発生日</span><input type="date" class="cc-f-date" value="${_esc(edit ? edit.occurred_on : _today())}"></label>` +
+      `<label class="cc-fl cc-fl-ref"><span>案件（管理番号）${opt}</span><input type="text" class="cc-f-ref" placeholder="例）05-2606100-02" value="${v('ref', ctx.refDefault)}"></label></div>` +
+      `<div class="cc-fl"><span>分類</span><select class="cc-f-kind" hidden>${kOpts}</select><div class="cc-kchips" role="group" aria-label="分類">${chips}</div></div>` +
+      `<label class="cc-fl"><span>見出し${req}</span><input type="text" class="cc-f-title" placeholder="例）書類の原本が間に合わず船積が1便遅れた" value="${v('title')}"><small class="cc-err" hidden>見出しを入れてください</small></label>` +
+      `<label class="cc-fl"><span>何が起きたか（状況・原因）</span><textarea class="cc-f-situation" rows="3" placeholder="例）見積提示の翌日に一律10%の値引きを求められた">${v('situation')}</textarea></label>` +
+      `<label class="cc-fl"><span>どう解決したか（対応・結果）</span><textarea class="cc-f-action" rows="3" placeholder="例）海上運賃のみ5%で合意した">${v('action')}</textarea></label>` +
+      `<label class="cc-fl cc-fl-next"><span>次回どうするか（改善案・予防策。取引ルールにできます）</span><textarea class="cc-f-improvement" rows="3" placeholder="例）カットの3営業日前までに書類の原本を依頼する">${v('improvement')}</textarea></label>` +
+      `<div class="cc-form-row cc-form-2"><label class="cc-fl"><span>関係したサブコン${opt}</span><input type="text" class="cc-f-subcon" list="svSuggestions" value="${v('subcon')}"></label>` +
+      `<label class="cc-fl"><span>先方の担当者${opt}</span><select class="cc-f-contact">${cOpts}</select></label></div>` +
+      `<div class="cc-form-actions"><label class="cc-f-chk"><input type="checkbox" class="cc-f-resolved"${edit && edit.status === 'resolved' ? ' checked' : ''}> 解決済みとして記録</label>` +
+      `<span class="cc-btns-sp"></span><button type="button" class="cc-cancel" data-cc="cancel">キャンセル</button>` +
+      `<button type="button" class="cc-save" data-cc="save">${edit ? '更新する' : '記録する'}</button></div></div>`;
   }
   function _paint(el) {
     const ctx = el._cc;
-    let h = '';
-    if (!_cloud()) h = '<div class="cc-empty">ログインすると、顧客カルテを見たり登録したりできます。</div>';
-    else if (_missing) h = '<div class="cc-empty">顧客カルテの保存先が未作成です。<code>docs/sql/customer-cases.sql</code> を Supabase で実行してください。</div>';
+    let h = '<div class="cc-note">' + NOTE + '</div>';
+    if (!_cloud()) h += '<div class="cc-empty">ログインすると、顧客カルテを見たり登録したりできます。</div>';
+    else if (_missing) h += '<div class="cc-empty">顧客カルテの保存先が未作成です。<code>docs/sql/customer-cases.sql</code> を Supabase で実行してください。</div>';
+    else if (ctx.view === 'form') h += _formHtml(ctx);
     else {
-      const list = window.ccFor(ctx.customer), openN = list.filter(c => c.status === 'open').length;
-      h += list.length ? (openN ? `<div class="cc-summary">未解決 ${openN}件／全 ${list.length}件</div>` : '') + '<div class="cc-list">' + list.map(_itemHtml).join('') + '</div>'
-        : '<div class="cc-empty">まだ事例はありません。「どの案件で・何が起き・どう解決し・次はどうするか」を残しておくと、次の担当者が同じ失敗を避けられます。</div>';
-      h += _formHtml(ctx);
+      const list = window.ccFor(ctx.customer), opens = list.filter(c => c.status === 'open'), dones = list.filter(c => c.status !== 'open');
+      if (!list.length) {
+        h += '<div class="cc-empty-box"><div class="cc-empty-ic">🗂</div><b>まだ事例はありません</b><p>イレギュラー・値引き交渉・書類の遅れなど、このお客様で起きたことを記録しておきましょう。</p>' +
+          '<button type="button" class="cc-new" data-cc="new">＋ 事例を記録</button></div>';
+      } else {
+        if (!ctx.filterUser || !ctx.filter) ctx.filter = opens.length ? 'open' : 'all';   // 自分で選ぶまでは件数に合わせる
+        if (ctx.filter === 'open' && !opens.length) ctx.filter = 'all';
+        const seg = (k, lab, n) => `<button type="button" class="cc-seg-b${ctx.filter === k ? ' is-on' : ''}" data-cc="filter" data-f="${k}" aria-pressed="${ctx.filter === k}">${lab} <b>${n}</b></button>`;
+        h += '<div class="cc-tools"><div class="cc-seg" role="group" aria-label="表示する事例">' + seg('open', '未解決', opens.length) + seg('done', '解決済み', dones.length) + seg('all', 'すべて', list.length) + '</div>' +
+          '<span class="cc-btns-sp"></span><button type="button" class="cc-new" data-cc="new">＋ 事例を記録</button></div>';
+        h += `<div class="cc-list" data-filter="${ctx.filter}">` +
+          `<div class="cc-grp cc-grp-open">${opens.map(c => _itemHtml(c, ctx)).join('')}</div>` +
+          (dones.length ? `<button type="button" class="cc-done-toggle" data-cc="donetoggle" aria-expanded="${!!ctx.doneOpen}">✓ 解決済み ${dones.length} 件 ${ctx.doneOpen ? '▾' : '▸'}</button>` : '') +
+          `<div class="cc-grp cc-grp-done${ctx.doneOpen ? ' is-open' : ''}">${dones.map(c => _itemHtml(c, ctx)).join('')}</div></div>`;
+      }
     }
     el.innerHTML = h;
+    el.classList.toggle('cc-root', true);
+    el.dataset.view = ctx.view || 'list';
   }
+  function _dirty(el) {
+    if (!el._cc || el._cc.view !== 'form') return false;
+    return ['.cc-f-title', '.cc-f-situation', '.cc-f-action', '.cc-f-improvement', '.cc-f-subcon'].some(s => { const e = el.querySelector(s); return e && e.value.trim() && e.value !== (e.defaultValue || ''); });
+  }
+  function _openRules(el) {
+    const md = document.getElementById('mdDetailModal');
+    const tab = md && md.contains(el) && md.querySelector('.mt-tab[data-mt="rules"]');
+    if (tab) { tab.click(); return; }
+    _closeModal(true);
+    const b = document.getElementById('crBanner');
+    if (b) { const d = b.querySelector('details'); if (d) d.open = true; b.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  }
+  function _grow(t) { t.style.height = 'auto'; t.style.height = Math.max(72, t.scrollHeight + 2) + 'px'; }
   function _handle(el, ev) {
     const b = ev.target.closest('[data-cc]');
-    if (!b || !el.contains(b)) return;
-    const act = b.dataset.cc, id = b.dataset.id, ctx = el._cc;
+    const ctx = el._cc;
+    if (!b || !el.contains(b)) {
+      if (ctx.menuId && !ev.target.closest('.cc-menu')) { ctx.menuId = null; _paint(el); return; }   // 外側を押した＝メニューを閉じるだけ
+      // スマホ：カードを押すと全文のシート
+      const card = ev.target.closest('.cc-item');
+      if (card && el.contains(card) && _phone() && !card.classList.contains('cc-sheet-open')) { el.querySelectorAll('.cc-sheet-open').forEach(x => x.classList.remove('cc-sheet-open')); card.classList.add('cc-sheet-open'); el.classList.add('cc-has-sheet'); }
+      else if (ev.target.classList && ev.target.classList.contains('cc-sheet-bg')) _closeSheet(el);
+      return;
+    }
+    const act = b.dataset.cc, id = b.dataset.id;
     const q = s => (el.querySelector(s) || {}).value || '';
-    const done = ok => { if (ok) ctx.editId = null; _paint(el); if (ctx.onChange) ctx.onChange(); };
-    if (act === 'save') {
+    const done = ok => { if (ok) { ctx.editId = null; ctx.view = 'list'; } _paint(el); if (ctx.onChange) ctx.onChange(); };
+    if (act !== 'menu') ctx.menuId = null;
+    if (act === 'new') { ctx.view = 'form'; ctx.editId = null; _paint(el); const f = el.querySelector('.cc-f-title'); if (f) f.focus(); }
+    else if (act === 'filter') { ctx.filter = b.dataset.f; ctx.filterUser = true; if (ctx.filter === 'done') ctx.doneOpen = true; _paint(el); }
+    else if (act === 'donetoggle') { ctx.doneOpen = !ctx.doneOpen; _paint(el); }
+    else if (act === 'menu') { ctx.menuId = ctx.menuId === id ? null : id; _paint(el); const m = el.querySelector('.cc-menu-open .cc-mi:not(.is-off)'); if (m) m.focus(); }
+    else if (act === 'kind') {
+      const sel = el.querySelector('.cc-f-kind'); if (sel) { sel.value = b.dataset.k; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+      el.querySelectorAll('.cc-kchip').forEach(x => { const on = x === b; x.classList.toggle('is-on', on); x.setAttribute('aria-pressed', on); });
+    }
+    else if (act === 'save') {
+      const tEl = el.querySelector('.cc-f-title');
+      if (tEl && !tEl.value.trim()) { tEl.classList.add('is-err'); const er = el.querySelector('.cc-err'); if (er) er.hidden = false; tEl.focus(); return; }
       window.ccSave({ id: ctx.editId, customer: ctx.customer, occurred_on: q('.cc-f-date'), kind: q('.cc-f-kind'), ref: q('.cc-f-ref'), title: q('.cc-f-title'), situation: q('.cc-f-situation'),
         action: q('.cc-f-action'), improvement: q('.cc-f-improvement'), subcon: q('.cc-f-subcon'), contact: q('.cc-f-contact'), status: el.querySelector('.cc-f-resolved').checked ? 'resolved' : 'open' }).then(done);
-    } else if (act === 'edit') { ctx.editId = id; _paint(el); const f = el.querySelector('.cc-f-title'); if (f) f.focus(); }
-    else if (act === 'cancel') { ctx.editId = null; _paint(el); }
+    } else if (act === 'edit') { ctx.editId = id; ctx.view = 'form'; _paint(el); const f = el.querySelector('.cc-f-title'); if (f) f.focus(); }
+    else if (act === 'cancel') { ctx.editId = null; ctx.view = 'list'; _paint(el); }
     else if (act === 'resolve') window.ccSetStatus(id, 'resolved').then(done);
     else if (act === 'reopen') window.ccSetStatus(id, 'open').then(done);
     else if (act === 'promote') window.ccPromote(id).then(ok => { done(ok); if (ok && typeof window.crRefreshBanner === 'function') window.crRefreshBanner(); });
+    else if (act === 'rules') { _paint(el); _openRules(el); }
     else if (act === 'del') {
       const c = _items.find(x => x.id === id), go = () => window.ccDelete(id).then(done);
+      _paint(el);
       if (typeof window.uiConfirm === 'function') window.uiConfirm({ title: 'この事例を削除しますか？', lines: ['「' + (c ? c.title.slice(0, 40) : '') + '」を削除します。元に戻せません。'], okLabel: '削除する', danger: true }).then(ok => { if (ok) go(); });
       else if (confirm('この事例を削除しますか？')) go();
     }
   }
+  const _phone = () => window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
+  function _closeSheet(el) { el.querySelectorAll('.cc-sheet-open').forEach(x => x.classList.remove('cc-sheet-open')); el.classList.remove('cc-has-sheet'); }
+  function _bind(el) {
+    if (el._ccBound) return;
+    el.addEventListener('click', ev => _handle(el, ev));
+    el.addEventListener('input', ev => {
+      if (ev.target.matches('textarea')) _grow(ev.target);
+      if (ev.target.matches('.cc-f-title') && ev.target.value.trim()) { ev.target.classList.remove('is-err'); const er = el.querySelector('.cc-err'); if (er) er.hidden = true; }
+    });
+    el.addEventListener('keydown', ev => {
+      if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.classList && ev.target.classList.contains('cc-item') && _phone()) { ev.preventDefault(); ev.target.click(); }
+    });
+    el._ccBound = true;
+  }
+  // Esc：開いている［⋯］メニュー・スマホの全文シートを先に閉じる（焦点がどこにあっても。モーダル・ドロワーは閉じない）
+  document.addEventListener('keydown', ev => {
+    if (ev.key !== 'Escape' || document.querySelector('.confirm-dialog')) return;
+    for (const el of document.querySelectorAll('.cc-root')) {
+      if (el._cc && el._cc.menuId) { const id = el._cc.menuId; el._cc.menuId = null; _paint(el); const b = el.querySelector(`.cc-more[data-id="${id}"]`); if (b) b.focus(); ev.stopImmediatePropagation(); ev.preventDefault(); return; }
+      if (el.classList.contains('cc-has-sheet')) { _closeSheet(el); ev.stopImmediatePropagation(); ev.preventDefault(); return; }
+    }
+  }, true);
   // マスター管理（お客様の詳細・タブ「顧客カルテ」）
   window.ccMountPanel = async function (el, customer, onChange) {
     if (!el) return;
-    el._cc = { customer: String(customer || '').trim(), editId: null, onChange: onChange || (() => { if (typeof window.statsRefreshMasterList === 'function') window.statsRefreshMasterList(); }) };
-    if (!el._ccBound) { el.addEventListener('click', ev => _handle(el, ev)); el._ccBound = true; }
+    el._cc = { customer: String(customer || '').trim(), editId: null, view: 'list', filter: null, doneOpen: false, onChange: onChange || (() => { if (typeof window.statsRefreshMasterList === 'function') window.statsRefreshMasterList(); }) };
+    _bind(el);
     el.innerHTML = '<div class="cc-empty">読み込み中…</div>';
     await window.ccLoad();
     if (document.body.contains(el)) _paint(el);
@@ -176,28 +260,38 @@
 
   // ---- 見積タブ：取引ルールの帯に「🗂 過去の事例 N件」を並べる（押すと一覧・追加のモーダル）----
   function _modalEl() { return document.getElementById('ccModal'); }
-  function _closeModal() { const m = _modalEl(); if (m) { m.remove(); document.body.classList.remove('md-modal-open'); } }
+  function _closeModal(force) {
+    const m = _modalEl(); if (!m) return;
+    const body = m.querySelector('#ccModalBody');
+    const go = () => { m.remove(); document.body.classList.remove('md-modal-open'); };
+    if (!force && body && _dirty(body) && typeof window.uiConfirm === 'function') {
+      window.uiConfirm({ title: '入力中の事例を破棄しますか？', lines: ['記録していない入力は消えます。'], okLabel: '破棄して閉じる', danger: true }).then(ok => { if (ok) go(); });
+      return;
+    }
+    go();
+  }
   function _paintModal() {
     const m = _modalEl(); if (!m) return;
     const body = m.querySelector('#ccModalBody'); if (!body) return;
     const customer = ((document.getElementById('qf-customer') || {}).value || '').trim(), person = ((document.getElementById('qf-person') || {}).value || '').trim();
     const ref = ((document.getElementById('qf-ref') || {}).value || '').trim();
-    const keep = body._cc && body._cc.editId;
-    body._cc = { customer, person, editId: keep || null, refDefault: ref, onChange: () => window.crRefreshBanner && window.crRefreshBanner() };
-    if (!body._ccBound) { body.addEventListener('click', ev => _handle(body, ev)); body._ccBound = true; }
+    const prev = body._cc || {};
+    body._cc = { customer, person, editId: prev.editId || null, view: prev.view || 'list', filter: prev.customer === customer ? prev.filter : null, filterUser: prev.customer === customer && !!prev.filterUser, doneOpen: !!prev.doneOpen, refDefault: ref, onChange: () => window.crRefreshBanner && window.crRefreshBanner() };
+    _bind(body);
     const t = m.querySelector('.md-modal-head h3'); if (t) t.textContent = '🗂 顧客カルテ　' + customer;
+    if (body._cc.view === 'form' && body.querySelector('.cc-form')) return;   // 入力中は描き直さない
     _paint(body);
   }
   function _openModal() {
     if (_modalEl()) return;
     const m = document.createElement('div'); m.id = 'ccModal'; m.className = 'md-modal-overlay'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
-    m.innerHTML = '<div class="md-modal cr-modal"><div class="md-modal-head"><h3></h3><button type="button" class="md-modal-close" title="閉じる（Esc）" aria-label="閉じる">✕</button></div>' +
-      '<div class="md-modal-body"><p class="cr-modal-note">このお客様の過去の事例（イレギュラー・解決策・改善案）です。この案件で起きたことも、ここから記録できます（社内専用）。</p><div id="ccModalBody"></div></div></div>';
+    m.innerHTML = '<div class="md-modal cr-modal cc-modal"><div class="md-modal-head"><h3></h3><button type="button" class="md-modal-close" title="閉じる（Esc）" aria-label="閉じる">✕</button></div>' +
+      '<div class="md-modal-body"><div id="ccModalBody"></div></div></div>';
     document.body.appendChild(m); document.body.classList.add('md-modal-open');
     m.addEventListener('click', ev => { if (ev.target === m || ev.target.closest('.md-modal-close')) _closeModal(); });
     _paintModal();
   }
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && _modalEl() && !document.querySelector('.confirm-dialog')) _closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && _modalEl() && !document.querySelector('.confirm-dialog') && !e.defaultPrevented) _closeModal(); });
   // 取引ルールの帯の更新に便乗して、事例のチップを足す
   function _wrapBanner() {
     const orig = window.crRefreshBanner;

@@ -2726,11 +2726,18 @@
     const m = _regModalEl(); if (!m) return;
     m.remove();
     if (!document.getElementById('mdDetailModal')) document.body.classList.remove('md-modal-open');
+    if (typeof window.cloudRefreshDashList === 'function') window.cloudRefreshDashList();   // ダッシュボードの「マスター登録」ボタン／詳細リンクを最新に（登録・申請したあと）
   };
-  window.statsMasterToggleRegister = function () {
+  // 種別・名前を入れた状態で登録モーダルを開く（ダッシュボードの未登録のお客様の「マスター登録」から）。画面は切り替えない
+  window.statsOpenRegister = function (field, value) {
+    if (_regModalEl()) window.statsMasterCloseRegister();
+    window.statsMasterToggleRegister({ field: field, value: value });
+  };
+  window.statsMasterToggleRegister = function (preset) {
     if (_regModalEl()) { window.statsMasterCloseRegister(); return; }
     window.statsCloseMasterDetail();
-    const cur = _REG_FIELDS.some(f => f[0] === _masterFieldFilter) ? _masterFieldFilter : 'sv';
+    const pf = preset && typeof preset === 'object' && _REG_FIELDS.some(f => f[0] === preset.field) ? preset.field : '';
+    const cur = pf || (_REG_FIELDS.some(f => f[0] === _masterFieldFilter) ? _masterFieldFilter : 'sv');
     const req = _approvalOn() && !_isAdmin();   // 承認制のメンバー：登録ではなく「申請」（管理者が承認するとマスターになる）
     const m = document.createElement('div');
     m.id = 'masterNewModal'; m.className = 'md-modal-overlay'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
@@ -2758,6 +2765,7 @@
       box.hidden = !box.innerHTML.trim();
     };
     sel.addEventListener('change', paint); paint();
+    if (pf && preset.value) inp.value = String(preset.value);   // 名前を入れた状態で開く
     inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); window.statsMasterAddCanonical(); } });
     m.addEventListener('click', e => { if (e.target === m || e.target.closest('.md-modal-close')) window.statsMasterCloseRegister(); });
     inp.focus();
@@ -3651,7 +3659,7 @@
     row.id = 'mdDetailModal';
     row.className = 'md-modal-overlay';
     row.setAttribute('role', 'dialog'); row.setAttribute('aria-modal', 'true');
-    row.innerHTML = `<div class="md-modal"><div class="md-modal-head"><h3>📇 ${_esc(_FIELD_LABEL[field] || field)}　${_esc(value)}</h3>` +
+    row.innerHTML = `<div class="md-modal"><div class="md-resize" role="separator" aria-orientation="vertical" title="ドラッグで幅を変更（ダブルクリックで元に戻す）"></div><div class="md-modal-head"><h3>📇 ${_esc(_FIELD_LABEL[field] || field)}　${_esc(value)}</h3>` +
       `<button type="button" class="md-modal-close" title="閉じる（Esc）" onclick="statsCloseMasterDetail()">✕</button></div>` +
       `<div class="md-modal-body"><div class="master-detail-form">${fieldsHtml}` +
       `<div class="master-detail-actions">` +
@@ -3673,6 +3681,19 @@
       `</div></div>`;
     document.body.appendChild(row);
     document.body.classList.add('md-modal-open');
+    (function () {   // 幅をドラッグで変えられる（右ドロワー・幅は端末に記憶）
+      const modal = row.querySelector('.md-modal'), h = row.querySelector('.md-resize');
+      const KEY = 'mdDrawerW_v1', clamp = w => Math.max(420, Math.min(window.innerWidth, w));
+      try { const w = parseInt(localStorage.getItem(KEY), 10); if (w) modal.style.setProperty('--md-w', clamp(w) + 'px'); } catch (e) {}
+      h.addEventListener('pointerdown', ev => {
+        ev.preventDefault(); h.setPointerCapture(ev.pointerId); row.classList.add('is-resizing');
+        const mv = e => modal.style.setProperty('--md-w', clamp(window.innerWidth - e.clientX) + 'px');
+        const up = () => { h.removeEventListener('pointermove', mv); h.removeEventListener('pointerup', up); row.classList.remove('is-resizing');
+          try { localStorage.setItem(KEY, String(parseInt(modal.style.getPropertyValue('--md-w'), 10) || '')); } catch (e) {} };
+        h.addEventListener('pointermove', mv); h.addEventListener('pointerup', up);
+      });
+      h.addEventListener('dblclick', () => { modal.style.removeProperty('--md-w'); try { localStorage.removeItem(KEY); } catch (e) {} });
+    })();
     const firstInput = row.querySelector('input,textarea,select'); if (firstInput) firstInput.focus();
     window.statsRefreshMasterAttachments(field, value);
     if ((field === 'sv' || field === 'customer') && typeof window.mnMountPanel === 'function') window.mnMountPanel(document.getElementById('mnPanel'), field, value);
