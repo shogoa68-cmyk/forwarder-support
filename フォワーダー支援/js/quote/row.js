@@ -881,6 +881,7 @@
   function unmergeRow(rowId) {
     const tr = document.getElementById('row-' + String(rowId).replace(/^row-/, ''));
     if (!tr || !tr.dataset.mergedInto) return;
+    _mergeSubtractChild(tr);   // 統合先の合計から、この行の分を差し引く
     delete tr.dataset.mergedInto;
     delete tr.dataset.hideQuote;
     tr.classList.remove('row-hidden-quote', 'row-merged-child');
@@ -1002,6 +1003,10 @@
     const now = _mergeContribOf(childTr);
     if (!old) { childTr.dataset.mergeContrib = JSON.stringify(now); return; }
     if (old.cost === now.cost && old.bill === now.bill && old.pc === now.pc && old.bc === now.bc) return;
+    return _mergeApplyDelta(childTr, old, now);
+  }
+  // 統合元の寄与が old → now に変わった分（now が 0 なら取り除く）を統合先の仕入単価・乗せ幅へ反映する
+  function _mergeApplyDelta(childTr, old, now) {
     const parentTr = Array.from(document.querySelectorAll('#tableBody tr[id^="row-"]'))
       .find(t => !t.dataset.type && (document.getElementById('uid-' + t.id.replace('row-', ''))?.value || t.id.replace('row-', '')) === childTr.dataset.mergedInto);
     if (!parentTr) return;
@@ -1029,6 +1034,14 @@
     childTr.dataset.mergeContrib = JSON.stringify(now);
     updateTotals();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  // 統合解除：その統合元が統合先の合計へ足していた分を、統合先から差し引く（統合先の手調整は残る）
+  function _mergeSubtractChild(childTr) {
+    let old; try { old = JSON.parse(childTr.dataset.mergeContrib || 'null'); } catch (e) { old = null; }
+    if (!old) old = _mergeContribOf(childTr);
+    const r = _mergeApplyDelta(childTr, old, { cost: 0, bill: 0, pc: old.pc, bc: old.bc });
+    delete childTr.dataset.mergeContrib;
+    return r;
   }
   window.syncMergedParent = syncMergedParent;
   (function wireMergeSync() {
