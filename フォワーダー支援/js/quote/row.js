@@ -2410,7 +2410,19 @@
     if (bpEl && !_isSellMode(id)) bpEl.value = _addPrice(parseFloat(bpEl.dataset.base) || 0, mk);
     // PROFIT SHARE：代理店へ仕入の金額（最低料金を含む）を返す扱い。売には数字を入れない（売単価 0・売の小計 0）
     // → 行の利益は −仕入（例：−EUR 40）で、社内利益（PS込み）から差し引く。売値ベースの入力値は toggleProfitShare が控えて戻す
-    if (bpEl && document.getElementById(`ps-${id}`)?.value === '1') bpEl.value = 0;
+    // 仕入が 0 で乗せ幅（売）に金額がある PS の行は「代理店から受け取る」＝売をそのままプラスで計上する
+    {
+      const trP = document.getElementById(`row-${id}`);
+      if (bpEl && psPayMode(id)) {
+        if (trP && _isSellMode(id) && trP.dataset.psPrevBp == null && (parseFloat(bpEl.value) || 0)) trP.dataset.psPrevBp = bpEl.value;
+        bpEl.value = 0;
+      } else if (bpEl && trP && trP.dataset.psPrevBp != null && _isSellMode(id)) {
+        // 仕入を 0 にした（受け取る側に変わった）・PS を外した：控えた売単価を戻し、乗せ幅を算出し直す
+        bpEl.value = trP.dataset.psPrevBp; delete trP.dataset.psPrevBp;
+        const mkEl = document.getElementById(`mk-${id}`), pcv = document.getElementById(`pc-${id}`)?.value || 'JPY';
+        if (mkEl) { const raw = val(`bp-${id}`) - val(`pp-${id}`); mkEl.value = pcv === 'JPY' ? Math.round(raw) : Math.round(raw * 100) / 100; }
+      }
+    }
     const bp = val(`bp-${id}`);
     const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
     const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
@@ -2630,10 +2642,7 @@
     if (psEl.value === '1') _clearRowFlagsExcept(id, 'ps');
     // 売値ベースの行は売単価が手入力のため、PS の間は控えておき、外したときに戻す（連動の行は calc が仕入＋乗せ幅で作り直す）
     const tr = document.getElementById(`row-${id}`), bpEl = document.getElementById(`bp-${id}`);
-    if (tr && bpEl && _isSellMode(id)) {
-      if (psEl.value === '1') tr.dataset.psPrevBp = bpEl.value;
-      else if (tr.dataset.psPrevBp != null) { bpEl.value = tr.dataset.psPrevBp; delete tr.dataset.psPrevBp; }
-    }
+    if (tr && bpEl && _isSellMode(id) && psEl.value !== '1' && tr.dataset.psPrevBp != null) { bpEl.value = tr.dataset.psPrevBp; delete tr.dataset.psPrevBp; }   // 控えるのは calc（返す側のとき）
     if (psEl.value !== '1' && _isSellMode(id)) _calcFromSell(id);   // 乗せ幅を戻した売単価から算出し直す
     calc(id);
     _recalcPctDependents(id);
@@ -3437,7 +3446,9 @@
         const mk = (window.SharedCalc ? SharedCalc.grossMarginPct(internalBill, totCostJPY + psCostJPY) : 0);
         const revEl = document.getElementById('tot-ps-rev');
         const prEl  = document.getElementById('tot-ps-profit');
-        if (revEl) { const n = Math.round(psBillJPY - psCostJPY); revEl.textContent = (n < 0 ? '−' : '') + '¥' + fmt(Math.abs(n)); }   // PS（代理店へ返す金額）はマイナス
+        if (revEl) { const n = Math.round(psBillJPY - psCostJPY); revEl.textContent = (n < 0 ? '−' : n > 0 ? '＋' : '') + '¥' + fmt(Math.abs(n)); }   // 代理店へ返す＝マイナス／代理店から受け取る＝プラス
+        const lblEl = document.getElementById('tot-ps-label');
+        if (lblEl) lblEl.textContent = psCostJPY && psBillJPY ? 'PS（代理店との精算）' : psCostJPY ? 'PS（代理店へ返す）' : 'PS（代理店から受け取る）';
         if (prEl) {
           prEl.innerHTML = '¥' + fmt(Math.round(internalProfit)) + `<small class="tot-margin">粗利 ${mk.toFixed(1)}%</small>`;
           prEl.className = `profit-cell pr-cell ${pClass(internalProfit)}`;
@@ -4006,6 +4017,107 @@
   }
   window.duplicatePatternGroup = duplicatePatternGroup;
 
+  // ===== サブコン別明細をまるごと複製（見出しの「📋 複製」） =====
+  // サブコン別グループは明細行のサブコン欄で決まるため、同じ名前のまま複製すると同じグループに合流してしまう。
+  // そこで複製先のサブコン名を聞き、複製した明細のサブコン欄をその名前にして、元のグループの直後に置く。
+  // パターン名・子リマーク行・サブコン別／パターン別の注記はそのまま引き継ぐ（客先表示名は元の会社の名前なので引き継がない）。
+  // 入力完了の記録は引き継がない（duplicateRow と同じ＝この行はまだ確認していない）。
+  function _dupSubconName(svKey, label) {
+    const base = label || 'サブコン';
+    const used = new Set(_realRows().map(tr => subconNormKey(_rowSubcon(tr) ?? '')).filter(Boolean));
+    let n = 2, cand = `${base}（コピー）`;
+    while (used.has(subconNormKey(cand))) cand = `${base}（コピー${n++}）`;
+    return cand;
+  }
+  function duplicateSubconGroup(svKey, newName) {
+    const name = String(newName || '').trim();
+    if (!name) { if (typeof quoteShowToast === 'function') quoteShowToast('複製先のサブコン名を入力してください', 'warn'); return null; }
+    const newKey = subconNormKey(name);
+    if (newKey === svKey) { if (typeof quoteShowToast === 'function') quoteShowToast('元と同じサブコン名には複製できません（同じ枠に合流してしまいます）。別の名前を入れてください', 'warn', 4000); return null; }
+    const srcIds = _groupMemberRows(svKey, '').map(tr => tr.id.replace('row-', ''));
+    if (!srcIds.length) return null;
+    const merge = _realRows().some(tr => subconNormKey(_rowSubcon(tr) ?? '') === newKey);
+    const savedScrollY = window.scrollY;
+
+    // 元のグループの最後（子リマーク行を含む）の後ろへ、複製した行を順に並べる
+    const lastSrcId = srcIds[srcIds.length - 1];
+    const lastKids = getChildRemarks(lastSrcId);
+    let tail = lastKids.length ? lastKids[lastKids.length - 1] : document.getElementById(`row-${lastSrcId}`);
+    const newIds = [];
+    srcIds.forEach(srcId => {
+      const newId = duplicateRow(srcId);
+      newIds.push(newId);
+      const nr = document.getElementById(`row-${newId}`);
+      if (!nr || !tail) return;
+      [nr, ...getChildRemarks(newId)].forEach(node => { tail.parentNode.insertBefore(node, tail.nextSibling); tail = node; });
+      const svEl = document.getElementById(`sv-${newId}`);
+      if (svEl) svEl.value = name;
+    });
+
+    // サブコン別・パターン別の注記を引き継ぐ（複製先にまだ無いときだけ）
+    if (svKey !== _UNSET_KEY) Object.keys(_subconRemark).forEach(k => {
+      const m = k === svKey ? '' : (k.startsWith(svKey + '||') ? k.slice(svKey.length) : null);
+      if (m === null) return;
+      const dst = newKey + m;
+      if (!_subconRemark[dst]) _subconRemark[dst] = Object.assign({}, _subconRemark[k]);
+    });
+
+    renderSubconGroups();
+    window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+    if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
+    if (typeof updateTotals === 'function') updateTotals();
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    if (typeof quoteShowToast === 'function') {
+      quoteShowToast('📋 「' + (svKey === _UNSET_KEY ? '（サブコン未設定）' : (_rowSubcon(document.getElementById('row-' + srcIds[0])) || svKey)) + '」の明細 ' + newIds.length + ' 行を「' + name + '」として複製しました' +
+        (merge ? '（同じ名前の既存の枠に合流しました）' : ''), 'success', 4000);
+    }
+    const newHdr = Array.from(document.querySelectorAll('#tableBody tr.subcon-group-header')).find(h => h.dataset.svKey === newKey);
+    if (newHdr) {
+      newHdr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      newHdr.classList.add('grp-flash');
+      setTimeout(() => newHdr.classList.remove('grp-flash'), 1200);
+    }
+    return newIds;
+  }
+  // 「📋 複製」：複製先のサブコン名を小さな吹き出しで聞く（初期値は「○○（コピー）」・全選択なので、そのまま打てば置き換わる）
+  function openDupSubconGroup(svKey, label, anchor) {
+    document.getElementById('sfPop')?.remove();
+    const cnt = _groupMemberRows(svKey, '').length;
+    const pop = document.createElement('div');
+    pop.id = 'sfPop'; pop.className = 'sf-pop sf-pop-dup'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'サブコン別明細を複製');
+    pop.innerHTML =
+      '<div class="sf-pop-t">「' + _escHdr(label || '（サブコン未設定）') + '」の明細を複製</div>' +
+      '<div class="sf-pop-d">明細 ' + cnt + ' 行をまるごとコピーして、新しいサブコンの枠をつくります。複製先のサブコン名を入れてください（あとから見出しや各行で変えられます）。</div>' +
+      '<div class="sf-pop-row"><input type="text" class="sf-pop-in" list="svSuggestions" autocomplete="off" maxlength="40" placeholder="複製先のサブコン名（例：別の船会社）">' +
+      '<button type="button" class="sf-pop-ok">複製する</button></div>';
+    document.body.appendChild(pop);
+    const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: 24, top: 100, bottom: 120 };
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+    { const h = pop.offsetHeight, vh = window.innerHeight;
+      let top = r.bottom + 6;
+      if (top + h > vh - 8) top = (r.top - h - 6 >= 8) ? r.top - h - 6 : Math.max(8, vh - h - 8);
+      pop.style.top = Math.max(8, Math.min(top, vh - h - 8)) + 'px'; }   // ボタンが画面外でも、吹き出しは画面内に出す
+    const inp = pop.querySelector('.sf-pop-in');
+    inp.value = _dupSubconName(svKey, label);
+    const close = () => { pop.remove(); document.removeEventListener('pointerdown', onOut, true); document.removeEventListener('keydown', onKey, true); };
+    const ok = () => {
+      const v = inp.value.trim();
+      if (!v) { inp.focus(); return; }
+      if (subconNormKey(v) === svKey) { duplicateSubconGroup(svKey, v); inp.focus(); inp.select(); return; }
+      close(); duplicateSubconGroup(svKey, v);
+    };
+    const onOut = e => { if (!pop.contains(e.target) && e.target !== anchor) close(); };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    pop.querySelector('.sf-pop-ok').addEventListener('click', ok);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); ok(); } });
+    setTimeout(() => { document.addEventListener('pointerdown', onOut, true); document.addEventListener('keydown', onKey, true); }, 0);
+    inp.focus(); inp.select();
+  }
+  window.duplicateSubconGroup = duplicateSubconGroup;
+  window.openDupSubconGroup = openDupSubconGroup;
+
 
   // ===== パターン入力：幹線輸送の航路チップ（POL→via→POD、サブコン=キャリア除く）をサジェスト =====
   function _patternRouteOptions() {
@@ -4573,12 +4685,13 @@
             // 設定済みのときは名前の右に「→ 客先表示名」を出す（これもクリックで変更）。入力欄は編集中だけ出す
             `<span class="subcon-group-label subcon-alias-trigger" role="button" tabindex="0" title="クリックで客先表示名を設定・変更（客先向けの出力で、このサブコンの小計に出る名前。空欄ならサブコン名のまま）">📦 ${_escHdr(label)}</span>` +
             `<span class="subcon-alias-view subcon-alias-trigger" role="button" tabindex="0" hidden title="客先向けの出力に出る名前。クリックで変更"></span>` +
-            `<input type="text" class="subcon-alias-input" hidden placeholder="客先表示名（空欄＝サブコン名のまま）" value="${_escAttr(_subconAlias[key] || '')}" />` +
+            `<input type="text" class="subcon-alias-input" hidden placeholder="客先表示名（空欄＝御見積書にサブコン名を出さない）" value="${_escAttr(_subconAlias[key] || '')}" />` +
             `<span class="subcon-group-count">${count} 行</span>` +
             `<button type="button" class="sv-master-chip" hidden></button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-detail" hidden>📇 詳細</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-bm" hidden>🔖 BOOKMARK</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-import" hidden>📥 取り込み</button>` +
+            `<button type="button" class="sv-hdr-btn sv-hdr-dup" title="このサブコンの明細をまるごと複製して、別のサブコン名の枠をつくります（例：別の船会社で同じ明細の見積をつくる）">📋 複製</button>` +
             // 客先表示名・サブコン別リマークの入力は、この見出しの行内に置く（以前はグループ末尾の小計行にあった）
             `<span class="hdr-notes">` +
               `<span class="hdr-note hdr-note-remark" title="このサブコンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF）にも表示されます。">` +
@@ -4620,6 +4733,10 @@
           e.stopPropagation();
           const canon = e.currentTarget.dataset.canon;
           if (canon && typeof window.openImportChooser === 'function') window.openImportChooser(canon);
+        });
+        hdr.querySelector('.sv-hdr-dup').addEventListener('click', e => {
+          e.stopPropagation();
+          openDupSubconGroup(key, key === _UNSET_KEY ? '' : label, e.currentTarget);
         });
         hdr.querySelector('.sv-hdr-bm').addEventListener('click', e => {
           e.stopPropagation();
@@ -5322,6 +5439,7 @@
     });
     flushCat();
     flushSc();
+    if (typeof window.gbSync === 'function') window.gbSync();   // 見出しの金額のまとまり（Design 43・新画面）を写す
   }
 
   function _escHdr(s) {

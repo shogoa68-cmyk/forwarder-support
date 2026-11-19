@@ -243,7 +243,7 @@
     return (!ccy || ccy === 'JPY') ? amount : amount;
   }
   function _catLabel(v) {
-    if (_curLangEn && !v) return t('noCategory');
+    if (!v) return '';   // カテゴリ未設定のとき、空の見出し行（「— カテゴリ —」）をお客様向けの書類に出さない（Design 41-F）
     if (_curLangEn) return CAT_EN[v] || (typeof getCatLabel === 'function' ? (getCatLabel(v) || '') : (v || ''));
     return (typeof getCatLabel === 'function') ? (getCatLabel(v) || '') : (v || '');
   }
@@ -634,7 +634,7 @@
       if (_scActive && _scHas && !_scSumMeaningless) {
         // サブコン小計はページが分かれると見出し行が前ページに残り会社名が分からなくなるため、
         // 「小計」だけでなくサブコン名も併記する（例：「SEABRIDGE 小計」）
-        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_scHeadLabel || '')} ${t('subtotal')}</td><td class="qd-num">${_subYen(_scJpy, _scJpyHi)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${_scHeadLabel ? esc(_scHeadLabel) + ' ' : ''}${t('subtotal')}</td><td class="qd-num">${_subYen(_scJpy, _scJpyHi)}</td></tr>`);
       }
     };
     let _hasRangeRow = false;   // 幅（〜）で示した行があるか（あれば合計の注記を出す）
@@ -690,7 +690,7 @@
         + (() => { const k = (typeof minAppliedKind === 'function') ? minAppliedKind(r.bq, r.bp, r.bpmin) : null; return (k === 'min' || (k === 'rate' && !_rg && !isActual)) ? ` <span class="qd-min-tag qd-min-${k}">${t(k === 'min' ? 'minApplied' : 'rateApplied')}</span>` : ''; })();
       // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）
       // 数量は金額の根拠（sub = bq×bp）と一致させる。未入力時に「1」を捏造しない（B/台帳 C）
-      const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
+      const qtyDisp = (r.bq && r.bq > 0) ? (Number.isInteger(r.bq) ? fmtInt(r.bq) : fmtNum(r.bq, 4).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')) : '—';   // 整数は「2」、小数は必要な桁だけ（Design 41-F）
       // サブコン境界：キーが変わったら直前グループの売値小計を挿入
       if (_scActive) {
         const k = _scNorm(r);
@@ -702,8 +702,9 @@
           _scKey = k; _scLabel = _scLabelOf(r);  // グループ先頭の綴りを表示名に採用
           // 各サブコンブロックの先頭に見出しを置き、どのサブコンの明細かを明示する
           const _alH = (typeof getSubconAliases === 'function' ? getSubconAliases()[_scKey] : '') || '';
-          _scHeadLabel = _alH || _masterEn('sv', _scLabel);
-          lineHTML.push(`<tr class="qd-subcon-head"><td colspan="5">${esc(_scHeadLabel)}</td></tr>`);
+          // サブコンの実名（下請け先）は既定で出さない。客先表示名を入れたときだけ見出しに出す（Design 41-F）
+          _scHeadLabel = _alH.trim();
+          if (_scHeadLabel) lineHTML.push(`<tr class="qd-subcon-head"><td colspan="5">${esc(_scHeadLabel)}</td></tr>`);
           // サブコン別リマーク（「見積書に表示」がONのときのみ御見積書PDFにも表示）
           const _rmH = (typeof getSubconRemarks === 'function' ? getSubconRemarks()[_scKey] : null);
           if (_rmH && _rmH.show && _rmH.text && _rmH.text.trim()) {
@@ -868,9 +869,9 @@
         </div>
         ${hideTotal ? '' : `<div class="qd-sum">
           <table>
-            <tr><td class="qd-sk2">${t('exemptSub')}</td><td class="qd-num">${rgY(exemptSub, exemptSubHi)}</td></tr>
-            <tr><td class="qd-sk2">${t('taxableSub')}</td><td class="qd-num">${rgY(taxableSub, taxableSubHi)}</td></tr>
-            <tr><td class="qd-sk2">${t('tax')}（${Math.round(taxRate * 100)}%）</td><td class="qd-num">${rgY(tax, taxSumHi)}</td></tr>
+            ${(exemptSub || exemptSubHi) ? `<tr><td class="qd-sk2">${t('exemptSub')}</td><td class="qd-num">${rgY(exemptSub, exemptSubHi)}</td></tr>` : ''}
+            ${(taxableSub || taxableSubHi) ? `<tr><td class="qd-sk2">${t('taxableSub')}</td><td class="qd-num">${rgY(taxableSub, taxableSubHi)}</td></tr>
+            <tr><td class="qd-sk2">${t('tax')}（${Math.round(taxRate * 100)}%）</td><td class="qd-num">${rgY(tax, taxSumHi)}</td></tr>` : ''}
             <tr class="qd-total"><td>${t('grandTotal')}</td><td class="qd-num">${rgY(total, totalHi)}</td></tr>
           </table>
         </div>`}
@@ -928,16 +929,20 @@
               <div class="qd-panel-h">📄 PDF出力設定</div>
               <div class="qd-panel-s">御見積書フォーマット</div>
             </div>
+            <div class="qd-panel-foot">
+              <button type="button" class="qd-btn-print" id="qdPrint">🖨️ PDF出力（印刷）</button>
+              <button type="button" class="qd-btn-ghost" id="qdClose">閉じる</button>
+            </div>
             <div class="qd-panel-body">
               <div class="qd-fg">
                 <label for="qdPdfTitle">ファイル名</label>
                 <div class="qd-inp"><input type="text" id="qdPdfTitle" placeholder="ファイル名（拡張子不要）" title="PDF保存時のファイル名（ブラウザの印刷ダイアログに反映）"><span class="qd-ext">.pdf</span></div>
               </div>
+              <div class="qd-sec-h">よく使う設定</div>
               <label class="qd-toggle" title="ONにすると、見出し・項目名・合計欄等の固定ラベルを英語で出力します（海外客先向け）。品名・備考・サブコン名等のご自身で入力した文章は翻訳されず日本語のまま出力されます。">
                 <span class="qd-toggle-l">🌐 英語で出力<small>固定ラベルのみ</small></span>
                 <input type="checkbox" id="qdLangEn"><span class="qd-toggle-sw"></span>
               </label>
-              <button type="button" class="qd-je-btn" id="qdJeBtn" title="英語で出力するとき、品名・リマークを英語にする辞書です。訳せていない文があれば、ここで英語を登録できます（AI・外部送信なし）">📖 英訳辞書<span id="qdJeCnt"></span></button>
               <label class="qd-toggle" title="ONにすると上部の御見積額・下部の合計／税サマリを非表示にします。小計行でパターンA/B比較を行う用途向け。複数のパターン（FCL案／LCL案など）があるサブコンでは、案どうしを足したサブコン小計も出しません（パターンごとの小計は残ります）。">
                 <span class="qd-toggle-l">合計・税サマリを非表示<small>パターン比較用</small></span>
                 <input type="checkbox" id="qdHideTotal"><span class="qd-toggle-sw"></span>
@@ -946,10 +951,12 @@
                 <span class="qd-toggle-l">📐 貿易条件の図解<small>売主／買主の分担</small></span>
                 <input type="checkbox" id="qdIncoDiagram"><span class="qd-toggle-sw"></span>
               </label>
+              <div class="qd-sec-h">そのほか</div>
               <label class="qd-toggle" id="qdMultiWrap" title="ONにすると、物量パターン（例：FCL案／LCL案）の比較表と、案ごとの明細・条件・合計を1つの御見積書にまとめて出力します。タブの🔒（見積書に表示しない）を付けたパターンは含みません。パターンが2つ以上あるときに使えます。">
                 <span class="qd-toggle-l">🆚 パターンを併記<small>FCL案／LCL案など</small></span>
                 <input type="checkbox" id="qdMultiOut"><span class="qd-toggle-sw"></span>
               </label>
+              <div class="qd-why" id="qdMultiWhy" hidden>パターン（FCL案／LCL案など）が 2 つ以上あるときに使えます</div>
               <label class="qd-toggle" title="PDF を出力したあと、案件ステータスが「下書き中」なら自動で「提示済み」に進めます。受注・失注などのステータスは変更しません。">
                 <span class="qd-toggle-l">出力後に「提示済み」へ<small>下書き中のときだけ</small></span>
                 <input type="checkbox" id="qdAutoStatus"><span class="qd-toggle-sw"></span>
@@ -960,10 +967,7 @@
               </div>
               <div class="qd-issuer-wrap" id="qdIssuerWrap" style="display:none;"></div>
               <div class="qd-fg"><label>用紙</label><div class="qd-inp qd-static">A4 縦</div></div>
-            </div>
-            <div class="qd-panel-foot">
-              <button type="button" class="qd-btn-print" id="qdPrint">🖨️ PDF出力（印刷）</button>
-              <button type="button" class="qd-btn-ghost" id="qdClose">閉じる</button>
+              <button type="button" class="qd-je-btn" id="qdJeBtn" title="英語で出力するとき、品名・リマークを英語にする辞書です。訳せていない文があれば、ここで英語を登録できます（AI・外部送信なし）">📖 英訳辞書<span id="qdJeCnt"></span></button>
             </div>
           </aside>
         </div>`;
@@ -1011,12 +1015,14 @@
       multiChk2.checked = !!(typeof window.getOutputPatternViews === 'function' && window.getOutputPatternViews());
       multiChk2.disabled = nPat < 2;
       const w = overlay.querySelector('#qdMultiWrap'); if (w) w.style.opacity = nPat < 2 ? '.45' : '';
+      const why = overlay.querySelector('#qdMultiWhy'); if (why) why.hidden = nPat >= 2;   // 押せない理由を小さく出す（Design 41-G）
     }
     const titleIn = overlay.querySelector('#qdPdfTitle');
     if (titleIn) titleIn.value = _defaultPdfTitle();
     refreshQuoteDoc();
     overlay.classList.add('open');
     document.body.classList.add('qd-printing-ready');
+    if (typeof window.pvWarnGuidePlace === 'function') window.pvWarnGuidePlace();   // 確認ガイドは用紙の上の帯へ
     // 1クリック出力：レイアウト確定を 2 フレーム待ってから印刷ダイアログを開く。
     // （待たずに print すると、まだ描画中の内容が印刷対象になることがある）
     if (quickPrint) {
@@ -1101,6 +1107,7 @@
     const o = document.getElementById('quoteDocOverlay');
     if (o) o.classList.remove('open');
     document.body.classList.remove('qd-printing-ready');
+    if (typeof window.pvWarnGuidePlace === 'function') window.pvWarnGuidePlace();
   }
 
   function printQuoteDoc() {
