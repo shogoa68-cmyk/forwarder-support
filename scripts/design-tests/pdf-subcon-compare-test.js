@@ -30,6 +30,11 @@ const out=[];
  const ids=await p.locator('#tableBody tr:not([data-virtual]):not([data-type])').evaluateAll(trs=>trs.map(t=>t.id.replace('row-','')));
  await p.evaluate(([a,b,c])=>{const set=(id,v)=>{const e=document.getElementById('pt-'+id);e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));};set(a,'FCL案');set(b,'LCL案');set(c,'一括');window.renderSubconGroups&&window.renderSubconGroups();},[ids[0],ids[1],ids[4]]);
  await p.waitForTimeout(1000);
+ // Design 41-F：サブコンの実名は既定で御見積書に出さない（客先表示名を入れたときだけ見出しに出す）
+ const noAlias=await p.evaluate(()=>{const d=document.createElement('div');d.innerHTML=buildQuoteDocHTML();return {heads:d.querySelectorAll('tr.qd-subcon-head').length,txt:d.textContent};});
+ ok('客先表示名なし：サブコン見出しは出ない・実名（A海運）も出ない',noAlias.heads===0&&!/A海運|Bローカル|C通関/.test(noAlias.txt),noAlias.heads);
+ await p.evaluate(()=>{const m=window.getSubconAliases();['A海運','Bローカル','C通関'].forEach(n=>{m[subconNormKey(n)]=n;});window.setSubconAliases(m);});
+ await p.waitForTimeout(300);
  const doc=hide=>p.evaluate(h=>{try{localStorage.setItem('quoteDocHideTotal_v1',h?'1':'0')}catch(e){}const d=document.createElement('div');d.innerHTML=buildQuoteDocHTML();
    const t=s=>[...d.querySelectorAll(s)].map(e=>e.textContent.replace(/\s+/g,' ').trim());
    return {scSub:t('tr.qd-subcon-sub'),ptSub:t('tr.qd-pattern-sub'),heads:t('tr.qd-subcon-head'),total:!!d.querySelector('.qd-sum')};},hide);

@@ -3659,7 +3659,7 @@
     row.id = 'mdDetailModal';
     row.className = 'md-modal-overlay';
     row.setAttribute('role', 'dialog'); row.setAttribute('aria-modal', 'true');
-    row.innerHTML = `<div class="md-modal"><div class="md-modal-head"><h3>📇 ${_esc(_FIELD_LABEL[field] || field)}　${_esc(value)}</h3>` +
+    row.innerHTML = `<div class="md-modal"><div class="md-resize" role="separator" aria-orientation="vertical" title="ドラッグで幅を変更（ダブルクリックで元に戻す）"></div><div class="md-modal-head"><h3>📇 ${_esc(_FIELD_LABEL[field] || field)}　${_esc(value)}</h3>` +
       `<button type="button" class="md-modal-close" title="閉じる（Esc）" onclick="statsCloseMasterDetail()">✕</button></div>` +
       `<div class="md-modal-body"><div class="master-detail-form">${fieldsHtml}` +
       `<div class="master-detail-actions">` +
@@ -3681,6 +3681,19 @@
       `</div></div>`;
     document.body.appendChild(row);
     document.body.classList.add('md-modal-open');
+    (function () {   // 幅をドラッグで変えられる（右ドロワー・幅は端末に記憶）
+      const modal = row.querySelector('.md-modal'), h = row.querySelector('.md-resize');
+      const KEY = 'mdDrawerW_v1', clamp = w => Math.max(420, Math.min(window.innerWidth, w));
+      try { const w = parseInt(localStorage.getItem(KEY), 10); if (w) modal.style.setProperty('--md-w', clamp(w) + 'px'); } catch (e) {}
+      h.addEventListener('pointerdown', ev => {
+        ev.preventDefault(); h.setPointerCapture(ev.pointerId); row.classList.add('is-resizing');
+        const mv = e => modal.style.setProperty('--md-w', clamp(window.innerWidth - e.clientX) + 'px');
+        const up = () => { h.removeEventListener('pointermove', mv); h.removeEventListener('pointerup', up); row.classList.remove('is-resizing');
+          try { localStorage.setItem(KEY, String(parseInt(modal.style.getPropertyValue('--md-w'), 10) || '')); } catch (e) {} };
+        h.addEventListener('pointermove', mv); h.addEventListener('pointerup', up);
+      });
+      h.addEventListener('dblclick', () => { modal.style.removeProperty('--md-w'); try { localStorage.removeItem(KEY); } catch (e) {} });
+    })();
     const firstInput = row.querySelector('input,textarea,select'); if (firstInput) firstInput.focus();
     window.statsRefreshMasterAttachments(field, value);
     if ((field === 'sv' || field === 'customer') && typeof window.mnMountPanel === 'function') window.mnMountPanel(document.getElementById('mnPanel'), field, value);

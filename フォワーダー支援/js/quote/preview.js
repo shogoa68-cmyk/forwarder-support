@@ -455,6 +455,26 @@
     const panel = document.getElementById('pvWarnGuide');
     if (!panel || panel.style.display === 'none') return;
     panel.style.bottom = ''; panel.style.top = '';             // いったん CSS の既定（下から 80px）へ
+    panel.style.left = ''; panel.style.right = ''; panel.style.width = '';
+    panel.classList.remove('pv-wg-band');
+    // PDF 出力の画面が開いているとき：設定パネルのボタンを隠さないよう、用紙（左の領域）の上端に帯で出す（Design 41-D）
+    const qdo = document.getElementById('quoteDocOverlay');
+    const stage = qdo && qdo.classList.contains('open') && qdo.querySelector('.qd-stage');
+    if (stage) {
+      const r = stage.getBoundingClientRect();
+      if (r.width > 200) {
+        const w = Math.min(r.width - 24, 640);
+        panel.classList.add('pv-wg-band');
+        panel.style.left = Math.round(r.left + (r.width - w) / 2) + 'px';
+        panel.style.right = 'auto';
+        panel.style.width = Math.round(w) + 'px';
+        panel.style.top = Math.round(r.top + 12) + 'px';
+        panel.style.bottom = 'auto';
+        const list = document.getElementById('pvWarnGuideList');
+        if (list) list.style.maxHeight = Math.max(80, Math.min(200, Math.round(r.height - 200))) + 'px';
+        return;
+      }
+    }
     const vh = window.innerHeight || document.documentElement.clientHeight;
     const g = panel.getBoundingClientRect();
     const overlapsX = r => r.width > 0 && r.right > g.left && r.left < g.right;
@@ -633,8 +653,9 @@
 
     const taxRate = getEffectiveTaxRate();
 
-    let html = `<table id="previewTable">
-      <thead><tr>
+    let html = `<div class="pv-head-legend"><span class="pv-lg pv-lg-pay">仕入（原価）</span><span class="pv-lg pv-lg-bill">請求（お客様へ）</span><span class="pv-lg pv-lg-res">結果（小計・利益）</span></div>
+    <table id="previewTable">
+      <thead><tr class="pv-hgrp"><th class="pv-hg pv-hg-item" colspan="3">項目</th><th class="pv-hg pv-hg-pay" colspan="5">仕入</th><th class="pv-hg pv-hg-bill" colspan="3">請求</th><th class="pv-hg pv-hg-res" colspan="6">結果</th></tr><tr>
         <th>カテゴリ</th><th>サブコン</th><th>項目名</th>
         <th class="ph-pay">数量</th><th class="ph-pay">単位</th><th class="ph-pay">通貨</th>
         <th class="ph-pay">単価</th><th class="ph-pay" style="color:#ccc;">CD</th>
@@ -756,12 +777,21 @@
         // サブコン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
         // 色・右揃えは quote.css のキャッシュに依存しないよう、描画側でインライン指定（最優先）
         const _scStyle = 'background:#ead29a;border-top:2px solid #c69a44;border-bottom:2px solid #c69a44;';
+        // Design 41-E：仕入合計は「仕入」の単価の列、粗利率は「利益」の列へ（仕入の列を隠したときだけラベルの中に出す）
+        const costCell = _scShowInternal ? `<span class="pv-scs-costv">${costTxt}</span>` : '';
+        const marginCell = _scShowInternal ? `<small class="pv-scs-marginv${(m !== null && m < 0) ? ' pv-neg' : ''}">粗利率 ${marginTxt}</small>` : '';
         html += `<tr class="pv-subcon-subtotal pv-grp-c${(d.gi ?? 0) % 4}">
-          <td colspan="12" class="pv-scs-label" style="${_scStyle}text-align:right !important;">↳ 小計${internalBits}</td>
+          <td colspan="6" class="pv-scs-label pv-scs-label--split" style="${_scStyle}text-align:right !important;">↳ 小計${internalBits}</td>
+          <td data-ft-col="pay" class="pv-num pv-scs-costcol" style="${_scStyle}">${costCell}</td>
+          <td data-ft-col="pay" style="${_scStyle}"></td>
+          <td data-ft-col="bill" style="${_scStyle}"></td>
+          <td data-ft-col="bill" style="${_scStyle}"></td>
+          <td data-ft-col="bill" style="${_scStyle}"></td>
+          <td data-ft-col="mk" style="${_scStyle}"></td>
           <td class="pv-num pv-subtotal" style="${_scStyle}">${sellTxt}</td>
           <td data-ft-col="jpy-conv" class="pv-jpy" style="${_scStyle}"></td>
           <td data-ft-col="tax-col" style="${_scStyle}"></td>
-          <td data-ft-col="profit" class="pv-num ${prCls}" style="${_scStyle}">¥${fmtMoney(prAmt)}</td>
+          <td data-ft-col="profit" class="pv-num ${prCls}" style="${_scStyle}">¥${fmtMoney(prAmt)}${marginCell}</td>
           <td data-ft-col="note" style="${_scStyle}"></td>
         </tr>`;
         return;
@@ -861,7 +891,7 @@
       const _ac      = d._actual;
       const _acTxt   = '<span class="pv-actual-txt">実費</span>';
       const ppCell   = _ac ? _acTxt : (minPriceText(d.pp, d.ppmin, d.pc, d.un) || fmtMoney(d.pp));
-      const cdCell   = _ac ? '' : fmtMoney(d.cd);
+      const cdCell   = (_ac || !Number(d.cd)) ? '' : fmtMoney(d.cd);   // CD が 0 の行は空欄（Design 41-E）
       const _rg      = _ac ? null : rowRange(d.bp, d.bphi);   // 幅（売単価〜上限）
       const _rgAmt   = _rg ? rowRangeAmt(d.bq, d.bp, d.bphi, d.bpmin) : null;
       const bpCell   = _ac ? _acTxt : (_rg ? fmtMoney(_rg.lo) + '〜' + fmtMoney(_rg.hi) : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtMoney(d.bp))) +
@@ -882,7 +912,7 @@
       const _condNote = d._cond ? '<span class="pv-cond-note">（発生時/必要時のみ）</span>' : '';
       const _refNote  = d._ref  ? '<span class="pv-ref-note">（参考情報）</span>' : '';
       html += `<tr class="${(d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : '')}${_hqCls}${d._outRange ? ' pv-row-out-range' : ''}${_ac ? ' pv-row-actual' : ''}${d._cond ? ' pv-row-cond' : ''}${d._ref ? ' pv-row-ref' : ''}">
-        <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
+        <td class="pv-name" style="font-size:11px;">${d.cat ? escHtml(getCatLabel(d.cat)) : ''}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
         <td class="${nameCls}">${_hqBadge}${escHtml(d.name)}${_condNote}${_refNote}${_pvValidityBadge(d.vf, d.vt)}${d.insInv ? `<div class="pv-ins-inv">${escHtml(window.insInvoiceText(d.insInv, false))}</div>` : ''}</td>
         <td class="pv-num">${fmtRaw(d.pq)}</td><td>${escHtml(d.un || '')}</td><td>${escHtml(d.pc)}</td>
@@ -1202,7 +1232,7 @@
       const show = chk.checked;
       // thead/tbody は nth-child で制御（1セル=1列のため位置が一致）
       indices.forEach(ci => {
-        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr:not(.pv-subtotal-sep):not(.pv-subcon-subtotal):not(.pv-subcon-header):not(.pv-pattern-header):not(.pv-pattern-subtotal):not(.pv-table-remark-row) td:nth-child(${ci + 1})`).forEach(cell => {
+        table.querySelectorAll(`thead tr:not(.pv-hgrp) th:nth-child(${ci + 1}), tbody tr:not(.pv-subtotal-sep):not(.pv-subcon-subtotal):not(.pv-subcon-header):not(.pv-pattern-header):not(.pv-pattern-subtotal):not(.pv-table-remark-row) td:nth-child(${ci + 1})`).forEach(cell => {
           cell.style.display = show ? '' : 'none';
         });
       });
@@ -1234,8 +1264,28 @@
       (_isOn('unit') ? 1 : 0) +
       (_isOn('bill') ? 3 : 0) +
       (_isOn('mk') ? 1 : 0);
-    table.querySelectorAll('.pv-scs-label, .pv-subtotal-sep-label, .pv-pts-label').forEach(td => {
+    // 2 段の見出し（項目｜仕入｜請求｜結果）の colspan を、表示中の列の数に合わせる
+    const _hgSpan = {
+      item: 1 + (_isOn('cat') ? 1 : 0) + (_isOn('sv') ? 1 : 0),
+      pay:  (_isOn('pay') ? 4 : 0) + (_isOn('unit') ? 1 : 0),
+      bill: _isOn('bill') ? 3 : 0,
+      res:  1 + (_isOn('mk') ? 1 : 0) + (_isOn('jpy-conv') ? 1 : 0) + (_isOn('tax-col') ? 1 : 0) + (_isOn('profit') ? 1 : 0) + (_isOn('note') ? 1 : 0),
+    };
+    Object.keys(_hgSpan).forEach(k => table.querySelectorAll('thead tr.pv-hgrp th.pv-hg-' + k).forEach(th => {
+      th.colSpan = Math.max(1, _hgSpan[k]); th.style.display = _hgSpan[k] ? '' : 'none';
+    }));
+    table.querySelectorAll('.pv-scs-label:not(.pv-scs-label--split), .pv-subtotal-sep-label, .pv-pts-label').forEach(td => {
       td.colSpan = Math.max(1, _leadingVisible);
+    });
+    // サブコン小計（分けた形）：ラベルは「仕入の単価の列」の手前まで。仕入の列を隠したときは、仕入合計をラベルの中に戻す
+    const _splitLead = (_isOn('cat') ? 1 : 0) + (_isOn('sv') ? 1 : 0) + 1 + (_isOn('pay') ? 2 : 0) + (_isOn('unit') ? 1 : 0);
+    table.querySelectorAll('.pv-scs-label--split').forEach(td => {
+      td.colSpan = Math.max(1, _splitLead);
+      const tr = td.parentElement;
+      const c = td.querySelector('.pv-scs-cost'), mg = td.querySelector('.pv-scs-margin');
+      if (c) c.style.display = (_isOn('profit') && !_isOn('pay')) ? 'inline' : 'none';
+      if (mg) mg.style.display = 'none';   // 粗利率は「利益」の列に出す
+      if (tr) tr.querySelectorAll('.pv-scs-marginv').forEach(e => { e.style.display = _isOn('profit') ? 'block' : 'none'; });
     });
     const _leadHead = 1 /* 項目名 */ + (_isOn('cat') ? 1 : 0) + (_isOn('sv') ? 1 : 0);
     table.querySelectorAll('tfoot tr.pv-total > td:first-child').forEach(td => {
@@ -1461,8 +1511,8 @@
   // ========== プレビューのレイアウト切替（表計算 / 御見積書フォーマット） ==========
   function overlayClick(e) { if (e.target === document.getElementById('previewOverlay')) closePreview(); }
   let _pvLayout = (function () {
-    try { return localStorage.getItem('pvLayout_v1') === 'table' ? 'table' : 'doc'; }
-    catch (_) { return 'doc'; }
+    // Design 41（案2）：プレビューは社内確認の表計算だけ。お客様向けの御見積書は PDF 出力（openQuoteDoc）に一本化
+    return 'table';
   })();
   // A4 縦（96dpi 換算）: 210×297mm ≈ 794×1123px
   const A4_W = 794, A4_H = 1123;
@@ -1475,7 +1525,8 @@
     document.querySelectorAll('.pv-layout-btn').forEach(b =>
       b.classList.toggle('is-on', b.dataset.pvl === _pvLayout));
     const h2 = box.querySelector('h2');
-    if (h2) h2.textContent = _pvLayout === 'doc' ? '📋 プレビュー（御見積書フォーマット）' : '📋 プレビュー（表計算形式）';
+    if (h2) h2.textContent = '📋 プレビュー（表計算）';
+    const mt = box.querySelector('.pv-main-title'); if (mt) mt.textContent = '📋 プレビュー（表計算）';
     if (_pvLayout === 'doc') {
       // 御見積書用 発行日／有効期限 入力欄を現在のフォーム値で同期
       const hdr = getQuoteHeader();
@@ -1490,7 +1541,12 @@
     }
   }
   function setPreviewLayout(mode) {
-    _pvLayout = (mode === 'doc') ? 'doc' : 'table';
+    if (mode === 'doc') {   // 見積書レイアウトは廃止：PDF 出力の画面を開く
+      closePreview();
+      if (typeof window.openQuoteDoc === 'function') window.openQuoteDoc();
+      return;
+    }
+    _pvLayout = 'table';
     try { localStorage.setItem('pvLayout_v1', _pvLayout); } catch (_) {}
     _docPage = 0;
     applyPreviewLayout();

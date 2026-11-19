@@ -78,3 +78,8 @@ body.ppref-picking #tab-quote-make #tableBody tr:not(.ppref-cand) { cursor: not-
 #tab-quote-make #tableBody tr.ppref-flash > td { animation: pprefFlash 2.2s ease-out; }
 /* 統合中の行：統合先と統合元は 1 つの塊（左に線）。解除するまで一緒に動く */
 #tab-quote-make #tableBody tr.row-merged-child > td:first-child { box-shadow: inset 4px 0 0 #7c52d1; }
+
+/* ％の基準として他の行から指定されている行の印（2026-11） */
+#tab-quote-make .row-pctref-badge { display: inline-block; margin-top: 3px; padding: 1px 8px; font-size: var(--text-xs, 12px); font-weight: 700; color: #1d3f7a; background: #dbe7fa; border: 1px solid #2f5fb3; border-radius: 10px; cursor: pointer; line-height: 1.5; }
+#tab-quote-make .row-pctref-badge:hover { background: #c7daf6; }
+#tab-quote-make #tableBody tr.is-pct-ref > td:first-child { box-shadow: inset 4px 0 0 #2f5fb3; }
