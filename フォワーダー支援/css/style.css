@@ -6225,3 +6225,14 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 .ir-shape { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: var(--text-xs, 12px); }
 .ir-shape-t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, monospace; }
 .ir-shape-del { min-width: 32px; min-height: 28px; border: 1px solid var(--border-md, #d0d7de); border-radius: 6px; background: #fff; cursor: pointer; }
+
+/* 類似見積：入口カード（新規見積の入口の「似ている案件を参考に作成」と同じ見た目）／検索ボタン */
+.sq-intro { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 100%; margin: 8px 0; padding: 14px 16px; text-align: left; font-family: inherit; cursor: pointer; background: #eef5ff; border: 1px solid #b9d0f3; border-radius: 8px; color: inherit; }
+.sq-intro:hover { background: #e3eeff; border-color: #8fb3ea; }
+.sq-intro .sq-intro-ico { font-size: 28px; line-height: 1; }
+.sq-intro b { font-size: var(--text-lg, 16px); }
+.sq-intro small { font-size: var(--text-xs, 12px); line-height: 1.7; color: var(--text-muted, #667085); }
+.sq-go-row { display: flex; gap: 8px; align-items: center; }
+.sq-go-btn { min-height: 36px; padding: 0 18px; font-family: inherit; font-weight: 700; cursor: pointer; border: 1px solid #2f5fb3; background: #2f5fb3; color: #fff; border-radius: 6px; }
+.sq-go-btn:hover { background: #274f97; }
+.sq-clear-btn { min-height: 36px; padding: 0 12px; font-family: inherit; cursor: pointer; border: 1px solid #98a2b3; background: #fff; border-radius: 6px; }
