@@ -1922,6 +1922,10 @@
     const tab = document.getElementById('tab-quote-make') || document;
     const mark = () => { if (_lockHeldId) _lastLockActivity = Date.now(); };
     ['pointerdown', 'keydown', 'input'].forEach(ev => tab.addEventListener(ev, mark, true));
+    // スクロール・マウス／指の動きも「操作」と数える（画面を見ながら読んでいる・考えているだけで放置扱いにしない）。
+    // 画面全体で拾う（右の引き出し・ヘッダーなど .quote-main の外の操作も含む）。保持中でなければ何もしない軽い処理。
+    ['scroll', 'wheel', 'mousemove', 'touchstart', 'touchmove'].forEach(ev =>
+      window.addEventListener(ev, mark, { capture: true, passive: true }));
   }
   function _startLockHeartbeat(id) {
     _stopLockHeartbeat();
@@ -1949,21 +1953,106 @@
   // ロックを失った（管理者が強制解放 or 他メンバーが引き継ぎ）→ 閲覧モードへ落とす
   function _onLockLost(id) {
     _dirtyKept = _quoteDirty;   // 未保存の入力は残る。再度「編集」しても未保存の印を消さない
+    const _drafted = _quoteDirty ? _draftSave(id, 'lost') : null;   // 未保存の入力があれば、下書きとしてこの端末に控える
     _stopLockHeartbeat();
     if (_lockHeldId === id) _lockHeldId = null;
     _setEditing(null);
     _applyShareMode('view');
-    quoteShowToast('🔓 この案件の編集権が解放されました（管理者操作または他メンバーの引き継ぎ）。閲覧モードに切り替えました。', 'warn', 7000);
+    quoteShowToast('🔓 この案件の編集権が解放されました（管理者操作または他メンバーの引き継ぎ）。閲覧モードに切り替えました。' + _draftToastTail(_drafted), 'warn', 9000);
   }
   // 自分が長時間放置 → 自分でロックを解放して閲覧モードへ（他メンバーが編集できるように）
   function _onSelfIdleRelease(id) {
     _dirtyKept = _quoteDirty;   // 未保存の入力は残る。再度「編集」しても未保存の印を消さない
+    const _drafted = _quoteDirty ? _draftSave(id, 'idle') : null;   // 未保存の入力があれば、解放と同時に下書きとしてこの端末に控える
     _stopLockHeartbeat();
     _releaseLock(id);
     if (_lockHeldId === id) _lockHeldId = null;
     _setEditing(null);
     _applyShareMode('view');
-    quoteShowToast('💤 10分間操作がなかったため編集権を解放し、閲覧モードに切り替えました。続けるには「✏️ 編集」を押してください。', 'info', 8000);
+    quoteShowToast('💤 10分間操作がなかったため編集権を解放し、閲覧モードに切り替えました。続けるには「✏️ 編集」を押してください。' + _draftToastTail(_drafted), 'info', 9000);
+  }
+
+  // ---------- 放置・編集権の解放時の「未保存の下書き」（この端末の localStorage・案件ごとに 1 件） ----------
+  //   ・保存先はクラウドではなくこの端末（チームの案件データは「保存」を押したときだけ書き換える＝勝手に上書きしない）。
+  //   ・画面の入力はそのまま残る。下書きは、ページを閉じた・再読み込みした・他の人に編集を引き継がれた、に備えた控え。
+  //   ・案件を開いたとき、下書きがあれば帯（#qmDraftBar）で「復元して編集／破棄」を出す。保存（作業終了）すると消える。
+  const DRAFT_KEY = 'quoteIdleDrafts_v1', DRAFT_MAX = 8;
+  function _draftsRead() {
+    try { const o = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}'); return (o && typeof o === 'object') ? o : {}; } catch (e) { return {}; }
+  }
+  function _draftsWrite(o) { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(o)); return true; } catch (e) { return false; } }
+  function _draftSave(id, reason) {
+    if (!id || !_cloudUser) return null;
+    let data = null;
+    try { data = gatherAllData(); } catch (e) { return null; }
+    const all = _draftsRead();
+    all[id] = {
+      at: Date.now(), reason: reason || 'idle', by: _cloudUser.email, base: _loadedCloudTs || null,
+      name: (document.getElementById('currentQuoteName')?.dataset.name || '').trim(), data
+    };
+    // 古い下書きから順に整理（件数の上限）。容量が足りなければ、ほかの下書きを減らして 1 度だけやり直す
+    const trim = (o, max) => {
+      const ids = Object.keys(o).sort((a, b) => (o[b].at || 0) - (o[a].at || 0));
+      ids.slice(max).forEach(k => { if (k !== id) delete o[k]; });
+    };
+    trim(all, DRAFT_MAX);
+    if (_draftsWrite(all)) return { ok: true, at: all[id].at };
+    Object.keys(all).forEach(k => { if (k !== id) delete all[k]; });
+    return _draftsWrite(all) ? { ok: true, at: all[id].at } : { ok: false };
+  }
+  function _draftGet(id) {
+    const d = _draftsRead()[id];
+    if (!d || !d.data || !_cloudUser || d.by !== _cloudUser.email) return null;   // 共有 PC で他の人の下書きは出さない
+    return d;
+  }
+  function _draftClear(id) {
+    if (!id) return;
+    const all = _draftsRead();
+    if (all[id]) { delete all[id]; _draftsWrite(all); }
+  }
+  function _draftToastTail(r) {
+    if (!r) return '';
+    return r.ok ? ' 📝 未保存の入力は下書きとしてこの端末に控えました。' : ' ⚠️ 下書きを控えられませんでした（保存領域の不足）。画面の入力は残っています。早めに保存してください。';
+  }
+  function _draftBarHide() { const b = document.getElementById('qmDraftBar'); if (b) b.remove(); }
+  function _draftBarShow(id) {
+    _draftBarHide();
+    const d = _draftGet(id);
+    const tb = document.getElementById('saveToolbar');
+    if (!d || !tb) return;
+    const when = new Date(d.at);
+    const w = (when.getMonth() + 1) + '/' + when.getDate() + ' ' + String(when.getHours()).padStart(2, '0') + ':' + String(when.getMinutes()).padStart(2, '0');
+    const changed = d.base && _loadedCloudTs && Date.parse(d.base) !== Date.parse(_loadedCloudTs);
+    const bar = document.createElement('div');
+    bar.id = 'qmDraftBar';
+    bar.className = 'qm-draft-bar';
+    bar.setAttribute('role', 'status');
+    bar.innerHTML =
+      '<span class="qmd-msg"><b>📝 未保存の下書きがあります</b>（' + w + ' に' + (d.reason === 'lost' ? '編集権が外れた' : '放置で解放した') + 'ときの入力）' +
+      (changed ? '<br><span class="qmd-warn">⚠️ この案件は、下書きのあとに更新されています。復元すると、その更新を上書きします。</span>' : '') + '</span>' +
+      '<span class="qmd-btns"><button type="button" class="qmd-go" data-act="restore">復元して編集</button>' +
+      '<button type="button" class="qmd-no" data-act="discard">破棄</button></span>';
+    bar.addEventListener('click', async e => {
+      const b = e.target.closest('[data-act]');
+      if (!b) return;
+      if (b.dataset.act === 'discard') {
+        if (typeof uiConfirm === 'function' && !(await uiConfirm({ title: '未保存の下書きを破棄しますか？', lines: ['この端末に控えた下書きを消します。'], irreversible: '破棄した下書きは元に戻せません。', okLabel: '破棄する', danger: true }))) return;
+        _draftClear(id); _draftBarHide();
+        quoteShowToast('🗑 下書きを破棄しました', 'info', 3000);
+        return;
+      }
+      // 復元：先に編集を始め（ロック取得）、取れたときだけ下書きの内容を画面へ入れる
+      if (_loadedCloudId !== id) return;
+      _dirtyKept = true;                                                 // quoteModeEdit が「未保存あり」で編集を始める（0 秒の未保存リセットに消されない）
+      if (_shareMode === 'view') await quoteModeEdit();
+      if (_shareMode !== 'edit' || _loadedCloudId !== id) { _dirtyKept = false; return; }      // 他の人が作業中などで編集できなかった
+      _applyQuoteData(d.data);
+      if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
+      _dirtyKept = false; _quoteDirty = true;                            // 下書きは未保存の入力として扱う（保存するまで下書きも残す）
+      _draftBarHide();
+      quoteShowToast('📝 下書きを復元しました。内容を確認して保存してください', 'success', 5000);
+    });
+    tb.insertAdjacentElement('afterend', bar);
   }
   // 案件のロックを取得。{ok:true}=取得 ／ {ok:true,unmanaged:true}=ロック未適用
   //   ／ {ok:false,cooldown:true}=管理者が強制解放した直後（数十秒は再取得不可）
@@ -2104,6 +2193,7 @@
   }
   // フォーム全消去：既存の復元経路に「空データ」を流して安全にクリア（多重エントリ状態も同期）
   function _clearQuoteForm() {
+    _draftBarHide();
     if (typeof _applyQuoteData !== 'function') return;
     const SKIP = ['rowInsertPos','rowPatternInsertPos','bulkCatSet','bulkSubconSet','selectAllChk'];
     const emptyFields = {};
@@ -3144,6 +3234,7 @@
     _applyShareMode('view');      // 閲覧モードへ（他メンバーが編集可能に）
     qfRenderAttachments();        // 保存後は添付フィールドが使える（preset_id 確定）
     _resetQuoteDirty();           // 保存済み＝未保存なし
+    _draftClear(savedId); _draftBarHide();   // 保存できたので、放置時の下書きは不要
 
     quoteShowToast('💾 「' + name + '」を保存して作業終了しました', 'success', 3500);
     cloudListPresets();
@@ -3666,6 +3757,7 @@
 
     // 直前に自分が別案件を編集中だったら解放してから開く
     _exitShareEditing();
+    _draftBarHide();
 
     // 競合検知の基準として、ロードした案件 id と更新時刻を記録
     _loadedCloudId = id;
@@ -3707,6 +3799,7 @@
     if (typeof window.eiRefreshPendingBanner === 'function') window.eiRefreshPendingBanner();   // 📩 未取込の帯
     qfRenderAttachments();     // この案件の添付一覧を表示
     _resetQuoteDirty();        // 読込直後は未保存なし
+    _draftBarShow(id);         // 放置などで解放したときの未保存の下書きがあれば、復元／破棄の帯を出す
     const lk = _cloudRows.find(r => r.id === id);
     const by = lk ? _lockedByOther(lk) : null;
     if (by) {
@@ -3752,6 +3845,7 @@
     if (_lockHeldId === id) _dropLock();
     // 画面に開いている案件を消した場合、読込済みIDを残すと次の保存が「存在しない行の更新」になり
     // 0行＝「他メンバーが編集中」と誤表示されて保存できなくなる。新規扱いに戻す。
+    _draftClear(id);   // 削除した案件の下書きも消す
     if (_loadedCloudId === id) { _loadedCloudId = null; _loadedCloudTs = null; if (_shareMode === 'view') _applyShareMode('edit'); }
     quoteShowToast('🗑️ 共有プリセットを削除しました', 'info');
     cloudListPresets();
