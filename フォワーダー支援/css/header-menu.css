@@ -59,3 +59,8 @@
   .header .hdr-icon-btn.is-acct.has-name { height: 44px; max-width: 160px; }
   .header .hdr-acct-name { max-width: 84px; }
 }
+
+/* アカウントのボタン［アバター 名前 ▾］：アバターは丸く、ボタンの中に収める（Industry は角（border-radius:0）のため、丸いボタンの左からはみ出していた） */
+.header .hdr-icon-btn.is-acct.has-name { overflow: hidden; }
+.header .hdr-icon-btn.is-acct.has-name .hdr-cloud-avatar { width: 30px; height: 30px; border-radius: 50%; font-size: 13px; }
+@media (max-width: 600px) { .header .hdr-icon-btn.is-acct.has-name .hdr-cloud-avatar { width: 34px; height: 34px; } }
