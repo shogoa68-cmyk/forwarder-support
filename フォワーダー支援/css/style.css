@@ -6226,13 +6226,108 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 .ir-shape-t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, monospace; }
 .ir-shape-del { min-width: 32px; min-height: 28px; border: 1px solid var(--border-md, #d0d7de); border-radius: 6px; background: #fff; cursor: pointer; }
 
-/* 類似見積：入口カード（新規見積の入口の「似ている案件を参考に作成」と同じ見た目）／検索ボタン */
-.sq-intro { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 100%; margin: 8px 0; padding: 14px 16px; text-align: left; font-family: inherit; cursor: pointer; background: #eef5ff; border: 1px solid #b9d0f3; border-radius: 8px; color: inherit; }
-.sq-intro:hover { background: #e3eeff; border-color: #8fb3ea; }
-.sq-intro .sq-intro-ico { font-size: 28px; line-height: 1; }
-.sq-intro b { font-size: var(--text-lg, 16px); }
-.sq-intro small { font-size: var(--text-xs, 12px); line-height: 1.7; color: var(--text-muted, #667085); }
-.sq-go-row { display: flex; gap: 8px; align-items: center; }
-.sq-go-btn { min-height: 36px; padding: 0 18px; font-family: inherit; font-weight: 700; cursor: pointer; border: 1px solid #2f5fb3; background: #2f5fb3; color: #fff; border-radius: 6px; }
-.sq-go-btn:hover { background: #274f97; }
-.sq-clear-btn { min-height: 36px; padding: 0 12px; font-family: inherit; cursor: pointer; border: 1px solid #98a2b3; background: #fff; border-radius: 6px; }
+/* ============================================================
+   類似見積パネル（#sqPanel・Design 44）：探す前の入口／検索画面／結果カード
+   すべて #sqPanel 始まり（#tab-quote-make 配下の input・button の共通ルールに勝つため。!important は使わない）。
+   色は #sqPanel の変数で、テーマごとに上書き。
+   ============================================================ */
+#sqPanel {
+  --sq-pri: var(--accent); --sq-pri-50: var(--accent-lt); --sq-pri-200: var(--border);
+  --sq-ok: var(--green-ok); --sq-ok-50: #e8f5ec;
+  --sq-line: var(--border); --sq-mute: var(--text-muted);
+  container-type: inline-size;
+}
+html.theme-industry #sqPanel { --sq-pri: #2f5fb3; --sq-pri-50: #eef3fb; --sq-pri-200: #bcd0ee; --sq-ok: #067647; --sq-ok-50: #ecfdf3; --sq-line: #e2e6ec; --sq-mute: #667085; }
+html.theme-quiet #sqPanel { --sq-pri: var(--q-accent, #2f5fb3); --sq-pri-50: var(--q-accent-50, #eef3fb); --sq-pri-200: var(--q-accent-100, #dbe6f6); --sq-ok: #067647; --sq-ok-50: #ecfdf3; --sq-line: #e2e6ec; --sq-mute: #667085; }
+
+#sqPanel .sq-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+#sqPanel .sq-box { padding: 12px 14px; }
+#sqPanel .sq-box--links { background: #f8f9fb; padding: 0; }
+#sqPanel .sq-divider { flex: none; height: 8px; background: #eef0f3; border-top: 1px solid var(--sq-line); border-bottom: 1px solid var(--sq-line); }
+/* 見出し（関連付けた案件／似ている案件を探す） */
+#sqPanel .sq-sh { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+#sqPanel .sq-sh b, #sqPanel .sq-links-title b { font-size: var(--text-base); font-weight: 700; }
+#sqPanel .sq-sh small, #sqPanel .sq-links-title small { font-size: var(--text-xs); color: var(--sq-mute); font-weight: 400; }
+#sqPanel .sq-links-title { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; min-width: 0; }
+#sqPanel .sq-links-section { border-bottom: none; background: transparent; padding: 12px 0 8px; }
+#sqPanel .sq-links-head { padding: 0 14px 8px; }
+#sqPanel .sq-links-add-btn { min-height: 30px; padding: 0 10px; background: var(--surface, #fff); border: 1px solid var(--sq-line); border-radius: 6px; font-size: var(--text-xs); font-weight: 600; white-space: nowrap; cursor: pointer; }
+#sqPanel .sq-link-search-bar[hidden] { display: none; }
+#sqPanel .sq-links-empty { margin: 0 14px 4px; padding: 8px 10px; border: 1px dashed var(--sq-line); border-radius: 6px; background: var(--surface, #fff); font-size: var(--text-xs); color: var(--sq-mute); line-height: 1.7; }
+
+/* 入口カード（新規見積の .nq-card と同じ作り・横並び） */
+#sqPanel .sq-intro { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 14px; text-align: left; font-family: inherit; cursor: pointer; background: var(--sq-pri-50); border: 1px solid var(--sq-pri-200); border-radius: 8px; color: inherit; box-sizing: border-box; }
+#sqPanel .sq-intro:hover, #sqPanel .sq-intro:focus-visible { border-color: var(--sq-pri); outline: none; }
+#sqPanel .sq-intro-ico { font-size: 26px; line-height: 1; flex: none; }
+#sqPanel .sq-intro-body { flex: 1; min-width: 0; }
+#sqPanel .sq-intro-body b { display: block; font-size: var(--text-lg); font-weight: 700; margin-bottom: 4px; }
+#sqPanel .sq-intro-body small { display: block; font-size: var(--text-xs); line-height: 1.7; color: var(--sq-mute); }
+#sqPanel .sq-intro-go { align-self: center; color: var(--sq-pri); font-weight: 700; font-size: var(--text-lg); }
+#sqPanel .sq-short { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+#sqPanel .sq-cond { display: flex; flex-wrap: wrap; gap: 4px; }
+#sqPanel .sq-cond span { background: var(--surface, #fff); border: 1px solid var(--sq-line); border-radius: 999px; padding: 0 8px; line-height: 22px; font-size: var(--text-xs); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sqPanel .sq-short-none { font-size: var(--text-xs); color: var(--sq-mute); line-height: 1.7; }
+#sqPanel .sq-quick-btn { width: 100%; min-height: 36px; border: 1px solid var(--sq-pri); background: var(--sq-pri); color: #fff; border-radius: 6px; font-family: inherit; font-size: var(--text-base); font-weight: 700; cursor: pointer; }
+#sqPanel .sq-quick-btn:hover { filter: brightness(.92); }
+
+/* 検索画面 */
+#sqPanel .sq-sh--search { margin-bottom: 10px; }
+#sqPanel .sq-back-btn { min-height: 30px; padding: 0 8px; background: var(--surface, #fff); border: 1px solid var(--sq-line); border-radius: 6px; font-family: inherit; font-size: var(--text-xs); font-weight: 600; cursor: pointer; }
+#sqPanel .sq-search-bar { display: block; padding: 0; }
+#sqPanel .sq-f { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; min-width: 0; }
+#sqPanel .sq-f-lbl { font-size: var(--text-xs); font-weight: 600; color: var(--sq-mute); }
+#sqPanel .sq-search-input { width: 100%; box-sizing: border-box; min-height: 36px; padding: 0 10px; border: 1px solid var(--sq-line); border-radius: 6px; font-family: inherit; font-size: var(--text-base); background: var(--surface, #fff); }
+#sqPanel .sq-search-input:focus { outline: none; border-color: var(--sq-pri); box-shadow: 0 0 0 3px var(--sq-pri-50); }
+#sqPanel .sq-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@container (max-width: 299px) { #sqPanel .sq-g2 { grid-template-columns: 1fr; } }
+#sqPanel .sq-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+#sqPanel .sq-mode-chip, #sqPanel .sq-status-chip { min-height: 32px; padding: 0 12px; border-radius: 999px; font-family: inherit; font-size: var(--text-sm); font-weight: 600; border: 1px solid var(--sq-line); background: var(--surface, #fff); color: inherit; cursor: pointer; }
+#sqPanel .sq-mode-chip.is-on, #sqPanel .sq-status-chip.is-on { background: var(--sq-pri-50); border-color: var(--sq-pri); color: var(--sq-pri); box-shadow: inset 0 0 0 1px var(--sq-pri); }
+#sqPanel .sq-more-toggle { display: flex; align-items: center; gap: 4px; margin: 2px 0 10px; padding: 0; border: none; background: none; color: var(--sq-pri); font-family: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
+#sqPanel .sq-more-cond[hidden] { display: none; }
+#sqPanel .sq-actions { display: flex; gap: 8px; align-items: center; padding-top: 10px; border-top: 1px solid var(--sq-line); }
+#sqPanel .sq-go-btn { flex: 1; min-height: 36px; padding: 0 16px; border: 1px solid var(--sq-pri); background: var(--sq-pri); color: #fff; border-radius: 6px; font-family: inherit; font-size: var(--text-base); font-weight: 700; cursor: pointer; }
+#sqPanel .sq-go-btn:hover { filter: brightness(.92); }
+#sqPanel .sq-go-btn:disabled { opacity: .55; cursor: default; }
+#sqPanel .sq-clear-btn { min-height: 36px; padding: 0 8px; border: 0; background: none; color: var(--sq-mute); font-family: inherit; font-size: var(--text-sm); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+#sqPanel .sq-actions--phone { display: none; }
+
+/* 結果エリア */
+#sqPanel .sq-results { margin: 10px -14px 0; border-top: 1px solid var(--sq-line); }
+#sqPanel .sq-state { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 28px 18px; color: var(--sq-mute); }
+#sqPanel .sq-state-ico { font-size: 30px; line-height: 1; }
+#sqPanel .sq-state b { font-size: var(--text-base); color: var(--text, #101828); }
+#sqPanel .sq-state small { font-size: var(--text-xs); line-height: 1.7; }
+#sqPanel .sq-retry-btn { margin-top: 4px; min-height: 30px; padding: 0 10px; background: var(--surface, #fff); border: 1px solid var(--sq-line); border-radius: 6px; font-family: inherit; font-size: var(--text-xs); font-weight: 600; cursor: pointer; }
+#sqPanel .sq-count { display: flex; align-items: baseline; gap: 6px; padding: 10px 14px 6px; font-size: var(--text-xs); color: var(--sq-mute); }
+#sqPanel .sq-count b { font-size: var(--text-base); color: var(--text, #101828); }
+#sqPanel .sq-count-r { margin-left: auto; }
+#sqPanel .sq-sk { height: 78px; margin: 0 14px 8px; border-radius: 8px; background: linear-gradient(90deg, #f1f3f6, #e7eaee, #f1f3f6); background-size: 200% 100%; animation: sqSk 1.2s linear infinite; }
+@keyframes sqSk { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { #sqPanel .sq-sk { animation: none; } }
+#sqPanel .sq-results .sq-list { padding: 0; }
+
+/* 結果カード：1 枚ずつの箱 */
+#sqPanel .sq-card { position: relative; margin: 0 14px 8px; padding: 10px 12px; border: 1px solid var(--sq-line); border-left: 1px solid var(--sq-line); border-bottom: 1px solid var(--sq-line); border-radius: 8px; background: var(--surface, #fff); cursor: pointer; }
+#sqPanel .sq-card:last-child { border-bottom: 1px solid var(--sq-line); }
+#sqPanel .sq-card:hover, #sqPanel .sq-card:focus-visible { border-color: var(--sq-pri); box-shadow: 0 0 0 3px var(--sq-pri-50); outline: none; background: var(--surface, #fff); }
+#sqPanel .sq-card-top { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 0; }
+#sqPanel .sq-card-name { flex: 1; min-width: 0; font-size: var(--text-base); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sqPanel .sq-lv { font-size: var(--text-xs); font-weight: 700; color: var(--sq-ok); white-space: nowrap; line-height: 20px; }
+#sqPanel .sq-card-go { color: var(--sq-mute); font-weight: 700; line-height: 20px; }
+#sqPanel .sq-card-cust { margin-top: 2px; font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sqPanel .sq-card-l3 { margin-top: 2px; font-size: var(--text-xs); color: var(--sq-mute); }
+#sqPanel .sq-card-l3 i { font-style: normal; margin: 0 .35em; }
+#sqPanel .sq-match { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+#sqPanel .sq-m { font-size: var(--text-xs); font-weight: 600; border-radius: 4px; padding: 0 6px; line-height: 20px; background: #f2f4f7; color: #98a2b3; text-decoration: line-through; }
+#sqPanel .sq-m.is-hit { background: var(--sq-ok-50); color: var(--sq-ok); text-decoration: none; }
+#sqPanel .sq-card-l4 { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: var(--text-xs); color: var(--sq-mute); }
+#sqPanel .sq-card-l4 .sq-card-date { margin: 0 0 0 auto; font-size: var(--text-xs); color: var(--sq-mute); }
+#sqPanel .sq-more-btn { display: flex; align-items: center; justify-content: center; width: calc(100% - 28px); min-height: 36px; margin: 4px 14px 14px; padding: 0; border: 1px solid var(--sq-line); border-radius: 6px; background: var(--surface, #fff); color: var(--sq-pri); font-family: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
+
+/* スマホ（〜600px・下から出るシート）：44px・［探す］［クリア］を下に固定 */
+@media (max-width: 600px) {
+  #sqPanel .sq-mode-chip, #sqPanel .sq-status-chip, #sqPanel .sq-search-input, #sqPanel .sq-go-btn, #sqPanel .sq-clear-btn, #sqPanel .sq-quick-btn, #sqPanel .sq-back-btn, #sqPanel .sq-links-add-btn, #sqPanel .sq-more-btn { min-height: 44px; }
+  #sqPanel .sq-actions--phone { display: flex; flex: none; padding: 10px 14px; border-top: 1px solid var(--sq-line); background: var(--surface, #fff); }
+  #sqPanel .sq-search-bar > .sq-actions { display: none; }
+}

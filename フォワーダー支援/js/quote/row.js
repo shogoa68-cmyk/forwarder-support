@@ -3951,6 +3951,107 @@
   }
   window.duplicatePatternGroup = duplicatePatternGroup;
 
+  // ===== サブコン別明細をまるごと複製（見出しの「📋 複製」） =====
+  // サブコン別グループは明細行のサブコン欄で決まるため、同じ名前のまま複製すると同じグループに合流してしまう。
+  // そこで複製先のサブコン名を聞き、複製した明細のサブコン欄をその名前にして、元のグループの直後に置く。
+  // パターン名・子リマーク行・サブコン別／パターン別の注記はそのまま引き継ぐ（客先表示名は元の会社の名前なので引き継がない）。
+  // 入力完了の記録は引き継がない（duplicateRow と同じ＝この行はまだ確認していない）。
+  function _dupSubconName(svKey, label) {
+    const base = label || 'サブコン';
+    const used = new Set(_realRows().map(tr => subconNormKey(_rowSubcon(tr) ?? '')).filter(Boolean));
+    let n = 2, cand = `${base}（コピー）`;
+    while (used.has(subconNormKey(cand))) cand = `${base}（コピー${n++}）`;
+    return cand;
+  }
+  function duplicateSubconGroup(svKey, newName) {
+    const name = String(newName || '').trim();
+    if (!name) { if (typeof quoteShowToast === 'function') quoteShowToast('複製先のサブコン名を入力してください', 'warn'); return null; }
+    const newKey = subconNormKey(name);
+    if (newKey === svKey) { if (typeof quoteShowToast === 'function') quoteShowToast('元と同じサブコン名には複製できません（同じ枠に合流してしまいます）。別の名前を入れてください', 'warn', 4000); return null; }
+    const srcIds = _groupMemberRows(svKey, '').map(tr => tr.id.replace('row-', ''));
+    if (!srcIds.length) return null;
+    const merge = _realRows().some(tr => subconNormKey(_rowSubcon(tr) ?? '') === newKey);
+    const savedScrollY = window.scrollY;
+
+    // 元のグループの最後（子リマーク行を含む）の後ろへ、複製した行を順に並べる
+    const lastSrcId = srcIds[srcIds.length - 1];
+    const lastKids = getChildRemarks(lastSrcId);
+    let tail = lastKids.length ? lastKids[lastKids.length - 1] : document.getElementById(`row-${lastSrcId}`);
+    const newIds = [];
+    srcIds.forEach(srcId => {
+      const newId = duplicateRow(srcId);
+      newIds.push(newId);
+      const nr = document.getElementById(`row-${newId}`);
+      if (!nr || !tail) return;
+      [nr, ...getChildRemarks(newId)].forEach(node => { tail.parentNode.insertBefore(node, tail.nextSibling); tail = node; });
+      const svEl = document.getElementById(`sv-${newId}`);
+      if (svEl) svEl.value = name;
+    });
+
+    // サブコン別・パターン別の注記を引き継ぐ（複製先にまだ無いときだけ）
+    if (svKey !== _UNSET_KEY) Object.keys(_subconRemark).forEach(k => {
+      const m = k === svKey ? '' : (k.startsWith(svKey + '||') ? k.slice(svKey.length) : null);
+      if (m === null) return;
+      const dst = newKey + m;
+      if (!_subconRemark[dst]) _subconRemark[dst] = Object.assign({}, _subconRemark[k]);
+    });
+
+    renderSubconGroups();
+    window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+    if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
+    if (typeof updateTotals === 'function') updateTotals();
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    if (typeof quoteShowToast === 'function') {
+      quoteShowToast('📋 「' + (svKey === _UNSET_KEY ? '（サブコン未設定）' : (_rowSubcon(document.getElementById('row-' + srcIds[0])) || svKey)) + '」の明細 ' + newIds.length + ' 行を「' + name + '」として複製しました' +
+        (merge ? '（同じ名前の既存の枠に合流しました）' : ''), 'success', 4000);
+    }
+    const newHdr = Array.from(document.querySelectorAll('#tableBody tr.subcon-group-header')).find(h => h.dataset.svKey === newKey);
+    if (newHdr) {
+      newHdr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      newHdr.classList.add('grp-flash');
+      setTimeout(() => newHdr.classList.remove('grp-flash'), 1200);
+    }
+    return newIds;
+  }
+  // 「📋 複製」：複製先のサブコン名を小さな吹き出しで聞く（初期値は「○○（コピー）」・全選択なので、そのまま打てば置き換わる）
+  function openDupSubconGroup(svKey, label, anchor) {
+    document.getElementById('sfPop')?.remove();
+    const cnt = _groupMemberRows(svKey, '').length;
+    const pop = document.createElement('div');
+    pop.id = 'sfPop'; pop.className = 'sf-pop sf-pop-dup'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'サブコン別明細を複製');
+    pop.innerHTML =
+      '<div class="sf-pop-t">「' + _escHdr(label || '（サブコン未設定）') + '」の明細を複製</div>' +
+      '<div class="sf-pop-d">明細 ' + cnt + ' 行をまるごとコピーして、新しいサブコンの枠をつくります。複製先のサブコン名を入れてください（あとから見出しや各行で変えられます）。</div>' +
+      '<div class="sf-pop-row"><input type="text" class="sf-pop-in" list="svSuggestions" autocomplete="off" maxlength="40" placeholder="複製先のサブコン名（例：別の船会社）">' +
+      '<button type="button" class="sf-pop-ok">複製する</button></div>';
+    document.body.appendChild(pop);
+    const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: 24, top: 100, bottom: 120 };
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+    { const h = pop.offsetHeight, vh = window.innerHeight;
+      let top = r.bottom + 6;
+      if (top + h > vh - 8) top = (r.top - h - 6 >= 8) ? r.top - h - 6 : Math.max(8, vh - h - 8);
+      pop.style.top = Math.max(8, Math.min(top, vh - h - 8)) + 'px'; }   // ボタンが画面外でも、吹き出しは画面内に出す
+    const inp = pop.querySelector('.sf-pop-in');
+    inp.value = _dupSubconName(svKey, label);
+    const close = () => { pop.remove(); document.removeEventListener('pointerdown', onOut, true); document.removeEventListener('keydown', onKey, true); };
+    const ok = () => {
+      const v = inp.value.trim();
+      if (!v) { inp.focus(); return; }
+      if (subconNormKey(v) === svKey) { duplicateSubconGroup(svKey, v); inp.focus(); inp.select(); return; }
+      close(); duplicateSubconGroup(svKey, v);
+    };
+    const onOut = e => { if (!pop.contains(e.target) && e.target !== anchor) close(); };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    pop.querySelector('.sf-pop-ok').addEventListener('click', ok);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); ok(); } });
+    setTimeout(() => { document.addEventListener('pointerdown', onOut, true); document.addEventListener('keydown', onKey, true); }, 0);
+    inp.focus(); inp.select();
+  }
+  window.duplicateSubconGroup = duplicateSubconGroup;
+  window.openDupSubconGroup = openDupSubconGroup;
+
 
   // ===== パターン入力：幹線輸送の航路チップ（POL→via→POD、サブコン=キャリア除く）をサジェスト =====
   function _patternRouteOptions() {
@@ -4524,6 +4625,7 @@
             `<button type="button" class="sv-hdr-btn sv-hdr-detail" hidden>📇 詳細</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-bm" hidden>🔖 BOOKMARK</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-import" hidden>📥 取り込み</button>` +
+            `<button type="button" class="sv-hdr-btn sv-hdr-dup" title="このサブコンの明細をまるごと複製して、別のサブコン名の枠をつくります（例：別の船会社で同じ明細の見積をつくる）">📋 複製</button>` +
             // 客先表示名・サブコン別リマークの入力は、この見出しの行内に置く（以前はグループ末尾の小計行にあった）
             `<span class="hdr-notes">` +
               `<span class="hdr-note hdr-note-remark" title="このサブコンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF）にも表示されます。">` +
@@ -4565,6 +4667,10 @@
           e.stopPropagation();
           const canon = e.currentTarget.dataset.canon;
           if (canon && typeof window.openImportChooser === 'function') window.openImportChooser(canon);
+        });
+        hdr.querySelector('.sv-hdr-dup').addEventListener('click', e => {
+          e.stopPropagation();
+          openDupSubconGroup(key, key === _UNSET_KEY ? '' : label, e.currentTarget);
         });
         hdr.querySelector('.sv-hdr-bm').addEventListener('click', e => {
           e.stopPropagation();
