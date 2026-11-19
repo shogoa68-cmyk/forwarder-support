@@ -881,6 +881,7 @@
   function unmergeRow(rowId) {
     const tr = document.getElementById('row-' + String(rowId).replace(/^row-/, ''));
     if (!tr || !tr.dataset.mergedInto) return;
+    _mergeSubtractChild(tr);   // 統合先の合計から、この行の分を差し引く
     delete tr.dataset.mergedInto;
     delete tr.dataset.hideQuote;
     tr.classList.remove('row-hidden-quote', 'row-merged-child');
@@ -1002,6 +1003,10 @@
     const now = _mergeContribOf(childTr);
     if (!old) { childTr.dataset.mergeContrib = JSON.stringify(now); return; }
     if (old.cost === now.cost && old.bill === now.bill && old.pc === now.pc && old.bc === now.bc) return;
+    return _mergeApplyDelta(childTr, old, now);
+  }
+  // 統合元の寄与が old → now に変わった分（now が 0 なら取り除く）を統合先の仕入単価・乗せ幅へ反映する
+  function _mergeApplyDelta(childTr, old, now) {
     const parentTr = Array.from(document.querySelectorAll('#tableBody tr[id^="row-"]'))
       .find(t => !t.dataset.type && (document.getElementById('uid-' + t.id.replace('row-', ''))?.value || t.id.replace('row-', '')) === childTr.dataset.mergedInto);
     if (!parentTr) return;
@@ -1029,6 +1034,14 @@
     childTr.dataset.mergeContrib = JSON.stringify(now);
     updateTotals();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  // 統合解除：その統合元が統合先の合計へ足していた分を、統合先から差し引く（統合先の手調整は残る）
+  function _mergeSubtractChild(childTr) {
+    let old; try { old = JSON.parse(childTr.dataset.mergeContrib || 'null'); } catch (e) { old = null; }
+    if (!old) old = _mergeContribOf(childTr);
+    const r = _mergeApplyDelta(childTr, old, { cost: 0, bill: 0, pc: old.pc, bc: old.bc });
+    delete childTr.dataset.mergeContrib;
+    return r;
   }
   window.syncMergedParent = syncMergedParent;
   (function wireMergeSync() {
@@ -3137,6 +3150,57 @@
     tr.classList.remove('ppref-flash'); void tr.offsetWidth; tr.classList.add('ppref-flash');
     setTimeout(() => tr.classList.remove('ppref-flash'), 2200);
   }
+  // ％の基準として他の行から指定されている行に「％の参照元」の印を出す（品名の下）
+  let _pctRefRaf = 0;
+  function refreshPctRefBadges() {
+    _pctRefRaf = 0;
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr[id^="row-"]')).filter(t => !t.dataset.type && !t.dataset.virtual);
+    const users = {};   // 参照元 uid → それを基準にしている行の id 一覧
+    rows.forEach(t => {
+      const id = t.id.replace('row-', '');
+      const ref = document.getElementById('ppref-' + id)?.value;
+      if (ref && t.classList.contains('row-pct-mode')) (users[ref] = users[ref] || []).push(id);
+    });
+    rows.forEach(t => {
+      const id = t.id.replace('row-', '');
+      const nmEl = document.getElementById('nm-' + id);
+      if (!nmEl) return;
+      let badge = t.querySelector('.row-pctref-badge');
+      const uid = document.getElementById('uid-' + id)?.value;
+      const list = (uid && users[uid]) || [];
+      t.classList.toggle('is-pct-ref', list.length > 0);
+      if (!list.length) { if (badge) badge.remove(); return; }
+      if (!badge) {
+        badge = document.createElement('button');
+        badge.type = 'button';
+        badge.className = 'row-pctref-badge';
+        const anchor = t.querySelector('.row-merge-badge') || nmEl;
+        anchor.insertAdjacentElement('afterend', badge);
+        badge.addEventListener('click', e => {
+          e.stopPropagation();
+          (badge._users || []).forEach((uid2, i) => { const r = document.getElementById('row-' + uid2); if (r) { if (i === 0) r.scrollIntoView({ block: 'center', behavior: 'smooth' }); r.classList.remove('ppref-flash'); void r.offsetWidth; r.classList.add('ppref-flash'); setTimeout(() => r.classList.remove('ppref-flash'), 2200); } });
+        });
+      }
+      badge._users = list;
+      badge.textContent = '％の参照元 ×' + list.length;
+      badge.title = 'この行は、次の行の％の基準額として使われています（押すと表で光らせます）：\n' + list.map(i => '・' + _pprefLabel(i)).join('\n');
+    });
+  }
+  function schedulePctRefBadges() { if (!_pctRefRaf) _pctRefRaf = requestAnimationFrame(refreshPctRefBadges); }
+  window.refreshPctRefBadges = refreshPctRefBadges;
+  (function wirePctRefBadges() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody || tbody.dataset.pctRefWired) return;
+    tbody.dataset.pctRefWired = '1';
+    tbody.addEventListener('change', schedulePctRefBadges);
+    tbody.addEventListener('input', e => { const f = e.target && e.target.dataset && e.target.dataset.field; if (f === 'nm' || f === 'sv' || f === 'pt') schedulePctRefBadges(); });
+    tbody.addEventListener('click', schedulePctRefBadges);   // ％ボタン・削除など
+    new MutationObserver(schedulePctRefBadges).observe(tbody, { childList: true });
+    setTimeout(schedulePctRefBadges, 0);
+  })();
+
   function pprefShowRef(id) {
     const uid = document.getElementById(`ppref-${id}`)?.value || '';
     const refId = uid ? _findRowIdByUid(uid) : null;
@@ -3226,6 +3290,7 @@
     const ppbaseEl = document.getElementById(`ppbase-${id}`);
     if (ppbaseEl) ppbaseEl.readOnly = !!sel.value;
     _syncPprefWhere(id);
+    schedulePctRefBadges();
   }
   window._populatePprefSelect = _populatePprefSelect;
 
@@ -3235,6 +3300,7 @@
     if (ppbaseEl) ppbaseEl.readOnly = !!pprefUid;
     _syncPprefWhere(id);
     _calcPct(id);
+    schedulePctRefBadges();
   }
 
   function _recalcPctDependents(changedId) {
