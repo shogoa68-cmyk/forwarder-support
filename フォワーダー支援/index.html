@@ -4689,8 +4689,8 @@
             <span class="pct-group">
               <input type="number" data-field="pprate" class="w-pct-rate" min="0" step="0.01" value="0" placeholder="%" title="%率（例: 0.3 → 0.3%）" />
               <span class="pct-x">%×</span>
-              <select class="w-ppref" title="参照行（選択するとその行の仕入単価を基準額として使用。変更されると自動再計算）"><option value="">—</option></select>
-              <input type="number" data-field="ppbase" class="w-pct-base" min="0" value="0" placeholder="基準額" title="基準金額（例: CIF価格・保険価格など。仕入通貨と同じ通貨で入力）" />
+              <select class="w-ppref" title="参照行（選択するとその行の仕入単価を基準額として使用。変更されると自動再計算）"><option value="">—</option></select><button type="button" class="ppref-pick" title="明細テーブルの行を直接クリックして、％の基準にする行を選びます（同じ品名が複数あっても間違えません）">🎯 表から選ぶ</button>
+              <input type="number" data-field="ppbase" class="w-pct-base" min="0" value="0" placeholder="基準額" title="基準金額（例: CIF価格・保険価格など。仕入通貨と同じ通貨で入力）" /><span class="ppref-where" hidden><span class="ppref-where-txt"></span><button type="button" class="ppref-where-go" title="表で参照先の行を探して光らせます">📍 表で見る</button></span>
             </span>
           </span>
           <span class="stk-sell"><span class="stk-tag t-sell">売</span><span class="min-note" aria-hidden="true"></span><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly data-base="0" /><small class="bp-base-hint" hidden title="仕入単価を売通貨へ換算した正確な金額（端数切り捨て前）です。これを下回る売単価にすると赤字になります。※このライン自体が仕入通貨と売通貨の為替レートに基づく目安であり、実際のレートと差が出る場合があります"></small></span>
