@@ -160,3 +160,6 @@ html.editor-v2 #tab-quote-make:not(.e2-rail-open) #e2Steps button.is-warn i::aft
   html.editor-v2 #tab-quote-make[data-e2="4"].e2-rail-dock:not(.qp-dash) #e2Nav,
   html.editor-v2 #tab-quote-make[data-e2="4"].e2-rail-dock:not(.qp-dash) #e2Head { max-width: min(1400px, calc(100vw - 316px)); }
 }
+
+/* 行の操作（👁 🔍 ✓ ➕ 📋 🗑）を押した直後は、吹き出しをすぐ隠す（js/quote/row.js・カーソルが離れると戻る） */
+#tab-quote-make #quoteTable td.handle-cell.acts-dismissed .row-acts { display: none !important; }

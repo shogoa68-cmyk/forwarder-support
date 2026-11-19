@@ -5313,3 +5313,30 @@
     if (typeof quoteShowToast === 'function')
       quoteShowToast('✅ ローカルチャージ ' + charges.length + '件を追加しました', 'success');
   };
+
+// ---- 行の操作（👁 🔍 ✓ ➕ 📋 🗑）：どれかを押したら、操作の吹き出しをすぐ閉じる ----
+// 以前は、押したあともカーソルが行の上にあるあいだ出たままで、続けて押し間違えやすかった。
+// 押した行のハンドル欄に .acts-dismissed を付けて隠し（css/button-layout.css）、カーソルが離れる／ほかの場所を押すと外す。
+(function () {
+  if (window.__rowActsDismissInit) return; window.__rowActsDismissInit = true;
+  const clear = (except) => document.querySelectorAll('td.handle-cell.acts-dismissed').forEach(c => { if (c !== except) c.classList.remove('acts-dismissed'); });
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('#tab-quote-make .row-acts button');
+    if (!b) return;
+    const cell = b.closest('td.handle-cell'); if (!cell) return;
+    cell.classList.add('acts-dismissed');
+    try { b.blur(); } catch (er) {}   // 押したボタンに焦点が残ると、焦点つきの行として吹き出しが出続ける
+  }, true);
+  // カーソルがハンドル欄から出たら元に戻す（次にホバーしたときにまた出る）
+  document.addEventListener('mouseout', e => {
+    const cell = e.target.closest && e.target.closest('td.handle-cell.acts-dismissed');
+    if (!cell) return;
+    if (e.relatedTarget && cell.contains(e.relatedTarget)) return;
+    cell.classList.remove('acts-dismissed');
+  });
+  // タッチ端末はカーソルが無いので、ほかの場所を押したときに外す
+  document.addEventListener('pointerdown', e => {
+    const cell = e.target.closest && e.target.closest('td.handle-cell');
+    clear(cell);
+  }, true);
+})();
