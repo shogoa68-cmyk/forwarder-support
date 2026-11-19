@@ -564,7 +564,19 @@
     } finally { input.value = ''; }
   }
 
-  function openEmailImport() {
+  // 取り込み画面の貼り付け文・確認画面は、閉じても残る（うっかり閉じても失わないため）。ただし、前の取り込みと「入口」が違う（別のサブコン見出し・通常の取込）か、
+  // 前の取り込みを挿入し終えているときは、別のサブコンの名前が入った確認画面が残らないよう、開くときに空にする。
+  let _bodyCtx = null;    // いま貼り付け文・確認画面にある取り込みの入口（''＝サブコンを決めない取込・サブコン名＝そのサブコン専用）。null＝なし
+  let _spent = false;     // 直前の取り込みを挿入し終えた
+  function _resetImportBody() {
+    const t = document.getElementById('eiText'); if (t) t.value = '';
+    _parsed = null; _bodyCtx = null; _spent = false;
+    const w = document.getElementById('eiReviewWrap'); if (w) w.innerHTML = '';
+    const a = document.getElementById('eiActions'); if (a) a.hidden = true;
+  }
+  function openEmailImport(ctx) {
+    const want = typeof ctx === 'string' ? ctx : '';
+    if (_spent || (_bodyCtx !== null && _bodyCtx !== want)) _resetImportBody();
     _svCtx = null; _renderSvCtx();
     _setStoreOnly(false);
     _curEntryId = null;
@@ -925,6 +937,7 @@
     if (!text.trim()) { if (window.quoteShowToast) quoteShowToast('⚠️ メール本文を貼り付けてください', 'warn'); return; }
     const rules = _svCtx ? _rulesOf(_svCtx.canon) : null;
     _parsed = parseQuoteEmail(text, { defaultCcy: rules && rules.ccy, qtyAsUnit: rules && rules.qtyAsUnit });
+    _bodyCtx = _svCtx ? _svCtx.canon : '';
     if (rules) _applyRules(_parsed, rules);
     _applyMaster(_parsed);   // 品名・単位はマスターにそろえる
     renderEiReview();
@@ -1114,7 +1127,7 @@
     canon = String(canon || '').trim();
     if (!canon) return;
     if (_isViewMode()) { if (window.quoteShowToast) quoteShowToast('🔒 閲覧モードです。「✏️ 編集」を押してから取り込んでください', 'warn'); return; }
-    openEmailImport();
+    openEmailImport(canon);
     _svCtx = { canon };
     document.getElementById('emailImportBox')?.classList.add('ei-sv-ctx');
     const t = document.getElementById('eiTitle'); if (t) t.textContent = '📩 メール取込 — 📦 ' + canon;
@@ -1569,6 +1582,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
       if (usedKeys.length || okKeys.length || ignKeys.length) _bumpRuleUse(_svCtx.canon, usedKeys, { ok: okKeys, ignore: ignKeys });
     }   // 待たない（取込の動作を遅くしない）
     const remN = _applyGlobalRemarks(rem.global);
+    _spent = true;   // 挿入し終えた取り込みは、次に開くときに空にする
     // 保管した自由入力から取り込んだときは、その 1 件を取込済みにする（原文は案件に残る）。
     // それ以外（貼り付けから直接）は、原文を案件の取込元メモ（#qf-import-src）に残す
     const doneId = _curEntryId;
