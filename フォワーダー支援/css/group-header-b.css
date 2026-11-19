@@ -18,7 +18,7 @@ html.editor-v2 #tab-quote-make #quoteTable :is(.subcon-group-header-inner, .subc
 }
 /* 見出しから外して［⋯］へ移したもの（DOM は残す） */
 html.editor-v2 #tab-quote-make #quoteTable :is(.subcon-group-header-inner, .subcon-subgroup-inner) > :is(
-  .sv-hdr-detail, .sv-hdr-bm, .sv-hdr-import, .subcon-group-sum, .subcon-group-cm,
+  .sv-hdr-detail, .sv-hdr-bm, .sv-hdr-import, .sv-hdr-dup, .subcon-group-sum, .subcon-group-cm,
   .subcon-group-excl, .subcon-subgroup-excl, .subcon-group-sort-btn, .subcon-subgroup-rename, .subcon-subgroup-dup) { display: none !important; }
 
 /* 名前：長いときは「…」で縮め、金額とボタンは縮めない */

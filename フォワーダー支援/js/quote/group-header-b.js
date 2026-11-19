@@ -158,6 +158,8 @@
     if (!isPt) {
       const imp = q(tr, '.sv-hdr-import');
       if (isShown(imp)) add('📥', '取り込み', () => imp.click());
+      const du = q(tr, '.sv-hdr-dup');
+      if (du && !du.hidden) add('📋', 'このサブコンを複製', () => du.click());
     }
     if (q(tr, '.hdr-notes')) add('📝', tr.classList.contains('gb-notes-open') ? '注記の段を閉じる' : '注記を書く', () => toggleNotes(tr));
     if (isPt) {

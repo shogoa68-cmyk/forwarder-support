@@ -35,7 +35,7 @@ const ok=(n,c,x)=>{const l=(c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify(x)
  /* ---------- 新画面 ---------- */
  {
   const {p,ctx}=await open(true);
-  const hidden=await p.evaluate(h=>['.subcon-group-excl','.subcon-group-sort-btn','.subcon-group-sum','.subcon-group-cm','.hdr-notes'].map(s=>{const e=document.querySelector(h+' '+s);return [s,e?getComputedStyle(e).display:'(なし)'];}),H);
+  const hidden=await p.evaluate(h=>['.sv-hdr-dup','.subcon-group-excl','.subcon-group-sort-btn','.subcon-group-sum','.subcon-group-cm','.hdr-notes'].map(s=>{const e=document.querySelector(h+' '+s);return [s,e?getComputedStyle(e).display:'(なし)'];}),H);
   ok('見出しから外したもの（除外・カテゴリ順・元の金額・注記の欄）は隠れている',hidden.every(x=>x[1]==='none'),hidden);
   ok('［＋ 明細を追加］と［⋯］は出ている',await vis(p,H+' .subcon-group-add-btn')&&await vis(p,H+' .gb-more'));
   const m=await p.evaluate(h=>{const t=s=>(document.querySelector(h+' '+s)||{}).textContent||'';return {s:t('.gb-m-s .gb-v'),c:t('.gb-m-c .gb-v'),pc:t('.gb-m-p .gb-v'),os:t('.subcon-group-sum'),oc:t('.subcon-group-cm')};},H);
@@ -47,7 +47,7 @@ const ok=(n,c,x)=>{const l=(c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify(x)
   // ［⋯］メニュー
   await p.click(H+' .gb-more');await p.waitForTimeout(200);
   let items=await p.$$eval('#gbMenu .gb-mi',a=>a.map(x=>x.textContent.trim()));
-  ok('［⋯］の中：注記を書く・カテゴリ順に並べる・見積書から外す（未登録のサブコンは取り込み・詳細を出さない）',items.length===3&&/注記を書く/.test(items[0])&&/カテゴリ順/.test(items[1])&&/見積書から外す/.test(items[2]),items);
+  ok('［⋯］の中：複製・注記を書く・カテゴリ順に並べる・見積書から外す（未登録のサブコンは取り込み・詳細を出さない）',items.length===4&&/複製/.test(items[0])&&/注記を書く/.test(items[1])&&/カテゴリ順/.test(items[2])&&/見積書から外す/.test(items[3]),items);
   ok('［⋯］は aria-expanded=true',await p.$eval(H+' .gb-more',e=>e.getAttribute('aria-expanded'))==='true');
   await p.keyboard.press('Escape');await p.waitForTimeout(150);
   ok('Esc でメニューが閉じる',await p.$eval('#gbMenu',e=>e.hidden));
