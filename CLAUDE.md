@@ -478,6 +478,10 @@ Free プランの転送量（月 5GB）を 2026-11 に超過した（7.48GB・3 
 
 **ダッシュボードの未登録のお客様に「＋ マスター登録」のショートカット（2026-11・`cloud.js _custRegHtml`／`stats.js statsOpenRegister`）**：マスター登録済みのお客様は名前が詳細へのリンクになる（従来どおり）が、**マスターに無いお客様名**の横に「＋ マスター登録」のボタン（`.cust-reg-btn`・点線の小さなボタン）を出す。出す場所は案件カードの左ブロック（`_cc3Left`）とリスト表示・カードの「お客様 / 担当」（`_custNameHtml`）。押すと、**ダッシュボードのまま**種別＝お客様・名前入りの登録モーダル（既存の `#masterNewModal`・詳細の入力欄つき）が開き（`statsOpenRegister(field, value)`＝`statsMasterToggleRegister({field, value})`）、登録するとモーダルが閉じてダッシュボードが描き直され（`statsMasterCloseRegister` が `cloudRefreshDashList()` を呼ぶ）、同じお客様の全案件がリンクに変わる。**承認制のメンバー**はボタンが「📨 マスター申請」（押すと従来どおり申請になる）、**申請済み（承認待ち）**は押せない「📨 申請中」の印。**出さない場合**：登録済み（`statsMasterState==='master'`）・別名として登録済み（`nameCanon` が別の名前）・マスターが読み込み前／お客様のマスターが 1 件も無い間（`'unknown'`）・未ログイン・お客様名が空。SQL 不要・保存データの変更なし。CSS は `card-c3.css` 末尾の `.cust-reg-*`。テストは `scripts/design-tests/cust-register-test.js`（偽の Supabase・11 項目・既定は Industry／`CLASSIC=1`／`W=390`）。
 
+## 🔍 類似見積パネル（右レール「類似」・2026-11・Design 44・`js/similar-quotes.js`／`css/style.css` 末尾 `#sqPanel`）
+
+入力のたびに自動で候補を出すのをやめ、**「探してから結果を見る」**流れにした（新規見積の「似ている案件を参考に作成」と同じ動き）。①入口カード「🔍 似ている案件を探す」（`sqStartSearch`）＋近道［⚡ この見積の条件で探す］（`sqQuickSearch`＝検索画面を開いてすぐ結果まで。条件が1つも無い見積では札とボタンを出さず案内の1行）②検索画面：お客様・見積名／POL／POD／輸送モード、状態・見積もり番号は［さらに条件 ▾］の奥（値が入っていれば開いて始まる）。［‹ 戻る］（`sqBackToIntro`）。［🔍 探す］（`sqDoSearch`・Enter でも・検索中は押せない）。結果エリアは 探す前／探しています…／N 件が見つかりました／該当なし（［条件をクリアしてもう一度］）③結果カード：「N/M 一致」と一致の札（✓緑＝一致・灰の取り消し線＝不一致・一致が先）。**探す側の条件が空の条件は札を出さず分母も減らす**（お客様・POL・POD・モードは検索欄、貿易条件はいまの見積から）。カードは `tabindex=0`・Enter／Space でプレビュー（`sqOpenPreview`）④「🔗 関連付けた案件」の箱（保存済みの案件を開いているときだけ）と検索の箱は 8px の帯で区切る。スマホは［探す］［クリア］を下に固定・44px。色は `#sqPanel` の変数 `--sq-pri／--sq-pri-50／--sq-pri-200／--sq-ok／--sq-ok-50`（Industry／Quiet で上書き）。検索の問い合わせ・保存データは変更なし。テストは `scripts/design-tests/similar-panel-test.js`（偽の Supabase・`THEME=1`・`W=390`）。
+
 ## 🔖 チームブックマーク（全面クラウド移行・編集履歴）
 
 船会社／サブコンのリンクを `bookmarks` テーブルで一元管理（`js/bookmarks.js`・`#tab-bookmark`）。見積タブ右カラムの「🔖 ブックマーク」タブ（`renderQuoteBookmarkRail` / `#bmRailPanel`）に案件連動で表示。
