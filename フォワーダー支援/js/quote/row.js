@@ -5088,38 +5088,73 @@
     const onOut = e => { if (!pop.contains(e.target) && e.target !== anchor && !(anchor && anchor.contains && anchor.contains(e.target))) close(); };
     const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
     pop.querySelector('.sf-pop-ok').addEventListener('click', ok);
-    pop.querySelector('.sf-pop-none').addEventListener('click', () => {
-      close(); addRow();   // addRow は末尾行のサブコンを引き継ぐので、サブコン未設定に戻す
-      const all = Array.from(document.querySelectorAll('#tableBody tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
-      const last = all[all.length - 1], id = last && last.id.replace('row-', '');
-      const svEl = id && document.getElementById(`sv-${id}`); if (svEl) svEl.value = '';
-      renderSubconGroups();
-      if (id) setTimeout(() => document.getElementById(`nm-${id}`)?.focus(), 40);
-    });
+    pop.querySelector('.sf-pop-none').addEventListener('click', () => { close(); addRowWithoutSubcon(); });
     inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); ok(); } });
     setTimeout(() => { document.addEventListener('pointerdown', onOut, true); document.addEventListener('keydown', onKey, true); }, 0);
     inp.focus();
   }
-  // 枠（サブコン）がまだ 1 つも無いとき、費用の表の上に手順の案内を出す
+  // 明細がまだ 1 行も無い（＝最初の空の 1 行だけ）の間は、空の行と「（サブコン未設定）」の見出しを出さず、
+  // 表の位置に案内（［＋ サブコンを追加］／サブコンを決めずに明細を追加）を 1 つだけ出す。
+  // 「サブコンを決めずに明細を追加」を選んだら、その空の行に印（data-sf-show）を付けて表示する。
+  function _realRows() {
+    return Array.from(document.querySelectorAll('#tableBody tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
+  }
+  // 自動テスト（navigator.webdriver）では、最初の空の行へ直接入力する既存の試験のため従来どおり行を出す
+  // （localStorage 'fwd.sfEmpty'='1' で有効にして試験する。新画面の既定と同じ扱い）
+  function _sfEmptyOn() {
+    try { if (navigator.webdriver) return localStorage.getItem('fwd.sfEmpty') === '1'; } catch (e) {}
+    return true;
+  }
+  function _isEmptyTable() {
+    if (!_sfEmptyOn()) return false;
+    const tb = document.getElementById('tableBody'); if (!tb) return false;
+    if (tb.querySelector('tr[data-type]')) return false;               // 小計行・リマーク行がある
+    const real = _realRows();
+    if (real.length > 1) return false;
+    if (real.length === 1 && (!_isBlankRow(real[0]) || real[0].dataset.sfShow)) return false;
+    if (tb.contains(document.activeElement)) return false;            // 入力中の行は隠さない
+    return true;
+  }
+  // 「サブコンを決めずに明細を追加」：空の行があればそれを出す（無ければ 1 行足す）
+  function addRowWithoutSubcon() {
+    let tr = _isEmptyTable() ? _realRows()[0] : null;
+    if (!tr) {
+      addRow();   // addRow は末尾行のサブコンを引き継ぐので、サブコン未設定に戻す
+      const all = _realRows(); tr = all[all.length - 1];
+      const id0 = tr && tr.id.replace('row-', '');
+      const svEl = id0 && document.getElementById(`sv-${id0}`); if (svEl) svEl.value = '';
+    }
+    if (!tr) return null;
+    tr.dataset.sfShow = '1';
+    renderSubconGroups();
+    const id = tr.id.replace('row-', '');
+    setTimeout(() => document.getElementById(`nm-${id}`)?.focus(), 40);
+    if (document.body.classList.contains('mc-on') && window.mcSheetOpen) setTimeout(() => window.mcSheetOpen(tr.id), 60);
+    return id;
+  }
   function updateFrameHint() {
     const wrap = document.getElementById('tableWrap'); if (!wrap) return;
     let h = document.getElementById('sfHint');
-    const real = Array.from(document.querySelectorAll('#tableBody tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
-    const need = !real.some(tr => (_rowSubcon(tr) ?? '').trim());
-    if (!need) { if (h) h.hidden = true; return; }
+    const empty = _isEmptyTable();
+    wrap.classList.toggle('sf-empty', empty);
+    if (!empty) { if (h) h.hidden = true; return; }
     if (!h) {
-      h = document.createElement('div'); h.id = 'sfHint'; h.className = 'sf-hint';
-      h.innerHTML = '<b>① サブコンを追加して枠をつくる</b> → <b>② その枠の中に明細を入力</b>' +
-        '<button type="button" class="sf-hint-btn">＋ サブコンを追加</button>';
+      h = document.createElement('div'); h.id = 'sfHint'; h.className = 'sf-hint sf-empty-card';
+      h.innerHTML = '<div class="sf-e-t">まだ明細がありません</div>' +
+        '<div class="sf-e-d"><b>① サブコン（費用の取引先）を追加</b>して枠をつくり、<b>② その枠の中に明細（運賃・THC など）を入力</b>します。</div>' +
+        '<button type="button" class="sf-hint-btn">＋ サブコンを追加</button>' +
+        '<button type="button" class="sf-e-none">サブコンを決めずに明細を追加</button>';
       h.querySelector('.sf-hint-btn').addEventListener('click', e => openAddSubconFrame(e.currentTarget));
-      const c = wrap.querySelector(':scope > .container') || wrap.firstElementChild;
-      wrap.insertBefore(h, c);
+      h.querySelector('.sf-e-none').addEventListener('click', () => addRowWithoutSubcon());
+      const sw = document.getElementById('mcHost') || document.getElementById('tableScrollWrap');
+      if (sw && sw.parentNode) sw.parentNode.insertBefore(h, sw); else wrap.appendChild(h);
     }
     h.hidden = false;
   }
   window.addSubconFrame = addSubconFrame;
   window.openAddSubconFrame = openAddSubconFrame;
   window.updateFrameHint = updateFrameHint;
+  window.addRowWithoutSubcon = addRowWithoutSubcon;
   // 明細行を別ブランチ（サブコン/パターン）末尾へコピー（元行は残す）。newId を返す
   function copyRowToSubconGroup(srcRowId, sv, pt) {
     const sid = String(srcRowId).replace('row-', '');

@@ -11,7 +11,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   let fails = 0; const ok = (n, c, d) => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' → ' + JSON.stringify(d))); };
   const ctx = await b.newContext({ viewport: { width: W, height: 900 }, locale: 'ja-JP' });
-  await ctx.addInitScript(() => { try { localStorage.setItem('fwd.uiMode', 'detail'); localStorage.setItem('fbFabHintDone_v1', '1'); localStorage.setItem('quoteRemarkSheetSeen_v1', '1'); } catch (e) {} });
+  await ctx.addInitScript(() => { try { localStorage.setItem('fwd.uiMode', 'detail'); localStorage.setItem('fwd.sfEmpty', '1'); localStorage.setItem('fbFabHintDone_v1', '1'); localStorage.setItem('quoteRemarkSheetSeen_v1', '1'); } catch (e) {} });
   await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
   const p = await ctx.newPage(); p.setDefaultTimeout(8000); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(800);
@@ -22,9 +22,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const realRows = () => p.evaluate(() => [...document.querySelectorAll('#tableBody tr:not([data-virtual])')].filter(t => !t.dataset.type).map(t => ({ id: t.id, sv: t.querySelector('[data-field="sv"]')?.value || '', nm: t.querySelector('[data-field="nm"]')?.value || '' })));
   const heads = () => p.evaluate(() => [...document.querySelectorAll('#tableBody tr.subcon-group-header')].map(t => t.textContent));
 
-  ok('サブコンがまだ無いとき、手順の案内（①枠をつくる→②明細）が出る', await vis('#sfHint'));
+  ok('明細がまだ無いとき、案内のカード（まだ明細がありません）が出る', await vis('#sfHint') && /まだ明細がありません/.test(await p.evaluate(() => document.getElementById('sfHint').textContent)));
+  ok('明細がまだ無いとき、空の行と「（サブコン未設定）」の見出しは出さない', !(await vis('#tableScrollWrap')) && !(await vis('#mcHost')) && await p.evaluate(() => ![...document.querySelectorAll('#tableBody tr.subcon-group-header')].some(t => t.getBoundingClientRect().height > 0)));
+  ok('案内は 1 つだけ（同じ案内の帯が重ならない）', await p.evaluate(() => document.querySelectorAll('.sf-hint:not([hidden])').length === 1));
+  if (v2) ok('明細が無い間、操作バーの折りたたみ・展開・＋サブコンを追加は出さない（案内のカードに一本化）', !(await vis('#e2CostBar [data-f="openAddSubconFrame"]')) && !(await vis('#e2CostBar [data-f="collapseAllGroups"]')));
   if (v2) {
     ok('費用の操作バーの主ボタンが「＋ サブコンを追加」', await p.evaluate(() => /サブコンを追加/.test(document.querySelector('#e2CostBar .e2-primary')?.textContent || '')));
+    ok('主ボタンの文字が背景と同じ色になっていない（空の箱に見えない）', await p.evaluate(() => { const b = document.querySelector('#e2CostBar .e2-primary'); const c = getComputedStyle(b); return c.color !== c.backgroundColor && c.backgroundColor !== 'rgb(255, 255, 255)'; }), await p.evaluate(() => { const c = getComputedStyle(document.querySelector('#e2CostBar .e2-primary')); return [c.color, c.backgroundColor]; }));
     ok('「＋ 行を追加」は操作バーから無くなった', await p.evaluate(() => ![...document.querySelectorAll('#e2CostBar button')].some(x => /行を追加/.test(x.textContent))));
   }
   const n0 = (await realRows()).length;
@@ -37,7 +41,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('サブコンの枠ができる（見出しが出る）', (await heads()).some(t => /テスト運輸/.test(t)), await heads());
   ok('最初から入っている空の行を使い回す（行は増えない）', rows.length === n0 && rows[0].sv === 'テスト運輸', rows);
   ok('入力欄の吹き出しは閉じる', !(await vis('#sfPop')));
-  ok('サブコンの枠ができたら、手順の案内は消える', !(await vis('#sfHint')));
+  ok('サブコンの枠ができたら、案内は消えて表が出る', !(await vis('#sfHint')) && (await vis('#tableScrollWrap') || await vis('#mcHost')));
   if (W > 600) ok('カーソルが明細の品名欄に入る', await p.evaluate(() => document.activeElement?.dataset?.field === 'nm'));
   ok('見出しの追加ボタンが「＋ 明細を追加」', await p.evaluate(() => /明細を追加/.test(document.querySelector('#tableBody .subcon-group-add-btn')?.textContent || '')));
   // 2 つ目のサブコン
@@ -61,6 +65,22 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => window.openAddSubconFrame(document.body)); await p.waitForTimeout(150);
   await p.keyboard.press('Escape'); await p.waitForTimeout(100);
   ok('Esc で吹き出しが閉じる', !(await vis('#sfPop')));
+  // 明細が無い状態から「サブコンを決めずに明細を追加」→ 空の行をそのまま出す（行は増えない）
+  {
+    const q = await ctx.newPage(); q.setDefaultTimeout(8000); q.on('pageerror', e => errs.push(e.message));
+    await q.goto(URL, { waitUntil: 'domcontentloaded' }); await q.waitForTimeout(800);
+    await q.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await q.waitForTimeout(1500);
+    await q.evaluate(() => { try { window.qpNewQuote(); } catch (e) {} }); await q.waitForTimeout(1200);
+    if (v2) { await q.evaluate(() => { const b = document.querySelector('[data-e2s="4"]'); b && b.click(); }); await q.waitForTimeout(500); }
+    const cnt = () => q.evaluate(() => [...document.querySelectorAll('#tableBody tr:not([data-virtual])')].filter(t => !t.dataset.type).length);
+    const c0 = await cnt();
+    await q.evaluate(() => document.querySelector('#sfHint .sf-e-none').click()); await q.waitForTimeout(500);
+    const shown = await q.evaluate(() => { const w = document.getElementById('tableWrap'); return !w.classList.contains('sf-empty') && document.getElementById('sfHint').hidden; });
+    ok('案内の「サブコンを決めずに明細を追加」で、空の行がそのまま出る（行は増えない・案内は消える）', shown && (await cnt()) === c0 && c0 >= 1, { shown, c0, c: await cnt() });
+    await q.evaluate(() => { if (window.mcSheetClose) window.mcSheetClose(); document.activeElement && document.activeElement.blur(); window.renderSubconGroups(); }); await q.waitForTimeout(200);
+    ok('一度出した空の行は、再描画しても隠れない', await q.evaluate(() => !document.getElementById('tableWrap').classList.contains('sf-empty')));
+    await q.close();
+  }
   ok('エラーなし', errs.length === 0, errs);
   await b.close(); srv.close(); process.exit(fails ? 1 : 0);
 })();
