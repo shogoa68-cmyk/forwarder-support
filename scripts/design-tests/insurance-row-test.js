@@ -65,6 +65,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   // マージン率を空にすると従来方式（仕入＝保険料・乗せ幅は手入力に戻る）
   await ui(AM, '.ins-m', ''); await p.waitForTimeout(150);
   ok('マージン率を空にすると従来方式（仕入＝保険料 3,396・乗せ幅は編集できる）', (await pp(AM)) === 3396 && !(await p.evaluate(i => document.getElementById('mk-' + i).readOnly, AM)), { pp: await pp(AM) });
+  ok('マージン率を空にすると、自動で入れていた乗せ幅（340）も外れて売＝保険料（3,396）になる', (await mk0(AM)) === 0 && (await bp0(AM)) === 3396, { mk: await mk0(AM), bp: await bp0(AM) });
   A = AM;   // 復元で行の番号が変わるため、以降の（従来方式の）確認はこの行で続ける
   await set('mk', AM, 0); await ui(AM, '.ins-v', 1000000); await ui(AM, '.ins-r', 0.3); await p.waitForTimeout(150);
 

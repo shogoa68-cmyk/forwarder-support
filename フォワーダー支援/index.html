@@ -28,6 +28,7 @@
 <!-- 「かんたん表示」（Claude Design 案）。<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま。 -->
 <link rel="stylesheet" href="css/simple-mode.css">
 <link rel="stylesheet" href="css/feedback.css">
+<link rel="stylesheet" href="css/glossary-drawer.css">
 <link rel="stylesheet" href="css/announcements.css">
 <link rel="stylesheet" href="css/org-teams.css">
 <link rel="stylesheet" href="css/temp-files.css">
@@ -46,6 +47,8 @@
   <link rel="stylesheet" href="css/bulk-bar.css">
 <link rel="stylesheet" href="css/dash-top.css">
 <link rel="stylesheet" href="css/card-c3.css">
+<link rel="stylesheet" href="css/button-layout.css">
+<link rel="stylesheet" href="css/case-files.css">
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
@@ -77,9 +80,10 @@
   /* スマホ幅（〜600px）は常に詳細表示（かんたん表示は使わない）。保存値は変えない */
   var phone = false; try { phone = window.matchMedia('(max-width: 600px)').matches; } catch (e) {}
   h.classList.remove('mode-simple');
-  /* 見積入力の新画面（Design 28）。保存 fwd.editorV2・?editor=v2|v1。既定は旧画面。スマホ幅は旧画面のまま */
+  /* 見積入力の新画面（Design 28）。保存 fwd.editorV2・?editor=v2|v1。**既定は新画面**（2026-11・ボタン配置レビューで推薦）。選んだ人（'0'＝旧／'1'＝新）はその選択を優先。
+     自動テスト（navigator.webdriver）では、旧画面前提の既存テスト約 100 本のため従来どおり旧画面を既定にする（新画面は ?editor=v2・EDITOR=v2 で試験）。 */
   try { var ev = new URLSearchParams(location.search).get('editor'); if (ev === 'v2') localStorage.setItem('fwd.editorV2', '1'); else if (ev === 'v1') localStorage.setItem('fwd.editorV2', '0'); } catch (e) {}
-  try { h.classList.toggle('editor-v2', localStorage.getItem('fwd.editorV2') === '1'); } catch (e) {}   /* かんたん表示は廃止（2026-11）：常に詳細表示 */
+  try { var evs = localStorage.getItem('fwd.editorV2'); h.classList.toggle('editor-v2', evs === '1' || (evs === null && !navigator.webdriver)); } catch (e) {}   /* かんたん表示は廃止（2026-11）：常に詳細表示 */
   h.setAttribute('data-ui-mode-default', UI_MODE_DEFAULT);
   [].forEach.call(document.querySelectorAll('link[data-theme-css]'), function (l) {
     l.media = on[l.getAttribute('data-theme-css')] ? 'all' : 'not all';
@@ -118,8 +122,8 @@
     <a class="hdr-roadmap hdr-ideas" href="#" id="hdrIdeasBtn" onclick="switchCategory('bugreports'); fbrSetMode('idea'); return false;" title="アイデアを送る・みんなのアイデアに 👍 する">💡 アイデア</a>
     <a class="hdr-roadmap hdr-design" href="#" id="hdrDesignBtn" onclick="openDesignSwitcher(); return false;" title="デザインの切替（現行／Industry 案）">🎨 デザイン</a>
     <div class="header-auth" id="cloudHeaderAuth" hidden>
-      <button class="hdr-cloud-login" id="hdrCloudLogin" type="button" onclick="cloudLogin()" title="チーム共有にサインイン">
-        <span class="hdr-g">G</span> Google でログイン
+      <button class="hdr-cloud-login" id="hdrCloudLogin" type="button" onclick="cloudLogin()" title="Google アカウントでチーム共有にログイン">
+        <span class="hdr-g">G</span> ログイン
       </button>
       <span class="hdr-cloud-user" id="hdrCloudUser" style="display:none">
         <button class="hdr-cloud-prof" type="button" onclick="openProfileEdit()" title="プロフィールを編集（名前・アバター）">
@@ -134,25 +138,29 @@
 
   <!-- Tab Navigation -->
   <!-- ===== カテゴリーナビ（上段） ===== -->
+  <!-- 2026-11 整理：「作業する」ボタン（ティール系・cat-btn-bookmark）と「見る・管理する」ボタン（グレー系・cat-btn-admin）に色分け。
+       毎日使う 計算／書類・通関／Booking/SI は「その他」から外に出した。ボタンの id・onclick・aria-controls は不変（calculator.js 等が aria-controls で探す）。
+       ボタン名だけ「やること」ベースに変更（BOOKMARK→リンク集 など）。 -->
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
-    <!-- 上段の 4 つ（BOOKMARK・見積・統計・マスター管理）は同じ色（cat-btn-bookmark）にそろえる。ほかのカテゴリは「その他」メニューへ -->
-    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-bookmark"   onclick="switchCategory('bookmark', this)">🔖 BOOKMARK</button>
-    <button class="cat-btn cat-btn-bookmark active" role="tab" aria-selected="true"  aria-controls="tab-quote-make"   onclick="switchCategory('quote',  this)">💼 見積</button>
-    <button class="cat-btn cat-btn-bookmark"        role="tab" aria-selected="false" aria-controls="tab-stats"         onclick="switchCategory('stats',   this)">📊 統計</button>
-    <button class="cat-btn cat-btn-bookmark"        role="tab" aria-selected="false" aria-controls="tab-master"        onclick="switchCategory('master',  this)">🗂 マスター管理</button>
-    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-cptest"       title="サイバーポート連携（読み取りのみ）" onclick="switchCategory('cptest', this)">🚢 サイバーポート</button>
-    <!-- 日常で使う頻度の低い 7 カテゴリ（諸チャージ含む）は「その他」メニューに集約（ボタン・id・onclick は不変。js/cat-more.js が開閉と選択中の表示を担当） -->
+    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-bookmark"   title="船会社・サブコン（協力会社）のリンク集（BOOKMARK）" onclick="switchCategory('bookmark', this)">🔖 リンク集</button>
+    <button class="cat-btn cat-btn-bookmark active" role="tab" aria-selected="true"  aria-controls="tab-quote-make"   title="お客様へ出す見積書を作る" onclick="switchCategory('quote',  this)">💼 見積を作る</button>
+    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-calc"         title="CBM・運賃トン・バンニングなどの計算" onclick="switchCategory('calc',   this)">🧮 計算</button>
+    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-bldo"         title="B/L・D/O・通関などの書類" onclick="switchCategory('docs',   this)">📄 書類・通関</button>
+    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-booking-tab"  title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
+    <button class="cat-btn cat-btn-admin"    role="tab" aria-selected="false" aria-controls="tab-stats"         title="過去の見積・受注の実績を見る（統計）" onclick="switchCategory('stats',   this)">📊 実績を見る</button>
+    <button class="cat-btn cat-btn-admin"    role="tab" aria-selected="false" aria-controls="tab-master"        title="お客様・サブコン・港などの登録データの管理（マスター管理）" onclick="switchCategory('master',  this)">🗂 マスター管理</button>
+    <!-- 「その他」メニュー（js/cat-more.js が開閉と選択中の表示を担当）。中を「調べる」「ほか」に分け、各項目に 1 行説明（data-desc）を出す -->
     <div class="cat-more" id="catMore">
-      <button type="button" class="cat-btn cat-more-btn" id="catMoreBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catMorePanel" title="諸チャージ・カレンダー・作業フォルダ・本船・航路・Booking/SI・書類・通関・計算・知識・参考">📂 <span class="cat-more-label">その他</span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
+      <button type="button" class="cat-btn cat-more-btn" id="catMoreBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catMorePanel" title="調べる（本船・航路／知識・参考／諸チャージ）・カレンダー・作業フォルダ・サイバーポート">📂 <span class="cat-more-label">その他</span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
       <div class="cat-more-panel" id="catMorePanel" role="tablist" aria-label="その他のカテゴリ" hidden>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-local-charges" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-calendar"     onclick="switchCategory('calendar', this)">📅 カレンダー</button>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-workfolder"   onclick="switchCategory('workfolder', this)">📁 作業フォルダ</button>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-tracking"     onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-booking-tab"  title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-bldo"         onclick="switchCategory('docs',   this)">📄 書類・通関</button>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-calc"         onclick="switchCategory('calc',   this)">🧮 計算</button>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-incoterms"    onclick="switchCategory('ref',    this)">📚 知識・参考</button>
+        <div class="cat-more-head" role="presentation">調べる</div>
+        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-tracking"     data-desc="本船の動き・航路のスケジュール" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
+        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-incoterms"    data-desc="貿易用語・インコタームズ・船会社情報" onclick="switchCategory('ref',    this)">📚 知識・参考</button>
+        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-local-charges" data-desc="現地・港で発生する諸費用の目安" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
+        <div class="cat-more-head" role="presentation">ほか</div>
+        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-cptest"       data-desc="サイバーポート連携（読み取りのみ）" onclick="switchCategory('cptest', this)">🚢 サイバーポート</button>
+        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-calendar"     data-desc="予定・締切の確認" onclick="switchCategory('calendar', this)">📅 カレンダー</button>
+        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-workfolder"   data-desc="自分専用のファイル置き場" onclick="switchCategory('workfolder', this)">📁 作業フォルダ</button>
       </div>
     </div>
   </div>
@@ -379,7 +387,7 @@
               <option value="none">グループなし</option>
             </select>
           </label>
-          <button class="lc-variant-btn" onclick="lcToggleVariants()">🔀 ゆらぎ</button>
+          <button class="lc-variant-btn" onclick="lcToggleVariants()">🔀 表記ゆれ</button>
           <button class="lc-variant-btn" onclick="lcRpOpenList()">📋 明細プリセット</button>
           <button class="lc-add-btn" onclick="lcOpenForm(null)">＋ 新規登録</button>
         </div>
@@ -1551,7 +1559,7 @@
               <th>制度名</th>
               <th>対象</th>
               <th>提出義務者</th>
-              <th>提出期限（海上）<br><small style="font-weight:400;color:#999;">⚠️ 基準点（積出／入港）に注意</small></th>
+              <th>提出期限（海上）<br><small style="font-weight:400;color:#6f5f50;">⚠️ 基準点（積出／入港）に注意</small></th>
               <th>提出先・システム</th>
               <th>未提出時のペナルティ</th>
             </tr>
@@ -1608,7 +1616,7 @@
             <tr>
               <td class="code-cell" style="font-size:12px;">SOLAS VGM<br><span style="font-weight:400;font-size:12px;">（厳密にはファイリングではないが必須）</span></td>
               <td style="font-size:12px;">全世界向け輸出コンテナ</td>
-              <td style="font-size:12px;">荷送人（Shipper）<br><span style="color:#6b7280;">※NVOCC/フォワーダーによる代行提出も可</span></td>
+              <td style="font-size:12px;">荷送人（Shipper）<br><span style="color:#596170;">※NVOCC/フォワーダーによる代行提出も可</span></td>
               <td style="font-size:12px;font-weight:700;color:#b91c1c;">船社締め切り前<br>（CY搬入前が一般的）</td>
               <td style="font-size:12px;">船社へ提出（書面/電子）</td>
               <td style="font-size:12px;color:#b91c1c;">VGM未提出コンテナは船積み不可</td>
@@ -1807,7 +1815,7 @@
               <tr><td style="font-size:12px;">Invoice・P/L</td><td style="font-size:12px;">必ず同じACID番号を記載</td></tr>
             </tbody>
           </table>
-          <div style="margin-top:10px;padding:8px 12px;background:#fff8e1;border-radius:7px;border:1px solid #ffe082;font-size:12px;color:#e65100;">
+          <div style="margin-top:10px;padding:8px 12px;background:#fff8e1;border-radius:7px;border:1px solid #ffe082;font-size:12px;color:#b34100;">
             ⚠️ <strong>申告情報との不一致</strong>（品名・数量・HSコードなど）があると、アレキサンドリア港等で<strong>貨物が留め置き</strong>になります。
             輸入者から正確なACIDを受領してから船積みすること。
           </div>
@@ -1848,7 +1856,7 @@
           </ul>
         </div>
       </div>
-      <div style="padding:10px 14px;background:#fff8e1;border-radius:7px;border:1px solid #ffe082;font-size:12px;color:#e65100;">
+      <div style="padding:10px 14px;background:#fff8e1;border-radius:7px;border:1px solid #ffe082;font-size:12px;color:#b34100;">
         ⚠️ <strong>新ルール情報：</strong> UAEは通関制度を継続的に更新中です。最新情報は各船社・現地エージェントへ必ず確認してください。
       </div>
     </div>  </div><!-- /tab-filing -->
@@ -2945,7 +2953,7 @@
             <label>案件名 <span class="qf-memo-note">任意。一覧・カードに出る名前（空欄なら「社内メモ」の1行目が案件名になります）</span></label>
             <div class="ci-case-row">
             <input type="text" id="qf-case-name" maxlength="80" autocomplete="off" placeholder="例）○○商事 横浜→ロサンゼルス FCL 見積" title="案件の名前。入力するとダッシュボードのカードの案件名になります。空欄のときは、「社内メモ」（付箋）の1行目が案件名になります。お客様向けの出力には出ません。" />
-            <button type="button" class="ci-memo-btn" id="ciMemoBtn" onclick="ciToggleMemo(event)" aria-haspopup="dialog" title="この案件の社内メモ（付箋）を開く／閉じる。1行目は、案件名欄が空のとき案件名になります。お客様向け出力には含まれません。">📝 社内メモ<span class="ci-memo-dot" aria-hidden="true"></span></button>
+            <button type="button" class="ci-memo-btn" id="ciMemoBtn" onclick="ciToggleMemo(event)" aria-haspopup="dialog" title="この案件の社内メモ（付箋）を開く／閉じる。1行目は、案件名欄が空のとき案件名になります。お客様向け出力には含まれません。">📝 社内メモ<span class="memo-label is-internal">🔒 社内だけ</span><span class="ci-memo-dot" aria-hidden="true"></span></button>
             </div>
           </div>
           </div>
@@ -3063,7 +3071,7 @@
           <div id="qfMemoFloat" class="qf-memo-float" hidden>
             <div class="qf-memo-float-head" id="qfMemoFloatHead">
               <span class="qf-memo-float-icon">📝</span>
-              <span class="qf-memo-float-title">案件名・社内メモ</span>
+              <span class="qf-memo-float-title">案件名・社内メモ</span><span class="memo-label is-internal">🔒 社内だけ</span>
               <button type="button" class="qf-memo-float-btn" onclick="openMemoPopout()" title="全画面で編集">⤢</button>
               <button type="button" class="qf-memo-float-btn" onclick="closeMemoFloat()" title="付箋を閉じる">✕</button>
             </div>
@@ -3924,7 +3932,7 @@
     <div class="condition-section remark-section is-collapsible" id="section-remark">
       <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-remark')">
         <span class="section-caret">▼</span>
-        <span class="section-toggle-title">📝 全体リマーク・免責事項</span><span class="tier-badge opt" aria-label="任意">任意</span>
+        <span class="section-toggle-title">📝 全体リマーク・免責事項</span><span class="memo-label is-quote">📄 見積書に載ります</span><span class="tier-badge opt" aria-label="任意">任意</span>
         <span class="section-collapsed-summary" id="sumRemark"></span>
       </h2>
       <div id="remarkBody" class="remark-body">
@@ -4109,8 +4117,8 @@
                 <th class="hd-base" style="width:188px;">項目名<br><small class="hd-sub">／備考</small></th>
                 <th class="hd-base hd-qty" style="width:65px;">数量·単位<small class="hd-sub hd-qpat" id="hdQtyPat" hidden></small></th>
                 <th class="hd-base hd-stk" style="width:62px;" title="上段＝支払い（仕入）通貨、下段＝請求（売値）通貨">通貨<br><small class="hd-sub"><span class="t-cost">仕</span>／<span class="t-sell">売</span></small></th>
-                <th class="hd-base hd-stk" style="width:118px;" title="上段＝支払い単価（仕入）、中＝＋乗せ幅、下段＝請求単価（売値）。CD は通貨差調整値">単価<br><small class="hd-sub"><span class="t-cost">仕入</span>＋<span class="hd-mk-tag">乗せ幅</span>＝<span class="t-sell">売値</span></small></th>
-                <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。">課税</th>
+                <th class="hd-base hd-stk" style="width:118px;" title="上段＝支払い単価（仕入）、中＝＋乗せ幅、下段＝請求単価（売値）。CD は通貨差調整値">単価<button type="button" class="hint-i" data-hint="price" aria-label="仕・＋・売の説明" aria-haspopup="dialog">ⓘ</button><br><small class="hd-sub"><span class="t-cost">仕入</span>＋<span class="hd-mk-tag">乗せ幅</span>＝<span class="t-sell">売値</span></small></th>
+                <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。">課税<br><button type="button" class="hint-i" data-hint="tax" aria-label="課税の説明" aria-haspopup="dialog">ⓘ</button></th>
                 <th class="hd-bill" style="width:92px;">小計<br><small class="hd-sub t-sell">売</small></th>
                 <th class="hd-profit hd-pr" style="width:80px;">利益</th>
               </tr>
@@ -4607,6 +4615,7 @@
       </td>
       <td class="handle-cell">
         <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
+        <span class="row-acts-hint" role="button" aria-label="この行の操作" title="この行の操作（見積書に出さない／要調査／入力完了／直下に追加／複製／削除）。マウスを乗せると出ます・スマホは行をタップ">⋯</span>
         <!-- コンテナ本数連動アイコンは一旦 UI から非表示（機能・JSロジックは残置：window.toggleCntLink / _syncContainerLinkedRows / cntLink 復元）。
              再表示する場合は以下のボタンを戻すこと：
         <button class="cnt-link-btn" onclick="window.toggleCntLink?.(this)" title="コンテナ本数に数量を連動（FCL）" tabindex="-1">⛓</button> -->
@@ -4629,7 +4638,7 @@
       <td class="name-cell">
         <input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" list="nmSuggestions" />
         <div class="w-note-row">
-          <input type="text" data-field="nt" class="w-note" placeholder="備考（任意）" data-col="6" />
+          <input type="text" data-field="nt" class="w-note" placeholder="備考（この行だけ・社内用）" data-col="6" />
           <button type="button" class="btn-row-rem" tabindex="-1" title="備考欄のテキストを引用して直下に備考行を挿入（空でも可）">💬</button>
           <button type="button" class="btn-row-int" tabindex="-1" title="備考欄のテキストを引用して直下に社内メモを挿入（空でも可）">🔒</button>
         </div>
@@ -4701,19 +4710,23 @@
         <input type="hidden" data-field="cn" value="">
         <input type="hidden" data-field="ins" value="">
         <div class="row-mode-btns">
+          <span class="mh-grp">単価の扱い</span>
           <button type="button" class="zero-confirm-btn" tabindex="-1" title="あえて0円にする（0円であることを確認済みの目印。もう一度クリックで解除）">あえて¥0</button>
           <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
           <button type="button" class="profit-share-btn" tabindex="-1" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内の利益・粗利率にのみ計上します（もう一度クリックで解除）。">PS</button>
           <button type="button" class="cond-charge-btn" tabindex="-1" title="必要時のみ請求。金額は客先にも表示しますが、見積もり合計には加算しません（もう一度クリックで解除）。">必要時</button>
           <button type="button" class="ref-info-btn" tabindex="-1" title="参考情報。金額は客先にも表示しますが、見積もり合計には加算しません。「必要時（必要なときだけ請求）」とは別に、参考として提示したい行に使用します（もう一度クリックで解除）。">参考</button>
           <button type="button" class="est-btn" tabindex="-1" title="概算（金額は目安）。単価・金額の前に「約」を付けて表示します。見積もり合計には通常どおり加算されます（もう一度クリックで解除）。">概算</button>
+          <span class="mh-grp">計算のしかた</span>
           <button type="button" class="sell-mode-btn" tabindex="-1" title="売値ベース：売単価を先に決め、仕入単価を入力すると乗せ幅（売−仕入）が自動算出されます。もう一度クリックで通常（仕入＋乗せ幅＝売値）に戻ります。">売値ベース</button>
           <button type="button" class="pct-mode-btn" tabindex="-1" title="仕入単価を「○○の何%」として計算（%率と基準額を入力）。もう一度クリックで直接入力に戻す。">%</button>
-          <button type="button" class="ic-mode-btn" tabindex="-1" title="適用する貿易条件：選んだ貿易条件（インコタームズ）のときだけ、この行を見積書・合計に含めます（例：EXW・FCA のときだけ有効）。いまの貿易条件に合わない行は画面に薄く残り、客先向けの出力と合計から外れます。もう一度クリックで解除。">貿易条件</button>
           <button type="button" class="ins-mode-btn" tabindex="-1" title="保険料の計算：貨物価額（インボイス金額）× 保険価額率（既定 110%）× 保険料率 から、仕入単価の保険料を自動計算します。売値は乗せ幅で上乗せします。もう一度クリックで解除（金額はそのまま残ります）。">🛡️ 保険料</button>
-          <button type="button" class="cn-mode-btn" tabindex="-1" title="表示条件：数量・総個数・コンテナ本数・輸送モード・貿易条件などが条件に合うときだけ、この行を見積書・合計に含めます（例：数量 20 以上 40 以下のときだけ有効）。合わない行は画面に薄く残り、客先向けの出力と合計から外れます。もう一度クリックで解除。">表示条件</button>
           <button type="button" class="min-mode-btn" tabindex="-1" title="ミニマム（最低料金）：金額を「数量 × 単価」と最低料金の高いほうにします（例：Min. $28.00 or $0.15/kg）。もう一度クリックで解除。">MIN</button>
           <button type="button" class="range-mode-btn" tabindex="-1" title="幅（金額の範囲）：売単価を「1,000〜2,500」のように幅で示します（上限を入力）。客先向けの出力は単価・金額を「〜」で表示し、合計・小計は売単価で計算します。もう一度クリックで解除。">幅</button>
+          <span class="mh-grp">適用の条件</span>
+          <button type="button" class="ic-mode-btn" tabindex="-1" title="適用する貿易条件：選んだ貿易条件（インコタームズ）のときだけ、この行を見積書・合計に含めます（例：EXW・FCA のときだけ有効）。いまの貿易条件に合わない行は画面に薄く残り、客先向けの出力と合計から外れます。もう一度クリックで解除。">貿易条件</button>
+          <button type="button" class="cn-mode-btn" tabindex="-1" title="表示条件：数量・総個数・コンテナ本数・輸送モード・貿易条件などが条件に合うときだけ、この行を見積書・合計に含めます（例：数量 20 以上 40 以下のときだけ有効）。合わない行は画面に薄く残り、客先向けの出力と合計から外れます。もう一度クリックで解除。">表示条件</button>
+          <div class="mode-hint" role="status" aria-live="polite"><span class="mh-idle">ボタンを押すと、ここに説明が出ます</span></div>
         </div>
         <span class="min-group" title="ミニマム（最低料金）：金額は「数量 × 単価」と最低料金の高いほうになります。仕入・売値それぞれに設定できます（空欄なら適用しない）">
           <span class="min-lbl">最低料金（MIN）</span>
@@ -4852,7 +4865,7 @@
       </div>
       <div class="stats-card">
         <div class="stats-card-value" id="statsBlurCount">—</div>
-        <div class="stats-card-label">ゆらぎグループ</div>
+        <div class="stats-card-label">表記ゆれグループ</div>
       </div>
       <div class="stats-card">
         <div class="stats-card-value" id="statsMasterCount">—</div>
@@ -4871,12 +4884,12 @@
         <div class="stats-help-step">
           <div class="stats-help-step-head">
             <span class="stats-help-step-num">1</span>
-            <span class="stats-help-step-title">ゆらぎを確認する</span>
+            <span class="stats-help-step-title">表記ゆれを確認する</span>
           </div>
-          <p>🏢 サブコン・📝 品名・📐 単位 の各タブで、表記を「読み方が同じもの」でグループ化して表示します。同じ意味なのに入力者によって表記が違うものがあれば <span class="sh-badge">ゆらぎ N種</span> バッジが付きます。</p>
+          <p>🏢 サブコン・📝 品名・📐 単位 の各タブで、表記を「読み方が同じもの」でグループ化して表示します。同じ意味なのに入力者によって表記が違うものがあれば <span class="sh-badge">表記ゆれ N種</span> バッジが付きます。</p>
           <ul>
             <li>バッジをクリック → エイリアス是正タブへジャンプ</li>
-            <li>チップの <strong>≠</strong> ボタン → 「別物として扱う」（ゆらぎ判定から除外）</li>
+            <li>チップの <strong>≠</strong> ボタン → 「別物として扱う」（表記ゆれ判定から除外）</li>
           </ul>
         </div>
 
@@ -4902,7 +4915,7 @@
             <span class="stats-help-step-num">3</span>
             <span class="stats-help-step-title">エイリアスルールで一括是正</span>
           </div>
-          <p><span class="sh-badge">ゆらぎ N種</span> バッジをクリックすると「エイリアス是正」タブへジャンプし、⚡ショートカットが開きます。「＋ 登録」で <em>古い表記 → 正規形</em> のルールを保存し、「💾 ローカルに適用」または「☁️ クラウドに適用」を押すと既存プリセットを一括置換できます。</p>
+          <p><span class="sh-badge">表記ゆれ N種</span> バッジをクリックすると「エイリアス是正」タブへジャンプし、⚡ショートカットが開きます。「＋ 登録」で <em>古い表記 → 正規形</em> のルールを保存し、「💾 ローカルに適用」または「☁️ クラウドに適用」を押すと既存プリセットを一括置換できます。</p>
           <ul>
             <li>ルールはローカル保存、クラウドログイン時は自動同期</li>
             <li class="sh-warn">⚠️ 一括置換は元に戻せません。適用前に CSV/Excel でエクスポートを推奨します。</li>
@@ -4912,11 +4925,11 @@
       </div>
       <div class="stats-help-flow">
         <span class="sh-flow-label">流れ：</span>
-        <span class="sh-flow-item">ゆらぎ発見</span>
+        <span class="sh-flow-item">表記ゆれ発見</span>
         <span class="sh-flow-arrow">→</span>
         <span class="sh-flow-item">☆ 投票 でマスター昇格</span>
         <span class="sh-flow-arrow">→</span>
-        <span class="sh-flow-item">ゆらぎバッジ → ルール登録</span>
+        <span class="sh-flow-item">表記ゆれバッジ → ルール登録</span>
         <span class="sh-flow-arrow">→</span>
         <span class="sh-flow-item">一括置換 で過去データも是正</span>
         <span class="sh-flow-arrow">→</span>
@@ -4936,7 +4949,7 @@
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-kpi"      id="statsTabBtn-kpi"      onclick="statsSetPane('kpi')">🎯 KPI</button>
     </div>
 
-    <div class="stats-moved-note" id="statsMovedNote">🔧 名前のゆらぎ・未登録の確認は「🗂 マスター管理」へ移りました。<button type="button" class="stats-moved-btn" onclick="statsSetPane('sv')">開く →</button></div>
+    <div class="stats-moved-note" id="statsMovedNote">🔧 名前の整理（表記ゆれ・未登録の確認）は「🗂 マスター管理」へ移りました。<button type="button" class="stats-moved-btn" onclick="statsSetPane('sv')">開く →</button></div>
     <div id="statsPane-svport"   class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-svport"></div>
     <div id="statsPane-custitem" class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-custitem"></div>
     <div id="statsPane-ledger" class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-ledger"></div>
@@ -4950,12 +4963,12 @@
   <!-- ===================== Tab: マスター管理（統計から独立したトップレベルタブ） ===================== -->
   <div class="tab-content" id="tab-master">
     <div class="stats-tabs" role="tablist" aria-label="マスター管理サブタブ">
-      <button class="stats-tab-btn" role="tab" aria-selected="false" aria-controls="statsPane-fix" id="masterTabBtn-fix" onclick="masterSetPane('fix')">🔧 ゆらぎ・未登録</button>
+      <button class="stats-tab-btn" role="tab" aria-selected="false" aria-controls="statsPane-fix" id="masterTabBtn-fix" onclick="masterSetPane('fix')">🔧 名前の整理</button>
       <button class="stats-tab-btn is-active" role="tab" aria-selected="true"  aria-controls="statsPane-master" id="masterTabBtn-master" onclick="masterSetPane('master')">⭐ マスター管理</button>
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-alias"  id="masterTabBtn-alias"  onclick="masterSetPane('alias')">🔀 エイリアス是正</button>
     </div>
     <div id="statsPane-fix" class="stats-pane" role="tabpanel" aria-labelledby="masterTabBtn-fix">
-      <div class="fix-head"><b>🔧 ゆらぎ・未登録</b><span class="fix-sub">入力された名前の表記ゆれを正しい名前（マスター）にまとめる／未登録の名前をマスターに登録します</span></div>
+      <div class="fix-head"><b>🔧 名前の整理</b><span class="fix-sub">同じ会社・同じものなのに書き方が違う名前（例：「ＣＭＡ ＣＧＭ」と「CMA CGM」＝<b>表記ゆれ</b>）を、正しい名前（<b>マスター</b>）にまとめます。まだ登録されていない名前は、ここでマスターに登録できます。過去の案件の入力は書き換わりません。</span></div>
       <div id="fixChips" class="fix-chips" role="tablist" aria-label="種別"></div>
     <div id="statsPane-sv"       class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-sv">
       <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('sv')">📥 CSV</button></div>
@@ -5123,6 +5136,7 @@
 <script src="js/quote/layout-cols.js"></script>
 <script src="js/quote/remark-sheet.js"></script>
 <script src="js/quote/temp-files.js"></script>
+<script src="js/quote/case-files.js"></script>
 <script src="js/quote/packing-import.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/ui-mode.js"></script>
@@ -5148,6 +5162,8 @@
 <script src="js/theme-quiet.js"></script>
 <!-- 欄ごとの説明書きを「？」にしまう（マウスを乗せる／タップで読める） -->
 <script src="js/hint-fold.js"></script>
+<script src="js/help-hints.js"></script>
+<script src="js/option-hints.js"></script>
 <script src="js/workfolder.js"></script>
 <script src="js/integrations/cyberport.js"></script>
 <script src="js/integrations/cp-events.js"></script>

@@ -81,4 +81,18 @@ r = p("お世話になっております。\n倉庫保管 〒105-0023 港区\n20
 chk('読めなかった行：数字を含むが金額にならない行だけを控える（日付・電話・住所は除く）', r.unread.length === 1 && /特殊作業/.test(r.unread[0]), r.unread);
 r = p("海上運賃 USD 1,200 /20GP");
 chk('読めた文面では読めなかった行は空', r.unread.length === 0, r.unread);
+// ===== 値引き（マイナス）・合計行・「|」だけの表・社名の伏せ =====
+r = p("値引き -USD 100\n割引 △¥5,000\nDiscount: USD -50 /BL\n海上運賃 - USD 1,200 /20GP\nBAF USD 300-400/TEU");
+chk('値引き（-USD 100・△¥5,000・USD -50）は金額が負になる。区切りの「 - 」と範囲の「300-400」は負にしない',
+  its(r)[0].price === -100 && its(r)[1].price === -5000 && its(r)[1].ccy === 'JPY' && its(r)[2].price === -50 && its(r)[2].unit === 'BL' && its(r)[3].price === 1200 && its(r)[4].price === 300 && its(r)[4].priceHi === 400, its(r));
+r = p("海上運賃 USD 1,200 /20GP\n税込合計 ¥61,600\n御見積合計 ¥61,600\n請求金額 ¥61,600");
+chk('「税込合計」「御見積合計」「請求金額」は明細にしない（読めなかった行にも出さない）', its(r).length === 1 && r.unread.length === 0, [its(r), r.unread]);
+r = p("Item | Qty | Unit | Price\nTHC | 2 | 20GP | USD 100\nDOC | 1 | BL | USD 50");
+chk('先頭・末尾に「|」が無い表も、見出しの列で読む', its(r).length === 2 && its(r)[0].name === 'THC' && its(r)[0].qty === 2 && its(r)[0].unit === '20GP' && its(r)[0].price === 100 && its(r)[1].price === 50, its(r));
+const mk = win.eiMaskLine;
+chk('読めなかった行の伏せ：社名・宛名・メールも残さない', !/ABC|山田|taro/.test(mk('特注 株式会社ABC物流 山田様 taro@example.com 見積 99,000')) && !/Global/.test(mk('Special Global Link Co., Ltd quote 99')), [mk('特注 株式会社ABC物流 山田様 taro@example.com 見積 99,000'), mk('Special Global Link Co., Ltd quote 99')]);
+const fe = win.eiFreeEntriesOf({ fields: { 'qf-free-entries': JSON.stringify([{ id: "x');alert(1);('", text: '見積 USD 100', status: 'pending' }, { text: 'id なし', status: 'pending' }]) } });
+chk('保管した原文の id に細工があっても、ボタンの onclick に埋めても安全な文字だけにする', fe.length === 2 && fe.every(e => /^[\w-]+$/.test(e.id)) && fe[0].id !== fe[1].id, fe);
+r = p("・諸掛り：実費\nドレージ 実費");
+chk('「諸掛り：実費」（コロン区切り）も実費の行として読む', its(r).length === 2 && its(r)[0].name === '諸掛り' && its(r)[0].actual && its(r)[1].name === 'ドレージ', its(r));
 process.exit(ok === C.length && ng === 0 ? 0 : 1);

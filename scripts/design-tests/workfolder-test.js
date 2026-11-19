@@ -97,16 +97,16 @@ const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '
  ok('使用量が「0 B / 5.00 GB」で出る',/0 B \/ 5\.00 GB/.test(usage0),usage0);
 
  // ---- フォルダ作成（作ってすぐ名前を打てる） ----
- await p.click('[data-act="newfolder"]');await p.waitForTimeout(250);
+ await p.click('.wf-btn[data-act="newfolder"]');await p.waitForTimeout(250);
  const inp=await p.evaluate(()=>{const i=document.querySelector('.wf-rename');return i?{v:i.value,focused:document.activeElement===i,sel:[i.selectionStart,i.selectionEnd]}:null;});
  ok('「新しいフォルダ」を作ると名前の入力欄が出て、全文字が選ばれている',inp&&inp.v==='新しいフォルダ'&&inp.focused&&inp.sel[0]===0&&inp.sel[1]===inp.v.length,inp);
  await p.keyboard.type('見積資料');await p.keyboard.press('Enter');await p.waitForTimeout(250);
- await p.click('[data-act="newfolder"]');await p.waitForTimeout(200);await p.keyboard.type('写真');await p.keyboard.press('Enter');await p.waitForTimeout(250);
- await p.click('[data-act="newfolder"]');await p.waitForTimeout(200);await p.keyboard.press('Enter');await p.waitForTimeout(250);   // 名前を変えず確定
+ await p.click('.wf-btn[data-act="newfolder"]');await p.waitForTimeout(200);await p.keyboard.type('写真');await p.keyboard.press('Enter');await p.waitForTimeout(250);
+ await p.click('.wf-btn[data-act="newfolder"]');await p.waitForTimeout(200);await p.keyboard.press('Enter');await p.waitForTimeout(250);   // 名前を変えず確定
  const names=()=>p.evaluate(()=>[...document.querySelectorAll('#wfMain .wf-row .wf-name b')].map(e=>e.textContent));
  ok('名前を決めて Enter で確定。フォルダーが名前順に並ぶ',JSON.stringify(await names())===JSON.stringify(['見積資料','新しいフォルダ','写真'].sort((a,b)=>a.localeCompare(b,'ja'))),await names());
  // 同名の作成は自動で連番
- await p.click('[data-act="newfolder"]');await p.waitForTimeout(200);await p.keyboard.press('Enter');await p.waitForTimeout(250);
+ await p.click('.wf-btn[data-act="newfolder"]');await p.waitForTimeout(200);await p.keyboard.press('Enter');await p.waitForTimeout(250);
  ok('同じ名前は「新しいフォルダ (2)」と連番になる',(await names()).includes('新しいフォルダ (2)'),await names());
  // 名前の重複は拒否（変更）
  await p.click('.wf-row:has-text("新しいフォルダ (2)")');await p.keyboard.press('F2');await p.waitForTimeout(150);
@@ -124,7 +124,7 @@ const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '
 
  // ---- アップロード（ファイル選択・同名は連番・容量） ----
  await p.evaluate(()=>{window.__nextSize=2048;});
- let fc=p.waitForEvent('filechooser');await p.click('[data-act="upload"]');
+ let fc=p.waitForEvent('filechooser');await p.click('.wf-btn[data-act="upload"]');
  await (await fc).setFiles([{name:'見積書.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4 test')},{name:'メモ.txt',mimeType:'text/plain',buffer:Buffer.from('hello')},{name:'logo.png',mimeType:'image/png',buffer:Buffer.from('x')}]);
  await p.waitForFunction(()=>document.querySelectorAll('#wfMain .wf-row').length>=4,null,{timeout:8000});await p.waitForTimeout(500);
  const lst=await names();
@@ -135,13 +135,13 @@ const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '
  ok('ファイルの行は開いているフォルダの中に登録される',parentOk,null);
  ok('アップロード枠に完了が出る',await p.evaluate(()=>/3 \/ 3/.test(document.getElementById('wfUploads').textContent)),await p.evaluate(()=>document.getElementById('wfUploads').textContent));
  ok('使用量が増える（2 KB×3）',await p.evaluate(()=>/6\.00 KB/.test(document.querySelector('.wf-usage span').textContent)),await p.evaluate(()=>document.querySelector('.wf-usage span').textContent));
- fc=p.waitForEvent('filechooser');await p.click('[data-act="upload"]');
+ fc=p.waitForEvent('filechooser');await p.click('.wf-btn[data-act="upload"]');
  await (await fc).setFiles([{name:'見積書.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4 again')}]);
  await p.waitForFunction(()=>document.querySelectorAll('#wfMain .wf-row').length>=5,null,{timeout:8000});await p.waitForTimeout(300);
  ok('同じ名前のファイルは「見積書 (2).pdf」になる（上書きしない）',(await names()).includes('見積書 (2).pdf'),await names());
  // 容量オーバー
  await p.evaluate(()=>{window.__quota=1;});
- fc=p.waitForEvent('filechooser');await p.click('[data-act="upload"]');
+ fc=p.waitForEvent('filechooser');await p.click('.wf-btn[data-act="upload"]');
  await (await fc).setFiles([{name:'大きい.zip',mimeType:'application/zip',buffer:Buffer.from('zzzz')}]);
  await p.waitForTimeout(700);
  const upErr=await p.evaluate(()=>document.getElementById('wfUploads').textContent);
@@ -176,10 +176,10 @@ const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '
  await p.dblclick('.wf-row:has-text("見積資料")');await p.waitForTimeout(250);
  await p.click('[data-sort="size"]');await p.waitForTimeout(200);
  ok('列の見出しで並べ替え（サイズ）。フォルダーは先頭のまま',await p.evaluate(()=>document.querySelector('.wf-lhead .is-sorted').dataset.sort==='size'&&document.querySelector('#wfMain .wf-row .wf-ico').textContent==='📁'),null);
- await p.click('[data-act="mode"]');await p.waitForTimeout(200);
+ await p.click('.wf-btn[data-act="mode"]');await p.waitForTimeout(200);
  ok('「アイコン」表示に切り替わる',await p.evaluate(()=>document.querySelectorAll('#wfMain .wf-card').length>=3),null);
  await p.screenshot({path:OUT+'/workfolder-grid.png'});
- await p.click('[data-act="mode"]');await p.waitForTimeout(150);
+ await p.click('.wf-btn[data-act="mode"]');await p.waitForTimeout(150);
  await p.fill('#wfSearch','見積');await p.waitForTimeout(300);
  const sr=await p.evaluate(()=>({crumb:document.querySelector('.wf-crumb').textContent,rows:[...document.querySelectorAll('#wfMain .wf-row .wf-name b')].map(e=>e.textContent),focus:document.activeElement.id}));
  ok('検索欄に打つと全体から名前で絞り込み、打ち続けられる',/検索結果/.test(sr.crumb)&&sr.rows.includes('見積書.pdf')&&sr.rows.includes('見積資料')&&sr.focus==='wfSearch',sr);
@@ -196,7 +196,7 @@ const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '
  // ヘッドレス Chromium は、日本語名の download 属性を「download」と報告する癖がある（画面と無関係・最小ページでも再現）。
  // そのため、リンクに設定された名前をここで直接確認し、保存の発火は download イベントで確認する。
  await p.evaluate(()=>{window.__dlNames=[];const o=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(this.download)window.__dlNames.push(this.download);return o.apply(this,arguments);};});
- const dl=p.waitForEvent('download');await p.click('[data-act="download"]');
+ const dl=p.waitForEvent('download');await p.click('.wf-btn[data-act="download"]');
  await dl;
  ok('ダウンロードが始まり、保存名は元のファイル名（見積書.pdf）が設定される',await p.evaluate(()=>window.__dlNames.join()==='見積書.pdf'),await p.evaluate(()=>window.__dlNames));
  await p.dblclick('.wf-row:has-text("logo.png")');await p.waitForTimeout(600);
@@ -223,13 +223,13 @@ const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '
  await p.click('[data-tree="trash"]');await p.waitForTimeout(250);
  ok('ゴミ箱の画面に入っている項目が出る（元の場所つき）',await p.evaluate(()=>/ドロップ\.txt/.test(document.getElementById('wfMain').textContent)&&/作業フォルダ › 見積資料/.test(document.getElementById('wfMain').textContent)),null);
  await p.screenshot({path:OUT+'/workfolder-trash.png'});
- await p.click('.wf-row:has-text("ドロップ.txt")');await p.click('[data-act="restore"]');await p.waitForTimeout(300);
+ await p.click('.wf-row:has-text("ドロップ.txt")');await p.click('.wf-btn[data-act="restore"]');await p.waitForTimeout(300);
  await p.click('.wf-crumb, .wf-nav[data-act="back"]').catch(()=>{});
  await p.click('[data-tree]:has-text("見積資料")');await p.waitForTimeout(250);
  ok('元に戻すと元のフォルダに戻る',(await names()).includes('ドロップ.txt'),await names());
  await p.click('.wf-row:has-text("ドロップ.txt")');await p.keyboard.press('Delete');await p.waitForTimeout(300);
  await p.click('[data-tree="trash"]');await p.waitForTimeout(250);
- await p.click('.wf-row:has-text("ドロップ.txt")');await p.click('[data-act="purge"]');await p.waitForTimeout(250);
+ await p.click('.wf-row:has-text("ドロップ.txt")');await p.click('.wf-btn[data-act="purge"]');await p.waitForTimeout(250);
  const dlg=await p.evaluate(()=>({t:document.querySelector('.confirm-dialog')?.textContent||''}));
  ok('完全削除は確認ダイアログ（取り消せない旨）が出る',/完全に削除/.test(dlg.t)&&/取り消せません/.test(dlg.t),dlg);
  await p.click('.confirm-dialog .btn-danger');await p.waitForTimeout(400);
@@ -239,7 +239,7 @@ const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '
  await p.click('.wf-row:has-text("見積資料")');await p.keyboard.press('Delete');await p.waitForTimeout(300);
  await p.click('[data-tree="trash"]');await p.waitForTimeout(250);
  ok('フォルダをゴミ箱へ入れると、中身はフォルダの 1 件にまとまって見える',(await names()).join()==='見積資料',await names());
- await p.click('[data-act="empty"]');await p.waitForTimeout(250);await p.click('.confirm-dialog .btn-danger');await p.waitForTimeout(500);
+ await p.click('.wf-btn[data-act="empty"]');await p.waitForTimeout(250);await p.click('.confirm-dialog .btn-danger');await p.waitForTimeout(500);
  ok('「ゴミ箱を空にする」でフォルダと中身のファイルがすべて消える',await p.evaluate(()=>[...__rows.values()].length===1&&[...__rows.values()][0].name==='新しいフォルダ'||[...__rows.values()].every(r=>!['見積資料','見積書.pdf','A社','写真'].includes(r.name))),await p.evaluate(()=>[...__rows.values()].map(r=>r.name)));
 
  // ---- 他人の行・ログアウト・スマホ幅 ----

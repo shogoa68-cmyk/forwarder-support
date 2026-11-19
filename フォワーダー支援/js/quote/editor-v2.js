@@ -11,6 +11,17 @@
   const SECS = { 1: ['section-ref', 'section-scope'], 2: ['section-cond'], 3: ['section-cargo', 'section-volume'], 4: ['section-table'], 5: ['section-remark'] };
   const NAMES = { 1: '基本', 2: 'ルート', 3: '貨物・物量', 4: '費用', 5: 'リマーク・出力' };
   let step = 1, built = false, dockHome = null, railOpen = false;
+  // 左のレール：画面が広いとき（1400px 以上）は最初から開いた「固定」表示（本文をずらし、暗幕なし）。開閉は任意で、広い画面では選んだ状態を覚える
+  const wideRail = () => !!(window.matchMedia && window.matchMedia('(min-width: 1400px)').matches) && !(window.matchMedia && window.matchMedia('(max-width: 600px)').matches);
+  const railPref = () => { try { return localStorage.getItem('fwd.e2Rail'); } catch (e) { return null; } };
+  const isDock = () => railOpen && wideRail();
+  // 右レールを常時表示する広い画面（1500px 以上）では、最初は引き出しを閉じた状態で始める（右レールの既定は「費用」を開いた状態で、本文に重なるため）。1 回だけ
+  let rrClosed = false;
+  const closeRightOnce = () => {
+    if (rrClosed || !window.matchMedia || !window.matchMedia('(min-width: 1500px)').matches || document.body.classList.contains('e2-drawer')) return;
+    const on = document.querySelector('#qrcRail .qrc-rail-btn.is-on'), rail = document.getElementById('qrcRail'); if (!rail) return;
+    rrClosed = true; if (on) on.click();
+  };
   const visited = {};   // 開いたことのあるステップ（必須が欠けた「!」の印はここだけに出す＝順番は強制しない）
 
   const isOn = () => root.classList.contains('editor-v2');
@@ -132,8 +143,9 @@
     const t = ro ? '🔒 閲覧のみ（権限）' : lk ? '🔒 ' + lk.name + 'さんが編集中' : view ? '👁 閲覧中' : edit ? '✏️ 編集中' + (dirty ? '　● 未保存' : '') : '';
     b.hidden = !t; if (b.textContent !== t) b.textContent = t;
     b.className = (lk || ro) ? 'is-lock' : view ? 'is-view' : edit ? 'is-edit' : '';
-    const mb = $('qadMode');   // ロック中は主ボタンを［🔒 閲覧のみ］（押せない）に。ロックが外れたら（一覧の再読み込みで）元に戻る
-    if (mb) { if (lk || ro) { mb.dataset.e2lock = '1'; mb.disabled = true; if (mb.textContent !== '🔒 閲覧のみ') mb.textContent = '🔒 閲覧のみ'; } else if (mb.dataset.e2lock === '1') { delete mb.dataset.e2lock; mb.disabled = false; mb.textContent = view ? '✏️ 編集' : '💾 保存'; } }
+    const mb = $('qadMode');   // ロック中・閲覧のみ権限のとき：［✏️ 編集を始める］が［🔒 閲覧のみ］（押せない）になる（文字は syncMode が決める。保存ボタンは「保存」のまま押せない）。ロックが外れたら元に戻る
+    if (mb) { if (lk || ro) { if (mb.dataset.e2lock !== '1') mb.dataset.e2lock = '1'; if (!mb.disabled) mb.disabled = true; } else if (mb.dataset.e2lock === '1') { delete mb.dataset.e2lock; mb.disabled = false; } }
+    syncMode();
     const pop = $('e2StatePop'); if (pop && pop.textContent !== (q || '')) pop.textContent = q || '';
     b.title = q || '';
   }
@@ -175,28 +187,29 @@
     const head = document.createElement('div'); head.id = 'e2Head'; ws.parentNode.insertBefore(head, ws);
     const scrim = document.createElement('div'); scrim.id = 'e2Scrim'; scrim.addEventListener('click', () => setRail(false));
     const tabEl = $('tab-quote-make'); if (tabEl) tabEl.appendChild(scrim);
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && railOpen) { e.stopPropagation(); setRail(false); } }, true);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && railOpen && !isDock()) { e.stopPropagation(); setRail(false); } }, true);
     const foot = document.createElement('div'); foot.id = 'e2Nav';
     foot.innerHTML = '<button type="button" id="e2Prev">← 戻る</button><button type="button" id="e2Next">次へ →</button>';
     const main = ws.querySelector('.quote-main'); (main || ws).appendChild(foot);
     const tot = document.createElement('div'); tot.id = 'e2Total';
     tot.innerHTML = '<div class="e2t-amts"><span><i>売</i><b id="e2tSell">—</b></span><span><i>仕入</i><b id="e2tCost">—</b></span><span><i>粗利</i><b id="e2tProfit">—</b></span></div>' +
-      '<div class="e2t-btns"><button type="button" data-e2q="1" title="単位ごとの数量をまとめて登録・変更する">数量登録</button><button type="button" data-e2p="1" title="数量パターン（FCL案／LCL案など）を追加する">パターン登録</button><button type="button" data-e2d="digest">費用の内訳 ▸</button><button type="button" data-e2d="ref">参考 ▸</button></div>';
+      '<div class="e2t-btns"><button type="button" data-e2q="1" class="e2t-q" title="単位ごとの数量をまとめて登録・変更する">数量登録</button><button type="button" data-e2d="digest">費用の内訳 ▸</button><button type="button" data-e2d="ref">参考 ▸</button></div>';
     document.getElementById('tab-quote-make').appendChild(tot);
     steps.addEventListener('click', e => {
-      if (e.target.closest('.e2-rail-toggle')) { setRail(!railOpen); return; }
+      if (e.target.closest('.e2-rail-toggle')) { setRail(!railOpen, true); return; }
       const b = e.target.closest('[data-e2s]'); if (!b) return;
       go(+b.dataset.e2s);
-      if (railOpen) setRail(false);   // 開いて選んだら自動でしまう（しまったまま押したときは開かず、切替だけ）
+      if (railOpen && !isDock()) setRail(false);   // 重ねて開いているときは、選んだら自動でしまう（固定表示のときは開いたまま）
     });
     document.addEventListener('keydown', e => {
       if (e.key !== '[' || e.ctrlKey || e.metaKey || e.altKey || !isOn() || phone()) return;
       const a = document.activeElement; if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || (a && a.isContentEditable)) return;
       const tab = $('tab-quote-make'); if (!tab || !tab.classList.contains('active') && tab.classList.contains('qp-dash')) return;
-      e.preventDefault(); setRail(!railOpen);
+      e.preventDefault(); setRail(!railOpen, true);
     });
     foot.addEventListener('click', e => { if (e.target.id === 'e2Prev') go(step - 1); if (e.target.id === 'e2Next') go(step + 1); });
     tot.addEventListener('click', e => {
+      if (e.target.closest('[data-e2f]')) { if (window.rmsIsOpen && window.rmsIsOpen() && window.rmsPane && window.rmsPane() === 'files') window.rmsClose(); else if (window.rmsShowFiles) window.rmsShowFiles(); return; }
       if (e.target.closest('[data-e2q]')) toggleDrawer('scenario');
       if (e.target.closest('[data-e2p]') && typeof window.addPackingPattern === 'function') window.addPackingPattern();
     });
@@ -214,11 +227,11 @@
   }
   function refresh() {
     if (!isOn() || !built) return;
-    refreshBasics(); refreshTitle(); tagRows(); buildChips(); refreshChips();
+    kickRailTop(); closeRightOnce(); refreshBasics(); refreshTitle(); tagRows(); buildChips(); refreshChips();
     const s = summaries(), box = $('e2Steps'); if (!box) return;
     const REQ = { 1: 1, 2: 1, 4: 1 };   // 印は選択中でも 3 種のまま（選択中は印でなく行の線・背景で示す）
     const toggle = '<button type="button" class="e2-rail-toggle" aria-expanded="' + railOpen + '" title="' + (railOpen ? 'ステップをしまう（[ キー）' : 'ステップを開く（[ キー）') + '"><i>' + (railOpen ? '«' : '»') + '</i><b>しまう</b></button>';
-    const html = toggle + [1, 2, 3, 4, 5].map(n => { const warn = !s[n].ok && REQ[n] && visited[n]; const mark = s[n].ok ? '✓' : warn ? '!' : n; const sm = s[n].s.replace(/</g, '&lt;'); return '<button type="button" data-e2s="' + n + '" title="' + NAMES[n] + '：' + sm + '" class="' + (n === step ? 'is-on' : '') + (s[n].ok ? ' is-ok' : '') + (warn ? ' is-warn' : '') + '"><i>' + mark + '</i><b>' + NAMES[n] + '</b><small>' + sm + '</small></button>'; }).join('');
+    const html = toggle + [1, 2, 3, 4, 5].map(n => { const warn = !s[n].ok && REQ[n] && visited[n]; const mark = n; const sm = s[n].s.replace(/</g, '&lt;'); return '<button type="button" data-e2s="' + n + '" title="' + NAMES[n] + '：' + sm + '" class="' + (n === step ? 'is-on' : '') + (s[n].ok ? ' is-ok' : '') + (warn ? ' is-warn' : '') + '"><i>' + mark + '</i><b>' + NAMES[n] + '</b><small>' + sm + '</small></button>'; }).join('');
     if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
     const hd = $('e2Head'); if (hd) { const ht = '<b>' + step + ' ' + NAMES[step] + '</b><span>' + s[step].s.replace(/</g, '&lt;') + '</span>'; if (hd.dataset.h !== ht) { hd.dataset.h = ht; hd.innerHTML = ht; } }
     $('e2Prev').disabled = step <= 1; $('e2Next').disabled = step >= 5;
@@ -246,7 +259,20 @@
     if (btn && !btn.classList.contains('is-on')) btn.click();   // レールの選択を切り替える（パネルの出し分け・読み込みは右レール側）
     document.body.classList.add('e2-drawer'); document.body.dataset.e2drawer = mod;
   }
-  function setRail(on) { railOpen = !!on; const tab = $('tab-quote-make'); if (tab) tab.classList.toggle('e2-rail-open', railOpen); refresh(); }
+  function setRail(on, byUser) {
+    railOpen = !!on; const tab = $('tab-quote-make');
+    if (byUser && wideRail()) { try { localStorage.setItem('fwd.e2Rail', railOpen ? '1' : '0'); } catch (e) {} }
+    if (tab) { tab.classList.toggle('e2-rail-open', railOpen); tab.classList.toggle('e2-rail-dock', isDock()); }
+    refresh();
+  }
+  // 広い画面に変わったら開いた状態へ、狭くなったら重ねる表示（しまった状態）へ
+  const syncRailWidth = () => { if (!isOn() || !built) return; if (wideRail()) { if (!railOpen && railPref() !== '0') setRail(true); else setRail(railOpen); } else if (railOpen) setRail(false); };
+  window.addEventListener('resize', () => syncRailWidth());
+  // 右レールの帯は、ツールバー（保存・PDF）の下に付いて動く（スクロール後も上に隙間ができない）
+  let railTopRaf = 0;
+  const syncRailTop = () => { railTopRaf = 0; const tb = $('saveToolbar'), tab = $('tab-quote-make'); if (!tb || !tab) return; const r = tb.getBoundingClientRect(); tab.style.setProperty('--e2-rail-top', Math.max(0, Math.round(r.bottom + 8)) + 'px'); };
+  const kickRailTop = () => { if (!railTopRaf) railTopRaf = requestAnimationFrame(syncRailTop); };
+  window.addEventListener('scroll', kickRailTop, { passive: true }); window.addEventListener('resize', kickRailTop);
   function go(n, quiet) {
     if (n < 1 || n > 5) return;
     step = n; visited[n] = true;
@@ -273,22 +299,76 @@
   }
   // 右下の固定ボタン（PDF／プレビュー／保存）を上部ツールバーへ。切り戻すときは元の場所へ
   const phone = () => window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
-  // ［プレビュー ▾］：▾ の中に［PDF 出力］（元のボタンを要素ごと移すだけ。id・onclick は不変。旧画面へ戻すときは元の位置へ返す）
+  // 出力ボタンは［📄 PDF］［📋 プレビュー］［💾 保存］を別々に見せる（以前は PDF を［プレビュー ▾］の中に入れていたが、新人が見つけられなかった＝ボタン配置レビュー）。
+  // ここでは、以前の▾メニューが残っていれば元に戻すだけ。［✏️ 編集］は閲覧中だけ保存ボタンの隣に出す（下の syncMode）
   function pvMenu(dock, on) {
-    const pdf = dock.querySelector('.qad-pdf'), pv = dock.querySelector('.qad-preview'); if (!pdf || !pv) return;
-    if (on) {
-      if ($('e2PvMore')) return;
-      const more = document.createElement('button'); more.type = 'button'; more.id = 'e2PvMore'; more.textContent = '▾'; more.setAttribute('aria-label', 'PDF 出力などのメニュー'); more.setAttribute('aria-haspopup', 'true');
-      const menu = document.createElement('div'); menu.id = 'e2PvMenu'; menu.hidden = true;
-      pv.after(more); more.after(menu); menu.appendChild(pdf);
-      more.addEventListener('click', e => { e.stopPropagation(); menu.hidden = !menu.hidden; });
-      menu.addEventListener('click', () => { menu.hidden = true; });
-      document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) menu.hidden = true; });
-    } else {
-      const m = $('e2PvMenu'); if (m) { const p = m.querySelector('.qad-pdf'); if (p) dock.insertBefore(p, dock.firstChild); m.remove(); }
-      const mo = $('e2PvMore'); if (mo) mo.remove();
+    if (on) return;
+    const pdf = dock.querySelector('.qad-pdf'); const m = $('e2PvMenu');
+    if (m) { const p = m.querySelector('.qad-pdf'); if (p) dock.insertBefore(p, dock.firstChild); m.remove(); }
+    const mo = $('e2PvMore'); if (mo) mo.remove();
+  }
+  // ［✏️ 編集］と［💾 保存］を別のボタンにする：閲覧中は［✏️ 編集を始める］と、押せない［💾 保存］（見た目だけの別ボタン）を出し、本物の保存ボタン（#qadMode）は隠す。
+  // 編集中は本物の［💾 保存］だけ出す。#qadMode の文字・動きは cloud.js が決めるので、ここでは書き換えない（書き換えると cloud.js と取り合いになる）
+  let modeObs = null;
+  function syncMode() {
+    const mb = $('qadMode'), dock = $('quoteActionDock'); if (!mb || !dock) return;
+    let eb = $('e2EditBtn'), gh = $('e2SaveGhost');
+    if (!eb) { eb = document.createElement('button'); eb.type = 'button'; eb.id = 'e2EditBtn'; eb.className = 'qad-btn qad-edit-start'; eb.addEventListener('click', () => { if (!eb.disabled && typeof window.qpDockAction === 'function') window.qpDockAction(); }); dock.insertBefore(eb, mb); }
+    if (!gh) { gh = document.createElement('button'); gh.type = 'button'; gh.id = 'e2SaveGhost'; gh.className = 'qad-btn qad-save'; gh.disabled = true; gh.textContent = '💾 保存'; gh.title = '編集を始めると保存できます'; dock.insertBefore(gh, mb); }
+    const locked = mb.dataset.e2lock === '1';
+    const view = mb.classList.contains('qad-edit') || locked;
+    // 閲覧中（ロックでない）だけ［✏️ 編集を始める］（主）。ロック／閲覧のみ権限は［🔒 閲覧のみ］（薄い・押せない）を保存の位置に出す
+    eb.hidden = !view || locked; gh.hidden = !view;
+    if (eb.textContent !== '✏️ 編集を始める') eb.textContent = '✏️ 編集を始める';
+    if (eb.disabled) eb.disabled = false;
+    const gt = locked ? '🔒 閲覧のみ' : '💾 保存';
+    if (gh.textContent !== gt) gh.textContent = gt;
+    gh.title = locked ? '他の人が編集中、または閲覧のみの権限です' : '編集を始めると保存できます';
+    // 未保存の点（保存ボタンの右上・編集中で未保存のときだけ）
+    const dirty = !view && dirtyNow();
+    if (mb.classList.contains('is-dirty') !== dirty) mb.classList.toggle('is-dirty', dirty);
+    const tt = dirty ? '未保存の変更があります' : '保存して作業終了';
+    if (!view && mb.title !== tt) mb.title = tt;
+    // ⑤の「出力する」枠：閲覧中の編集ボタン・保存の薄い表示・未保存の一文
+    const out = $('e2Out');
+    if (out) {
+      const oe = out.querySelector('[data-e2o="edit"]'), os = out.querySelector('[data-e2o="save"]'), ow = out.querySelector('.e2o-warn');
+      if (oe) oe.hidden = !view || locked;
+      if (os) { os.classList.toggle('is-off', view); os.textContent = locked ? '🔒 閲覧のみ' : '💾 保存'; }
+      if (ow) ow.hidden = !dirty;
     }
   }
+  const dirtyNow = () => !!(window.quoteIsDirty && window.quoteIsDirty());
+  function watchMode() {
+    const mb = $('qadMode'); if (!mb || modeObs) return;
+    modeObs = new MutationObserver(() => syncMode());
+    modeObs.observe(mb, { attributes: true, attributeFilter: ['class'] });
+  }
+  function unwatchMode() {
+    if (modeObs) { modeObs.disconnect(); modeObs = null; }
+    ['e2EditBtn', 'e2SaveGhost'].forEach(id => { const e = $(id); if (e) e.remove(); });
+    const mb = $('qadMode'); if (mb) { mb.classList.remove('is-dirty'); mb.removeAttribute('title'); mb.title = '閲覧中は編集を開始／編集中は保存して作業終了'; }
+  }
+  // ステップ⑤の最後に、出力の 3 つのボタン（PDF・プレビュー・保存）をもう一度出す。上のバーのボタンは残したまま、元の関数を呼ぶだけ
+  function buildOut() {
+    if ($('e2Out')) return;
+    const nav = $('e2Nav'); if (!nav || !nav.parentNode) return;
+    const out = document.createElement('div'); out.id = 'e2Out';
+    out.innerHTML = '<p class="e2o-t">出力する</p><p class="e2o-d">できあがったら、ここから御見積書を出せます。</p>' +
+      '<p class="e2o-warn" hidden>● 未保存の変更があります。先に［💾 保存］をおすすめします。</p>' +
+      '<div class="e2o-btns"><button type="button" data-e2o="pv" class="e2o-pv">📋 プレビュー</button><button type="button" data-e2o="pdf" class="e2o-pdf">📄 PDF 出力</button><button type="button" data-e2o="files" class="e2o-files" title="見積に添えて送るファイル（3時間）や、案件の資料（14日）を、まとめて見る・置く">📁 案件のファイル</button><button type="button" data-e2o="edit" class="e2o-edit" hidden>✏️ 編集を始める</button><button type="button" data-e2o="save" class="e2o-save">💾 保存</button></div>';
+    nav.parentNode.insertBefore(out, nav);
+    out.addEventListener('click', e => {
+      const b = e.target.closest('[data-e2o]'); if (!b) return;
+      if (b.dataset.e2o === 'files') { if (typeof window.cfOpen === 'function') window.cfOpen('send'); else if (window.rmsShowFiles) window.rmsShowFiles(); return; }
+      if (b.dataset.e2o === 'edit') { if (typeof window.qpDockAction === 'function') window.qpDockAction(); }
+      else if (b.dataset.e2o === 'pdf' && typeof window.quickQuotePdf === 'function') window.quickQuotePdf();
+      else if (b.dataset.e2o === 'pv' && typeof window.openPreview === 'function') window.openPreview();
+      else if (b.dataset.e2o === 'save') { const mb = $('qadMode'); if (b.classList.contains('is-off')) return; if (mb && !mb.disabled) mb.click(); else if (typeof window.quoteShowToast === 'function') window.quoteShowToast('編集を始めると保存できます（上の［✏️ 編集を始める］）', 'info', 3000); }
+    });
+  }
+  const placeOut = () => { const out = $('e2Out'), nav = $('e2Nav'); if (out && nav && nav.parentNode && out.nextSibling !== nav) nav.parentNode.insertBefore(out, nav); };
+
   function moveDock(on) {
     const dock = $('quoteActionDock'), tb = $('saveToolbar'); if (!dock || !tb) return;
     if (on && phone()) { pvMenu(dock, true); return; }   // スマホ幅はドックを下に固定のまま、［プレビュー ▾］だけ付ける
@@ -299,7 +379,7 @@
   function apply(on) {
     root.classList.toggle('editor-v2', on);
     ls.set(KEY, on ? '1' : '0');
-    if (on) { build(); moveDock(true); moveRemark(true); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(step, true); } else { moveRemark(false); try { window.lcCheck && window.lcCheck(); } catch (e) {} moveDock(false); document.body.classList.remove('e2-drawer'); const tab = $('tab-quote-make'); if (tab) delete tab.dataset.e2; try { window.rmsClose && 0; } catch (e) {} }
+    if (on) { build(); buildOut(); moveDock(true); moveRemark(true); placeOut(); watchMode(); syncMode(); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(step, true); syncRailWidth(); } else { { const t0 = $('tab-quote-make'); if (t0) t0.classList.remove('e2-rail-open', 'e2-rail-dock'); railOpen = false; } unwatchMode(); { const o = $('e2Out'); if (o) o.remove(); } moveRemark(false); try { window.lcCheck && window.lcCheck(); } catch (e) {} moveDock(false); document.body.classList.remove('e2-drawer'); const tab = $('tab-quote-make'); if (tab) delete tab.dataset.e2; try { window.rmsClose && 0; } catch (e) {} }
     syncBtn();
   }
   window.editorV2Set = apply;
@@ -313,12 +393,13 @@
     const ref = $('hdrDesignBtn'), b = document.createElement('a');
     b.id = 'hdrEditorV2Btn'; b.href = '#'; b.className = ref ? ref.className : ''; b.setAttribute('role', 'button');
     b.addEventListener('click', e => { e.preventDefault(); window.editorV2Toggle(); });
-    panel.appendChild(b); syncBtn(); return true;
+    const lab = document.createElement('p'); lab.className = 'hdr-panel-label'; lab.textContent = '画面の切替';
+    panel.appendChild(lab); panel.appendChild(b); syncBtn(); return true;
   }
 
   document.addEventListener('DOMContentLoaded', () => {
     let tries = 0; const t = setInterval(() => { if (addMenuBtn() || ++tries > 20) clearInterval(t); }, 300);
-    if (isOn()) { build(); moveDock(true); moveRemark(true); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(1, true); }
+    if (isOn()) { build(); buildOut(); moveDock(true); moveRemark(true); placeOut(); watchMode(); syncMode(); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(1, true); syncRailWidth(); }
     // 入力のたびに要約・合計を更新（軽く間引く）
     let raf = 0; const kick = () => { if (!isOn()) return; cancelAnimationFrame(raf); raf = requestAnimationFrame(refresh); };
     window.addEventListener('resize', () => { if (isOn()) moveDock(true); });

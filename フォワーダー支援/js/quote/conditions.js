@@ -1213,6 +1213,16 @@
       });
     }
 
+    // 画面の幅・高さが小さくなったとき（ウィンドウを縮める・スマホを横向きにする）、ドラッグで動かした付箋が画面外に残って
+    // 閉じるボタンまで押せなくならないよう、画面の中へ引き戻す（ドラッグ前＝CSS の位置のままなら何もしない）
+    window.addEventListener('resize', () => {
+      const f = document.getElementById('qfMemoFloat');
+      if (!f || f.hasAttribute('hidden') || !f.style.left) return;
+      const w = f.offsetWidth || 80, h = f.offsetHeight || 40;
+      f.style.left = Math.max(0, Math.min(window.innerWidth  - w, parseFloat(f.style.left) || 0)) + 'px';
+      f.style.top  = Math.max(0, Math.min(window.innerHeight - h, parseFloat(f.style.top)  || 0)) + 'px';
+    });
+
     // IntersectionObserver：メモ欄が画面外に出たら自動表示（メモ欄を画面から隠した今は使わない。付箋は右下の「案件名・社内メモ」ボタンで開く。
     //   開く度に勝手に出てきて「消せない」ように見えるため、自動表示は廃止）
     const memoField = null;
@@ -2408,7 +2418,7 @@
     }).join('');
     const need = document.querySelectorAll('#tableBody .pq-pattern-needs-check').length;
     bar.innerHTML = `<div class="qpat-tabs" role="tablist" aria-label="案（パターン）">${tabs}` +
-      `<button type="button" class="qpat-add" onclick="qpatAddMenu(this)" aria-label="案を追加" title="案を追加（FCL案・LCL案・AIR案・現在の案のコピー・空の案）">＋</button></div>` +
+      `<button type="button" class="qpat-add" onclick="qpatAddMenu(this)" aria-label="パターンを追加" title="パターンを追加（FCL案・LCL案・AIR案・現在の案のコピー・空の案）">＋</button></div>` +
       (multi && need ? `<button type="button" class="qpat-need" onclick="jumpToQtyNeedsCheck()" title="他の案では数量が設定されているのに、この案では未設定の行（値は自動では変わりません）。クリックで最初の行へ移動します">⚠ 要確認 ${need} 行</button>` : '') +
       (multi ? `<span class="qpat-legend"><i class="qpat-sw is-linked"></i>この案専用の数量<i class="qpat-sw is-check"></i>他の案だけに設定あり</span>` : '');
     // 編集中のタブが見切れないように、横スクロールを合わせる（ページ自体はスクロールさせない）

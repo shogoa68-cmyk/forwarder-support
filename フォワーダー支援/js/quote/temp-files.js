@@ -131,6 +131,7 @@
         '</span>' +
       '</div>' +
       '<div class="tf-addr"><span class="tf-crumb">📁 この案件の一時ファイル</span><span class="tf-addr-note">置いてから <b>3 時間</b>で自動的に消えます（延長できません）</span></div>' +
+      '<div class="tf-banner" id="tfBanner" hidden></div>' +
       '<div class="tf-main" id="tfMain" tabindex="0" role="listbox" aria-multiselectable="true" aria-label="一時ファイルの一覧"></div>' +
       '<div class="tf-status" id="tfStatus"></div>' +
       '<div class="tf-drop" id="tfDrop" hidden><div>⬇ ここにドロップして置く<small>25MB まで・置いてから 3 時間で消えます</small></div></div>';
@@ -144,6 +145,10 @@
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.view) { setView(b.dataset.view); return; }
       act(b.dataset.act);
+    });
+    $('tfBanner').addEventListener('click', e => {
+      const b = e.target.closest('[data-bn]'); if (!b) return;
+      if (b.dataset.bn === 'diag') diagnose(); else { lastErr = ''; diag = null; renderBanner(); }
     });
     input.addEventListener('change', () => { const fl = Array.from(input.files || []); input.value = ''; upload(fl); });
     $('tfSearch').addEventListener('input', e => { query = e.target.value.trim().toLowerCase(); renderMain(); renderStatus(); });
@@ -195,7 +200,47 @@
     list = list.slice().sort((a, b) => { const x = val(a), y = val(b); return (txt ? nat(x, y) : (x < y ? -1 : x > y ? 1 : 0)) * d || nat(a.file_name || '', b.file_name || ''); });
     return list;
   }
-  function renderAll() { if (!ready) return; syncToolbar(); renderMain(); renderStatus(); renderBadges(); }
+  function renderAll() { if (!ready) return; syncToolbar(); renderMain(); renderStatus(); renderBadges(); renderBanner(); try { document.dispatchEvent(new CustomEvent('tf:changed')); } catch (e) {} }
+
+  // ---- うまく置けなかったときの表示と、原因を調べる「診断」 ---------------------
+  // 吹き出し（toast）は数秒で消えるため、置けなかった理由は画面に残す。診断は「どの段階で止まるか」を 1 ステップずつ確かめる
+  let lastErr = '', diag = null, diagBusy = false;
+  function renderBanner() {
+    const b = $('tfBanner'); if (!b) return;
+    if (!lastErr && !diag) { b.hidden = true; b.innerHTML = ''; return; }
+    let h = '';
+    if (lastErr) h += '<div class="tf-bn-err"><b>⚠ 置けませんでした</b>　' + esc(lastErr) + '</div>';
+    if (diag) h += '<ul class="tf-bn-diag">' + diag.map(d => '<li class="' + (d.ok ? 'is-ok' : 'is-ng') + '">' + (d.ok ? '✓ ' : '✕ ') + esc(d.step) + (d.msg ? '：<code>' + esc(d.msg) + '</code>' : '') + '</li>').join('') + '</ul>';
+    h += '<div class="tf-bn-btns"><button type="button" class="tf-btn" data-bn="diag"' + (diagBusy ? ' disabled' : '') + '>' + (diagBusy ? '調べています…' : '🩺 原因を調べる') + '</button><button type="button" class="tf-btn" data-bn="close">閉じる</button></div>';
+    b.innerHTML = h; b.hidden = false;
+  }
+  async function diagnose() {
+    const c = client(), id = caseId(); if (!c || !id || diagBusy) return;
+    diagBusy = true; diag = []; renderBanner();
+    const add = (step, ok, msg) => { diag.push({ step, ok, msg: msg || '' }); renderBanner(); return ok; };
+    const path = id + '/' + Date.now() + '_diag_' + Math.random().toString(36).slice(2, 6) + '.txt';
+    let uploaded = false;
+    try {
+      const r1 = await c.from('quote_temp_files').select('id').eq('preset_id', id).limit(1);
+      if (!add('① 一覧の表を読む', !r1.error, r1.error && (r1.error.message || r1.error.code))) return;
+      const blob = new Blob(['diag'], { type: 'text/plain' });
+      const r2 = await c.storage.from(BUCKET).upload(path, blob, { contentType: 'text/plain', upsert: false });
+      if (!add('② 保存領域へファイルを置く', !r2.error, r2.error && (r2.error.message || r2.error.statusCode))) return;
+      uploaded = true;
+      const r3 = await c.from('quote_temp_files').insert({ preset_id: id, storage_path: path, file_name: 'diag.txt', mime_type: 'text/plain' }).select().single();
+      if (!add('③ 一覧の表へ行を作る', !r3.error, r3.error && (r3.error.message || r3.error.code))) return;
+      const r4 = await c.storage.from(BUCKET).createSignedUrl(path, 60);
+      add('④ 置いたファイルを読む（署名つき URL）', !r4.error && !!r4.data, r4.error && (r4.error.message || r4.error.statusCode));
+      const r5 = await c.storage.from(BUCKET).remove([path]); uploaded = false;
+      add('⑤ 試験ファイルを消す（保存領域）', !r5.error, r5.error && r5.error.message);
+      const r6 = await c.from('quote_temp_files').delete().eq('storage_path', path);
+      add('⑥ 試験の行を消す', !r6.error, r6.error && r6.error.message);
+    } catch (e) { add('通信', false, String(e && e.message || e)); }
+    finally {
+      if (uploaded) { try { await c.storage.from(BUCKET).remove([path]); } catch (e) {} }
+      diagBusy = false; renderBanner(); load(true);
+    }
+  }
   function syncToolbar() {
     const pane = $('tfPane'); if (!pane) return;
     pane.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('is-on', b.dataset.view === view));
@@ -466,7 +511,7 @@
         const ins = await c.from('quote_temp_files').insert({ preset_id: id, storage_path: path, file_name: file.name, mime_type: file.type || null }).select().single();
         if (ins.error) { try { await c.storage.from(BUCKET).remove([path]); } catch (e) {} throw new Error(ins.error.message); }
         if (caseId() === id) { files.unshift(ins.data); okN++; }
-      } catch (e) { toast('⚠️ ' + file.name + ' を置けませんでした：' + (e.message || e), 'warn', 6500); }
+      } catch (e) { lastErr = file.name + '：' + (e.message || e); diag = null; toast('⚠️ ' + file.name + ' を置けませんでした：' + (e.message || e), 'warn', 6500); }
       finally { pending = pending.filter(x => x !== p); renderAll(); }
     }
     if (okN) { toast('📁 ' + okN + ' 個を置きました（3 時間で自動削除）', 'success', 3000); prefetchUrls(); }
@@ -475,6 +520,11 @@
   // ---- remark-sheet.js から ----------------------------------------------
   window.tfOnShow = function () { if (!ready) return; load(false); const m = $('tfMain'); if (m && m.offsetParent) { /* 焦点は奪わない */ } };
   window.tfRefresh = function (force) { load(force !== false); };
+  // 「案件のファイル」（case-files.js）から使う窓口：一覧・追加・ダウンロード・削除
+  window.tfList = function () { return { state, error: errMsg, files: files.slice(), pending: pending.slice() }; };
+  window.tfUploadFiles = function (list) { return upload(Array.prototype.slice.call(list || [])); };
+  window.tfDownloadId = function (id) { const f = files.find(x => x.id === id); return f ? (canPreview(f) ? openFile(f) : downloadFiles([f])) : null; };
+  window.tfDeleteId = function (id) { const f = files.find(x => x.id === id); return f ? deleteFiles([f]) : null; };
   window.tfState = function () { return { state, count: files.length, selected: sel.size, view }; };
 
   function init() {

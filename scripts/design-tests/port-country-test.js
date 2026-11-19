@@ -171,6 +171,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await setCountry(p, 'z2PolCountry', '');
     await setPort(p, 'z2Pol', 'KAOHSIUNG');
     ok('国を選んでいないときは、未登録の港でも確認は出ない（従来どおり）', !(await bubble(p)), await bubble(p));
+    // 港名から国が自動入力される（KAOHSIUNG→台湾）ので、港も空に戻して自動分の国を消してから確かめる
+    await setPort(p, 'z2Pol', ''); await setCountry(p, 'z2PolCountry', '');
     ok('国を空に戻すと、全港が候補に戻る', (await listOf(p, 'z2Pol')).attr === 'portSuggestions', await listOf(p, 'z2Pol'));
     // 保存される項目に含まれる
     ok('国の入力欄は見積の保存項目に含まれる（開き直しても国の選択が戻る）', await p.evaluate(() => { document.getElementById('z2PolCountry').value = 'ベトナム'; const d = gatherAllData(); return Object.prototype.hasOwnProperty.call(d.fields, 'z2PolCountry') && d.fields.z2PolCountry === 'ベトナム'; }), null);

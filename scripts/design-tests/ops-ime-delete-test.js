@@ -42,6 +42,9 @@ const ok = (n, c, x) => console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' �
   await p.evaluate(() => { addRow(); addRow(); });
   const id = await p.evaluate(() => document.querySelector('#tableBody tr[id^=row-]').id.replace('row-', ''));
   await p.evaluate(id => { document.querySelector(`#row-${id} .row-select-chk`).click(); }, id);
+  // 一括設定の入力欄は「⚙ 一括設定 ▾」のパネルの中（開くまで見えない）
+  await p.evaluate(() => { const t = document.getElementById('ctxBulkToggle'); if (t && document.getElementById('ctxBulkSet').hidden) t.click(); });
+  await p.waitForTimeout(150);
   await p.fill('#bulkSubconSet', 'ほげ');
   await key('#bulkSubconSet', 'Enter');
   ok('一括サブコン：変換確定の Enter では設定されない', await p.evaluate(id => document.getElementById('sv-' + id).value, id) === '');

@@ -49,7 +49,7 @@
   .mm-btn.is-primary { background: var(--accent, #2c455d); border-color: var(--accent, #2c455d); color: #fff; }
   .mm-btn.is-danger { background: #b3261e; border-color: #b3261e; color: #fff; }
   .mm-btn:disabled { opacity: .45; }
-  /* ゆらぎ（既存カードを作業画面に出す）：タップしやすく */
+  /* 表記ゆれ（既存カードを作業画面に出す）：タップしやすく */
   #tab-master.mm-wtab-drift #driftCard .drift-btn { min-height: 44px; }
   #tab-master.mm-wtab-drift #driftCard .drift-head { flex-wrap: wrap; }
   #tab-master.mm-on.mm-view-work.mm-wtab-drift #mmWork { padding-bottom: 0; }
@@ -94,7 +94,8 @@
   #mdDetailModal .mt-tab { flex: none; min-height: 44px; border-radius: 22px; white-space: nowrap; }
   #mdDetailModal .mt-body { padding-bottom: 72px; }
   #mdDetailModal .mt-foot { position: sticky; bottom: 0; z-index: 3; display: flex; gap: 8px; padding: 8px 12px; background: var(--surface, #fff); border-top: 1px solid var(--border, #ddd); }
-  #mdDetailModal .mt-foot button { min-height: 44px; flex: 1; }
+  #mdDetailModal .mt-foot button { min-height: 44px; flex: 1; white-space: nowrap; }
+  #mdDetailModal .mt-foot .master-detail-actions { flex: 1 1 auto; min-width: 0; }
   #mdDetailModal .cr-item, #mdDetailModal .cc-item, #mdDetailModal .mn-item { margin-bottom: 8px; padding: 10px; border: 1px solid var(--border, #ddd); border-radius: 10px; }
   #mdDetailModal .cr-item.cr-lv-strict { border-color: #8a5a2b; background: #f7efe6; }
   #mdDetailModal .cr-item.cr-lv-strict .cr-lv, #mdDetailModal .cr-item.cr-lv-strict b { color: #8a5a2b; }
@@ -102,7 +103,7 @@
   .master-ops-menu { display: none !important; }
 }
 
-/* ---- 名前の整理（ゆらぎ・未登録）のスマホ版：1 件＝1 カード・主ボタン 1 つ・44px（Design 29 ⑥） ---- */
+/* ---- 名前の整理（表記ゆれ・未登録）のスマホ版：1 件＝1 カード・主ボタン 1 つ・44px（Design 29 ⑥） ---- */
 @media (max-width: 600px) {
   #tab-master.mm-on.mm-view-fix #statsPane-master, #tab-master.mm-on.mm-view-fix #statsPane-alias { display: none !important; }
   #tab-master.mm-on.mm-view-fix #mmBar .mm-fix { display: none; }
@@ -119,5 +120,18 @@
   #tab-master.mm-on #statsPane-fix .stats-nm-table tr.fh-more-on .stats-chip button,
   #tab-master.mm-on #statsPane-fix .stats-nm-table tr.fh-more-on .stats-syn-merge-canon,
   #tab-master.mm-on #statsPane-fix .stats-nm-table tr.fh-more-on .stats-syn-dissolve { min-height: 44px; }
+  /* お客様の整理の表は列（担当者・ステータス）が多く、スマホ幅だと横に伸びて「操作」が画面の外へ出ていた → 1 行＝1 枚のカードに並べ替える */
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) { display: block; border: 0; width: 100%; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) thead { display: none; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) tbody { display: block; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) tbody > tr { display: block; margin: 0 0 8px; padding: 10px 12px; border: 1px solid var(--border, #d9dee5); border-radius: 10px; background: var(--surface, #fff); }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) td { display: block; width: auto; max-width: 100%; border: 0; padding: 3px 0; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) td:nth-child(2)::before { content: "件数："; color: var(--text-muted, #5a6475); font-size: var(--text-xs, 12px); }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) td:nth-child(3)::before { content: "担当者："; color: var(--text-muted, #5a6475); font-size: var(--text-xs, 12px); }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) td:nth-child(4)::before { content: "ステータス："; color: var(--text-muted, #5a6475); font-size: var(--text-xs, 12px); }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) td:nth-child(5) { padding-top: 8px; border-top: 1px dashed var(--border, #d9dee5); margin-top: 4px; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) td:nth-child(5) button { min-height: 44px; margin: 3px 4px 3px 0; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) .stats-chip { flex-wrap: wrap; max-width: 100%; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) .stats-chip-text { min-width: 0; overflow-wrap: anywhere; }
   .fh-undo { bottom: 136px; }   /* 下の 3 タブ（56px）と確認シートの上に出す */
 }

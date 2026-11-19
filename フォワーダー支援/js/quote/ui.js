@@ -946,7 +946,7 @@
     const list = document.getElementById('userCatList');
     if (!list) return;
     if (!cats.length) {
-      list.innerHTML = '<span style="color:#aaa;font-size:12px;">カスタムカテゴリなし</span>';
+      list.innerHTML = '<span style="color:#6b7280;font-size:12px;">カスタムカテゴリなし</span>';
       return;
     }
     list.innerHTML = cats.map(c =>
@@ -4161,7 +4161,8 @@
             const mgPart = (g.marginPct != null)
               ? '<span class="qsp-dig-row-mg' + (g.marginPct < 0 ? ' is-neg' : '') + '" title="粗利率（JPY換算・行単位）">粗利 ' + g.marginPct.toFixed(1) + '%</span>'
               : '';
-            if (mkPart || mgPart) metaBits = '<span class="qsp-dig-row-meta">' + mkPart + mgPart + '</span>';
+            const csPart = g.costTxt ? '<span class="qsp-dig-row-cs" title="仕入（JPY換算）">仕入 ' + escapeHtml(g.costTxt) + '</span>' : '';
+            if (csPart || mkPart || mgPart) metaBits = '<span class="qsp-dig-row-meta">' + csPart + mkPart + mgPart + '</span>';
           }
           const priceStack = '<span class="qsp-dig-row-price">' + sumHtml + metaBits + '</span>';
           return '<div class="qsp-dig-grp-item is-row' + stateCls + (hideOn ? ' is-hidden-row' : '') + '" ' +
@@ -4289,7 +4290,8 @@
       // これが無いと、パターンの後に続く「パターン無し」の行まで見た目上その
       // パターンの子として並んでしまい、折りたたみ状態も誤って引き継いでしまう。
       const inPattern = tr.classList.contains('subcon-subchild');
-      out.push({ level: 2, rowId: tr.id, mkTxt, marginPct, isActual, inPattern,
+      const costTxt = cost ? '¥' + Math.round(cost).toLocaleString('ja-JP') : '';   // 仕入（JPY換算・MIN適用後）
+      out.push({ level: 2, rowId: tr.id, mkTxt, costTxt, marginPct, isActual, inPattern,
                  label: (nm || '（名称未入力）') + suffix,
                  sum, isCollapsed: false, isExcluded, isHidden, el: tr });
     });
@@ -4669,16 +4671,20 @@
     window.scrollTo({ top, behavior: 'smooth' });
   };
 
-  // ===== 用語の説明：Industry は右からのドロワー（検索＋グループ）。現行は従来どおり、使い方の補足欄の用語集へスクロール =====
-  // 中身は #quoteGlossary 直後の <ul>（用語集）の <li> から作る（用語集の本文はここ 1 か所だけを直せばよい）
-  const _GL_GROUPS = [['all', '全部'], ['qty', '数量・重量'], ['fare', '運賃・チャージ'], ['doc', '書類・申告'], ['party', '取引・関係者'], ['sur', 'サーチャージ']];
-  function _glGroupOf(term) {
-    if (/BAF|CAF|PSS|GRI/.test(term)) return 'sur';
-    if (/D\/O|S\/I|VGM|AMS|ISF|DGD|MSDS/.test(term)) return 'doc';
-    if (/W\/M|R\/T|C\/W|GP|RF|FCL|POL/.test(term)) return 'qty';
-    if (/サブコン|キャリア|実運送人|NVOCC|コローダー|マスター/.test(term)) return 'party';
-    return 'fare';
-  }
+  // ===== 用語の説明ドロワー（全画面・全テーマ共通／Design 35 案A2）=====
+  // 中身は #quoteGlossary 直後の <ul>（用語集）の <li> から作る（用語集の本文はここ 1 か所だけを直せばよい。
+  // 見積入力以外の画面でも、index.html の静的な DOM から読むので使える）。重ねて開く（本文は押し縮めない）。
+  // 分類は用語の名前から決めるルール（データは増やさない）。1 つの用語が複数の分類に入ってよい。
+  const _GL_GROUPS = [['all', '全部'], ['fav', 'よく使う'], ['table', '見積の表の見方'], ['qty', '数量・重量・コンテナ'], ['party', '港・取引先'], ['charge', 'チャージ'], ['doc', '書類・申告']];
+  const _GL_RULES = {
+    fav: /仕入|サブコン|R\/T|FCL|POL|THC/,
+    table: /仕入|^※|パターン|^CD|サブコン|ヨコヨコ|マスター/,
+    qty: /W\/M|R\/T|C\/W|GP|RF|FCL/,
+    party: /POL|キャリア|実運送人|NVOCC|コローダー|サブコン/,
+    charge: /THC|DEM|BAF|CAF|PSS|GRI/,
+    doc: /D\/O|S\/I|VGM|AMS|DGD|MSDS/
+  };
+  function _glGroupsOf(term) { return Object.keys(_GL_RULES).filter(k => _GL_RULES[k].test(term)); }
   function _glBuild() {
     const ul = document.querySelector('#quoteGlossary + ul');
     if (!ul) return [];
@@ -4690,56 +4696,102 @@
       const rest = c.innerHTML.replace(/^\s*[：:]\s*/, '');
       // 「正式名（説明）」の形だけ分ける。「A（a）／ B（b）」のように括弧が複数あるものは、そのまま本文に出す
       const m = (rest.match(/[（(]/g) || []).length === 1 ? rest.match(/^([^（(<]*)[（(]([\s\S]*)[）)]\s*$/) : null;
-      return { term, full: m ? m[1].trim() : '', body: m ? m[2] : rest, group: _glGroupOf(term) };
+      return { term, full: m ? m[1].trim() : '', body: m ? m[2] : rest, groups: _glGroupsOf(term) };
     });
   }
-  let _glInit = false;
+  let _glGroup = 'fav', _glPinned = false, _glOpenTab = '', _glObs = null;
+  const _glEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function _glRender(q, group) {
     const list = document.querySelector('#glossaryDrawer .gl-list');
     if (!list) return;
     const needle = (q || '').trim().toLowerCase();
-    const items = _glBuild().filter(it => (group === 'all' || it.group === group) &&
+    // 検索語があるときは分類にかかわらず全体から探す（見つからない原因を分類にしない）
+    const items = _glBuild().filter(it => (needle || group === 'all' || it.groups.indexOf(group) >= 0) &&
       (!needle || (it.term + ' ' + it.full + ' ' + it.body.replace(/<[^>]+>/g, '')).toLowerCase().includes(needle)));
-    const esc = t => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
     list.innerHTML = items.length ? items.map(it =>
-      '<div class="gl-item"><div class="gl-term">' + esc(it.term) + '</div><div class="gl-body">' +
-      '<div class="gl-full">' + esc(it.full) + '</div><div class="gl-desc">' + it.body + '</div></div></div>').join('')
-      : '<p class="gl-empty">該当する用語がありません。</p>';
+      '<div class="gl-item"><div class="gl-term">' + _glEsc(it.term) + '</div><div class="gl-body">' +
+      '<div class="gl-full">' + _glEsc(it.full) + '</div><div class="gl-desc">' + it.body + '</div></div></div>').join('')
+      : '<div class="gl-empty"><div class="gl-empty-ic" aria-hidden="true">🔍</div>' +
+        '<p class="gl-empty-t">「' + _glEsc((q || '').trim()) + '」は見つかりませんでした</p>' +
+        '<p class="gl-empty-d">言い方を変えるか、よく使う用語から探してください。それでも無いときは、用語の追加をおくってください。</p>' +
+        '<button type="button" class="gl-empty-btn">💡 この用語を追加してほしい</button></div>';
   }
-  function _glOpenDrawer() {
-    let d = document.getElementById('glossaryDrawer');
-    if (!d) {
-      d = document.createElement('aside');
-      d.id = 'glossaryDrawer'; d.className = 'glossary-drawer'; d.hidden = true;
-      d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', '用語の説明');
-      d.innerHTML = '<div class="gl-head"><span>📖 用語の説明</span><button type="button" class="gl-close" aria-label="閉じる">✕</button></div>' +
-        '<input type="search" class="gl-search" placeholder="用語を検索（例：R/T、燃油）" aria-label="用語を検索">' +
-        '<div class="gl-groups">' + _GL_GROUPS.map(g => '<button type="button" data-g="' + g[0] + '"' + (g[0] === 'all' ? ' class="is-on"' : '') + '>' + g[1] + '</button>').join('') + '</div>' +
-        '<div class="gl-list"></div>';
-      document.body.appendChild(d);
-      let group = 'all';
-      const q = d.querySelector('.gl-search');
-      q.addEventListener('input', () => _glRender(q.value, group));
-      d.querySelector('.gl-groups').addEventListener('click', e => {
-        const b = e.target.closest('button[data-g]'); if (!b) return;
-        group = b.dataset.g;
-        d.querySelectorAll('.gl-groups button').forEach(x => x.classList.toggle('is-on', x === b));
-        _glRender(q.value, group);
-      });
-      d.querySelector('.gl-close').addEventListener('click', () => { d.hidden = true; });
-      document.addEventListener('keydown', e => { if (e.key === 'Escape' && !d.hidden) { d.hidden = true; } });
-      _glInit = true;
-    }
-    d.hidden = !d.hidden ? true : false;   // ボタンを押すたびに開閉
-    if (!d.hidden) { _glRender(d.querySelector('.gl-search').value, d.querySelector('.gl-groups .is-on')?.dataset.g || 'all'); d.querySelector('.gl-search').focus(); }
+  function _glActiveTabId() { const t = document.querySelector('.tab-content.active'); return t ? t.id : ''; }
+  function _glWatch(on) {
+    if (_glObs) { _glObs.disconnect(); _glObs = null; }
+    if (!on) return;
+    _glObs = new MutationObserver(() => {   // 画面（タブ）を切り替えたら閉じる（📌 固定のときは残す）
+      const d = document.getElementById('glossaryDrawer');
+      if (d && !d.hidden && !_glPinned && _glActiveTabId() !== _glOpenTab) window.closeQuoteGlossary();
+    });
+    document.querySelectorAll('.tab-content').forEach(t => _glObs.observe(t, { attributes: true, attributeFilter: ['class'] }));
   }
-
-  window.openQuoteGlossary = function() {
-    if (document.documentElement.classList.contains('theme-industry') && document.querySelector('#quoteGlossary + ul')) { _glOpenDrawer(); return; }
-    window.openQuoteTabHelp();
-    const g = document.getElementById('quoteGlossary');
-    if (!g) return;
-    setTimeout(() => window.scrollTo({ top: window.scrollY + g.getBoundingClientRect().top - 160, behavior: 'smooth' }), 50);
+  function _glBuildDrawer() {
+    const d = document.createElement('aside');
+    d.id = 'glossaryDrawer'; d.className = 'glossary-drawer'; d.hidden = true;
+    d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', '用語の説明');
+    d.innerHTML = '<div class="gl-handle" aria-hidden="true"></div>' +
+      '<div class="gl-head"><span class="gl-title">📖 用語の説明</span>' +
+      '<button type="button" class="gl-pin" aria-pressed="false" title="固定する（画面を切り替えても開いたままにします）">📌</button>' +
+      '<button type="button" class="gl-close" aria-label="閉じる">✕</button></div>' +
+      '<input type="search" class="gl-search" placeholder="用語を検索（例：R/T、燃油）" aria-label="用語を検索">' +
+      '<div class="gl-groups">' + _GL_GROUPS.map(g => '<button type="button" data-g="' + g[0] + '">' + g[1] + '</button>').join('') + '</div>' +
+      '<div class="gl-list"></div>';
+    document.body.appendChild(d);
+    const q = d.querySelector('.gl-search');
+    q.addEventListener('input', () => _glRender(q.value, _glGroup));
+    d.querySelector('.gl-groups').addEventListener('click', e => {
+      const b = e.target.closest('button[data-g]'); if (!b) return;
+      _glGroup = b.dataset.g;
+      d.querySelectorAll('.gl-groups button').forEach(x => x.classList.toggle('is-on', x === b));
+      _glRender(q.value, _glGroup);
+    });
+    d.querySelector('.gl-close').addEventListener('click', () => window.closeQuoteGlossary());
+    d.querySelector('.gl-pin').addEventListener('click', e => {
+      _glPinned = !_glPinned; e.currentTarget.setAttribute('aria-pressed', _glPinned ? 'true' : 'false');
+      e.currentTarget.classList.toggle('is-on', _glPinned);
+    });
+    d.querySelector('.gl-list').addEventListener('click', e => {
+      if (!e.target.closest('.gl-empty-btn')) return;
+      const word = q.value.trim();
+      window.closeQuoteGlossary();
+      if (typeof window.fbOpenIdea === 'function') {
+        window.fbOpenIdea();
+        setTimeout(() => { const t = document.getElementById('fbTitle'); if (t && !t.value) { t.value = '用語の追加：' + word; t.dispatchEvent(new Event('input', { bubbles: true })); } }, 80);
+      }
+    });
+    // 外側を押したら閉じる（❓のカード・❓ボタン・ⓘの吹き出しは「外側」にしない）
+    document.addEventListener('click', e => {
+      if (d.hidden || _glPinned || !e.target.isConnected) return;   // 📌 固定のときは外側を押しても閉じない
+      if (e.target.closest('#glossaryDrawer, #fbHelpCard, #fbQuickFab, #hintI, .hint-i, .q-glossary-btn')) return;
+      window.closeQuoteGlossary();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !d.hidden) { window.closeQuoteGlossary(); } });
+    return d;
+  }
+  window.closeQuoteGlossary = function() {
+    const d = document.getElementById('glossaryDrawer');
+    if (d) d.hidden = true;
+    _glWatch(false);
+    document.body.classList.remove('gl-open');
+    document.dispatchEvent(new CustomEvent('glossary:toggle', { detail: { open: false } }));
+  };
+  // 用語の説明を開く。引数に検索語を渡すと、その語を検索した状態で開く。すでに開いているときに引数なしで呼ぶと閉じる（トグル）
+  window.openQuoteGlossary = function(query) {
+    const word = typeof query === 'string' ? query : '';
+    if (!document.querySelector('#quoteGlossary + ul')) return;
+    const d = document.getElementById('glossaryDrawer') || _glBuildDrawer();
+    if (!d.hidden && !word) { window.closeQuoteGlossary(); return; }
+    d.hidden = false;
+    document.body.classList.add('gl-open');
+    _glOpenTab = _glActiveTabId(); _glWatch(true);
+    const q = d.querySelector('.gl-search');
+    q.value = word;
+    _glGroup = word ? 'all' : 'fav';   // 既定は「よく使う」（初めての人が辞書の全部を見なくて済む）
+    d.querySelectorAll('.gl-groups button').forEach(x => x.classList.toggle('is-on', x.dataset.g === _glGroup));
+    _glRender(q.value, _glGroup);
+    document.dispatchEvent(new CustomEvent('glossary:toggle', { detail: { open: true } }));
+    setTimeout(() => { try { q.focus({ preventScroll: true }); } catch (e) { q.focus(); } }, 30);
   };
 
   // ===== ステータスボタン =====
@@ -4841,3 +4893,27 @@
       if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ コピーに失敗しました', 'warn', 2000);
     });
   };
+
+// 操作バーの「⋯」「⚙」のパネルは、ボタンの位置（レイアウトで左右に変わる）に関係なく、
+// 開いたときに画面の中へ収める（右端そろえで左へ広げると、ボタンが左寄りのとき画面の左に切れていた）。
+(function () {
+  function clamp(d) {
+    const pop = d.querySelector(':scope > .cmdbar-gear-pop, :scope > .cmdbar-more-pop');
+    if (!pop) return;
+    pop.style.transform = '';
+    if (!d.open) return;
+    requestAnimationFrame(function () {
+      const r = pop.getBoundingClientRect();
+      const vw = document.documentElement.clientWidth;
+      let dx = 0;
+      if (r.left < 8) dx = 8 - r.left;
+      else if (r.right > vw - 8) dx = vw - 8 - r.right;
+      if (dx) pop.style.transform = 'translateX(' + Math.round(dx) + 'px)';
+    });
+  }
+  // toggle は泡のように上がらないので、捕まえる側（capture）で受ける
+  document.addEventListener('toggle', function (e) {
+    const d = e.target;
+    if (d && d.matches && d.matches('#cmdbarGear, #cmdbarMore')) clamp(d);
+  }, true);
+})();

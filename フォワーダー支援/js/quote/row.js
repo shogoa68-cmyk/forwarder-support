@@ -2183,6 +2183,7 @@
       }
       _updateBpBaseHint(id);
       calc(id);
+      _recalcPctDependents(id);   // この行を基準にした % 行は、売通貨が変わると換算も変わる
     }
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
@@ -2621,7 +2622,11 @@
     if (res.ok) {
       const ppEl = document.getElementById(`pp-${id}`);
       if (ppEl) ppEl.value = res.cost;
-      if (res.m > 0) { const mkEl = document.getElementById(`mk-${id}`); if (mkEl) mkEl.value = res.margin; }   // マージン方式：乗せ幅も自動
+      { const mkEl = document.getElementById(`mk-${id}`);
+        if (mkEl) {
+          if (res.m > 0) mkEl.value = res.margin;   // マージン方式：乗せ幅も自動
+          else if (mkEl.dataset.insLocked === '1') mkEl.value = 0;   // マージン率を 0 に戻した：自動で入れていた乗せ幅も外す（仕入＝保険料に戻るのに、前の乗せ幅が残って売が膨らむのを防ぐ）
+        } }
       onPay(id);     // calc → syncInsUi（説明を更新）
     } else {
       syncInsUi(id);
@@ -4239,7 +4244,7 @@
             // 客先表示名・サブコン別リマークの入力は、この見出しの行内に置く（以前はグループ末尾の小計行にあった）
             `<span class="hdr-notes">` +
               `<span class="hdr-note hdr-note-remark" title="このサブコンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF）にも表示されます。">` +
-                `<i>📝 サブコン別リマーク</i>` +
+                `<i>📝 このサブコンへの注記</i>` +
                 `<input type="text" class="subcon-remark-input" placeholder="このサブコンへの注記（任意）" value="${_escAttr((_subconRemark[key] || {}).text || '')}" />` +
                 `<button type="button" class="subcon-remark-toggle${(_subconRemark[key] || { show: true }).show ? ' is-shown' : ''}" ` +
                   `title="${(_subconRemark[key] || { show: true }).show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する'}">` +
@@ -4497,7 +4502,7 @@
               const _ptNotesHtml = !_ptHasNotes ? '' :
                 `<span class="hdr-notes hdr-notes--pt">` +
                   `<span class="hdr-note hdr-note-remark" title="このパターンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF・メール）にも表示されます。">` +
-                    `<i>📝 パターン別リマーク</i>` +
+                    `<i>📝 このパターンへの注記</i>` +
                     `<input type="text" class="subcon-remark-input" placeholder="このパターンへの注記（任意）" value="${_escAttr(_remarkObj.text || '')}" />` +
                     `<button type="button" class="subcon-remark-toggle${_remarkObj.show ? ' is-shown' : ''}" ` +
                       `title="${_remarkObj.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する'}">` +

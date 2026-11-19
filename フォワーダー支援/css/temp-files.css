@@ -109,3 +109,13 @@ html.editor-v2 #tab-quote-make #rmSheet .rms-tab[data-pane="remark"] { display: 
   #tab-quote-make #tfPane .tf-main.is-icons .tf-rows { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
 }
 @media print { #tfPane, .tf-ctx { display: none !important; } }
+
+/* うまく置けなかったときの表示と診断 */
+#tab-quote-make #tfPane .tf-banner { padding: 8px 12px; background: #fdebd3; border-top: 1px solid #e8c48f; border-bottom: 1px solid #e8c48f; color: #7a3d03; font-size: var(--text-sm, 13px); line-height: 1.5; }
+#tab-quote-make #tfPane .tf-banner[hidden] { display: none; }
+#tab-quote-make #tfPane .tf-bn-err { word-break: break-all; }
+#tab-quote-make #tfPane .tf-bn-diag { margin: 6px 0 0; padding: 0 0 0 4px; list-style: none; }
+#tab-quote-make #tfPane .tf-bn-diag li { margin: 2px 0; word-break: break-all; }
+#tab-quote-make #tfPane .tf-bn-diag li.is-ok { color: #1e7a4a; }
+#tab-quote-make #tfPane .tf-bn-diag li.is-ng { color: #b42318; font-weight: 700; }
+#tab-quote-make #tfPane .tf-bn-btns { display: flex; gap: 8px; margin-top: 6px; }
