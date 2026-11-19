@@ -4257,7 +4257,7 @@
               `title="見積もりへの含める/除外を切り替え">${excluded ? '含む' : '除外'}</button>` +
             `<button type="button" class="subcon-group-add-btn" ` +
               `data-sv="${_escAttr(key === _UNSET_KEY ? '' : label)}" ` +
-              `title="${_escAttr(label)} に行を追加">＋</button>` +
+              `title="${_escAttr(label)} に明細（費用の行）を追加">＋ 明細を追加</button>` +
             `<button type="button" class="subcon-group-sort-btn" title="このグループ内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
             `</div>` +
           `</td>`;
@@ -4603,6 +4603,7 @@
       window.refreshAllRowSvChips();   // サブコン見出しの「サブコン未登録」の印・明細行の「サブコン詳細」
     } finally {
       _inGroupRender = false;
+      try { updateFrameHint(); } catch (e) {}
       // DOM 再構築後にスクロール位置を復元（パターン変更時のページトップへの強制移動を防ぐ）
       // 比較のために window.scrollY を読み直すと再び強制レイアウトが走るため、
       // スクロールしている場合だけ無条件に戻す（0 のときは何もしない＝初回読込は無コスト）
@@ -5034,6 +5035,91 @@
     renderSubconGroups();
     setTimeout(() => document.getElementById(`nm-${newId}`)?.focus(), 40);
   }
+  // ===== サブコンの「枠」を先につくる（その中へ明細を入れ子で入力する流れ） =====
+  // サブコン別グループは明細行のサブコン欄から作られる仮想の見出しなので、枠＝最初の 1 行にサブコン名を入れたもの。
+  // 未入力で空の行（サブコン・品名・金額が空）があればそれを使い、無ければ新しい行を作る。
+  // すでに同名のサブコンがあるときは、そのグループの末尾へ明細行を足す。
+  function _isBlankRow(tr) {
+    const id = tr.id.replace('row-', '');
+    const g = f => (document.getElementById(`${f}-${id}`)?.value || '').trim();
+    return !g('sv') && !g('nm') && !(parseFloat(g('pp')) || 0) && !(parseFloat(g('bp')) || 0) && !g('pt');
+  }
+  function addSubconFrame(name) {
+    const sv = String(name || '').trim();
+    if (!sv) { if (typeof quoteShowToast === 'function') quoteShowToast('サブコン名を入力してください', 'warn'); return null; }
+    const tbody = document.getElementById('tableBody');
+    const real = Array.from(tbody.querySelectorAll('tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
+    const exists = real.some(tr => subconNormKey(_rowSubcon(tr) ?? '') === subconNormKey(sv));
+    const blank = exists ? null : real.find(_isBlankRow);
+    if (blank) {
+      const id = blank.id.replace('row-', '');
+      const svEl = document.getElementById(`sv-${id}`);
+      if (svEl) { svEl.value = sv; svEl.dispatchEvent(new Event('change', { bubbles: true })); }
+      renderSubconGroups();
+      setTimeout(() => document.getElementById(`nm-${id}`)?.focus(), 40);
+      return id;
+    }
+    addRowToSubconGroup(sv, '');
+    return true;
+  }
+  // 「＋ サブコンを追加」：名前の入力（サブコンのマスター候補つき）を小さな吹き出しで出す
+  function openAddSubconFrame(anchor) {
+    document.getElementById('sfPop')?.remove();
+    const pop = document.createElement('div');
+    pop.id = 'sfPop'; pop.className = 'sf-pop'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'サブコンを追加');
+    pop.innerHTML =
+      '<div class="sf-pop-t">サブコンを追加</div>' +
+      '<div class="sf-pop-d">先にサブコン（費用の取引先）の枠をつくり、その中に明細（運賃・THCなど）を入力します。</div>' +
+      '<div class="sf-pop-row"><input type="text" class="sf-pop-in" list="svSuggestions" autocomplete="off" maxlength="40" placeholder="サブコン名（例：○○運輸）">' +
+      '<button type="button" class="sf-pop-ok">追加</button></div>' +
+      '<button type="button" class="sf-pop-none">サブコンを決めずに明細を追加</button>';
+    document.body.appendChild(pop);
+    const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: 24, bottom: 120 };
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+    { // ボタンの下に出す。下に入りきらなければ上へ、それでも収まらなければ画面内に寄せる
+      const h = pop.offsetHeight, vh = window.innerHeight;
+      let top = r.bottom + 6;
+      if (top + h > vh - 8) top = (r.top - h - 6 >= 8) ? r.top - h - 6 : Math.max(8, vh - h - 8);
+      pop.style.top = top + 'px';
+    }
+    const inp = pop.querySelector('.sf-pop-in');
+    const close = () => { pop.remove(); document.removeEventListener('pointerdown', onOut, true); document.removeEventListener('keydown', onKey, true); };
+    const ok = () => { const v = inp.value.trim(); if (!v) { inp.focus(); return; } close(); addSubconFrame(v); };
+    const onOut = e => { if (!pop.contains(e.target) && e.target !== anchor && !(anchor && anchor.contains && anchor.contains(e.target))) close(); };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    pop.querySelector('.sf-pop-ok').addEventListener('click', ok);
+    pop.querySelector('.sf-pop-none').addEventListener('click', () => {
+      close(); addRow();   // addRow は末尾行のサブコンを引き継ぐので、サブコン未設定に戻す
+      const all = Array.from(document.querySelectorAll('#tableBody tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
+      const last = all[all.length - 1], id = last && last.id.replace('row-', '');
+      const svEl = id && document.getElementById(`sv-${id}`); if (svEl) svEl.value = '';
+      renderSubconGroups();
+      if (id) setTimeout(() => document.getElementById(`nm-${id}`)?.focus(), 40);
+    });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); ok(); } });
+    setTimeout(() => { document.addEventListener('pointerdown', onOut, true); document.addEventListener('keydown', onKey, true); }, 0);
+    inp.focus();
+  }
+  // 枠（サブコン）がまだ 1 つも無いとき、費用の表の上に手順の案内を出す
+  function updateFrameHint() {
+    const wrap = document.getElementById('tableWrap'); if (!wrap) return;
+    let h = document.getElementById('sfHint');
+    const real = Array.from(document.querySelectorAll('#tableBody tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
+    const need = !real.some(tr => (_rowSubcon(tr) ?? '').trim());
+    if (!need) { if (h) h.hidden = true; return; }
+    if (!h) {
+      h = document.createElement('div'); h.id = 'sfHint'; h.className = 'sf-hint';
+      h.innerHTML = '<b>① サブコンを追加して枠をつくる</b> → <b>② その枠の中に明細を入力</b>' +
+        '<button type="button" class="sf-hint-btn">＋ サブコンを追加</button>';
+      h.querySelector('.sf-hint-btn').addEventListener('click', e => openAddSubconFrame(e.currentTarget));
+      const c = wrap.querySelector(':scope > .container') || wrap.firstElementChild;
+      wrap.insertBefore(h, c);
+    }
+    h.hidden = false;
+  }
+  window.addSubconFrame = addSubconFrame;
+  window.openAddSubconFrame = openAddSubconFrame;
+  window.updateFrameHint = updateFrameHint;
   // 明細行を別ブランチ（サブコン/パターン）末尾へコピー（元行は残す）。newId を返す
   function copyRowToSubconGroup(srcRowId, sv, pt) {
     const sid = String(srcRowId).replace('row-', '');
