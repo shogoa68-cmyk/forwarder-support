@@ -12545,6 +12545,11 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make .ei-rate-btn:hover { opacity: 1; }
 #tab-quote-make .ei-rate-btn.on { opacity: 1; border-color: #2f8f83; background: #e6f5f1; }
 #tab-quote-make .ei-rate-btn[data-k="ng"].on { border-color: #c2410c; background: #fdebd3; }
+#tab-quote-make .ei-rate-btn:disabled { opacity: .25; cursor: not-allowed; }
+#tab-quote-make .ei-edited-tag { font-size: var(--text-xs, 12px); color: #1d4ed8; white-space: nowrap; }
+#tab-quote-make .ei-rate-guide { margin: 6px 0; border: 1px solid var(--border-md, #d0d7de); border-radius: 8px; background: #f8fafc; padding: 4px 10px; font-size: var(--text-sm, 13px); }
+#tab-quote-make .ei-rate-guide summary { cursor: pointer; padding: 4px 0; font-weight: 600; }
+#tab-quote-make .ei-rate-guide p { margin: 6px 0; line-height: var(--lh-body, 1.7); }
 #tab-quote-make tr.ei-rate-ngrow td { opacity: .5; }
 #tab-quote-make tr.ei-rate-ngrow td.ei-rate-cell { opacity: 1; }
 #tab-quote-make .ei-ign-btn { margin-left: 8px; padding: 2px 8px; border: 1px solid #d4a72c; border-radius: 6px; background: #fff; color: #7d4e00; cursor: pointer; font-size: var(--text-xs, 12px); }

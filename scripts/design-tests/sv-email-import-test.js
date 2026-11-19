@@ -443,6 +443,23 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('❌ を押した行は、挿入のチェックが外れて印が付く（もう一度押すと取り消し）', r1.okOn && r1.ngChk === false && r1.ngRate === 'ng', r1);
     const r2 = await p.evaluate(() => { const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[2]; tr.querySelector('.ei-rate-btn[data-k="ng"]').click(); const a = tr.querySelector('.ei-chk').checked; tr.querySelector('.ei-rate-btn[data-k="ng"]').click(); return a; });
     ok('❌ をもう一度押すと取り消されてチェックが戻る', r2 === true, r2);
+    // 直した行は ✅ を選べない（❌ は選べる）／元に戻すと ✅ も戻る
+    const edr = await p.evaluate(() => {
+      const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[1], nm = tr.querySelector('.ei-name'), base = nm.value;
+      const okB = tr.querySelector('.ei-rate-btn[data-k="ok"]'), ngB = tr.querySelector('.ei-rate-btn[data-k="ng"]'), tag = tr.querySelector('.ei-edited-tag');
+      const fire = () => nm.dispatchEvent(new Event('change', { bubbles: true }));
+      okB.click(); const before = { on: okB.classList.contains('on'), dis: okB.disabled, tagHidden: tag.hidden };
+      nm.value = 'ZZ直した品名'; fire();
+      const edited = { on: okB.classList.contains('on'), dis: okB.disabled, tagHidden: tag.hidden, rate: tr.dataset.rate || '', ngDis: ngB.disabled };
+      okB.click(); const afterClick = tr.dataset.rate || '';
+      nm.value = base; fire();
+      const reverted = { dis: okB.disabled, tagHidden: tag.hidden, rate: tr.dataset.rate || '' };
+      return { before, edited, afterClick, reverted, guide: !!document.querySelector('#eiReviewWrap .ei-rate-guide') };
+    });
+    ok('✅を押したあと品名を直すと、✅は外れて押せなくなり「✏️ 修正済み」が出る', edr.before.on && !edr.before.dis && edr.before.tagHidden && !edr.edited.on && edr.edited.dis && !edr.edited.tagHidden && edr.edited.rate === '', edr);
+    ok('直した行でも ❌ は押せる／直した行の ✅ クリックは何も起きない', edr.edited.ngDis === false && edr.afterClick === '', edr);
+    ok('直した内容を元に戻すと、✅ が押せる状態に戻る', edr.reverted.dis === false && edr.reverted.tagHidden === true, edr);
+    ok('✅／❌ の選び方の説明（❓）が確認画面に出る', edr.guide, edr);
     await p.evaluate(() => window.eiLearnFromCorrections()); await p.waitForTimeout(700);
     let rr = await abcRules();
     ok('「覚える」で、❌の形が ignore に・✅の形が ok に保存される（数字は 9 に伏せた形）', rr && rr.ignore && rr.ignore.length === 1 && /注意書き USD 99 at cost/.test(rr.ignore[0].shape) && rr.ok && rr.ok.length === 1 && /海上運賃 USD 9,999 \/9GP|海上運賃/.test(rr.ok[0].shape) && !/1,200/.test(rr.ok[0].shape), rr);
