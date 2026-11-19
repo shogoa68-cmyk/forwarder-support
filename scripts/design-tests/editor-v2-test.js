@@ -92,9 +92,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('[T3] 題名は 1 行（最大幅 380px）', await p.evaluate(() => { const b = document.getElementById('e2tName'); return b.getBoundingClientRect().width <= 381 && getComputedStyle(b).whiteSpace === 'nowrap'; }));
   }
   if (out) await p.screenshot({ path: path.join(out, 'e2-top.png') });
-  await p.click('#e2MoreBtn'); await p.waitForTimeout(250);
-  ok('［その他の情報］を開くと日付が出る', mobile || (await vis('#qf-date') && await vis('#qf-received')));
-  await p.click('#e2MoreBtn'); await p.waitForTimeout(200);
+  // Design 46（案B）：日付は右の列の行（押すとその下に欄が開く）
+  await p.evaluate(() => window.sbOpenRow('date')); await p.waitForTimeout(250);
+  ok('右の列の「発行日」の行を開くと日付が出る', await vis('#qf-date'));
+  await p.evaluate(() => window.sbOpenRow('')); await p.waitForTimeout(200);
   await p.fill('#qf-case-name', 'テスト案件ZZ'); await p.waitForTimeout(300);
   await p.fill('#qf-ref', '99-261116-001'); await p.waitForTimeout(300);
   ok('上部の題名は「案件番号 / 案件名」', /^99-261116-001 \/ テスト案件ZZ$/.test((await p.textContent('#e2tName')) || ''));
@@ -103,16 +104,17 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.click('#e2Next'); await p.waitForTimeout(400);
   if (out) await p.screenshot({ path: path.join(out, 'e2-step2.png'), fullPage: true });
   if (out) { await p.click('#e2Next'); await p.waitForTimeout(400); await p.screenshot({ path: path.join(out, 'e2-step3.png'), fullPage: true }); await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(300); }
-  ok('②ルート：①と同じ左位置・幅（2 カラムの配置を引きずらない）', await p.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(); const a = r('section-cond'); const ref = document.getElementById('section-ref'); const cols = !!document.getElementById('qmCols'); const tab = document.getElementById('tab-quote-make'); const m = tab.querySelector('.quote-main').getBoundingClientRect(); return !cols && Math.abs(a.left - m.left) < 40 && a.width >= Math.min(1000, m.width) * 0.9; }));
+  ok('②ルート：①と同じ左位置・幅（2 カラムの配置を引きずらない）', await p.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(); const a = r('section-cond'); const ref = document.getElementById('section-ref'); const cols = !!document.getElementById('qmCols'); const tab = document.getElementById('tab-quote-make'); const mm = tab.querySelector('.quote-main'); const m = mm.getBoundingClientRect(); const pr = parseFloat(getComputedStyle(mm).paddingRight) || 0; const w = m.width - pr; return !cols && Math.abs(a.left - m.left) < 40 && a.width >= Math.min(1000, w) * 0.9; }));
   ok('［次へ］で②ルート', await vis('#section-cond') && !(await vis('#section-ref')));
   await p.evaluate(() => { const i = document.getElementById('cond-incoterms'); if (i && i.options.length > 1) { i.value = i.options[1].value; i.dispatchEvent(new Event('change', { bubbles: true })); } const a = document.getElementById('z2Pol'); a.value = 'TOKYO'; a.dispatchEvent(new Event('input', { bubbles: true })); const b = document.getElementById('z2Pod'); b.value = 'LOS ANGELES'; b.dispatchEvent(new Event('input', { bubbles: true })); });
   await p.waitForTimeout(300);
-  ok('②に条件のチップ要約（航路）', /TOKYO → LOS ANGELES/.test(await p.textContent('#e2Chips2')));
+  ok('②の右の列に貿易条件が出る（要約の帯の代わり）', await p.evaluate(() => { const r = document.querySelector('#sbAside .sb-panel:not([hidden]) .sb-row[data-k="inco"] .sb-v'); return !!r && !/^なし$/.test(r.textContent); }));
   await p.click('#e2Next'); await p.waitForTimeout(300);
-  ok('③に要約の帯と、荷姿の詳細は畳まれている', await vis('#e2Chips3') && await vis('#e2PackBtn') && !(await vis('.cond-field--cargo-detail')));
-  await p.click('#e2PackBtn'); await p.waitForTimeout(200);
-  ok('③「詳細 ▾」で荷姿が開く', await vis('.cond-field--cargo-detail'));
-  await p.click('#e2PackBtn'); await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(200);
+  await p.waitForTimeout(300);
+  ok('③ 荷姿の詳細は畳まれていて、「荷姿・貨物明細 ▸ 開く」がある', await vis('#sbPackHead') && !(await vis('.cond-field--cargo-detail')));
+  await p.evaluate(() => document.getElementById('sbPackHead').click()); await p.waitForTimeout(200);
+  ok('③「▸ 開く」で荷姿が開く', await vis('.cond-field--cargo-detail'));
+  await p.evaluate(() => document.getElementById('sbPackHead').click()); await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(200);
   await p.click('#e2Steps [data-e2s="5"]'); await p.waitForTimeout(600);
   ok('⑤リマークは本文に直接出る（下の引き出しにはリマークを入れず、「一時ファイル」のタブだけ）', await p.evaluate(() => { const sec = document.getElementById('section-remark'); const sh = document.getElementById('rmSheet'); const t = sh && sh.querySelector('.rms-tab[data-pane="remark"]'); return !!sec.closest('.quote-main') && !(sh && sh.contains(sec)) && (!t || getComputedStyle(t).display === 'none'); }));
   ok('⑤リマーク：入力欄が見えて、上に何も重ならず押せる', await p.evaluate(() => { const t = document.getElementById('remarkTextarea'); if (!t) return false; t.scrollIntoView({ block: 'center' }); const b = t.getBoundingClientRect(); if (b.width < 50 || b.height < 20) return false; const e = document.elementFromPoint(b.left + 20, b.top + 10); return !!e && e.id === 'remarkTextarea'; }));
