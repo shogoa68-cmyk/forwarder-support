@@ -25,6 +25,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('サブコンがまだ無いとき、手順の案内（①枠をつくる→②明細）が出る', await vis('#sfHint'));
   if (v2) {
     ok('費用の操作バーの主ボタンが「＋ サブコンを追加」', await p.evaluate(() => /サブコンを追加/.test(document.querySelector('#e2CostBar .e2-primary')?.textContent || '')));
+    ok('主ボタンの文字が背景と同じ色になっていない（空の箱に見えない）', await p.evaluate(() => { const b = document.querySelector('#e2CostBar .e2-primary'); const c = getComputedStyle(b); return c.color !== c.backgroundColor && c.backgroundColor !== 'rgb(255, 255, 255)'; }), await p.evaluate(() => { const c = getComputedStyle(document.querySelector('#e2CostBar .e2-primary')); return [c.color, c.backgroundColor]; }));
     ok('「＋ 行を追加」は操作バーから無くなった', await p.evaluate(() => ![...document.querySelectorAll('#e2CostBar button')].some(x => /行を追加/.test(x.textContent))));
   }
   const n0 = (await realRows()).length;

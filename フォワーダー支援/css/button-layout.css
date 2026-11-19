@@ -165,7 +165,8 @@ html.editor-v2 #tab-quote-make:not(.e2-rail-open) #e2Steps button.is-warn i::aft
 #tab-quote-make #quoteTable td.handle-cell.acts-dismissed .row-acts { display: none !important; }
 
 /* ===== サブコンの枠を先につくる（2026-11・row.js addSubconFrame／openAddSubconFrame／updateFrameHint） ===== */
-#e2CostBar button.e2-primary { background: var(--accent, #2f5fb3); border-color: var(--accent, #2f5fb3); color: #fff; font-weight: 700; }
+/* editor-v2.css の html.editor-v2 #e2CostBar button（白地）より強く指定する（弱いと白地に白文字で空の箱に見えた） */
+html.editor-v2 #e2CostBar button.e2-primary { background: var(--accent, #2f5fb3); border-color: var(--accent, #2f5fb3); color: #fff; font-weight: 700; }
 .sf-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 10px; padding: 10px 14px; border: 1px dashed var(--accent, #2f5fb3); border-radius: 8px; background: var(--accent-lt, #eef3fb); font-size: var(--text-sm, 13px); line-height: 1.6; }
 .sf-hint[hidden] { display: none; }
 .sf-hint-btn, .sf-pop-ok { min-height: 36px; padding: 0 14px; border: 1px solid var(--accent, #2f5fb3); border-radius: 8px; background: var(--accent, #2f5fb3); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
