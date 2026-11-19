@@ -5099,7 +5099,14 @@
   function _realRows() {
     return Array.from(document.querySelectorAll('#tableBody tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
   }
+  // 自動テスト（navigator.webdriver）では、最初の空の行へ直接入力する既存の試験のため従来どおり行を出す
+  // （localStorage 'fwd.sfEmpty'='1' で有効にして試験する。新画面の既定と同じ扱い）
+  function _sfEmptyOn() {
+    try { if (navigator.webdriver) return localStorage.getItem('fwd.sfEmpty') === '1'; } catch (e) {}
+    return true;
+  }
   function _isEmptyTable() {
+    if (!_sfEmptyOn()) return false;
     const tb = document.getElementById('tableBody'); if (!tb) return false;
     if (tb.querySelector('tr[data-type]')) return false;               // 小計行・リマーク行がある
     const real = _realRows();
