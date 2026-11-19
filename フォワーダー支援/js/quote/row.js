@@ -2258,7 +2258,19 @@
     if (bpEl && !_isSellMode(id)) bpEl.value = _addPrice(parseFloat(bpEl.dataset.base) || 0, mk);
     // PROFIT SHARE：代理店へ仕入の金額（最低料金を含む）を返す扱い。売には数字を入れない（売単価 0・売の小計 0）
     // → 行の利益は −仕入（例：−EUR 40）で、社内利益（PS込み）から差し引く。売値ベースの入力値は toggleProfitShare が控えて戻す
-    if (bpEl && document.getElementById(`ps-${id}`)?.value === '1') bpEl.value = 0;
+    // 仕入が 0 で乗せ幅（売）に金額がある PS の行は「代理店から受け取る」＝売をそのままプラスで計上する
+    {
+      const trP = document.getElementById(`row-${id}`);
+      if (bpEl && psPayMode(id)) {
+        if (trP && _isSellMode(id) && trP.dataset.psPrevBp == null && (parseFloat(bpEl.value) || 0)) trP.dataset.psPrevBp = bpEl.value;
+        bpEl.value = 0;
+      } else if (bpEl && trP && trP.dataset.psPrevBp != null && _isSellMode(id)) {
+        // 仕入を 0 にした（受け取る側に変わった）・PS を外した：控えた売単価を戻し、乗せ幅を算出し直す
+        bpEl.value = trP.dataset.psPrevBp; delete trP.dataset.psPrevBp;
+        const mkEl = document.getElementById(`mk-${id}`), pcv = document.getElementById(`pc-${id}`)?.value || 'JPY';
+        if (mkEl) { const raw = val(`bp-${id}`) - val(`pp-${id}`); mkEl.value = pcv === 'JPY' ? Math.round(raw) : Math.round(raw * 100) / 100; }
+      }
+    }
     const bp = val(`bp-${id}`);
     const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
     const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
@@ -2478,10 +2490,7 @@
     if (psEl.value === '1') _clearRowFlagsExcept(id, 'ps');
     // 売値ベースの行は売単価が手入力のため、PS の間は控えておき、外したときに戻す（連動の行は calc が仕入＋乗せ幅で作り直す）
     const tr = document.getElementById(`row-${id}`), bpEl = document.getElementById(`bp-${id}`);
-    if (tr && bpEl && _isSellMode(id)) {
-      if (psEl.value === '1') tr.dataset.psPrevBp = bpEl.value;
-      else if (tr.dataset.psPrevBp != null) { bpEl.value = tr.dataset.psPrevBp; delete tr.dataset.psPrevBp; }
-    }
+    if (tr && bpEl && _isSellMode(id) && psEl.value !== '1' && tr.dataset.psPrevBp != null) { bpEl.value = tr.dataset.psPrevBp; delete tr.dataset.psPrevBp; }   // 控えるのは calc（返す側のとき）
     if (psEl.value !== '1' && _isSellMode(id)) _calcFromSell(id);   // 乗せ幅を戻した売単価から算出し直す
     calc(id);
     _recalcPctDependents(id);
@@ -3137,7 +3146,9 @@
         const mk = (window.SharedCalc ? SharedCalc.grossMarginPct(internalBill, totCostJPY + psCostJPY) : 0);
         const revEl = document.getElementById('tot-ps-rev');
         const prEl  = document.getElementById('tot-ps-profit');
-        if (revEl) { const n = Math.round(psBillJPY - psCostJPY); revEl.textContent = (n < 0 ? '−' : '') + '¥' + fmt(Math.abs(n)); }   // PS（代理店へ返す金額）はマイナス
+        if (revEl) { const n = Math.round(psBillJPY - psCostJPY); revEl.textContent = (n < 0 ? '−' : n > 0 ? '＋' : '') + '¥' + fmt(Math.abs(n)); }   // 代理店へ返す＝マイナス／代理店から受け取る＝プラス
+        const lblEl = document.getElementById('tot-ps-label');
+        if (lblEl) lblEl.textContent = psCostJPY && psBillJPY ? 'PS（代理店との精算）' : psCostJPY ? 'PS（代理店へ返す）' : 'PS（代理店から受け取る）';
         if (prEl) {
           prEl.innerHTML = '¥' + fmt(Math.round(internalProfit)) + `<small class="tot-margin">粗利 ${mk.toFixed(1)}%</small>`;
           prEl.className = `profit-cell pr-cell ${pClass(internalProfit)}`;

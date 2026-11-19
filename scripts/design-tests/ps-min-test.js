@@ -1,4 +1,4 @@
-// PROFIT SHARE（代理店へ仕入の金額を返す）の行：売には数字を入れず、利益は −仕入（最低料金を含む）。架空データ・外部接続なし。
+// PROFIT SHARE の行：仕入に金額があれば代理店へ返す（売 0・利益 −仕入）、仕入が 0 で乗せ幅があれば代理店から受け取る（利益 ＋売）。架空データ・外部接続なし。
 //   node scripts/design-tests/ps-min-test.js        （THEME=1 で Industry）
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -24,7 +24,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     bp: document.getElementById('bp-' + id).value, st: document.querySelector('#st-' + id + ' .st-main')?.textContent.trim(),
     pr: document.querySelector('#pr-' + id + ' .pr-main')?.textContent.trim(), noProfit: document.getElementById('row-' + id).dataset.noProfit || '',
     psRow: !document.getElementById('totPsRow').hidden, psRev: document.getElementById('tot-ps-rev').textContent.trim(),
-    psProfit: document.getElementById('tot-ps-profit').textContent.trim(), cost: document.getElementById('tot-cost').textContent.trim() }), 400)), id);
+    psProfit: document.getElementById('tot-ps-profit').textContent.trim(), psLabel: document.getElementById('tot-ps-label').textContent.trim(), cost: document.getElementById('tot-cost').textContent.trim() }), 400)), id);
   await set('nm', 'PROFIT SHARE'); await set('un', 'C/W'); await set('pc', 'EUR'); await set('pq', '500'); await set('pp', '0.05');
   await p.evaluate(id => window.toggleMinMode(id), id); await set('ppmin', '40');
   let s = await snap();
@@ -33,7 +33,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   s = await snap();
   ok('PS にすると売には数字を入れない（売単価 0・小計 —）', s.bp === '0' && s.st === '—', s);
   ok('PS の行の利益は −仕入（最低料金 40 を適用）＝ −40', s.pr === '-40' && !s.noProfit, s);
-  ok('合計の「PS（代理店へ返す）」はマイナスの円換算', s.psRow && /^−¥[\d,]+$/.test(s.psRev) && s.psRev !== '−¥0', s);
+  ok('合計の「PS（代理店へ返す）」はマイナスの円換算', s.psRow && /^−¥[\d,]+$/.test(s.psRev) && s.psRev !== '−¥0' && s.psLabel === 'PS（代理店へ返す）', s);
   ok('PS の行は客先向けの仕入合計に入らない', s.cost === '0' || s.cost === '¥0', s);
   await set('pq', '1000');
   s = await snap();
@@ -45,6 +45,23 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(id => window.toggleProfitShare(id), id);
   s = await snap();
   ok('PS を外すと売単価が仕入＋乗せ幅に戻る（0.05・売 25）', s.bp === '0.05' && s.st === '25' && !s.psRow, s);
+  // 仕入が 0 で乗せ幅（売）に金額がある PS の行＝代理店から受け取る（プラス計上）
+  await p.evaluate(id => window.toggleProfitShare(id), id);
+  await set('ppmin', ''); await set('pp', '0'); await set('mk', '0.04');
+  s = await snap();
+  ok('仕入 0・乗せ幅 0.04 の PS の行は売 0.04・小計 20（代理店から受け取る）', s.bp === '0.04' && s.st === '20', s);
+  ok('受け取る側の利益は ＋20（プラス）', s.pr === '20', s);
+  ok('合計は「PS（代理店から受け取る）」に ＋¥…', s.psRow && /^＋¥[\d,]+$/.test(s.psRev) && s.psLabel === 'PS（代理店から受け取る）', s);
+  await set('bpmin', '30');
+  s = await snap();
+  ok('受け取る側は売の最低料金（30）が効く', s.st === '30' && s.pr === '30', s);
+  await set('bpmin', ''); await set('pp', '0.05');
+  s = await snap();
+  ok('仕入を入れると返す側に戻る（売 0・利益 −25）', s.bp === '0' && s.pr === '-25' && s.psLabel === 'PS（代理店へ返す）', s);
+  await p.evaluate(id => window.toggleProfitShare(id), id);
+  await set('mk', '0');
+  s = await snap();
+  ok('PS を外すと売単価が仕入＋乗せ幅に戻る', s.bp === '0.05' && s.st === '25' && !s.psRow, s);
   // 売値ベースの行：PS の間は売単価を控え、外すと戻す
   await p.evaluate(id => { window.toggleMinMode(id); }, id);
   const sm = await p.evaluate(id => { const b = document.querySelector('#row-' + id + ' .sell-mode-btn'); if (!b) return false; b.click(); return true; }, id);
