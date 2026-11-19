@@ -128,6 +128,8 @@
       else { if (!main) main = tk; cut.push([tk.start, tk.end]); }
     });
     if (!main) { main = toks[0]; minNote = ''; cut.length = 0; cut.push([main.start, main.end]); }
+    // 金額の直後の「-」（7,000- のような円の書き方）も一緒に取り除く
+    cut.forEach(c => { const dm = body.slice(c[1]).match(/^[-－ー—]+(?=\s|$)/); if (dm) c[1] += dm[0].length; });
     let rest = body;
     cut.sort((a, b) => b[0] - a[0]).forEach(([a, b]) => { rest = rest.slice(0, a) + ' ' + rest.slice(b); });
 
@@ -150,6 +152,12 @@
     if (!/[（(]/.test(name)) name = name.replace(/[)）]\s*$/, '');
     name = name.replace(/\s+/g, ' ').replace(/^[\s:：/／,，、\-–]+|[\s:：/／,，、\-–×]+$/g, '').trim();
 
+    // 「検品料1台あたり」のように「N台あたり」が品名に混ざるときは、単位（台など）として取り出す（品名が空になるときは残す）
+    if (!unit && (m = name.match(/(\d+)\s*(台|個|本|枚)(?:あたり|当たり)(?=\s|$)/))) {
+      const nn = (name.slice(0, m.index) + ' ' + name.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim();
+      if (nn) { unit = m[2]; name = nn; perUnit = true; }
+    }
+
     if (!perUnit) {   // 従来の読み方：「品名 数量 単位 … 金額（合計）」
       const qm = name.match(/\s([\d.,]+)\s*(R\/T|RT|CBM|M3|KGS?|CNTR|B\/L|BL|SHPT|VAN|件|台|本|枚|式|梱|才|20'?\S*|40'?\S*)$/i);
       if (qm) { qty = _num(qm[1]) ?? 1; unit = qm[2]; name = name.slice(0, qm.index).trim(); }
@@ -171,9 +179,14 @@
       const before = body.slice(0, m.index), after = body.slice(m.index + m[0].length);
       const v = _num(m[0]);
       if (v == null || v < 10) continue;
-      if (before && !/[\s:：=]$/.test(before)) continue;
+      if (before && !/[\s:：=]$/.test(before) && !/\d\s*(?:台|個|本|枚|件|点|DAY|days?)$/i.test(before)) continue;
       if (/[×xX]\s*$/.test(before) || /(?:^|\s)(?:per|@)\s*$/i.test(before) || /\/\s*$/.test(before)) continue;
-      if (/^[A-Za-z0-9\/\-:.'’%％月日年時分号階F]/.test(after)) continue;
+      // 「7,000-」「55,000－」の末尾のハイフンは円の金額の書き方（数字が続く「40-45」・「03-1234」は除く）
+      const yenDash = /^[-－ー—]+(?:\s|$|[^\d\-－])/.test(after);
+      if (!yenDash && /^[A-Za-z0-9\/\-:.'’%％月日年時分号階F]/.test(after)) continue;
+      // 「1台55,000-」のように、数量＋助数詞の直後の金額も読む
+      const afterCounter = /\d\s*(?:台|個|本|枚|件|点|DAY|days?)$/i.test(before) && yenDash;
+      if (afterCounter) return before + ' ' + ccy + ' ' + m[0] + after;
       if ((before.match(/[A-Za-z぀-ヿ一-鿿]/g) || []).length < 2) continue;
       return before + ccy + ' ' + m[0] + after;
     }
