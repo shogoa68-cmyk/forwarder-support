@@ -49,6 +49,9 @@
 <link rel="stylesheet" href="css/card-c3.css">
 <link rel="stylesheet" href="css/button-layout.css">
 <link rel="stylesheet" href="css/case-files.css">
+<link rel="stylesheet" href="css/preview-roles.css">
+<link rel="stylesheet" href="css/input-grid.css">
+<link rel="stylesheet" href="css/group-header-b.css">
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
@@ -2960,7 +2963,7 @@
           <div class="ci-cell ci-cell-person">
           <div class="quote-field">
             <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
-            <input type="text" id="qf-person" placeholder="例）山田　※宛先（お客様側）の氏名。出力時に自動で「様」付与" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。登録済みのお客様なら、マスターの担当者一覧から候補表示されます。" aria-required="true" list="qfPersonSuggestions" autocomplete="off" />
+            <input type="text" id="qf-person" placeholder="例）山田" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。登録済みのお客様なら、マスターの担当者一覧から候補表示されます。" aria-required="true" list="qfPersonSuggestions" autocomplete="off" />
           </div>
           </div>
             </div>
@@ -4540,7 +4543,7 @@
             <span class="pv-main-title">📋 プレビュー（表計算形式）</span>
             <span class="pv-main-sp"></span>
             <div class="pv-btns">
-              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書</button>
+              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()" title="お客様向けの御見積書を PDF で出力します（設定・確認はこの先の画面で）">📄 PDF 出力</button>
               <button class="pv-btn-email-plain" onclick="copyQuoteEmail()" title="明細付きのメール本文（プレーンテキスト）としてコピー">✉️ メール本文</button>
               <button class="pv-btn-excel" onclick="exportExcel()" title="表計算形式で表示中の内容をExcel（.xlsx）でダウンロード">📊 Excel</button>
               <div class="pv-btn-grp" data-label="印刷">
@@ -4573,7 +4576,6 @@
             <div id="pvRemarkBox" style="display:none;"><strong>📝 条件・リマーク</strong></div>
             <div id="pvAuditMeta" class="pv-audit-meta"></div>
             <p class="pv-hint">
-              ※ CSV はデータ行のみ出力（カテゴリ列を先頭に付与）。再読み込みにも対応。<br>
               ※ <b>項目名の先頭にある <code>*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。消費税の列・税率は「消費税」セクションで設定できます。
             </p>
           </div>
@@ -5137,6 +5139,9 @@
 <script src="js/quote/remark-sheet.js"></script>
 <script src="js/quote/temp-files.js"></script>
 <script src="js/quote/case-files.js"></script>
+<script src="js/quote/preview-phone.js"></script>
+<script src="js/quote/input-grid.js"></script>
+<script src="js/quote/group-header-b.js"></script>
 <script src="js/quote/packing-import.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/ui-mode.js"></script>

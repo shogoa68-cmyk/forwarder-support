@@ -111,7 +111,7 @@ html.editor-v2 #tbMenuMore .tb-menu-group[data-e2mg="case"]::after { content: "�
 html.editor-v2 #tbMenuMore .tb-menu-group[data-e2mg="misc"]::after { content: "その他"; font-size: var(--text-xs, 12px); }
 html.editor-v2 #tbMenuMore .tb-menu-group[data-e2mg="set"] { display: none !important; }
 html.editor-v2 #tbMenuMore .tb-menu-group[data-e2mg="case"] { order: 1; }
-html.editor-v2 #tbMenuMore [onclick^="openEmailImport"] { order: 2; }
+html.editor-v2 #tbMenuMore [onclick^="openEmailImport"], html.editor-v2 #tbMenuMore [onclick^="openImportChooser"] { order: 2; }
 html.editor-v2 #tbMenuMore [onclick^="eiOpenStoreForCurrent"] { order: 3; }
 html.editor-v2 #tbMenuMore [onclick^="openSubconRequestMail"] { order: 4; }
 html.editor-v2 #tbMenuMore [onclick^="toggleMemoFloat"] { order: 5; }

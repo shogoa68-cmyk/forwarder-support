@@ -298,6 +298,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   {
     const { ctx, p, errs } = await open();
     ok('詳細表示のカードに「🌱 サブ作成」ボタンがある', await p.evaluate(() => document.querySelectorAll('#qpdListWrap .cloud-card .btn-preset-sub').length === 8));
+    ok('サブ案件の廃止：新しく作る入口（🌱 サブ作成・位置づけの切替・一括のメイン指定）は画面に出さない（データと関数は残す）', await p.evaluate(() => { const vis = e => !!e && getComputedStyle(e).display !== 'none'; return ![...document.querySelectorAll('#qpdListWrap .btn-preset-sub, select.clink-role')].some(vis) && !vis(document.getElementById('qpdLinkBarRole')); }));
     ok('「⋯」メニュー（かんたん表示用）にも「サブ案件を作成」がある', await p.evaluate(() => [...document.querySelectorAll('#qpdListWrap .cloud-card .cloud-menu-item')].some(b => b.textContent.includes('サブ案件を作成'))));
     const before = await p.evaluate(() => window.__db.quote_presets.length);
     await p.evaluate(() => document.querySelector('#qpdListWrap .cloud-card:has(.cloud-card-links[data-lid="Z"]) .btn-preset-sub').click());

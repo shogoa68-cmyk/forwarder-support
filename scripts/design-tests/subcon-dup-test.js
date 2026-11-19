@@ -44,7 +44,12 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => { const h = [...document.querySelectorAll('#tableBody tr.subcon-group-header')].find(h => h.dataset.svLabel === 'A運輸'); const i = h.querySelector('.subcon-remark-input'); i.value = '20日前ブッキング'; i.dispatchEvent(new Event('input', { bubbles: true })); });
   ok('準備：見出しが A運輸・B海運の 2 つ', JSON.stringify(await heads()) === JSON.stringify(['A運輸', 'B海運']), await heads());
 
-  ok('サブコン見出しに「📋 複製」ボタンがある（すぐ見える）', await vis('#tableBody tr.subcon-group-header .sv-hdr-dup'));
+  if (v2) {   // 新画面（Design 43 案B）は見出しの［⋯］の中
+    await p.click('#tableBody tr.subcon-group-header .gb-more'); await p.waitForTimeout(150);
+    const its = await p.$$eval('#gbMenu .gb-mi', a => a.map(x => x.textContent));
+    ok('新画面：サブコン見出しの［⋯］に「このサブコンを複製」がある', its.some(t => /複製/.test(t)), its);
+    await p.keyboard.press('Escape');
+  } else ok('サブコン見出しに「📋 複製」ボタンがある（すぐ見える）', await vis('#tableBody tr.subcon-group-header .sv-hdr-dup'));
   await p.evaluate(() => [...document.querySelectorAll('#tableBody tr.subcon-group-header')].find(h => h.dataset.svLabel === 'A運輸').querySelector('.sv-hdr-dup').click());
   await p.waitForTimeout(200);
   ok('押すと複製先の名前を聞く吹き出しが出る（明細 3 行と書いてある）', await vis('#sfPop.sf-pop-dup .sf-pop-in') && /3 行/.test(await p.evaluate(() => document.getElementById('sfPop').textContent)));

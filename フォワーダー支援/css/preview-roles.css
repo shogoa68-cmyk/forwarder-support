@@ -1,0 +1,118 @@
+/* ==========================================================================
+   プレビュー／PDF 出力の役割分け（Design 41 案2・2026-11）
+   ========================================================================== */
+
+/* --- A：プレビュー・PDF 出力を開いている間は、社内の数字（合計バー）と ❓ を出さない --- */
+body:has(#previewOverlay.open) #e2Total,
+body:has(#quoteDocOverlay.open) #e2Total,
+body:has(#previewOverlay.open) #totFloat,
+body:has(#quoteDocOverlay.open) #totFloat,
+body:has(#previewOverlay.open) #fbQuickFab,
+body:has(#quoteDocOverlay.open) #fbQuickFab,
+body:has(#previewOverlay.open) #fbHelpCard,
+body:has(#quoteDocOverlay.open) #fbHelpCard,
+body:has(#previewOverlay.open) #fbFabHint,
+body:has(#quoteDocOverlay.open) #fbFabHint,
+body:has(#previewOverlay.open) #rmSheet,
+body:has(#quoteDocOverlay.open) #rmSheet,
+body:has(#previewOverlay.open) #quoteActionDock,
+body:has(#quoteDocOverlay.open) #quoteActionDock { display: none !important; }
+
+/* --- B／C：プレビューは表計算だけ（見積書レイアウトの切替・左の見出しは出さない） --- */
+#tab-quote-make #previewBox .pv-rail-head,
+#tab-quote-make #previewBox .pv-rail-grp:has(> .pv-rail-seg .pv-layout-btn) { display: none !important; }
+#tab-quote-make #previewBox #previewDocWrap,
+#tab-quote-make #previewBox #pvDateEdit { display: none !important; }
+
+/* --- I：ボタンは 副＝白地＋枠／主＝［PDF 出力］1 つ（右端）。並びは CSS の order だけ --- */
+#tab-quote-make #previewBox .pv-btns { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#tab-quote-make #previewBox .pv-btns > button,
+#tab-quote-make #previewBox .pv-btns .pv-btn-grp > button {
+  background: var(--surface, #fff) !important; color: var(--text, #101828) !important;
+  border: 1px solid #98a2b3 !important; border-radius: 6px; min-height: 36px; padding: 0 12px;
+  font-size: var(--text-sm, 13px); font-weight: 700; box-shadow: none;
+}
+#tab-quote-make #previewBox .pv-btns > .pv-btn-email-plain { order: 1; }
+#tab-quote-make #previewBox .pv-btns > .pv-btn-excel { order: 2; }
+#tab-quote-make #previewBox .pv-btns > .pv-btn-grp { order: 3; }
+#tab-quote-make #previewBox .pv-btns > .pv-btn-pdf {
+  order: 4; background: var(--text, #101828) !important; color: #fff !important; border-color: var(--text, #101828) !important;
+}
+#tab-quote-make #previewBox .pv-btns > .pv-btn-close { order: 5; }
+#tab-quote-make #previewBox .pv-btns > .pv-copy-msg { order: 6; }
+#tab-quote-make #previewBox .pv-meta-edit::after {
+  content: "① 基本と同じ値"; display: block; font-size: var(--text-xs, 12px); color: var(--text-sub, #5a6475); font-weight: 400; margin-top: 2px;
+}
+
+/* --- E：表計算の 2 段の見出し・凡例・小計行・合計 --- */
+#tab-quote-make .pv-head-legend { display: flex; gap: 14px; margin: 0 0 6px; font-size: var(--text-xs, 12px); color: var(--text-sub, #5a6475); }
+#tab-quote-make .pv-head-legend .pv-lg::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: -2px; }
+#tab-quote-make .pv-lg-pay::before  { background: #8a5a2b; }
+#tab-quote-make .pv-lg-bill::before { background: #1e7a4a; }
+#tab-quote-make .pv-lg-res::before  { background: #344054; }
+#tab-quote-make #previewTable thead tr.pv-hgrp th { font-size: var(--text-sm, 13px); font-weight: 700; color: #fff; text-align: center; padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,.35); }
+#tab-quote-make #previewTable thead tr.pv-hgrp th.pv-hg-item { background: #344054; }
+#tab-quote-make #previewTable thead tr.pv-hgrp th.pv-hg-pay  { background: #8a5a2b; }
+#tab-quote-make #previewTable thead tr.pv-hgrp th.pv-hg-bill { background: #1e7a4a; }
+#tab-quote-make #previewTable thead tr.pv-hgrp th.pv-hg-res  { background: #475467; }
+#tab-quote-make #previewTable thead tr:not(.pv-hgrp) th.ph-pay  { background: #a06a35 !important; color: #fff !important; }
+#tab-quote-make #previewTable thead tr:not(.pv-hgrp) th.ph-bill { background: #2b8a58 !important; color: #fff !important; }
+#tab-quote-make #previewTable tr.pv-subcon-subtotal td { background: #f7f1e3 !important; border-top: 1px solid #e3d3a8 !important; border-bottom: 1px solid #e3d3a8 !important; }
+#tab-quote-make #previewTable tr.pv-pattern-subtotal td { background: #faf6ec !important; }
+#tab-quote-make #previewTable tfoot tr.pv-total-ccy td { font-size: var(--text-xs, 12px); color: var(--text-sub, #5a6475); }
+#tab-quote-make #previewTable tfoot tr.pv-grand-total td { font-size: var(--text-lg, 16px); font-weight: 800; }
+
+/* --- F：御見積書の列幅（単価を折り返さない）・為替の注記を少し濃く --- */
+.qd-page .qd-items th.qd-item, .qd-page .qd-items td.qd-item { width: 42%; }
+.qd-page .qd-items thead th:nth-child(2) { width: 10%; }
+.qd-page .qd-items thead th:nth-child(3) { width: 10%; }
+.qd-page .qd-items thead th:nth-child(4) { width: 22%; }
+.qd-page .qd-items thead th:nth-child(5) { width: 16%; }
+.qd-page .qd-items td.qd-num { white-space: nowrap; }
+.qd-page .qd-fxnote { color: var(--doc-text-sub, #555) !important; }
+
+/* --- G：PDF 出力設定のパネル（見出し・押せない理由） --- */
+#quoteDocOverlay .qd-panel-foot { border-top: 0 !important; border-bottom: 1px solid rgba(255,255,255,.12); }
+#quoteDocOverlay .qd-sec-h { font-size: var(--text-xs, 12px); font-weight: 700; letter-spacing: .04em; opacity: .75; margin: 4px 0 -8px; }
+#quoteDocOverlay .qd-why { font-size: var(--text-xs, 12px); opacity: .8; margin-top: -12px; }
+
+/* --- D：確認ガイドを用紙の上の帯で出すとき（PDF 出力の画面の上に出す） --- */
+.pv-warn-guide.pv-wg-band { z-index: 10050 !important; }
+
+/* --- H：スマホ（〜600px） --- */
+.pv-set-btn, .qd-set-btn { display: none; }
+@media (max-width: 600px) {
+  /* プレビュー：表を先に。表示列・セクションのスイッチは［⚙ 設定］で下から出るシート */
+  #tab-quote-make #previewBox { display: flex; flex-direction: column; }
+  #tab-quote-make #previewBox .pv-main { order: 1; }
+  #tab-quote-make #previewBox .pv-rail { display: none !important; }
+  #tab-quote-make #previewBox.pv-rail-open .pv-rail {
+    display: flex !important; flex-direction: column !important; flex-wrap: nowrap !important;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10060; max-height: 70vh; overflow: auto;
+    background: var(--surface, #fff); border-radius: 14px 14px 0 0; box-shadow: 0 -8px 24px rgba(16,24,40,.22); padding: 16px;
+  }
+  #tab-quote-make #previewBox.pv-rail-open .pv-rail .pv-sw { min-height: 44px; }
+  #tab-quote-make #previewBox .pv-set-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border: 1px solid #98a2b3; border-radius: 6px; background: var(--surface, #fff); font-weight: 700; font-size: var(--text-sm, 13px); }
+  #tab-quote-make #previewBox .pv-main-head { flex-wrap: wrap; gap: 8px; }
+  #tab-quote-make #previewBox .pv-btns > button, #tab-quote-make #previewBox .pv-btns .pv-btn-grp > button { min-height: 44px; }
+
+  /* PDF 出力：御見積書を先に（画面幅に縮める）。設定はシート。下は［⚙ 設定］［PDF 出力］［閉じる］ */
+  #quoteDocOverlay .qd-shell { position: relative; }
+  #quoteDocOverlay .qd-stage { flex: 1 1 auto; padding: 12px 12px 88px !important; }
+  #quoteDocOverlay .qd-panel { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; width: auto !important; max-width: none !important; min-width: 0 !important; max-height: 70vh; border-radius: 14px 14px 0 0; }
+  #quoteDocOverlay .qd-panel:not(.qd-panel-open) .qd-panel-head,
+  #quoteDocOverlay .qd-panel:not(.qd-panel-open) .qd-panel-body { display: none !important; }
+  #quoteDocOverlay .qd-panel-foot { display: flex !important; flex-direction: row !important; gap: 8px; padding: 8px 12px !important; order: 9; }
+  #quoteDocOverlay .qd-panel-foot > button { flex: 1 1 0; min-height: 44px; margin: 0 !important; }
+  #quoteDocOverlay .qd-panel-foot > .qd-btn-print { flex: 1.6 1 0; }
+  #quoteDocOverlay .qd-set-btn { display: inline-flex; align-items: center; justify-content: center; }
+  #quoteDocOverlay .qd-panel.qd-panel-open .qd-panel-body .qd-toggle { min-height: 44px; }
+}
+@media print { #qdPreview { zoom: 1 !important; } }
+
+/* --- E（続き）：サブコン小計は、仕入合計を仕入の列・粗利率を利益の列へ --- */
+#tab-quote-make #previewTable .pv-scs-label--split .pv-scs-cost,
+#tab-quote-make #previewTable .pv-scs-label--split .pv-scs-margin { display: none; }
+#tab-quote-make #previewTable .pv-scs-costcol { color: #8a5a2b; font-weight: 700; white-space: nowrap; }
+#tab-quote-make #previewTable .pv-scs-marginv { display: block; font-size: var(--text-xs, 12px); font-weight: 400; color: var(--text-sub, #5a6475); white-space: nowrap; }
+#tab-quote-make #previewTable .pv-scs-marginv.pv-neg { color: #b42318; }
