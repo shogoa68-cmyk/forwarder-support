@@ -597,6 +597,12 @@
             });
           }
         });
+        // 統合中の行は塊（統合先＋統合元）ごと動かす
+        expanded.slice().forEach(r => {
+          if (r.dataset.type) return;
+          _unitNodes(r).forEach(n => { if (!addedIds.has(n.id)) { expanded.push(n); addedIds.add(n.id); } });
+        });
+        expanded.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1);
         dragSrcRows = expanded;
       } else {
         dragSrcRows = [tr];   // 小計・リマーク行は常に単独
@@ -844,13 +850,28 @@
     });
 
     childTrs.forEach(_mergeSnap);
+    // 統合元は統合先の直後にまとめ、サブコン・パターンも統合先に合わせる（統合中は 1 つの塊として動くため）
+    let alignedSv = false;
+    {
+      const psv = document.getElementById('sv-' + parentId)?.value || '', ppt = document.getElementById('pt-' + parentId)?.value || '';
+      let anchorNode = parentTr;
+      getChildRemarks(parentId).forEach(c => { anchorNode = c; });
+      childTrs.forEach(tr => {
+        const cid = tr.id.replace('row-', '');
+        const sEl = document.getElementById('sv-' + cid), tEl = document.getElementById('pt-' + cid);
+        if (sEl && (sEl.value || '') !== psv) { sEl.value = psv; alignedSv = true; }
+        if (tEl && (tEl.value || '') !== ppt) { tEl.value = ppt; alignedSv = true; }
+        [tr, ...getChildRemarks(cid)].forEach(n => { anchorNode.insertAdjacentElement('afterend', n); anchorNode = n; });
+      });
+      if (typeof renderSubconGroups === 'function') renderSubconGroups();
+    }
     refreshMergeBadges();
     updateTotals();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof quoteShowToast === 'function') {
       const label = (document.getElementById('nm-' + parentId)?.value || '').trim() || '（無題）';
       const warn = fxMissing ? '\n⚠️ 為替レート未取得の通貨があり、合算額がずれている可能性があります。確認してください' : '';
-      quoteShowToast('🔗 ' + childTrs.length + ' 行を「' + label + '」へ統合しました' + warn, fxMissing ? 'warn' : 'success', fxMissing ? 6000 : 3500);
+      quoteShowToast('🔗 ' + childTrs.length + ' 行を「' + label + '」へ統合しました（解除するまで 1 つの塊として動きます）' + (alignedSv ? '\n統合元のサブコン・パターンは統合先に合わせました' : '') + warn, fxMissing ? 'warn' : 'success', fxMissing ? 6000 : 3500);
     }
   }
   window.mergeSelectedRows = mergeSelectedRows;
@@ -1019,6 +1040,21 @@
     const run = e => { const tr = childOf(e); if (tr) syncMergedParent(tr); };
     tbody.addEventListener('input', run);
     tbody.addEventListener('change', run);
+    // 統合中の行のサブコン・パターンを変えたら、塊の全員に合わせる（別グループに分かれて塊が崩れないように）
+    tbody.addEventListener('change', e => {
+      const f = e.target && e.target.dataset && e.target.dataset.field;
+      if (f !== 'sv' && f !== 'pt') return;
+      const tr = e.target.closest('tr[id^="row-"]');
+      if (!tr || tr.dataset.type || !_mergeKeyOf(tr)) return;
+      const v = e.target.value;
+      let changed = false;
+      _unitNodes(tr).forEach(n => {
+        if (n.dataset.type || n === tr) return;
+        const el = document.getElementById(f + '-' + n.id.replace('row-', ''));
+        if (el && el.value !== v) { el.value = v; changed = true; }
+      });
+      if (changed && typeof renderSubconGroups === 'function') renderSubconGroups();
+    });
   })();
 
   // 明細行を同一グループ内で並べ替え（右カラム ジャンプタブのドラッグ用）。
@@ -1041,10 +1077,12 @@
     const tgt = document.getElementById('row-' + String(targetRowId).replace(/^row-/, ''));
     if (!src || !tgt || src === tgt) return false;
     if (!canMoveTableRowWithinGroup(srcRowId, targetRowId)) return false;
-    // src に付随する子リマーク行も一緒に運ぶ。挿入位置は tgt の前／後。
+    // src に付随する子リマーク行（統合中なら統合先・統合元の塊ごと）も一緒に運ぶ。挿入位置は tgt（の塊）の前／後。
     // （仮想行スキップは不要：renderSubconGroups が直後に仮想行を再構築するため）
-    const block = [src, ...getChildRemarks(src.id.replace('row-', ''))];
-    const anchor = placeAfter ? tgt.nextSibling : tgt;
+    const block = _unitNodes(src);
+    if (block.includes(tgt)) return false;
+    const tgtUnit = _unitNodes(tgt);
+    const anchor = placeAfter ? tgtUnit[tgtUnit.length - 1].nextSibling : tgtUnit[0];
     block.forEach(node => { tbody.insertBefore(node, anchor); });
     updateTotals();
     renderSubconGroups();
@@ -1585,6 +1623,32 @@
 
   function moveRow(tr, dir) {
     const tbody = document.getElementById('tableBody');
+    if (!tr.dataset.type && tr.id) {   // 明細行：統合中の塊も 1 つの単位として動かす
+      const unit = _unitNodes(tr);
+      const rowOf = n => (n.dataset.type === 'remark' && n.dataset.parentId) ? document.getElementById('row-' + n.dataset.parentId) : n;
+      if (dir < 0) {
+        let prev = unit[0].previousElementSibling;
+        while (prev && unit.includes(prev)) prev = prev.previousElementSibling;
+        while (prev?.dataset?.virtual) prev = prev.previousElementSibling;
+        if (prev) {
+          const pu = _unitNodes(rowOf(prev) || prev);
+          const anchor = pu[0];
+          unit.forEach(n => tbody.insertBefore(n, anchor));
+        }
+      } else {
+        let next = unit[unit.length - 1].nextElementSibling;
+        while (next && unit.includes(next)) next = next.nextElementSibling;
+        while (next?.dataset?.virtual) next = next.nextElementSibling;
+        if (next) {
+          const nu = _unitNodes(rowOf(next) || next);
+          const anchor = unit[0];
+          nu.forEach(n => tbody.insertBefore(n, anchor));
+        }
+      }
+      updateTotals();
+      renderSubconGroups();
+      return;
+    }
     // 詳細行の場合は子リマーク（data-parent-id が一致するリマーク行）を連動させる
     const rowId = tr.dataset.type ? null : tr.id.replace('row-', '');
     const children = rowId ? getChildRemarks(rowId) : [];
@@ -2032,6 +2096,10 @@
     if (pprateEl) pprateEl.oninput = () => _calcPct(id);
     const ppbaseEl = frag.querySelector('[data-field="ppbase"]');
     if (ppbaseEl) ppbaseEl.oninput = () => _calcPct(id);
+    const pickBtn = frag.querySelector('.ppref-pick');
+    if (pickBtn) pickBtn.onclick = e => { e.stopPropagation(); pprefStartPick(id); };
+    const whereBtn = frag.querySelector('.ppref-where-go');
+    if (whereBtn) whereBtn.onclick = e => { e.stopPropagation(); pprefShowRef(id); };
     const pprefSelEl = frag.querySelector('.w-ppref');
     if (pprefSelEl) {
       pprefSelEl.id = `pprefsel-${id}`;
@@ -3023,6 +3091,100 @@
     return null;
   }
 
+  // 参照行の見分けやすい名前：「品名（サブコン／パターン）」＝同じ品名が複数あっても区別できる
+  function _pprefLabel(rowId) {
+    const nm = document.getElementById(`nm-${rowId}`)?.value?.trim() || `行 ${rowId}`;
+    const sv = document.getElementById(`sv-${rowId}`)?.value?.trim() || '', pt = document.getElementById(`pt-${rowId}`)?.value?.trim() || '';
+    const where = [sv, pt].filter(Boolean).join('／');
+    return where ? `${nm}（${where}）` : nm;
+  }
+  // 参照先の表示（行の中の「参照：…」と 📍 ボタン）を更新
+  function _syncPprefWhere(id) {
+    const tr = document.getElementById(`row-${id}`);
+    const box = tr && tr.querySelector('.ppref-where');
+    if (!box) return;
+    const uid = document.getElementById(`ppref-${id}`)?.value || '';
+    const refId = uid ? _findRowIdByUid(uid) : null;
+    const txt = box.querySelector('.ppref-where-txt');
+    if (!uid) { box.hidden = true; if (txt) txt.textContent = ''; return; }
+    box.hidden = false;
+    if (txt) txt.textContent = refId ? '参照：' + _pprefLabel(refId) : '参照先の行が見つかりません';
+    box.classList.toggle('is-missing', !refId);
+  }
+  function _flashRow(tr) {
+    if (!tr) return;
+    try { tr.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+    tr.classList.remove('ppref-flash'); void tr.offsetWidth; tr.classList.add('ppref-flash');
+    setTimeout(() => tr.classList.remove('ppref-flash'), 2200);
+  }
+  function pprefShowRef(id) {
+    const uid = document.getElementById(`ppref-${id}`)?.value || '';
+    const refId = uid ? _findRowIdByUid(uid) : null;
+    if (!refId) { if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 参照先の行が見つかりません', 'warn', 2500); return; }
+    const tr = document.getElementById('row-' + refId);
+    if (tr && tr.offsetParent === null && typeof expandAllGroups === 'function') { try { expandAllGroups(); } catch (e) {} }
+    _flashRow(document.getElementById('row-' + refId));
+  }
+  window.pprefShowRef = pprefShowRef;
+
+  // 明細テーブルの行を直接クリックして、％の基準にする行を選ぶ
+  let _pprefPick = null;
+  function pprefEndPick() {
+    if (!_pprefPick) return;
+    const { onClick, onKey, banner } = _pprefPick;
+    document.removeEventListener('click', onClick, true);
+    document.removeEventListener('keydown', onKey, true);
+    document.body.classList.remove('ppref-picking');
+    document.querySelectorAll('#tableBody tr.ppref-cand, #tableBody tr.ppref-self').forEach(r => r.classList.remove('ppref-cand', 'ppref-self'));
+    if (banner) banner.remove();
+    _pprefPick = null;
+  }
+  function pprefStartPick(id) {
+    if (_pprefPick) pprefEndPick();
+    const selfTr = document.getElementById(`row-${id}`);
+    if (!selfTr) return;
+    // 統合元の行は統合先の中身なので選べない
+    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(r => {
+      if (r.dataset.type || r.dataset.virtual) return;
+      if (r === selfTr) r.classList.add('ppref-self');
+      else if (!r.dataset.mergedInto) r.classList.add('ppref-cand');
+    });
+    document.body.classList.add('ppref-picking');
+    const banner = document.createElement('div');
+    banner.id = 'pprefBanner';
+    banner.innerHTML = '<span>🎯 「' + String(_pprefLabel(id)).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])) + '」の％の基準にする明細行を、表の中でクリックしてください</span><button type="button" class="ppref-cancel">やめる（Esc）</button>';
+    (document.getElementById('tab-quote-make') || document.body).appendChild(banner);
+    banner.querySelector('.ppref-cancel').onclick = () => pprefEndPick();
+    const onClick = e => {
+      if (e.target.closest && e.target.closest('#pprefBanner')) return;
+      const tr = e.target.closest && e.target.closest('#tableBody tr[id^="row-"]');
+      if (!tr || tr.dataset.type || tr.dataset.virtual) return;   // 表の外・見出し行などは通常の操作のまま
+      e.preventDefault(); e.stopPropagation();
+      if (tr === selfTr) { if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 自分自身は基準にできません。ほかの行を選んでください', 'warn', 2500); return; }
+      if (tr.dataset.mergedInto) { if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 統合元の行は選べません（統合先の行を選んでください）', 'warn', 3000); return; }
+      const rid = tr.id.replace('row-', '');
+      const uid = document.getElementById(`uid-${rid}`)?.value;
+      if (!uid) return;
+      if (document.getElementById(`ppref-${rid}`)?.value === document.getElementById(`uid-${id}`)?.value) {
+        if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ その行はこの行を基準にしているため選べません（循環になります）', 'warn', 3500);
+        return;
+      }
+      const hid = document.getElementById(`ppref-${id}`);
+      if (hid) hid.value = uid;
+      pprefEndPick();
+      _populatePprefSelect(id);
+      _onPprefChange(id);
+      if (typeof quoteShowToast === 'function') quoteShowToast('🎯 基準を「' + _pprefLabel(rid) + '」にしました', 'success', 3000);
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); pprefEndPick(); } };
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('keydown', onKey, true);
+    _pprefPick = { onClick, onKey, banner };
+  }
+  window.pprefStartPick = pprefStartPick;
+  window.pprefEndPick = pprefEndPick;
+
   function _populatePprefSelect(id) {
     const sel = document.getElementById(`pprefsel-${id}`);
     const hid = document.getElementById(`ppref-${id}`);
@@ -3035,15 +3197,15 @@
       if (rowId === String(id)) return;
       const uid = tr.querySelector('[data-field="uid"]')?.value;
       if (!uid) return;
-      const nm = document.getElementById(`nm-${rowId}`)?.value?.trim() || `行 ${rowId}`;
       const opt = document.createElement('option');
       opt.value = uid;
-      opt.textContent = nm;
+      opt.textContent = _pprefLabel(rowId);
       sel.appendChild(opt);
     });
     sel.value = savedUid;
     const ppbaseEl = document.getElementById(`ppbase-${id}`);
     if (ppbaseEl) ppbaseEl.readOnly = !!sel.value;
+    _syncPprefWhere(id);
   }
   window._populatePprefSelect = _populatePprefSelect;
 
@@ -3051,6 +3213,7 @@
     const pprefUid = document.getElementById(`ppref-${id}`)?.value;
     const ppbaseEl = document.getElementById(`ppbase-${id}`);
     if (ppbaseEl) ppbaseEl.readOnly = !!pprefUid;
+    _syncPprefWhere(id);
     _calcPct(id);
   }
 
@@ -3331,6 +3494,33 @@
 
   // 明細行 id の直後に続く「子リマーク行」を順に返す。
   // data-parent-id が id に一致するリマーク行のみ対象（連続している間だけ）。
+  // ========== 統合中の行は「ブロック」で動く（統合を解除するまで・2026-11） ==========
+  // 統合先（親）と統合元（子）とそれぞれのリマーク行を 1 つの塊として扱う。
+  // どの行を動かしても（ドラッグ・▲▼・右パネルのドラッグ）塊ごと動く。
+  function _mergeKeyOf(row) {
+    if (!row || row.dataset.type || !row.id) return '';
+    if (row.dataset.mergedInto) return row.dataset.mergedInto;
+    const id = row.id.replace('row-', '');
+    const uid = document.getElementById('uid-' + id)?.value || id;
+    return document.querySelector('#tableBody tr[data-merged-into="' + (window.CSS && CSS.escape ? CSS.escape(uid) : uid) + '"]') ? uid : '';
+  }
+  function _unitNodes(row) {
+    if (!row) return [];
+    if (row.dataset.type || !row.id) return [row];
+    const key = _mergeKeyOf(row);
+    const rows = key
+      ? Array.from(document.querySelectorAll('#tableBody tr[id^="row-"]')).filter(r => {
+          if (r.dataset.type || r.dataset.virtual) return false;
+          if (r.dataset.mergedInto === key) return true;
+          return (document.getElementById('uid-' + r.id.replace('row-', ''))?.value || r.id.replace('row-', '')) === key && !r.dataset.mergedInto;
+        })
+      : [row];
+    const nodes = [];
+    rows.forEach(r => { nodes.push(r); getChildRemarks(r.id.replace('row-', '')).forEach(c => nodes.push(c)); });
+    return nodes;
+  }
+  window._mergeUnitNodes = _unitNodes;
+
   function getChildRemarks(parentId) {
     const result = [];
     const parentRow = document.getElementById(`row-${parentId}`);

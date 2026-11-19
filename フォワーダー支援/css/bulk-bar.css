@@ -58,3 +58,23 @@
 .cc3-rt-plan.is-adopt { background: #e3f4e8; color: #1d6a3a; }
 .cc3-rt-plan.is-reject { background: #f1f1f1; color: #6b7280; text-decoration: line-through; }
 .cc3-rt-segs { display: block; margin-top: 2px; color: var(--text-muted, #667); font-size: var(--text-xs, 12px); }
+
+
+/* ===== 統合中のブロック表示／％の基準行を表から選ぶ（2026-11） ===== */
+#tab-quote-make .ppref-pick { margin-left: 4px; padding: 2px 8px; font-size: var(--text-xs, 12px); border: 1px solid #2f5fb3; color: #1d3f7a; background: #eef3fb; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+#tab-quote-make .ppref-pick:hover { background: #dbe7fa; }
+#tab-quote-make .ppref-where { display: flex; flex-basis: 100%; align-items: center; gap: 6px; margin-top: 4px; font-size: var(--text-xs, 12px); color: #1d3f7a; }
+#tab-quote-make .ppref-where[hidden] { display: none; }
+#tab-quote-make .ppref-where.is-missing { color: #b42318; }
+#tab-quote-make .ppref-where-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; font-weight: 600; }
+#tab-quote-make .ppref-where-go { padding: 1px 6px; font-size: var(--text-xs, 12px); border: 1px solid #98a2b3; background: #fff; border-radius: 6px; cursor: pointer; }
+#pprefBanner { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); z-index: 1500; display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #1d3f7a; color: #fff; border-radius: 10px; box-shadow: 0 6px 24px rgba(16,24,40,.35); font-size: var(--text-sm, 13px); max-width: 92vw; }
+#pprefBanner .ppref-cancel { padding: 4px 10px; background: #fff; color: #1d3f7a; border: 0; border-radius: 6px; cursor: pointer; white-space: nowrap; font-size: var(--text-sm, 13px); }
+body.ppref-picking #tab-quote-make #tableBody tr.ppref-cand { cursor: pointer; }
+body.ppref-picking #tab-quote-make #tableBody tr.ppref-cand:hover > td { background: #fff6d6 !important; box-shadow: inset 0 2px 0 #e0a800, inset 0 -2px 0 #e0a800; }
+body.ppref-picking #tab-quote-make #tableBody tr.ppref-self { opacity: .55; }
+body.ppref-picking #tab-quote-make #tableBody tr:not(.ppref-cand) { cursor: not-allowed; }
+@keyframes pprefFlash { 0%, 60% { box-shadow: inset 0 0 0 3px #e0a800; background: #fff6d6; } 100% { box-shadow: inset 0 0 0 0 transparent; } }
+#tab-quote-make #tableBody tr.ppref-flash > td { animation: pprefFlash 2.2s ease-out; }
+/* 統合中の行：統合先と統合元は 1 つの塊（左に線）。解除するまで一緒に動く */
+#tab-quote-make #tableBody tr.row-merged-child > td:first-child { box-shadow: inset 4px 0 0 #7c52d1; }
