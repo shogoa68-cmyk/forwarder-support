@@ -13,6 +13,9 @@
  *
  *   ・--status を付けるとその状態だけ。省略時は全件（解決済み/対応しないは直近10件のみ表示）
  *   ・--json は整形せず JSON のまま出力
+ *   ・--recordings は、見張り番（js/bug-recorder.js）の「再現手順つき」の報告だけ（本文に【再現手順（自動記録）】がある）
+ *   ・--report 12 は、その 1 件（報告番号 #12）だけ。--raw を足すと本文だけを出す
+ *     （scripts/replay-recording.js へそのまま渡せる：… --report 12 --raw > 報告.txt）
  *   ・環境変数が無いときは使い方だけ表示して正常終了（CI を壊さない）
  *   ・秘密の値はコミットしない（SUPABASE_ANON_KEY は publishable key だが、トークンは秘密）
  */
@@ -51,6 +54,14 @@ async function main() {
   if (!Array.isArray(rows)) rows = [];
   const st = arg('--status', '');
   if (typeof st === 'string' && st) rows = rows.filter(r => (r.status || 'open') === st);
+  if (arg('--recordings', false)) rows = rows.filter(r => String(r.body || '').indexOf('【再現手順（自動記録）】') >= 0);
+  const one = arg('--report', '');
+  if (one && one !== true) {
+    const no = String(one).replace(/^#/, '');
+    rows = rows.filter(r => String(r.report_no) === no);
+    if (!rows.length) { console.error('報告 #' + no + ' は見つかりません'); process.exitCode = 1; return; }
+    if (arg('--raw', false)) { console.log(String(rows[0].body || '')); return; }
+  }
   if (arg('--json', false)) { console.log(JSON.stringify(rows, null, 2)); return; }
   console.log(FeedbackMd.toMarkdown(rows, { title: '不具合報告一覧（フォワーダー支援）' }));
 }

@@ -51,6 +51,10 @@
     if (ctx.browser) env.push(ctx.browser);
     if (ctx.theme) env.push('テーマ=' + ctx.theme);
     if (env.length) lines.push('- 環境: ' + env.join(' / '));
+    if (ctx.recording) {
+      var rc = ctx.recording;
+      lines.push('- 🔴 再現記録つき: ' + (rc.steps || 0) + '手順・' + (rc.seconds || 0) + '秒・目印' + (rc.marks || 0) + '・エラー' + (rc.errors || 0) + '（本文の「再現手順（自動記録）」。node scripts/replay-recording.js で自動再生できる）');
+    }
     var attN = r.attachment_count != null ? r.attachment_count : (Array.isArray(r.attachments) ? r.attachments.length : 0);
     if (attN) {
       var kinds = Array.isArray(r.attachments)
