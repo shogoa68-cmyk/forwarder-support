@@ -476,6 +476,8 @@ Free プランの転送量（月 5GB）を 2026-11 に超過した（7.48GB・3 
 - **今後の案**：担当の履歴の表示・複雑さのスコアと割り振りの提案・不良顧客（採算要確認）の管理者用の見方・リスト表示への担当の印。**サブ案件の廃止**（🌱 サブ作成の入口とメイン／サブの切替を隠す・データは残す）は方針として合意済みだが、このフォローの変更とは別に行う。
 - テストは `scripts/design-tests/follow-test.js`（偽の Supabase・編集ロックを RLS 風に再現・50 項目（既定の非表示 8 項目を含む。ほかは `fwd.follow=1` を立てて実行）：カード表示・帯の件数・絞り込み・宣言／引き継ぎ／割り当て／外す・申し送りの自動記録・ロック中の拒否・メニュー・保存の既定・コピー・自由入力の保管・編集画面の表示）。既定は Industry／`CLASSIC=1`／`W=390`。
 
+**ダッシュボードの未登録のお客様に「＋ マスター登録」のショートカット（2026-11・`cloud.js _custRegHtml`／`stats.js statsOpenRegister`）**：マスター登録済みのお客様は名前が詳細へのリンクになる（従来どおり）が、**マスターに無いお客様名**の横に「＋ マスター登録」のボタン（`.cust-reg-btn`・点線の小さなボタン）を出す。出す場所は案件カードの左ブロック（`_cc3Left`）とリスト表示・カードの「お客様 / 担当」（`_custNameHtml`）。押すと、**ダッシュボードのまま**種別＝お客様・名前入りの登録モーダル（既存の `#masterNewModal`・詳細の入力欄つき）が開き（`statsOpenRegister(field, value)`＝`statsMasterToggleRegister({field, value})`）、登録するとモーダルが閉じてダッシュボードが描き直され（`statsMasterCloseRegister` が `cloudRefreshDashList()` を呼ぶ）、同じお客様の全案件がリンクに変わる。**承認制のメンバー**はボタンが「📨 マスター申請」（押すと従来どおり申請になる）、**申請済み（承認待ち）**は押せない「📨 申請中」の印。**出さない場合**：登録済み（`statsMasterState==='master'`）・別名として登録済み（`nameCanon` が別の名前）・マスターが読み込み前／お客様のマスターが 1 件も無い間（`'unknown'`）・未ログイン・お客様名が空。SQL 不要・保存データの変更なし。CSS は `card-c3.css` 末尾の `.cust-reg-*`。テストは `scripts/design-tests/cust-register-test.js`（偽の Supabase・11 項目・既定は Industry／`CLASSIC=1`／`W=390`）。
+
 ## 🔖 チームブックマーク（全面クラウド移行・編集履歴）
 
 船会社／サブコンのリンクを `bookmarks` テーブルで一元管理（`js/bookmarks.js`・`#tab-bookmark`）。見積タブ右カラムの「🔖 ブックマーク」タブ（`renderQuoteBookmarkRail` / `#bmRailPanel`）に案件連動で表示。
