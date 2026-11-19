@@ -3540,7 +3540,7 @@
     const internalMk = SharedCalc.grossMarginPct(totalBillJPY + psBillJPY, totalCostJPY + psCostJPY);
     const psLines = hasPs
       ? `<div class="qsp-section-label">🤝 社内利益（PROFIT SHARE 込み）</div>
-         <div class="qsp-total-row"><span>代理店収益</span><span>¥${fmtJPY(psBillJPY)}</span></div>
+         <div class="qsp-total-row"><span>PS（代理店へ返す）</span><span>${psBillJPY - psCostJPY < 0 ? '−' : ''}¥${fmtJPY(Math.abs(psBillJPY - psCostJPY))}</span></div>
          <div class="qsp-profit-row ${internalProfit >= 0 ? 'qsp-profit-pos' : 'qsp-profit-neg'}"><span>社内利益</span><span>¥${fmtJPY(internalProfit)}</span></div>
          <div class="qsp-markup-row"><span>社内粗利率</span><span>${internalMk.toFixed(1)}%</span></div>`
       : '';

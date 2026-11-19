@@ -2256,6 +2256,9 @@
     // 独立モードなら仕入単価を売通貨へ換算し 10 単位で切り捨てた値。
     // 売値ベースモードでは売単価そのものが入力値のため上書きしない
     if (bpEl && !_isSellMode(id)) bpEl.value = _addPrice(parseFloat(bpEl.dataset.base) || 0, mk);
+    // PROFIT SHARE：代理店へ仕入の金額（最低料金を含む）を返す扱い。売には数字を入れない（売単価 0・売の小計 0）
+    // → 行の利益は −仕入（例：−EUR 40）で、社内利益（PS込み）から差し引く。売値ベースの入力値は toggleProfitShare が控えて戻す
+    if (bpEl && document.getElementById(`ps-${id}`)?.value === '1') bpEl.value = 0;
     const bp = val(`bp-${id}`);
     const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
     const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
@@ -2405,7 +2408,7 @@
     // 利益・粗利率は計算せず「—」にする。仕入のミニマムは従来どおり仕入側に効く（costAmt）。合計・診断など他の集計は従来どおり
     const _ppminV = parseFloat(document.getElementById(`ppmin-${id}`)?.value) || 0;
     const _bpminV = parseFloat(document.getElementById(`bpmin-${id}`)?.value) || 0;
-    const noProfitCalc = _ppminV > 0 && !(_bpminV > 0);
+    const noProfitCalc = _ppminV > 0 && !(_bpminV > 0) && document.getElementById(`ps-${id}`)?.value !== '1';   // PS の行は −仕入 をそのまま利益に出す
     if (trEl0) { if (noProfitCalc) trEl0.dataset.noProfit = '1'; else delete trEl0.dataset.noProfit; }
     if (noProfitCalc) {
       pr.innerHTML = '<div class="pr-main">—</div>';
@@ -2473,7 +2476,15 @@
     if (!psEl) return;
     psEl.value = psEl.value === '1' ? '' : '1';
     if (psEl.value === '1') _clearRowFlagsExcept(id, 'ps');
+    // 売値ベースの行は売単価が手入力のため、PS の間は控えておき、外したときに戻す（連動の行は calc が仕入＋乗せ幅で作り直す）
+    const tr = document.getElementById(`row-${id}`), bpEl = document.getElementById(`bp-${id}`);
+    if (tr && bpEl && _isSellMode(id)) {
+      if (psEl.value === '1') tr.dataset.psPrevBp = bpEl.value;
+      else if (tr.dataset.psPrevBp != null) { bpEl.value = tr.dataset.psPrevBp; delete tr.dataset.psPrevBp; }
+    }
+    if (psEl.value !== '1' && _isSellMode(id)) _calcFromSell(id);   // 乗せ幅を戻した売単価から算出し直す
     calc(id);
+    _recalcPctDependents(id);
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleProfitShare = toggleProfitShare;
@@ -3126,7 +3137,7 @@
         const mk = (window.SharedCalc ? SharedCalc.grossMarginPct(internalBill, totCostJPY + psCostJPY) : 0);
         const revEl = document.getElementById('tot-ps-rev');
         const prEl  = document.getElementById('tot-ps-profit');
-        if (revEl) revEl.textContent = '¥' + fmt(Math.round(psBillJPY));
+        if (revEl) { const n = Math.round(psBillJPY - psCostJPY); revEl.textContent = (n < 0 ? '−' : '') + '¥' + fmt(Math.abs(n)); }   // PS（代理店へ返す金額）はマイナス
         if (prEl) {
           prEl.innerHTML = '¥' + fmt(Math.round(internalProfit)) + `<small class="tot-margin">粗利 ${mk.toFixed(1)}%</small>`;
           prEl.className = `profit-cell pr-cell ${pClass(internalProfit)}`;

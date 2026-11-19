@@ -1,4 +1,4 @@
-// 行と計算の回帰試験（PS行のミニマム・除外グループの小計・行の移動とリマーク・複製の参考/概算）。架空データ・外部接続なし。
+// 行と計算の回帰試験（PS行＝代理店へ返す金額のミニマム・除外グループの小計・行の移動とリマーク・複製の参考/概算）。架空データ・外部接続なし。
 //   node scripts/design-tests/row-calc-test.js
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -36,13 +36,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
   }, [id, o]);
   const seqOf = () => p.evaluate(() => [...document.querySelectorAll('#tableBody tr:not([data-virtual])')].map(t => t.dataset.type === 'remark' ? 'R:' + t.dataset.parentId : 'row-' + t.id.replace('row-', '')));
 
-  // ---- 1. PROFIT SHARE 行にもミニマムが効く（社内利益の売上）----
+  // ---- 1. PROFIT SHARE 行（代理店へ仕入の金額を返す）：売は 0・仕入のミニマムが効き、マイナスで計上 ----
   const [a] = await ids();
   await setRow(a, { nm: 'PS fee', pq: '1', pp: '100', mk: '0', ppmin: '500', bpmin: '800' });
   await p.evaluate(id => { document.getElementById('ps-' + id).value = '1'; calc(parseInt(id)); updateTotals(); }, a);
   await p.waitForTimeout(100);
   const ps = await p.evaluate(() => document.getElementById('tot-ps-rev')?.textContent || '');
-  ok('PS行の売上にミニマム(800)が効く', /800/.test(ps), ps);
+  ok('PS行は売に数字を入れず、仕入のミニマム(500)をマイナスで計上', /^−¥500$/.test(ps.trim()), ps);
 
   // ---- 2. 除外グループの行は手動小計に入らない ----
   await p.evaluate(id => { document.getElementById('ps-' + id).value = ''; }, a);
