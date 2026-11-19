@@ -843,6 +843,7 @@
       if (chk) chk.checked = false;   // 統合後は選択状態を解除（選択ツールバーの誤操作防止）
     });
 
+    childTrs.forEach(_mergeSnap);
     refreshMergeBadges();
     updateTotals();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -949,6 +950,76 @@
     });
   }
   window.refreshMergeBadges = refreshMergeBadges;
+
+  // ========== 統合元の金額を変えたら、統合先へも反映する（連動・2026-11） ==========
+  // 統合先の仕入・乗せ幅は「統合先＋統合元」の合計。統合元の数量・単価・通貨・乗せ幅・MINを変えると、
+  // 変える前後の差（円換算せず統合先の通貨へ換算）を統合先の仕入単価・乗せ幅へ足し引きする。
+  // 差分方式なので、統合後に統合先を手で直していても、その調整は消えない。
+  // 変える前の値は「入力欄に焦点が入った時点」（focusin）と統合した時点で、統合元の行に控える（dataset.mergeContrib）。
+  function _mergeContribOf(tr) {
+    const id = tr.id.replace('row-', '');
+    const pq = val('pq-' + id), pp = val('pp-' + id), bq = val('bq-' + id), bp = val('bp-' + id);
+    return {
+      cost: applyRowMin(pq * pp, id, 'cost'),
+      bill: applyRowMin(bq * bp, id, 'sell'),
+      pc: document.getElementById('pc-' + id)?.value || 'JPY',
+      bc: document.getElementById('bc-' + id)?.value || 'JPY',
+    };
+  }
+  function _mergeSnap(tr) {
+    try { tr.dataset.mergeContrib = JSON.stringify(_mergeContribOf(tr)); } catch (e) {}
+  }
+  function _mergeConv(amount, from, to) {
+    if (from === to) return amount;
+    const a = from === 'JPY' ? 1 : toJPY(1, from), b = to === 'JPY' ? 1 : toJPY(1, to);
+    if (!(a > 0) || !(b > 0) || isNaN(a) || isNaN(b)) return NaN;
+    return amount * a / b;
+  }
+  function syncMergedParent(childTr) {
+    if (!childTr || !childTr.dataset.mergedInto) return;
+    let old; try { old = JSON.parse(childTr.dataset.mergeContrib || 'null'); } catch (e) { old = null; }
+    const now = _mergeContribOf(childTr);
+    if (!old) { childTr.dataset.mergeContrib = JSON.stringify(now); return; }
+    if (old.cost === now.cost && old.bill === now.bill && old.pc === now.pc && old.bc === now.bc) return;
+    const parentTr = Array.from(document.querySelectorAll('#tableBody tr[id^="row-"]'))
+      .find(t => !t.dataset.type && (document.getElementById('uid-' + t.id.replace('row-', ''))?.value || t.id.replace('row-', '')) === childTr.dataset.mergedInto);
+    if (!parentTr) return;
+    const pid = parentTr.id.replace('row-', '');
+    const pcEl = document.getElementById('pc-' + pid), bcEl = document.getElementById('bc-' + pid);
+    const ppEl = document.getElementById('pp-' + pid), mkEl = document.getElementById('mk-' + pid);
+    if (!pcEl || !ppEl || !mkEl) return;
+    const pCcy = pcEl.value || 'JPY', bCcy = (bcEl && bcEl.value) || pCcy;
+    if (parentTr.dataset.bcIndep || pCcy !== bCcy) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 統合先の仕入・売の通貨が別になっているため、統合先へは自動で反映しませんでした', 'warn', 4500);
+      childTr.dataset.mergeContrib = JSON.stringify(now);
+      return;
+    }
+    const costD = _mergeConv(now.cost, now.pc, pCcy) - _mergeConv(old.cost, old.pc, pCcy);
+    const billD = _mergeConv(now.bill, now.bc, pCcy) - _mergeConv(old.bill, old.bc, pCcy);
+    if (isNaN(costD) || isNaN(billD)) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 為替レートが未取得の通貨があるため、統合先へは反映できませんでした', 'warn', 4500);
+      return;
+    }
+    const pq = val('pq-' + pid) || 1;
+    const rnd = v => pCcy === 'JPY' ? Math.round(v) : Math.round(v * 100) / 100;
+    ppEl.value = rnd(val('pp-' + pid) + costD / pq);
+    mkEl.value = rnd(val('mk-' + pid) + (billD - costD) / pq);
+    onPay(pid);
+    childTr.dataset.mergeContrib = JSON.stringify(now);
+    updateTotals();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.syncMergedParent = syncMergedParent;
+  (function wireMergeSync() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody || tbody.dataset.mergeSyncWired) return;
+    tbody.dataset.mergeSyncWired = '1';
+    const childOf = e => { const tr = e.target && e.target.closest && e.target.closest('tr[id^="row-"]'); return tr && tr.dataset.mergedInto ? tr : null; };
+    tbody.addEventListener('focusin', e => { const tr = childOf(e); if (tr) _mergeSnap(tr); });
+    const run = e => { const tr = childOf(e); if (tr) syncMergedParent(tr); };
+    tbody.addEventListener('input', run);
+    tbody.addEventListener('change', run);
+  })();
 
   // 明細行を同一グループ内で並べ替え（右カラム ジャンプタブのドラッグ用）。
   // グループ跨ぎ（サブコン/パターンが異なる移動）はテーブル本体のドラッグと同じく禁止し false を返す。
