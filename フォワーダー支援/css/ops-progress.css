@@ -402,3 +402,12 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .ops-card { grid-column: 2 / sp
 .opt-dl-case .opt-kind { align-self: flex-start; }
 .opt-dl-row { grid-template-columns: 120px 190px 1fr 1fr auto; }
 @media (max-width: 760px) { .opt-dl-row { grid-template-columns: 96px 1fr; } }
+/* 🛰 COLINS の日付の候補 */
+.opm-dl-cand { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 8px; border-radius: 6px; background: #eef3fb; color: #1d4f91; font-size: var(--text-sm, 13px); }
+.opm-dl-cand > span { display: flex; flex-direction: column; flex: 1 1 260px; }
+.opm-dl-cand small { color: var(--text-md, #475467); font-size: var(--text-xs, 12px); }
+.opm-dl-cand.is-same { background: transparent; padding: 0; }
+.opt-dl-h.is-cand { color: #1d4f91; flex-wrap: wrap; }
+.opt-dl-h small { font-weight: 400; color: var(--text-muted, #667085); font-size: var(--text-xs, 12px); }
+.opt-dl-row.is-cand { background: #f2f6fc; box-shadow: inset 3px 0 0 #2f5fb3; }
+.opt-cand-n { margin-left: 6px; padding: 0 6px; border-radius: 999px; background: #2f5fb3; color: #fff; font-style: normal; font-size: var(--text-xs, 12px); }
