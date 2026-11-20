@@ -205,6 +205,36 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const mine = await p.evaluate(() => [...document.querySelectorAll('#opsRoot .opt-row')].map(e => e.textContent.replace(/\s+/g, ' ')));
   ok('「👤 自分の担当」で自分が担当の作業がある進行だけ', mine.length === 1 && /輸出FCL案件/.test(mine[0]), mine);
   ok('一覧の行にいちばん早い締め切りの札（過ぎた ETD）', /📅 ETD（出港予定日）/.test(mine[0] || ''), mine[0]);
+  // ---- 🛰 COLINS の日付を締め切りの候補に ----
+  const d3 = await iso(3), d5 = await iso(5);
+  await p.evaluate(([a, b]) => {
+    const t = new Date(); t.setDate(t.getDate() + 2);
+    const utc = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0') + 'T20:00:00Z';   // 日本では 3 日後の朝 5 時
+    window.__db.cp_watch_targets = [{ preset_id: 'B1', direction: 'export', source: 'case', trace: true, state: 'active', snapshot: [
+      { k: 'v:ONE HARMONY|012E:cyCut', scope: '本船 ONE HARMONY 012E', label: 'CYカット', val: utc, cat: 'date' },
+      { k: 'v:ONE HARMONY|012E:pol:etd', scope: '本船 ONE HARMONY 012E', label: 'TOKYO 出港 予定(ETD)', val: b.replace(/-/g, ''), cat: 'date' },
+    ] }];
+  }, [d3, d5]);
+  await p.evaluate(() => window.opsAutoSync()); await p.waitForTimeout(800);
+  await p.evaluate(() => window.opsGoTab('dl')); await p.waitForTimeout(600);
+  const cands = await p.evaluate(() => ({ h: (document.querySelector('#opsRoot .opt-dl-h.is-cand') || {}).textContent || '', rows: [...document.querySelectorAll('#opsRoot .opt-dl-row.is-cand')].map(e => e.textContent.replace(/\s+/g, ' ')), tile: (document.querySelector('#opsRoot .opt-tile[data-f="dl"]') || {}).textContent || '' }));
+  ok('進行管理の締め切りに「🛰 COLINS に新しい日付があります 2」', /COLINS に新しい日付があります 2/.test(cands.h) && /🛰 2/.test(cands.tile), cands);
+  ok('候補は日本の日付に直す（UTC 20 時＝翌日）・CY カットと ETD', cands.rows.some(t => t.startsWith(+d3.slice(5,7) + '/' + +d3.slice(8)) && /CY カット/.test(t)) && cands.rows.some(t => /ETD/.test(t)), cands.rows);
+  await p.evaluate(() => window.opsOpen('B1')); await p.waitForTimeout(500);
+  const cd = await p.evaluate(() => [...document.querySelectorAll('#opmModal .opm-dl-cand')].map(e => e.textContent.replace(/\s+/g, ' ')));
+  ok('チェックリストの締め切りに「🛰 COLINS の日付が違います」と出どころ', cd.some(t => /COLINS の日付が違います/.test(t) && /CYカット（本船 ONE HARMONY 012E）/.test(t)), cd);
+  ok('勝手には書き換えない', (await ops(p, 'B1')).dl.find(d => d.k === 'cy_cut').d === tmr);
+  await p.evaluate(() => { const b = [...document.querySelectorAll('#opmModal [data-opm="dlapply"]')][0]; b.click(); }); await p.waitForTimeout(700);
+  o = await ops(p, 'B1');
+  const cy2 = o.dl.find(d => d.k === 'cy_cut'), van2 = o.s.find(s => /バンニング/.test(s.l));
+  ok('［反映する］で COLINS の日付が入り、つないだ作業の期限も追う', cy2.d === d3 && van2.due === d3, { cy2, due: van2.due });
+  ok('申し送りに「COLINS の日付を反映・前は …」', (await p.evaluate(() => window.__db.quote_comments.map(c => c.body))).some(t => /COLINS の日付を反映・前は/.test(t)));
+  ok('反映後は「COLINS と同じ日付」', await p.evaluate(() => [...document.querySelectorAll('#opmModal .opm-dl-cand.is-same')].some(e => /CYカット/.test(e.textContent))));
+  await p.evaluate(() => { const b = [...document.querySelectorAll('#opmModal [data-opm="dlignore"]')][0]; b.click(); }); await p.waitForTimeout(700);
+  o = await ops(p, 'B1');
+  const etd2 = o.dl.find(d => d.k === 'etd');
+  ok('［このままにする］で日付は変えず、同じ候補は出さない', etd2.d !== d5 && etd2.cx === d5 && !(await p.evaluate(() => document.querySelector('#opmModal [data-opm="dlapply"]'))), etd2);
+  await click(p, '#opmModal [data-opm="close"]'); await p.waitForTimeout(200);
   ok('ページのエラーなし', errs.length === 0, errs);
   await ctx.close();
   // ---- 表が無いとき ----
