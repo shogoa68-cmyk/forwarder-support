@@ -206,6 +206,7 @@
       if (v == null || v === '' || (Array.isArray(v) && !v.length)) return;
       let t;
       if (sc.contacts) t = v.map(c => [c.name, c.dept, c.phone, c.email].filter(Boolean).join(' ')).join(' ／ ');
+      else if (sc.sites) t = v.map(c => [c.name, c.kind, c.address].filter(Boolean).join(' ')).join(' ／ ');
       else if (sc.areas) t = v.map(k => window.areaLabel ? window.areaLabel(k) : k).join('、');
       else if (sc.country) t = window.countryLabel ? window.countryLabel(v) : v;
       else t = Array.isArray(v) ? v.join('、') : String(v);
@@ -589,6 +590,13 @@
     const chips = [];
     schema.forEach(s => {
       const raw = details[s.key];
+      if (s.sites) {
+        const list = Array.isArray(raw) ? raw.filter(c => c && (c.name || c.address)) : [];
+        if (!list.length) return;
+        const tip = list.map(c => '・' + [c.name, c.kind, c.address, c.terms].filter(Boolean).join(' / ')).join('\n');
+        chips.push(`<span class="stats-md-chip" title="${_eav(s.label + '：' + list.length + '件\n' + tip)}"><b>${_esc(s.label)}</b>📍 ${list.length}件</span>`);
+        return;
+      }
       if (s.contacts) {
         const list = typeof window.mdContactsOf === 'function' ? window.mdContactsOf(details) : (Array.isArray(raw) ? raw : []);
         if (!list.length) return;
@@ -3463,6 +3471,29 @@
     tmp.innerHTML = _mdContactRowHtml({});
     wrap.appendChild(tmp.firstElementChild);
   };
+  // 倉庫・配送先（お客様の拠点を複数件。名称・種別・住所・現地担当・電話・受入条件・備考）
+  const _SITE_KINDS = ['倉庫', '配送先', '工場', '通関先', 'その他'];
+  function _mdSiteRowHtml(c) {
+    c = c || {};
+    const opts = _SITE_KINDS.map(k => `<option value="${_eav(k)}"${c.kind === k ? ' selected' : ''}>${_esc(k)}</option>`).join('');
+    return `<div class="md-site-row">` +
+      `<input type="text" class="ar-input md-site-name" placeholder="名称（例：川崎倉庫・○○物流センター）" value="${_eav(c.name || '')}">` +
+      `<select class="ar-input md-site-kind" title="種別">${opts}</select>` +
+      `<input type="text" class="ar-input md-site-addr" placeholder="住所" value="${_eav(c.address || '')}">` +
+      `<input type="text" class="ar-input md-site-contact" placeholder="現地担当者" value="${_eav(c.contact || '')}">` +
+      `<input type="text" class="ar-input md-site-phone" placeholder="電話番号" value="${_eav(c.phone || '')}">` +
+      `<input type="text" class="ar-input md-site-terms" placeholder="受入条件（例：受入 9-17時・予約要・11tまで・フォークリフト有）" value="${_eav(c.terms || '')}">` +
+      `<input type="text" class="ar-input md-site-note" placeholder="備考" value="${_eav(c.note || '')}">` +
+      `<button type="button" class="md-contact-del" title="この拠点を削除" onclick="this.closest('.md-site-row').remove()">✕</button>` +
+      `</div>`;
+  }
+  window.statsAddSiteRow = function (containerId) {
+    const wrap = document.getElementById(containerId);
+    if (!wrap) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = _mdSiteRowHtml({});
+    wrap.appendChild(tmp.firstElementChild);
+  };
   // 得意エリアの入力（国内の地方／海外の小地域をボタンで選び、個別の国は候補から追加）
   function _mdAreaChipHtml(key) { return `<span class="stats-md-tag-chip stats-md-area-chip" data-area="${_eav(key)}">${_esc(window.areaLabel(key))}<button type="button" onclick="var w=this.closest('.master-detail-areas');this.parentElement.remove();statsSyncAreas(w)">✕</button></span>`; }
   window.statsSyncAreas = function (box) {
@@ -3595,6 +3626,14 @@
           `<span class="master-detail-contacts-label">${s.label}</span>` +
           `<div id="${id}" class="master-contacts-editor">${list.map(_mdContactRowHtml).join('')}</div>` +
           `<button type="button" class="master-contact-add" onclick="statsAddContactRow('${id}')">＋ 担当者を追加</button>` +
+          `</div>`;
+      }
+      if (s.sites) {
+        const list = Array.isArray(details[s.key]) && details[s.key].length ? details[s.key] : [{}];
+        return `<div class="master-detail-contacts master-detail-sites">` +
+          `<span class="master-detail-contacts-label">${s.label}</span>` +
+          `<div id="${id}" class="master-contacts-editor">${list.map(_mdSiteRowHtml).join('')}</div>` +
+          `<button type="button" class="master-contact-add" onclick="statsAddSiteRow('${id}')">＋ 拠点を追加</button>` +
           `</div>`;
       }
       if (s.areas) return _mdAreasEditorHtml(id, s, Array.isArray(details[s.key]) ? details[s.key] : []);
@@ -3753,6 +3792,17 @@
           dept: row.querySelector('.md-contact-dept')?.value.trim() || '',
           title: row.querySelector('.md-contact-title')?.value.trim() || '',
         })).filter(c => c.name || c.furigana || c.phone || c.email || c.other || c.location || c.dept || c.title);
+        if (rows.length) details[s.key] = rows;
+        return;
+      }
+      if (s.sites) {
+        const wrap = document.getElementById(id);
+        if (!wrap) return;
+        const q = (row, c) => row.querySelector(c)?.value.trim() || '';
+        const rows = Array.from(wrap.querySelectorAll('.md-site-row')).map(row => ({
+          name: q(row, '.md-site-name'), kind: q(row, '.md-site-kind'), address: q(row, '.md-site-addr'),
+          contact: q(row, '.md-site-contact'), phone: q(row, '.md-site-phone'), terms: q(row, '.md-site-terms'), note: q(row, '.md-site-note'),
+        })).filter(c => c.name || c.address || c.contact || c.phone || c.terms || c.note);
         if (rows.length) details[s.key] = rows;
         return;
       }

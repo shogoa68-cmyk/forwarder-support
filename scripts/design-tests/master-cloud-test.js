@@ -962,7 +962,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // タブ化（Design 回答 2026-11・案1）
     const vis2 = sel => p.evaluate(x => { const e = document.querySelector(x); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, sel);
     ok(L + '[タブ] 上に基本情報（ふりがな・英語名称・取引形態）が常に見える', await vis2('#mdDetailModal #md_furigana') && await vis2('#mdDetailModal #md_enName') && await vis2('#mdDetailModal #md_dealType'));
-    ok(L + '[タブ] 6 つのタブ（担当者／会社の詳細・タグ／顧客カルテ／取引ルール／ニュース／メモ・添付）', (await p.$$eval('#mdDetailModal .mt-tab', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim().replace(/\s*\d.*$/, '')))).join('|').startsWith('担当者|会社の詳細・タグ|顧客カルテ|取引ルール|ニュース|メモ・添付'));
+    ok(L + '[タブ] 7 つのタブ（担当者／倉庫・配送先／会社の詳細・タグ／顧客カルテ／取引ルール／ニュース／メモ・添付）', (await p.$$eval('#mdDetailModal .mt-tab', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim().replace(/\s*\d.*$/, '')))).join('|').startsWith('担当者|倉庫・配送先|会社の詳細・タグ|顧客カルテ|取引ルール|ニュース|メモ・添付'));
     ok(L + '[タブ] 最初は担当者タブ（担当者の入力欄が見え、メモ欄は見えない）', await vis2('#mdDetailModal .md-contact-name') && !(await vis2('#mdDetailModal #md_memo')));
     ok(L + '[タブ] 担当者タブの要約に「1名」', (await p.textContent('#mdDetailModal .mt-tab[data-mt="people"] .mt-sum')).includes('1名'));
 
@@ -1510,6 +1510,39 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => statsMasterSetQuery('')); await p.waitForTimeout(300);
     await p.evaluate(() => statsMasterSetQuery('新規のお客様')); await p.waitForTimeout(500);
     await p.evaluate(() => statsMasterSetQuery('')); await p.waitForTimeout(200);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== お客様の「倉庫・配送先」 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[倉庫・配送先] ';
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'customer', value: '拠点のお客様', voter_email: 's@example.com' });
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="拠点のお客様"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    ok(L + 'タブ「倉庫・配送先」がある', await p.evaluate(() => !!document.querySelector('.mt-tab[data-mt="sites"]')));
+    await p.evaluate(() => document.querySelector('.mt-tab[data-mt="sites"]').click());
+    await p.fill('#md_sites .md-site-name', '川崎倉庫');
+    await p.selectOption('#md_sites .md-site-kind', '倉庫');
+    await p.fill('#md_sites .md-site-addr', '神奈川県川崎市川崎区1-2-3');
+    await p.fill('#md_sites .md-site-terms', '受入 9-17時・予約要');
+    await p.click('button.master-contact-add[onclick*="statsAddSiteRow"]');
+    ok(L + '「＋ 拠点を追加」で行が増える', await p.evaluate(() => document.querySelectorAll('#md_sites .md-site-row').length === 2));
+    await p.click('.master-detail-save'); await p.waitForTimeout(800);
+    ok(L + '空の行は保存されず、1 件だけ保存される', await p.evaluate(() => { const d = (window.__db.master_details.find(m => m.value === '拠点のお客様') || { details: {} }).details; return Array.isArray(d.sites) && d.sites.length === 1 && d.sites[0].name === '川崎倉庫' && d.sites[0].kind === '倉庫' && d.sites[0].terms === '受入 9-17時・予約要'; }));
+    ok(L + '一覧に「倉庫・配送先 📍 1件」の印', await p.evaluate(() => { const c = document.querySelector('#statsPane-master tr[data-mvalue="拠点のお客様"]'); return !!c && /倉庫・配送先/.test(c.textContent) && /1件/.test(c.textContent); }));
+    await p.evaluate(() => statsMasterSetQuery('川崎倉庫')); await p.waitForTimeout(500);
+    ok(L + '拠点名の検索でお客様が見つかる', await p.evaluate(() => !!document.querySelector('#statsPane-master tr[data-mvalue="拠点のお客様"]')));
+    await p.evaluate(() => statsMasterSetQuery('')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="拠点のお客様"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    await p.evaluate(() => document.querySelector('.mt-tab[data-mt="sites"]').click());
+    ok(L + '開き直すと復元される', await p.evaluate(() => document.querySelector('#md_sites .md-site-name').value === '川崎倉庫' && document.querySelector('#md_sites .md-site-kind').value === '倉庫'));
+    ok(L + 'タブの要約が「1件」', await p.evaluate(() => /1件/.test(document.querySelector('.mt-tab[data-mt="sites"] .mt-sum').textContent)));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

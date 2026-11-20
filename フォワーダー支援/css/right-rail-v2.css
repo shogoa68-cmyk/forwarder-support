@@ -223,3 +223,7 @@ html.editor-v2 #tab-quote-make .qrc-drawer { height: auto; min-height: 0; }
 .qsp-grp-menu { position: fixed; z-index: 1400; width: 150px; padding: 4px; background: #fff; border: 1px solid #e4e7ec; border-radius: 8px; box-shadow: 0 6px 20px rgba(16,24,40,.18); display: flex; flex-direction: column; }
 .qsp-grp-menu button { height: 36px; border: 0; background: transparent; text-align: left; padding: 0 10px; font: inherit; font-size: 13px; border-radius: 6px; cursor: pointer; }
 .qsp-grp-menu button:hover { background: #f2f4f7; }
+
+/* ❓（困ったとき）はレールの下端（レールの一部として・44px の丸）。引き出しの外に浮かばない */
+#tab-quote-make #qrcRail > #fbQuickFab.fb-in-rail { position: static; right: auto; bottom: auto; width: 44px; height: 44px; margin: 8px 0 2px; line-height: 42px; font-size: 20px; opacity: 1; flex: 0 0 auto; z-index: auto; border-color: var(--rr-line); color: var(--rr-ink-2); }
+#tab-quote-make #qrcRail > #fbQuickFab.fb-in-rail:hover { background: var(--rr-face); transform: none; }
