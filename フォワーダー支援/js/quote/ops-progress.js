@@ -1372,7 +1372,7 @@
     const all = idKeysAll(kind, id), old = all[n] || {}, before = JSON.stringify(old);
     const clean = { bl: normId(k.bl), bk: normId(k.bk), ctn: ctnList(k.ctn).join(' ') };
     // 本船名・船会社は、渡されたときだけ書き換える（追いかけ登録など、3 つの番号だけ渡す呼び出しで消さない）
-    const vs = 'vs' in k ? vsNorm(k.vs) : (old.vs || ''), cr = 'cr' in k ? String(k.cr || '') : (old.cr || '');
+    const vs = 'vs' in k ? vsNorm(k.vs) : (old.vs || ''), cr = 'cr' in k ? String(k.cr || '').normalize('NFKC').trim().replace(/\s+/g, ' ').slice(0, 60) : (old.cr || '');
     if (vs) clean.vs = vs; if (cr) clean.cr = cr;
     if (clean.bl || clean.bk || clean.ctn || clean.vs || clean.cr) all[n] = clean; else delete all[n];
     if (JSON.stringify(all[n] || {}) === before) return true;
@@ -1395,14 +1395,64 @@
   // 外部のページを新しいタブで開くだけ（アプリからは何も送らない）。番号を URL で受けない船会社は、開くときに番号をコピーする。
   const CR = () => (typeof CARRIERS !== 'undefined' && CARRIERS) ? CARRIERS : {};
   const crNorm = s => String(s || '').normalize('NFKC').toLowerCase().replace(/[^a-z0-9ぁ-んァ-ヶ一-龠]/g, '');
-  function trkCarrierOpts(cur) {
-    const ks = Object.keys(CR()).filter(k => typeof CR()[k].tracking === 'function' || typeof CR()[k].vessel === 'function');
-    return '<option value="">（自動で推測）</option>' + ks.map(k => '<option value="' + esc(k) + '"' + (k === cur ? ' selected' : '') + '>' + esc(k) + '</option>').join('');
+  // 船会社の欄の候補：マスター管理のサブコンのうち、種別がキャリア系（FCL／LCL／AIR／RORO／在来船 CARRIER）のもの（alias-rules.js mdCarrierNames）。
+  // マスターに無い名前も自由に入力できる（その場合は「マスターに登録／申請」を出す）
+  function crListSync() {
+    let dl = $('oidCrList');
+    if (!dl) { dl = document.createElement('datalist'); dl.id = 'oidCrList'; document.body.appendChild(dl); }
+    const names = typeof window.mdCarrierNames === 'function' ? window.mdCarrierNames() : [];
+    const key = names.join('\n'); if (dl.dataset.key === key) return;
+    dl.dataset.key = key; dl.innerHTML = names.map(n => '<option value="' + esc(n) + '"></option>').join('');
   }
-  function crFromName(name) {
+  // 正式名でよく使う名前 → data/carriers.js の名前（トラッキングの URL を持つ表）
+  const CR_ALIAS = { mediterraneanshipping: 'MSC', oceannetworkexpress: 'ONE', オーシャンネットワークエクスプレス: 'ONE', hyundaimerchantmarine: 'HMM', orientoverseas: 'OOCL',
+    pacificinternationallines: 'PIL', koreamarinetransport: 'KMTC', マースク: 'Maersk', エバーグリーン: 'Evergreen', ハパックロイド: 'Hapag-Lloyd', ヤンミン: 'Yang Ming' };
+  function crKeyOf(name) {
     const n = crNorm(name); if (!n) return '';
     const ks = Object.keys(CR());
-    return ks.find(k => crNorm(k) === n) || ks.find(k => crNorm(k).length >= 3 && n.indexOf(crNorm(k)) === 0) || '';
+    const hit = ks.find(k => crNorm(k) === n) || ks.find(k => crNorm(k).length >= 3 && n.indexOf(crNorm(k)) === 0);
+    if (hit) return hit;
+    const a = Object.keys(CR_ALIAS).find(x => n.indexOf(crNorm(x)) === 0);
+    return a && CR()[CR_ALIAS[a]] ? CR_ALIAS[a] : '';
+  }
+  // マスターの別名・代表名も順に試す（例：マスター名「OCEAN NETWORK EXPRESS」・別名「ONE」）
+  function crFromName(name) {
+    const vs = typeof window.nameVariants === 'function' ? window.nameVariants('sv', name) : [name];
+    for (const v of [name].concat(vs)) { const k = crKeyOf(v); if (k) return k; }
+    return '';
+  }
+  const crCanon = v => (typeof window.nameCanon === 'function' ? window.nameCanon('sv', v) : v) || v;
+  // マスターの状態：'master'／'pending'（申請中）／'none'（未登録）／'unknown'（判定しない）
+  const crState = v => !v ? 'unknown' : typeof window.statsMasterState === 'function' ? window.statsMasterState('sv', crCanon(v)) : 'unknown';
+  function crMarkHtml(n, v, ro) {
+    const st = crState(v);
+    if (st === 'pending') return '<span class="oid-cr-mark is-pending">📨 マスター申請中（管理者の承認待ち）</span>';
+    if (st !== 'none') return '';
+    const req = typeof window.statsIsApprovalOn === 'function' && window.statsIsApprovalOn();
+    return '<span class="oid-cr-mark is-none">⚠ マスターに未登録' + (ro ? '' : '<button type="button" class="opm-link" data-oid="crreg" data-n="' + n + '">' + (req ? '📨 マスター登録を申請' : '☆ マスターに登録') + '</button>') + '</span>';
+  }
+  // マスターに登録（管理者・承認制でないとき）／申請（承認制のメンバー）。種別は輸送モードからキャリアの種別を付ける
+  async function crRegister(kind, id, n) {
+    const k = idKeys(kind, id, n), v = String(k.cr || '').trim(); if (!v) return;
+    let mode = '';
+    if (kind === 'case') { const r = rowById(id); mode = (r && r.data && r.data.fields && r.data.fields['cond-mode']) || ''; } else { const j = jobById(id); mode = (j && j.data.mode) || ''; }
+    const type = /航空|AIR/i.test(mode) ? 'AIR CARRIER' : /LCL/i.test(mode) ? 'LCL CARRIER' : /RO\/?RO/i.test(mode) ? 'RORO CARRIER' : /在来/.test(mode) ? '在来船 CARRIER' : 'FCL CARRIER';
+    if (typeof window.cloudIsLoggedIn === 'function' && !window.cloudIsLoggedIn()) { toast('ログインすると登録できます', 'info'); return; }
+    if (typeof window.statsIsApprovalOn === 'function' && window.statsIsApprovalOn()) {
+      if (typeof window.statsMasterRequest !== 'function') return;
+      await window.statsMasterRequest('sv', v, '', { details: { svTypes: [type] }, note: '進行管理の「船会社」の欄から（' + type + '）' });
+    } else {
+      if (typeof window.statsEnsureMaster !== 'function') return;
+      await window.statsEnsureMaster('sv', v);
+      if (typeof window.mdGet === 'function' && typeof window.mdSave === 'function') {
+        const prev = (window.mdGet('sv', v) || {}).details || {};
+        const types = Array.isArray(prev.svTypes) ? prev.svTypes.slice() : [];
+        if (!types.some(t => typeof window.mdIsCarrierType === 'function' && window.mdIsCarrierType(t))) { types.push(type); await window.mdSave('sv', v, Object.assign({}, prev, { svTypes: types })); }
+      }
+      if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
+      toast('☆ 「' + v + '」をサブコン（' + type + '）としてマスターに登録しました', 'success', 3500);
+    }
+    idRerender();
   }
   function quoteCarrier(kind, id) {
     if (kind !== 'case') return '';
@@ -1413,11 +1463,12 @@
     for (const nm of names) { const c = crFromName(nm); if (c) return c; }
     return '';
   }
+  // 戻り値：{ name（表示する名前）, key（data/carriers.js の名前・トラッキングの URL が無い会社は ''）, why }
   function trkCarrier(kind, id, k) {
-    if (k.cr && CR()[k.cr]) return { name: k.cr, why: '選んだ船会社' };
+    if (k.cr) { const key = CR()[k.cr] ? k.cr : crFromName(k.cr); return { name: k.cr, key, why: '入力した船会社' }; }
     const G = window.CpCarrierGuide;
-    if (G) for (const no of [k.bl].concat(ctnList(k.ctn), [k.bk])) { const g = no && G.guess(no); if (g) return { name: g, why: '番号「' + no + '」の頭文字から推測' }; }
-    const q = quoteCarrier(kind, id); if (q) return { name: q, why: '見積の幹線輸送のキャリアから' };
+    if (G) for (const no of [k.bl].concat(ctnList(k.ctn), [k.bk])) { const g = no && G.guess(no); if (g) return { name: g, key: g, why: '番号「' + no + '」の頭文字から推測' }; }
+    const q = quoteCarrier(kind, id); if (q) return { name: q, key: q, why: '見積の幹線輸送のキャリアから' };
     return null;
   }
   function trkLink(url, label, copy, pri) {
@@ -1425,7 +1476,7 @@
     return '<a class="oid-trk-a' + (pri ? ' is-pri' : '') + '" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"' + (copy ? ' data-cg-copy="' + esc(copy) + '" title="開くときに「' + esc(copy) + '」をコピーします。ページの入力欄に貼り付けてください"' : '') + '>' + label + (copy ? ' 📋' : '') + ' ↗</a>';
   }
   function trkHtml(kind, id, n, k) {
-    const ctns = ctnList(k.ctn), cr = trkCarrier(kind, id, k), c = cr ? CR()[cr.name] : null;
+    const ctns = ctnList(k.ctn), cr = trkCarrier(kind, id, k), c = cr && cr.key ? CR()[cr.key] : null;
     let track = '', vessel = '';
     if (c) {
       const tr = no => { if (typeof c.tracking !== 'function') return ''; try { return String(c.tracking(encodeURIComponent(no))); } catch (e) { return ''; } };
@@ -1436,13 +1487,16 @@
       if (!track && typeof c.tracking === 'function') track = trkLink(tr(''), '🔎 ' + esc(cr.name) + ' のトラッキング', '', true);
       let vu = ''; if (typeof c.vessel === 'function') { try { vu = String(c.vessel(encodeURIComponent(k.vs || ''))); } catch (e) { vu = ''; } }
       vessel += trkLink(vu, '🚢 ' + esc(cr.name) + ' の本船スケジュール', k.vs, true);
-      const vss = (typeof VSS_CARRIERS !== 'undefined' ? VSS_CARRIERS : []).find(x => x.name === cr.name);
+      const vss = (typeof VSS_CARRIERS !== 'undefined' ? VSS_CARRIERS : []).find(x => x.name === cr.key);
       if (vss) vessel += trkLink(vss.url, '🗓 VSS（' + esc(cr.name) + '）', k.vs, false);
     }
     (typeof VESSEL_PORTALS !== 'undefined' ? VESSEL_PORTALS : []).forEach(p => { if (p.url && !(c && /VSS/.test(p.name) && vessel.indexOf('VSS') >= 0)) vessel += trkLink(p.url, '🌐 ' + esc(p.name.replace(/\s*\(.*\)$/, '')), k.vs, false); });
-    if (!c && !k.bl && !k.bk && !ctns.length && !k.vs) return '';
+    if (!c && !cr && !k.bl && !k.bk && !ctns.length && !k.vs) return '';
+    const noUrl = cr && !(c && typeof c.tracking === 'function');   // 入力した船会社のトラッキングページが data/carriers.js に無い
+    if (noUrl && typeof window.bmShowForCarrier === 'function') track += '<button type="button" class="oid-trk-a" data-oid="crbm" data-name="' + esc(crCanon(cr.name)) + '">🔖 ' + esc(cr.name) + ' のリンク集を見る</button>';
     return '<div class="oid-trk" data-oid-n="' + n + '"><div class="oid-trk-h">🔎 船会社のページで確認する' +
-      (cr ? '<small>船会社：<b>' + esc(cr.name) + '</b>（' + esc(cr.why) + '）</small>' : '<small>船会社が分からないため、上の「船会社」で選んでください</small>') + '</div>' +
+      (cr ? '<small>船会社：<b>' + esc(cr.name) + '</b>（' + esc(cr.why) + '）</small>' : '<small>船会社が分からないため、上の「船会社」に入力してください</small>') + '</div>' +
+      (noUrl ? '<p class="oid-trk-n">この船会社のトラッキングページは、アプリにまだ登録がありません。リンク集（🔖）に登録したページを開くか、下の本船スケジュールのサイトで確認してください。</p>' : '') +
       (track ? '<div class="oid-trk-r"><span>貨物の追跡</span><div>' + track + '</div></div>' : '') +
       (vessel ? '<div class="oid-trk-r"><span>本船の動静</span><div>' + vessel + '</div></div>' : '') +
       '<p class="oid-trk-n">新しいタブで開くだけで、アプリからは何も送りません。「📋」のリンクは、開くときに番号や本船名をコピーします（ページの入力欄に貼り付けてください）。</p></div>';
@@ -1453,6 +1507,7 @@
 
   function idSecHtml(kind, id) {
     const legs = idLegs(kind, id); if (!legs.length) return '';
+    crListSync();
     const ro = idReadOnly(kind, id);
     if (!AUTO.loaded && !AUTO.busy && !AUTO.missing) autoRefreshTargets();
     let h = '<section class="oj-sec oid-sec" data-oid-kind="' + kind + '" data-oid-id="' + esc(id) + '"><h3>🆔 基幹 ID・サイバーポート</h3>' +
@@ -1470,7 +1525,7 @@
           '<label><span>ブッキング番号</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="bk" maxlength="40" value="' + esc(k.bk) + '"' + dis + '></label>' +
           '<label class="oid-k-wide"><span>コンテナ番号（空白区切り・10 本まで）</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="ctn" maxlength="200" value="' + esc(k.ctn) + '"' + dis + '></label>' +
           '<label><span>本船名・航海番号</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="vs" maxlength="60" value="' + esc(k.vs) + '" placeholder="例）ONE HARMONY 012E"' + dis + '></label>' +
-          '<label><span>船会社</span><select class="oid-k" data-oid-n="' + L.n + '" data-k="cr"' + dis + '>' + trkCarrierOpts(k.cr) + '</select></label></div>' +
+          '<label><span>船会社<small>（マスターから選ぶ・無ければ入力）</small></span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="cr" maxlength="60" list="oidCrList" autocomplete="off" value="' + esc(k.cr) + '" placeholder="空＝番号から自動で推測"' + dis + '>' + crMarkHtml(L.n, k.cr, ro) + '</label></div>' +
           trkHtml(kind, id, L.n, k);
       }
       if (_idp && _idp.kind === kind && _idp.id === id && _idp.n === L.n) h += idPanelHtml(L, t);
@@ -1584,6 +1639,8 @@
     if (a === 'check') idCheck(kind, id, +b.dataset.n);
     else if (a === 'cancel') { _idp = null; idRerender(); }
     else if (a === 'watch') idWatch(sec);
+    else if (a === 'crreg') crRegister(kind, id, +b.dataset.n);
+    else if (a === 'crbm') { if (typeof window.bmShowForCarrier === 'function') window.bmShowForCarrier(b.dataset.name, e); }
   });
   document.addEventListener('change', e => {
     const t = e.target; if (!t.classList) return;

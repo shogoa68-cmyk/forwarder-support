@@ -411,3 +411,9 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .ops-card { grid-column: 2 / sp
 .opt-dl-h small { font-weight: 400; color: var(--text-muted, #667085); font-size: var(--text-xs, 12px); }
 .opt-dl-row.is-cand { background: #f2f6fc; box-shadow: inset 3px 0 0 #2f5fb3; }
 .opt-cand-n { margin-left: 6px; padding: 0 6px; border-radius: 999px; background: #2f5fb3; color: #fff; font-style: normal; font-size: var(--text-xs, 12px); }
+/* 船会社の欄：マスターの状態 */
+.oid-keys label small { font-weight: 400; }
+.oid-cr-mark { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 2px; font-size: var(--text-xs, 12px); }
+.oid-cr-mark.is-none { color: #9a4a06; }
+.oid-cr-mark.is-pending { color: #1d4f91; }
+.oid-trk-r button.oid-trk-a { cursor: pointer; font: inherit; font-size: var(--text-sm, 13px); }
