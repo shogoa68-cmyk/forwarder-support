@@ -42,6 +42,7 @@
 <link rel="stylesheet" href="css/header-menu.css">
 <link rel="stylesheet" href="css/editor-v2.css">
 <link rel="stylesheet" href="css/right-col-a.css">
+<link rel="stylesheet" href="css/right-rail-v2.css">
 <link rel="stylesheet" href="css/phone-tabs.css">
   <link rel="stylesheet" href="css/retired-ui.css">
   <link rel="stylesheet" href="css/bulk-bar.css">
@@ -4244,6 +4245,7 @@
           </div>
           <div class="fl-cargo-now" id="flCargoNow"></div>
         </div>
+        <details class="fl-edit" id="flEdit" open><summary>単価を直す（LCL 運賃・FCL 運賃）</summary>
         <div class="fl-sec">
           <div class="fl-sec-title">🚢 LCL（混載） <span class="fl-sub">通貨</span> <select id="fl-lcl-cur" class="fl-cur" onchange="renderFclLcl()"><option value="JPY">JPY</option><option value="USD" selected>USD</option><option value="EUR">EUR</option><option value="CNY">CNY</option><option value="KRW">KRW</option><option value="SGD">SGD</option><option value="HKD">HKD</option><option value="GBP">GBP</option><option value="AUD">AUD</option><option value="TWD">TWD</option><option value="THB">THB</option><option value="VND">VND</option><option value="MYR">MYR</option><option value="IDR">IDR</option><option value="PHP">PHP</option><option value="INR">INR</option></select></div>
           <div class="fl-grid">
@@ -4262,6 +4264,7 @@
             <label>固定費 /BL</label><input type="number" id="fl-fcl-fix" class="fl-in" min="0" step="any" placeholder="DOC等 例 100" title="B/L 1枚あたりの固定費用" oninput="renderFclLcl()">
           </div>
         </div>
+        </details>
         <div id="flResult" class="fl-result"></div>
         </details>
       </div>
@@ -4322,6 +4325,9 @@
         </div>
         <div id="bmRailChips" class="bm-rail-chips"></div>
       </div>
+
+      <!-- 行セット（旧：行パターン）の引き出し用の置き場。中身（#rowPatternModal の .preset-mgr-box）は開いている間だけここへ移す -->
+      <div id="rpRailPanel" class="rp-rail-panel" style="display:none"></div>
 
       </div><!-- /.quote-right-col -->
     </div><!-- /.quote-workspace -->

@@ -1,6 +1,6 @@
 // 見積の診断カード（js/quote/diagnosis.js）の確認：粗利率の水準・行の赤字・当て馬・お客様の過去実績・タブの印
 // 使い方: node scripts/design-tests/diagnosis-test.js   （THEME=1 で Industry）
-const { chromium } = require('playwright-core');
+const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
 let pass = 0, fail = 0;
 const ok = (n, c, d) => { if (c) { pass++; console.log('  ok  ' + n); } else { fail++; console.log('  NG  ' + n + (d ? '  → ' + d : '')); } };
