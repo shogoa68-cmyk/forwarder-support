@@ -1,0 +1,63 @@
+/* 見積入力の右レール・引き出しの共通の枠（Design 49）。DOM・id・onclick・data-mod は不変。
+   色は変数（--rr-*）。テーマごとに上書き。!important は使わない（#tab-quote-make 配下から書く）。 */
+#tab-quote-make .qrc-drawer, #tab-quote-make .qrc-rail {
+  --rr-pri: #2f5fb3; --rr-pri-50: #eef3fb; --rr-pri-200: #bcd0ee;
+  --rr-ink: #1d2939; --rr-ink-2: #475467; --rr-ink-3: #667085; --rr-line: #e4e7ec; --rr-face: #f8f9fb;
+  --rr-ok: #067647; --rr-warn: #b54708; --rr-warn-50: #fffaeb; --rr-bad: #b42318;
+}
+html.theme-quiet #tab-quote-make .qrc-drawer, html.theme-quiet #tab-quote-make .qrc-rail {
+  --rr-pri: var(--q-accent, #2f5fb3); --rr-pri-50: var(--q-accent-50, #eef3fb); --rr-pri-200: var(--q-accent-200, #bcd0ee);
+  --rr-ink-3: var(--q-ink-3, #667085);
+}
+
+/* ---- レール：線のアイコン（灰・開いているものだけ主色）＋短い名前 ---- */
+#tab-quote-make .qrc-rail { align-items: center; }
+#tab-quote-make .qrc-rail-btn { width: 56px; min-height: 56px; border-radius: 8px; background: transparent; border-color: transparent; color: var(--rr-ink-2); padding: 6px 2px; }
+#tab-quote-make .qrc-rail-btn:hover { background: var(--rr-face); border-color: var(--rr-line); }
+#tab-quote-make .qrc-rail-btn.is-on { background: var(--rr-pri-50); border-color: var(--rr-pri); color: var(--rr-pri); }
+#tab-quote-make .qrc-rail-btn.is-on em { color: var(--rr-pri); }
+#tab-quote-make .qrc-rail-btn em { color: inherit; font-size: var(--text-xs, 12px); font-weight: 600; }
+#tab-quote-make .qrc-rail-ico { display: inline-flex; line-height: 0; }
+#tab-quote-make .qrc-rail-ico svg, #tab-quote-make .qrc-drawer-ico svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#tab-quote-make .qrc-rail-sep { width: 60%; height: 0; margin: 2px 0; border: 0; border-top: 1px solid var(--rr-line); }
+#tab-quote-make .qrc-rail-badge { top: 2px; right: 2px; min-width: 16px; height: 16px; line-height: 12px; padding: 0 3px; background: #f79009; border: 2px solid var(--surface, #fff); box-sizing: content-box; font-size: 11px; }
+#tab-quote-make .qrc-rail-dot { top: 4px; right: 6px; width: 8px; height: 8px; background: #f79009; }
+
+/* ［その他］は下へ伸ばさず、レールの左に小さなメニュー（幅 190px） */
+#tab-quote-make .qrc-rail { position: relative; }
+#tab-quote-make .qrc-rail-more { position: absolute; right: calc(100% + 6px); bottom: 0; width: 190px; padding: 6px; gap: 0; align-items: stretch; background: var(--surface, #fff); border: 1px solid var(--rr-line); border-radius: 8px; box-shadow: 0 6px 20px rgba(16, 24, 40, .18); z-index: 20; }
+#tab-quote-make .qrc-rail-more[hidden] { display: none; }
+#tab-quote-make .qrc-more-item { width: 100%; min-height: 36px; flex-direction: row; justify-content: flex-start; gap: 8px; padding: 0 8px; border-radius: 6px; text-align: left; }
+#tab-quote-make .qrc-more-item em { font-size: var(--text-sm, 13px); white-space: nowrap; }
+#tab-quote-make .qrc-more-item small { margin-left: auto; font-size: var(--text-xs, 12px); color: var(--rr-ink-3); white-space: nowrap; }
+#tab-quote-make .qrc-more-item.is-on small { color: var(--rr-pri); }
+#tab-quote-make .qrc-more2-btn.is-open { border-color: var(--rr-pri-200); background: var(--rr-face); }
+#tab-quote-make .qrc-more2-btn.is-on { background: var(--rr-pri-50); border-color: var(--rr-pri); color: var(--rr-pri); }
+#tab-quote-make .qrc-more-item .qrc-rail-badge { position: static; margin-left: 4px; }
+
+/* ---- 引き出し：頭 48px・状態 36px・本文（中だけスクロール）。全モジュールで高さ・幅をそろえる ---- */
+#tab-quote-make .qrc-drawer { width: 400px; height: calc(100vh - 170px); min-height: 420px; }
+html.editor-v2 #tab-quote-make .qrc-drawer { height: auto; min-height: 0; }
+#tab-quote-make .qrc-drawer-head { height: 48px; padding: 0 12px 0 16px; background: var(--surface, #fff); border-bottom: 1px solid var(--rr-line); box-sizing: border-box; }
+#tab-quote-make .qrc-drawer-ico { display: inline-flex; line-height: 0; color: var(--rr-pri); }
+#tab-quote-make .qrc-drawer-title { font-size: var(--text-lg, 16px); font-weight: 800; color: var(--rr-ink); letter-spacing: 0; }
+#tab-quote-make .qrc-pin, #tab-quote-make .qrc-close { width: 32px; height: 32px; background: transparent; border-color: transparent; color: var(--rr-ink-3); }
+#tab-quote-make .qrc-pin:hover, #tab-quote-make .qrc-close:hover { background: var(--rr-face); border-color: var(--rr-line); color: var(--rr-ink); }
+#tab-quote-make .qrc-pin.is-on { background: var(--rr-pri-50); border-color: var(--rr-pri-200); color: var(--rr-pri); }
+#tab-quote-make .qrc-drawer-status { flex: 0 0 auto; min-height: 36px; padding: 6px 16px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; background: var(--rr-face); border-bottom: 1px solid var(--rr-line); font-size: var(--text-sm, 13px); color: var(--rr-ink-2); }
+#tab-quote-make .qrc-drawer-status[hidden] { display: none; }
+#tab-quote-make .qrc-drawer-status b { color: var(--rr-ink); font-weight: 700; }
+#tab-quote-make .qrc-drawer-body { padding: 0; }
+
+/* 見出しの二重をなくす：中身の「N 費用項目」などの見出し・説明の段落は引き出しの見出し／状態の 1 行に任せる */
+
+/* 一覧の文字は 13px 以上（12px は補足だけ・薄すぎない色） */
+#tab-quote-make .qrc-drawer-body :is(.qsp-empty, .si-empty, .cmp-empty) { font-size: var(--text-sm, 13px); color: var(--rr-ink-3); text-align: center; padding: 32px 16px; line-height: 1.7; }
+
+/* スマホ：下から出るシート（高さ 85%・角丸 14px）。ボタンは 44px */
+@media (max-width: 600px) {
+  #tab-quote-make .qrc-drawer { height: auto; min-height: 0; border-radius: 14px 14px 0 0; }
+  #tab-quote-make .qrc-rail-btn { min-height: 44px; }
+  #tab-quote-make .qrc-rail-more { right: 0; bottom: calc(100% + 6px); }
+  #tab-quote-make .qrc-pin, #tab-quote-make .qrc-close { width: 44px; height: 44px; }
+}
