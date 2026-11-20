@@ -975,16 +975,20 @@
       const j = jobById(id); return (j && j.data.cpKeys) ? JSON.parse(JSON.stringify(j.data.cpKeys)) : {};
     } catch (e) { return {}; }
   }
-  function idKeys(kind, id, n) { const a = idKeysAll(kind, id)[n] || {}; return { bl: a.bl || '', bk: a.bk || '', ctn: a.ctn || '' }; }
+  function idKeys(kind, id, n) { const a = idKeysAll(kind, id)[n] || {}; return { bl: a.bl || '', bk: a.bk || '', ctn: a.ctn || '', vs: a.vs || '', cr: a.cr || '' }; }
+  const vsNorm = s => String(s || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toUpperCase().slice(0, 60);
   const ctnList = s => String(s || '').split(/[\s,、;]+/).map(normId).filter(Boolean);
   function keysError(k) {
     const ctns = ctnList(k.ctn), bad = ctns.filter(c => !/^[A-Z]{4}\d{7}$/.test(c));
     return bad.length ? 'コンテナ番号の形が違います（英字4文字＋数字7桁）：' + bad.join('、') : ctns.length > 10 ? 'コンテナ番号は10本までです。' : '';
   }
   async function idKeysSave(kind, id, n, k, quiet) {
+    const all = idKeysAll(kind, id), old = all[n] || {}, before = JSON.stringify(old);
     const clean = { bl: normId(k.bl), bk: normId(k.bk), ctn: ctnList(k.ctn).join(' ') };
-    const all = idKeysAll(kind, id), before = JSON.stringify(all[n] || {});
-    if (clean.bl || clean.bk || clean.ctn) all[n] = clean; else delete all[n];
+    // 本船名・船会社は、渡されたときだけ書き換える（追いかけ登録など、3 つの番号だけ渡す呼び出しで消さない）
+    const vs = 'vs' in k ? vsNorm(k.vs) : (old.vs || ''), cr = 'cr' in k ? String(k.cr || '') : (old.cr || '');
+    if (vs) clean.vs = vs; if (cr) clean.cr = cr;
+    if (clean.bl || clean.bk || clean.ctn || clean.vs || clean.cr) all[n] = clean; else delete all[n];
     if (JSON.stringify(all[n] || {}) === before) return true;
     let ok;
     if (kind === 'case') ok = await saveFields(id, { 'qf-cp-keys': JSON.stringify(all) });
@@ -1000,6 +1004,67 @@
     if (ok && !quiet) toast('手がかりを保存しました', 'success', 2000);
     return ok;
   }
+  // ---------- 🔎 船会社のトラッキング・本船の動静への近道（COLINS が不安定なときの手動確認を楽にする） ----------
+  // 船会社＝手がかりで選んだもの → 番号の頭 4 文字からの推測（CpCarrierGuide）→ 見積の幹線輸送のキャリア の順。
+  // 外部のページを新しいタブで開くだけ（アプリからは何も送らない）。番号を URL で受けない船会社は、開くときに番号をコピーする。
+  const CR = () => (typeof CARRIERS !== 'undefined' && CARRIERS) ? CARRIERS : {};
+  const crNorm = s => String(s || '').normalize('NFKC').toLowerCase().replace(/[^a-z0-9ぁ-んァ-ヶ一-龠]/g, '');
+  function trkCarrierOpts(cur) {
+    const ks = Object.keys(CR()).filter(k => typeof CR()[k].tracking === 'function' || typeof CR()[k].vessel === 'function');
+    return '<option value="">（自動で推測）</option>' + ks.map(k => '<option value="' + esc(k) + '"' + (k === cur ? ' selected' : '') + '>' + esc(k) + '</option>').join('');
+  }
+  function crFromName(name) {
+    const n = crNorm(name); if (!n) return '';
+    const ks = Object.keys(CR());
+    return ks.find(k => crNorm(k) === n) || ks.find(k => crNorm(k).length >= 3 && n.indexOf(crNorm(k)) === 0) || '';
+  }
+  function quoteCarrier(kind, id) {
+    if (kind !== 'case') return '';
+    const r = rowById(id), f = (r && r.data && r.data.fields) || {};
+    let names = [];
+    try { (JSON.parse(f['z2-routes-data'] || '[]') || []).forEach(x => { if (x && x.enabled !== false && !x.ng && x.carrier) names.push(x.carrier); }); } catch (e) { /* 何もしない */ }
+    if (f.z2Carrier) names.push(f.z2Carrier);
+    for (const nm of names) { const c = crFromName(nm); if (c) return c; }
+    return '';
+  }
+  function trkCarrier(kind, id, k) {
+    if (k.cr && CR()[k.cr]) return { name: k.cr, why: '選んだ船会社' };
+    const G = window.CpCarrierGuide;
+    if (G) for (const no of [k.bl].concat(ctnList(k.ctn), [k.bk])) { const g = no && G.guess(no); if (g) return { name: g, why: '番号「' + no + '」の頭文字から推測' }; }
+    const q = quoteCarrier(kind, id); if (q) return { name: q, why: '見積の幹線輸送のキャリアから' };
+    return null;
+  }
+  function trkLink(url, label, copy, pri) {
+    if (!url) return '';
+    return '<a class="oid-trk-a' + (pri ? ' is-pri' : '') + '" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"' + (copy ? ' data-cg-copy="' + esc(copy) + '" title="開くときに「' + esc(copy) + '」をコピーします。ページの入力欄に貼り付けてください"' : '') + '>' + label + (copy ? ' 📋' : '') + ' ↗</a>';
+  }
+  function trkHtml(kind, id, n, k) {
+    const ctns = ctnList(k.ctn), cr = trkCarrier(kind, id, k), c = cr ? CR()[cr.name] : null;
+    let track = '', vessel = '';
+    if (c) {
+      const tr = no => { if (typeof c.tracking !== 'function') return ''; try { return String(c.tracking(encodeURIComponent(no))); } catch (e) { return ''; } };
+      const cp = no => c.trackingClipboard ? no : '';
+      if (k.bl) track += trkLink(tr(k.bl), '📄 B/L ' + esc(k.bl), cp(k.bl), true);
+      if (k.bk) track += trkLink(tr(k.bk), '📑 ブッキング ' + esc(k.bk), cp(k.bk), !k.bl);
+      ctns.forEach(no => { track += trkLink(tr(no), '📦 ' + esc(no), cp(no), false); });
+      if (!track && typeof c.tracking === 'function') track = trkLink(tr(''), '🔎 ' + esc(cr.name) + ' のトラッキング', '', true);
+      let vu = ''; if (typeof c.vessel === 'function') { try { vu = String(c.vessel(encodeURIComponent(k.vs || ''))); } catch (e) { vu = ''; } }
+      vessel += trkLink(vu, '🚢 ' + esc(cr.name) + ' の本船スケジュール', k.vs, true);
+      const vss = (typeof VSS_CARRIERS !== 'undefined' ? VSS_CARRIERS : []).find(x => x.name === cr.name);
+      if (vss) vessel += trkLink(vss.url, '🗓 VSS（' + esc(cr.name) + '）', k.vs, false);
+    }
+    (typeof VESSEL_PORTALS !== 'undefined' ? VESSEL_PORTALS : []).forEach(p => { if (p.url && !(c && /VSS/.test(p.name) && vessel.indexOf('VSS') >= 0)) vessel += trkLink(p.url, '🌐 ' + esc(p.name.replace(/\s*\(.*\)$/, '')), k.vs, false); });
+    if (!c && !k.bl && !k.bk && !ctns.length && !k.vs) return '';
+    return '<div class="oid-trk" data-oid-n="' + n + '"><div class="oid-trk-h">🔎 船会社のページで確認する' +
+      (cr ? '<small>船会社：<b>' + esc(cr.name) + '</b>（' + esc(cr.why) + '）</small>' : '<small>船会社が分からないため、上の「船会社」で選んでください</small>') + '</div>' +
+      (track ? '<div class="oid-trk-r"><span>貨物の追跡</span><div>' + track + '</div></div>' : '') +
+      (vessel ? '<div class="oid-trk-r"><span>本船の動静</span><div>' + vessel + '</div></div>' : '') +
+      '<p class="oid-trk-n">新しいタブで開くだけで、アプリからは何も送りません。「📋」のリンクは、開くときに番号や本船名をコピーします（ページの入力欄に貼り付けてください）。</p></div>';
+  }
+  document.addEventListener('click', e => {
+    if (e.target.closest && e.target.closest('.oid-trk a[data-cg-copy]') && window.CpCarrierGuide) window.CpCarrierGuide.onClick(e);
+  });
+
   function idSecHtml(kind, id) {
     const legs = idLegs(kind, id); if (!legs.length) return '';
     const ro = idReadOnly(kind, id);
@@ -1017,7 +1082,10 @@
         h += '<div class="oid-keys" data-oid-n="' + L.n + '"><span class="oid-keys-l">手がかり<small>アプリに保存</small></span>' +
           '<label><span>B/L 番号</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="bl" maxlength="40" value="' + esc(k.bl) + '"' + dis + '></label>' +
           '<label><span>ブッキング番号</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="bk" maxlength="40" value="' + esc(k.bk) + '"' + dis + '></label>' +
-          '<label class="oid-k-wide"><span>コンテナ番号（空白区切り・10 本まで）</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="ctn" maxlength="200" value="' + esc(k.ctn) + '"' + dis + '></label></div>';
+          '<label class="oid-k-wide"><span>コンテナ番号（空白区切り・10 本まで）</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="ctn" maxlength="200" value="' + esc(k.ctn) + '"' + dis + '></label>' +
+          '<label><span>本船名・航海番号</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="vs" maxlength="60" value="' + esc(k.vs) + '" placeholder="例）ONE HARMONY 012E"' + dis + '></label>' +
+          '<label><span>船会社</span><select class="oid-k" data-oid-n="' + L.n + '" data-k="cr"' + dis + '>' + trkCarrierOpts(k.cr) + '</select></label></div>' +
+          trkHtml(kind, id, L.n, k);
       }
       if (_idp && _idp.kind === kind && _idp.id === id && _idp.n === L.n) h += idPanelHtml(L, t);
     });

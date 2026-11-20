@@ -278,3 +278,18 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .ops-card { grid-column: 2 / sp
 .oid-keys-l { grid-row: span 2; align-self: center; font-weight: 600; font-size: var(--text-sm, 13px); display: flex; flex-direction: column; }
 .oid-keys-l small { font-weight: 400; color: var(--text-muted, #667085); font-size: var(--text-xs, 12px); }
 @media (max-width: 600px) { .oid-keys { grid-template-columns: 1fr; } .oid-keys .oid-k-wide { grid-column: auto; } .oid-keys-l { grid-row: auto; } .oid-keys input { height: 44px; } }
+
+/* 🔎 船会社のトラッキング・本船の動静への近道（手がかりの下） */
+.oid-keys-l { grid-row: span 3; }
+.oid-trk { margin: -4px 0 12px; padding: 8px 10px; border-radius: 8px; background: var(--bg-soft, #f5f7fa); border: 1px solid var(--border, #e4e7ec); }
+.oid-trk-h { font-weight: 600; font-size: var(--text-sm, 13px); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; margin-bottom: 6px; }
+.oid-trk-h small { font-weight: 400; color: var(--text-muted, #667085); font-size: var(--text-xs, 12px); }
+.oid-trk-r { display: grid; grid-template-columns: 84px 1fr; gap: 6px; align-items: start; margin: 4px 0; }
+.oid-trk-r > span { font-size: var(--text-xs, 12px); color: var(--text-muted, #667085); padding-top: 6px; }
+.oid-trk-r > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.oid-trk-a { display: inline-flex; align-items: center; min-height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border, #d0d5dd); background: #fff; color: var(--accent, #2f5fb3); text-decoration: none; font-size: var(--text-sm, 13px); font-family: inherit; }
+.oid-trk-a:hover { border-color: var(--accent, #2f5fb3); }
+.oid-trk-a.is-pri { background: var(--accent, #2f5fb3); border-color: var(--accent, #2f5fb3); color: #fff; }
+.oid-trk-n { margin: 6px 0 0; font-size: var(--text-xs, 12px); color: var(--text-muted, #667085); }
+.oid-keys select { height: 32px; padding: 0 6px; border: 1px solid var(--border, #d0d5dd); border-radius: 6px; font: inherit; background: #fff; }
+@media (max-width: 600px) { .oid-keys-l { grid-row: auto; } .oid-trk-r { grid-template-columns: 1fr; } .oid-trk-r > span { padding-top: 0; } .oid-trk-a { min-height: 44px; } .oid-keys select { height: 44px; } }
