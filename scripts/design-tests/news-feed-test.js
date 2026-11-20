@@ -84,7 +84,7 @@ let fail=0;const ok=(n,c,x)=>{if(!c)fail++;console.log((c?'PASS ':'FAIL ')+n+(c?
  ok('削除できる（確認のあと）',await p.evaluate(()=>window.__rows.length===1&&document.querySelectorAll('.nf-item').length===1),null);
  // 情報共有の入口から
  await p.evaluate(()=>switchCategory('share',document.querySelector('.cat-btn[aria-controls="tab-share"]')));await p.waitForTimeout(200);
- await p.click('#tab-share .share-link >> nth=0');await p.waitForTimeout(400);
+ await p.click('#tab-share .sf-places summary');await p.waitForTimeout(100);await p.click('#tab-share .share-link >> nth=0');await p.waitForTimeout(400);
  ok('情報共有の入口の「ニュースの投稿」から開ける',await p.evaluate(()=>document.getElementById('tab-news').classList.contains('active')&&document.getElementById('catGrpShareBtn').classList.contains('active')),null);
  ok('JS エラーなし',errs.length===0,errs);
  await b.close();srv.close();process.exit(fail?1:0);

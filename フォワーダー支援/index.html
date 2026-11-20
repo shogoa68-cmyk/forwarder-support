@@ -144,21 +144,12 @@
 
   <!-- Tab Navigation -->
   <!-- ===== カテゴリーナビ（上段） ===== -->
-  <!-- 2026-11 再編：上段は 💼 見積を作る（直接開く）と 3 つのまとまり（📦 進行／💬 情報共有／📂 その他）にし、各タブはまとまりのメニューの中へ移した。
+  <!-- 2026-11 再編：上段は 💼 見積を作る・📦 進行管理（直接開く）と 2 つのまとまり（💬 情報共有／📂 その他）にし、各タブはまとまりのメニューの中へ移した。
        メニューの中のボタンは従来の .cat-btn のまま（onclick・aria-controls 不変＝calculator.js 等が aria-controls で探す）。
        開閉と「いま選んでいるタブ名」の表示は js/cat-more.js（.cat-more ごと）。 -->
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
     <button class="cat-btn cat-btn-bookmark active" role="tab" aria-selected="true" aria-controls="tab-quote-make" title="お客様へ出す見積書を作る" onclick="switchCategory('quote', this)">💼 見積を作る</button>
-    <div class="cat-more cat-grp" id="catGrpOps">
-      <button type="button" class="cat-btn cat-more-btn cat-btn-bookmark" id="catGrpOpsBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catGrpOpsPanel" title="進行管理・Booking/SI・書類・通関・本船・航路・サイバーポート">📦 <span class="cat-grp-name">進行</span><span class="cat-more-label"></span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
-      <div class="cat-more-panel" id="catGrpOpsPanel" role="tablist" aria-label="進行のカテゴリ" hidden>
-        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-ops" data-desc="受注後、手配から請求までの作業の進み具合" onclick="switchCategory('ops', this)">📦 進行管理</button>
-        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-booking-tab" data-desc="船腹予約と S/I（船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
-        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-bldo" data-desc="B/L・D/O・通関などの書類" onclick="switchCategory('docs', this)">📄 書類・通関</button>
-        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-tracking" data-desc="本船の動き・航路のスケジュール" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
-        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-cptest" data-desc="サイバーポート連携（読み取りのみ）" onclick="switchCategory('cptest', this)">🛰 サイバーポート</button>
-      </div>
-    </div>
+    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-ops" title="受注後、手配から請求までの作業の進み具合" onclick="switchCategory('ops', this)">📦 進行管理</button>
     <div class="cat-more cat-grp" id="catGrpShare">
       <button type="button" class="cat-btn cat-more-btn cat-btn-bookmark" id="catGrpShareBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catGrpSharePanel" title="ニュースの投稿・情報共有・リンク集・知識・参考・カレンダー">💬 <span class="cat-grp-name">情報共有</span><span class="cat-more-label"></span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
       <div class="cat-more-panel" id="catGrpSharePanel" role="tablist" aria-label="情報共有のカテゴリ" hidden>
@@ -170,12 +161,16 @@
       </div>
     </div>
     <div class="cat-more cat-grp" id="catMore">
-      <button type="button" class="cat-btn cat-more-btn cat-btn-admin" id="catMoreBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catMorePanel" title="実績を見る・マスター管理・計算・諸チャージ・作業フォルダ">📂 <span class="cat-grp-name">その他</span><span class="cat-more-label"></span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
+      <button type="button" class="cat-btn cat-more-btn cat-btn-admin" id="catMoreBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catMorePanel" title="実績を見る・マスター管理・計算・諸チャージ・Booking/SI・書類・通関・本船・航路・サイバーポート・作業フォルダ">📂 <span class="cat-grp-name">その他</span><span class="cat-more-label"></span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
       <div class="cat-more-panel" id="catMorePanel" role="tablist" aria-label="その他のカテゴリ" hidden>
         <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-stats" data-desc="過去の見積・受注の実績（統計）" onclick="switchCategory('stats', this)">📊 実績を見る</button>
         <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-master" data-desc="お客様・サブコン・港などの登録データ" onclick="switchCategory('master', this)">🗂 マスター管理</button>
         <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-calc" data-desc="CBM・運賃トン・バンニングなどの計算" onclick="switchCategory('calc', this)">🧮 計算</button>
         <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-local-charges" data-desc="現地・港で発生する諸費用の目安" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-booking-tab" data-desc="船腹予約と S/I（船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-bldo" data-desc="B/L・D/O・通関などの書類" onclick="switchCategory('docs', this)">📄 書類・通関</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-tracking" data-desc="本船の動き・航路のスケジュール" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-cptest" data-desc="サイバーポート連携（読み取りのみ）" onclick="switchCategory('cptest', this)">🛰 サイバーポート</button>
         <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-workfolder" data-desc="自分専用のファイル置き場" onclick="switchCategory('workfolder', this)">📁 作業フォルダ</button>
       </div>
     </div>
@@ -5051,19 +5046,9 @@
   </div><!-- /#tab-ops -->
 
   <!-- 💬 情報共有（2026-11 新設・中身は準備中）。いまは既存の共有機能への入口だけ置く -->
+  <!-- 💬 情報共有＝新着まとめ（お知らせ・ニュース・申し送り・顧客カルテ・取引ルール）。ロジックは js/share-feed.js -->
   <div class="tab-content" id="tab-share">
-    <div class="share-root">
-      <h2 class="share-title">💬 情報共有</h2>
-      <p class="share-lead">チームで知らせたいこと・覚えておきたいことをまとめる場所です。<b>いまは準備中</b>で、中身はこれから作ります。</p>
-      <p class="share-sub">いま使える共有の機能はこちらです。</p>
-      <div class="share-links">
-        <button type="button" class="share-link" onclick="switchCategory('news', document.querySelector('.cat-btn[aria-controls=tab-news]'))"><b>📰 ニュースの投稿</b><span>お客様・サブコンの新しい情報を投稿し、時系列で見る</span></button>
-        <button type="button" class="share-link" onclick="switchCategory('quote', document.querySelector('.cat-btn[aria-controls=tab-quote-make]'))"><b>💼 案件の申し送り</b><span>見積の一覧で、案件カードの「💬 申し送り」から書けます</span></button>
-        <button type="button" class="share-link" onclick="switchCategory('bookmark', document.querySelector('.cat-btn[aria-controls=tab-bookmark]'))"><b>🔖 リンク集</b><span>船会社・サブコンのよく使うリンクをチームで共有</span></button>
-        <button type="button" class="share-link" onclick="switchCategory('master', document.querySelector('.cat-btn[aria-controls=tab-master]'))"><b>🗂 取引ルール・顧客カルテ・ニュース</b><span>マスター管理の、お客様・サブコンの詳細から</span></button>
-        <button type="button" class="share-link" onclick="switchCategory('bugreports')"><b>🐞 不具合報告・💡 アイデア</b><span>アプリへの要望や困りごとを送る・見る</span></button>
-      </div>
-    </div>
+    <div class="share-root" id="sfRoot"><div class="sf-empty">読み込み中…</div></div>
   </div><!-- /#tab-share -->
 
   <!-- 📰 ニュースの投稿（情報共有のまとまり・2026-11）。ロジックは js/news-feed.js（保存先は master_news＝マスター詳細のニュースと同じ） -->
@@ -5239,6 +5224,7 @@
 <script src="js/customer-rules.js"></script>
 <script src="js/master-news.js"></script>
 <script src="js/news-feed.js"></script>
+<script src="js/share-feed.js"></script>
 <script src="js/customer-cases.js"></script>
 <script src="js/master-tabs.js"></script>
 <script src="js/fix-hub.js"></script>

@@ -1,4 +1,4 @@
-// カテゴリナビ（2026-11 再編）：上段は「💼 見積を作る」（直接開く）＋ 3 つのまとまり（📦 進行／💬 情報共有／📂 その他）。各タブはまとまりのメニューの中（各項目に 1 行説明）。
+// カテゴリナビ（2026-11 再編）：上段は「💼 見積を作る」「📦 進行管理」（直接開く）＋ 2 つのまとまり（💬 情報共有／📂 その他）。各タブはまとまりのメニューの中（各項目に 1 行説明）。
 //   node scripts/design-tests/cat-more-test.js            （現行）
 //   THEME=1 node scripts/design-tests/cat-more-test.js    （Industry）
 const { chromium } = (()=>{try{return require('playwright-core')}catch(e){return require('playwright')}})();
@@ -17,12 +17,13 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
  const p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));p.setDefaultTimeout(8000);
  await p.goto(URL,{waitUntil:'domcontentloaded'});await p.waitForTimeout(800);
 
- const GROUPS={catGrpOps:['tab-ops','tab-booking-tab','tab-bldo','tab-tracking','tab-cptest'],catGrpShare:['tab-news','tab-share','tab-bookmark','tab-incoterms','tab-calendar'],catMore:['tab-stats','tab-master','tab-calc','tab-local-charges','tab-workfolder']};
+ const GROUPS={catGrpShare:['tab-news','tab-share','tab-bookmark','tab-incoterms','tab-calendar'],catMore:['tab-stats','tab-master','tab-calc','tab-local-charges','tab-booking-tab','tab-bldo','tab-tracking','tab-cptest','tab-workfolder']};
  const t0=await p.evaluate(()=>[...document.querySelectorAll('.cat-nav > *')].filter(e=>e.offsetParent!==null).map(e=>e.textContent.replace(/\s+/g,' ').trim()));
- ok('上段は 見積を作る・進行・情報共有・その他 の 4 つだけ',t0.length===4&&/見積を作る/.test(t0[0])&&/進行/.test(t0[1])&&/情報共有/.test(t0[2])&&/その他/.test(t0[3]),t0);
+ ok('上段は 見積を作る・進行管理・情報共有・その他 の 4 つだけ',t0.length===4&&/見積を作る/.test(t0[0])&&/進行管理/.test(t0[1])&&/情報共有/.test(t0[2])&&/その他/.test(t0[3]),t0);
  const mem=await p.evaluate(G=>Object.entries(G).map(([g,ids])=>{const pn=document.querySelector('#'+g+' .cat-more-panel');const got=[...pn.querySelectorAll('.cat-btn')].map(b=>b.getAttribute('aria-controls'));return JSON.stringify(got)===JSON.stringify(ids);}),GROUPS);
  ok('各まとまりの中身が決めたとおり（全タブがどこかに入っている）',mem.every(Boolean),mem);
  ok('どのタブのボタンも 1 つずつ（aria-controls の重複なし）',await p.evaluate(()=>{const a=[...document.querySelectorAll('.cat-nav .cat-btn[aria-controls^="tab-"]')].map(b=>b.getAttribute('aria-controls'));return a.length===new Set(a).size&&a.length===16;}),null);
+ ok('「進行管理」もメニューに入れず上段の直接のボタン',await p.evaluate(()=>{const b=document.querySelector('.cat-btn[aria-controls="tab-ops"]');return b.parentElement.classList.contains('cat-nav')&&b.offsetParent!==null&&!document.getElementById('catGrpOps');}),null);
  ok('「見積を作る」はメニューに入れず上段の直接のボタン（最初から選択中）',await p.evaluate(()=>{const b=document.querySelector('.cat-btn[aria-controls="tab-quote-make"]');return b.parentElement.classList.contains('cat-nav')&&b.classList.contains('active')&&b.offsetParent!==null&&!document.getElementById('catMoreBtn').classList.contains('active');}),null);
  await p.evaluate(()=>switchCategory('stats',document.querySelector('.cat-btn[aria-controls="tab-stats"]')));await p.waitForTimeout(300);
  await p.click('.cat-nav > .cat-btn[aria-controls="tab-quote-make"]');await p.waitForTimeout(500);
@@ -43,14 +44,14 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
  ok('外側を押すと閉じる',await p.evaluate(()=>document.getElementById('catMorePanel').hidden),null);
  await p.evaluate(()=>{switchCategory('calc',document.querySelector('.cat-btn[aria-controls="tab-calc"]'));});await p.waitForTimeout(300);
  ok('コードから switchCategory で切り替えても、まとまりの印が追従する',await p.evaluate(()=>document.getElementById('tab-calc').classList.contains('active')&&document.getElementById('catMoreBtn').classList.contains('active')&&/計算/.test(document.querySelector('#catMoreBtn .cat-more-label').textContent)&&!document.getElementById('catGrpShareBtn').classList.contains('active')),null);
- ok('メニューの全項目に 1 行説明（data-desc）があり、ボタンの文字には混ざらない',await p.evaluate(()=>{const bs=[...document.querySelectorAll('.cat-more-panel .cat-btn')];return bs.length===15&&bs.every(b=>b.dataset.desc&&!b.textContent.includes(b.dataset.desc));}),null);
+ ok('メニューの全項目に 1 行説明（data-desc）があり、ボタンの文字には混ざらない',await p.evaluate(()=>{const bs=[...document.querySelectorAll('.cat-more-panel .cat-btn')];return bs.length===14&&bs.every(b=>b.dataset.desc&&!b.textContent.includes(b.dataset.desc));}),null);
  await p.evaluate(()=>{switchCategory('news',document.querySelector('.cat-btn[aria-controls="tab-news"]'));});await p.waitForTimeout(400);
  ok('「ニュースの投稿」の画面が開く（未ログインは案内）',await p.evaluate(()=>document.getElementById('tab-news').classList.contains('active')&&/ログイン/.test(document.getElementById('nfRoot').textContent)),null);
  await p.setViewportSize({width:390,height:800});await p.waitForTimeout(300);
  const fit=await p.evaluate(()=>{const n=document.querySelector('.cat-nav');return {sw:n.scrollWidth,cw:n.clientWidth};});
  ok('スマホ幅でも 4 つが横に収まる（横スクロールなし）',fit.sw<=fit.cw+1,fit);
- await p.click('#catGrpOpsBtn');await p.waitForTimeout(200);
- const m=await p.evaluate(()=>{const pn=document.getElementById('catGrpOpsPanel');const r=pn.getBoundingClientRect();return {l:Math.round(r.left),r:Math.round(r.right),w:innerWidth,hidden:pn.hidden};});
+ await p.click('#catMoreBtn');await p.waitForTimeout(200);
+ const m=await p.evaluate(()=>{const pn=document.getElementById('catMorePanel');const r=pn.getBoundingClientRect();return {l:Math.round(r.left),r:Math.round(r.right),w:innerWidth,hidden:pn.hidden};});
  ok('スマホ幅でも、メニューが画面内に収まって開く',!m.hidden&&m.l>=0&&m.r<=m.w,m);
  await p.screenshot({path:OUT+'/cat-groups-mobile.png'});
  ok('JS エラーなし',errs.length===0,errs);
