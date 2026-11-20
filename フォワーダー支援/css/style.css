@@ -6397,3 +6397,14 @@ html.theme-quiet #sqPanel { --sq-pri: var(--q-accent, #2f5fb3); --sq-pri-50: var
   #sqPanel .sq-actions--phone { display: flex; flex: none; padding: 10px 14px; border-top: 1px solid var(--sq-line); background: var(--surface, #fff); }
   #sqPanel .sq-search-bar > .sq-actions { display: none; }
 }
+
+/* 💬 情報共有タブ（2026-11 新設・中身は準備中） */
+#tab-share .share-root{max-width:880px;margin:16px auto;padding:20px 24px;background:var(--surface,#fff);border:1px solid var(--border,#e4e7ec);border-radius:12px}
+#tab-share .share-title{margin:0 0 8px;font-size:var(--text-xl,18px)}
+#tab-share .share-lead{margin:0 0 16px;line-height:var(--lh-body,1.7)}
+#tab-share .share-sub{margin:0 0 8px;font-size:var(--text-sm,13px);color:var(--text-muted,#5a6475)}
+#tab-share .share-links{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+#tab-share .share-link{display:flex;flex-direction:column;gap:4px;text-align:left;min-height:44px;padding:12px 14px;border:1px solid var(--border,#e4e7ec);border-radius:10px;background:var(--surface,#fff);color:inherit;cursor:pointer;font:inherit}
+#tab-share .share-link:hover,#tab-share .share-link:focus-visible{border-color:var(--accent,#2f5fb3)}
+#tab-share .share-link span{font-size:var(--text-sm,13px);color:var(--text-muted,#5a6475)}
+@media (max-width:600px){#tab-share .share-root{margin:8px;padding:16px}}

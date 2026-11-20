@@ -18,12 +18,12 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
  await p.goto(URL,{waitUntil:'domcontentloaded'});await p.waitForTimeout(800);
  const top=()=>p.evaluate(()=>[...document.querySelectorAll('.cat-nav > .cat-btn, .cat-nav > .cat-more > .cat-btn')].filter(b=>b.offsetParent!==null).map(b=>b.textContent.replace(/\s+/g,' ').trim()));
  const t0=await top();
- ok('上段は リンク集・見積を作る・進行管理・計算・書類・通関・Booking/SI・実績を見る・マスター管理・「その他」の順',t0.length===9&&/リンク集/.test(t0[0])&&/見積を作る/.test(t0[1])&&/進行管理/.test(t0[2])&&/計算/.test(t0[3])&&/書類/.test(t0[4])&&/Booking/.test(t0[5])&&/実績を見る/.test(t0[6])&&/マスター管理/.test(t0[7])&&/その他/.test(t0[8]),t0);
+ ok('上段は リンク集・見積を作る・進行管理・情報共有・計算・書類・通関・Booking/SI・実績を見る・マスター管理・「その他」の順',t0.length===10&&/リンク集/.test(t0[0])&&/見積を作る/.test(t0[1])&&/進行管理/.test(t0[2])&&/情報共有/.test(t0[3])&&/計算/.test(t0[4])&&/書類/.test(t0[5])&&/Booking/.test(t0[6])&&/実績を見る/.test(t0[7])&&/マスター管理/.test(t0[8])&&/その他/.test(t0[9]),t0);
  const col=await p.evaluate(()=>[...document.querySelectorAll('.cat-nav > .cat-btn')].map(b=>({t:b.textContent.trim().slice(0,6),act:b.classList.contains('active'),bg:getComputedStyle(b).backgroundImage+getComputedStyle(b).backgroundColor,fg:getComputedStyle(b).color,bd:getComputedStyle(b).borderColor})));
- const work=col.filter(c=>!c.act&&/^(🔖|🧮|📄|📋)/.test(c.t));
+ const work=col.filter(c=>!c.act&&/^(🔖|📦|💬|🧮|📄|📋)/.test(c.t));
  const adm=col.filter(c=>/^(📊|🗂)/.test(c.t));
  const actv=col.filter(c=>c.act);
- ok('作業系 4 つ（選択中を除く）は同じ色',work.length===4&&work.every(c=>c.bg===work[0].bg&&c.fg===work[0].fg&&c.bd===work[0].bd),col);
+ ok('作業系 6 つ（選択中を除く）は同じ色',work.length===6&&work.every(c=>c.bg===work[0].bg&&c.fg===work[0].fg&&c.bd===work[0].bd),col);
  ok('見る・管理系 2 つは同じ色で、作業系とは別の色',adm.length===2&&adm.every(c=>c.bg===adm[0].bg)&&adm[0].bg!==work[0].bg,col);
  ok('選択中（見積を作る）だけ濃い',actv.length===1&&/見積/.test(actv[0].t)&&actv[0].bg!==work[0].bg,col);
  ok('「その他」は別の色（地味なまま）',await p.evaluate(()=>{const o=getComputedStyle(document.getElementById('catMoreBtn'));return o.backgroundImage+o.backgroundColor;})!==work[0].bg,col);
