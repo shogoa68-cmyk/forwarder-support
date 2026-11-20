@@ -46,11 +46,13 @@
   <link rel="stylesheet" href="css/retired-ui.css">
   <link rel="stylesheet" href="css/bulk-bar.css">
 <link rel="stylesheet" href="css/dash-top.css">
+<link rel="stylesheet" href="css/ops-progress.css">
 <link rel="stylesheet" href="css/card-c3.css">
 <link rel="stylesheet" href="css/button-layout.css">
 <link rel="stylesheet" href="css/case-files.css">
 <link rel="stylesheet" href="css/preview-roles.css">
 <link rel="stylesheet" href="css/input-grid.css">
+<link rel="stylesheet" href="css/steps-b.css">
 <link rel="stylesheet" href="css/group-header-b.css">
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
@@ -147,6 +149,7 @@
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
     <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-bookmark"   title="船会社・サブコン（協力会社）のリンク集（BOOKMARK）" onclick="switchCategory('bookmark', this)">🔖 リンク集</button>
     <button class="cat-btn cat-btn-bookmark active" role="tab" aria-selected="true"  aria-controls="tab-quote-make"   title="お客様へ出す見積書を作る" onclick="switchCategory('quote',  this)">💼 見積を作る</button>
+    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-ops"          title="受注した案件の、手配から請求までの作業の進み具合（進行管理）" onclick="switchCategory('ops',    this)">📦 進行管理</button>
     <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-calc"         title="CBM・運賃トン・バンニングなどの計算" onclick="switchCategory('calc',   this)">🧮 計算</button>
     <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-bldo"         title="B/L・D/O・通関などの書類" onclick="switchCategory('docs',   this)">📄 書類・通関</button>
     <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-booking-tab"  title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
@@ -2896,6 +2899,9 @@
             <input type="hidden" id="qf-versions" value="[]" />
             <input type="hidden" id="qf-follower" value="" />
             <input type="hidden" id="qf-follow-log" value="[]" />
+            <input type="hidden" id="qf-ops" value="" />
+            <input type="hidden" id="qf-core-ref2" value="" />
+            <input type="hidden" id="qf-cp-keys" value="" />
             <div class="qv-panel" id="qvPanel" hidden></div>
             <input type="hidden" id="qf-revision-baseline" />
           </div>
@@ -5024,6 +5030,11 @@
   </div>
 
   <!-- ===================== Tab: CALENDAR ===================== -->
+  <!-- 📦 進行管理（受注後の業務のチェックリスト一覧）。ロジックは js/quote/ops-progress.js -->
+  <div class="tab-content" id="tab-ops">
+    <div class="opt-root" id="opsRoot"><div class="opt-empty">読み込み中…</div></div>
+  </div><!-- /#tab-ops -->
+
   <!-- 📁 作業フォルダ（個人フォルダ・エクスプローラー風）。ロジックは js/workfolder.js、SQL は docs/sql/work-folders.sql -->
   <div class="tab-content" id="tab-workfolder">
     <div class="wf-root" id="wfRoot"><div class="wf-empty">読み込み中…</div></div>
@@ -5113,6 +5124,7 @@
 <script src="js/quote/cloud-config.js"></script>
 <script src="js/quote/cloud.js"></script>
 <script src="js/quote/dash-top.js"></script>
+<script src="js/quote/ops-progress.js"></script>
 <script src="js/quote/users.js"></script>
 <script src="js/quote/hazmat-ai-import.js"></script>
 <script src="js/quote/total-float.js"></script>
@@ -5164,6 +5176,7 @@
 <!-- Quiet テーマの置き場所変更（ヘッダーのボタンまとめ・見出しの絵文字）。html.theme-quiet のときだけ働く -->
 <script src="js/header-menu.js"></script>
 <script src="js/quote/editor-v2.js"></script>
+<script src="js/quote/steps-b.js"></script>
 <script src="js/theme-quiet.js"></script>
 <!-- 欄ごとの説明書きを「？」にしまう（マウスを乗せる／タップで読める） -->
 <script src="js/hint-fold.js"></script>

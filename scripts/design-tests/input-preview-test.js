@@ -23,9 +23,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const cu = await R('#qf-customer'), pe = await R('#qf-person'), cn = await R('#qf-case-name'), rf = await R('#qf-ref');
   ok('① 高さは 36px（スマホ 44px）', [cu, pe, cn, rf].every(x => x && x.h === (PHONE ? 44 : 36)), [cu, pe, cn, rf]);
   if (!PHONE) {
-    ok('① 1 行目はお客様｜ご担当者（同じ高さの行）', cu.y === pe.y && cu.x < pe.x, { cu, pe });
-    ok('① 2 行目は案件名（全幅）・3 行目は見積もり番号', cn.y > cu.y && rf.y > cn.y, { cn, rf });
-    ok('① 右端がそろう（ご担当者と案件名）', Math.abs(pe.r - cn.r) <= 2, { pe, cn });
+    // Design 46（案B）：①は左の列が 1 列（お客様→ご担当者→案件名→番号）。日付などは右の列（steps-b-test.js）
+    ok('① 左の列は 1 列（お客様→ご担当者→案件名→番号の順）', cu.y < pe.y && pe.y < cn.y && cn.y < rf.y, { cu, pe, cn, rf });
+    ok('① 右端がそろう（お客様と案件名）', Math.abs(cu.r - cn.r) <= 40, { cu, cn });
   } else ok('① スマホは 1 列（お客様→ご担当者→案件名→番号の順）', cu.y < pe.y && pe.y < cn.y && cn.y < rf.y, { cu, pe, cn, rf });
   ok('① 見出し「管理番号入力」は出さない', !(await R('#section-ref > h2')).vis);
   ok('① ご担当者の例文は「例）山田」だけ', await p.evaluate(() => document.getElementById('qf-person').placeholder === '例）山田'));
@@ -59,11 +59,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
   // ⑤ 並び
   await p.evaluate(() => window.editorV2Go(5, true)); await p.waitForTimeout(300);
   const ta = await R('#remarkTextarea'), cs = await R('#remarkCargoSel'), ch = await R('#remarkChar'), pb = await R('#presetBtns');
-  ok('⑤ 定型文 → 文章の欄 → 0文字・クリア → 品物別リマーク の順', pb.y < ta.y && ta.y < ch.y && ch.y < cs.y, { pb, ta, ch, cs });
+  // Design 48（案B）：定型文は［＋ 定型文を入れる ▾］のパネル、品物別は右の列（steps-b-test.js）
+  const rh = await R('#sbRmHead');
+  ok('⑤ 見出し（＋ 定型文を入れる）→ 文章の欄 → 0文字・クリア の順', rh && rh.y < ta.y && ta.y < ch.y, { rh, ta, ch });
   if (!PHONE) ok('⑤ 「0文字・クリア」は欄の右下', Math.abs(ch.r - ta.r) <= 80, { ch, ta });
   if (!PHONE) {
     const nav = await R('#e2Nav'), sec = await R('#section-remark'), out = await R('#e2Out');
-    ok('左右の端：［戻る］［次へ］・出力する の枠を本文の幅にそろえる', Math.abs(nav.x - sec.x) <= 2 && Math.abs(nav.r - sec.r) <= 2 && Math.abs(out.r - sec.r) <= 2, { nav, sec, out });
+    ok('左右の端：［戻る］［次へ］を本文の幅にそろえる（出力する は右の列＝Design 48）', Math.abs(nav.x - sec.x) <= 2 && Math.abs(nav.r - sec.r) <= 2 && out.x > sec.r, { nav, sec, out });
   }
 
   // ===== 41：プレビュー／PDF 出力 =====

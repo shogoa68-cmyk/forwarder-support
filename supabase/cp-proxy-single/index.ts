@@ -517,7 +517,11 @@ interface WatchTarget {
   state?: 'active' | 'done' | 'ask';
   state_note?: string | null;
   ask_snooze_until?: string | null;   // 「もう少し追う」を選んだとき、この時刻まで確認の知らせを止める
+  source?: string | null;             // case（見積の案件）／trade（サイバーポートの取引）／container
+  trade_no?: string | null;           // 取引番号（source='trade'）
 }
+// 取引から取り直した手がかり（変わったものだけ保存する）
+interface TargetKeys { bl_no: string | null; booking_no: string | null; container_nos: string[]; }
 interface TargetResult {
   preset_id: string;
   ok: boolean;
@@ -530,6 +534,7 @@ interface TargetResult {
   error: string | null;
   checked_at: string;
   calls: number;
+  keys?: TargetKeys | null;      // 取引から手がかりを取り直したとき（保存先の列を書き換える）
 }
 interface WatchDeps {
   pick(n: number): Promise<WatchTarget[]>;
@@ -556,6 +561,42 @@ function containerQueries(t: WatchTarget): Record<string, unknown>[] {
   return (t.container_nos || []).map((c) => normalizeNo(c)).filter((c) => /^[A-Z]{4}\d{7}$/.test(c)).slice(0, 10).map((c) => ({ containerNo: c }));
 }
 
+// ---------- 手がかりの自動補完（取引番号 → B/L・ブッキング・コンテナ番号） ----------
+// 取引の追跡（source='trade'）で、主な手がかり（輸入＝B/L 番号・輸出＝ブッキング番号）が空のとき、
+// サイバーポートの取引（Trades/Search・Trades/GetContainers）から取り直す。読み取りだけ・許可リストの範囲。
+const CTN_RE = /^[A-Z]{4}\d{7}$/;
+function scanContainers(o: unknown, out: Set<string> = new Set(), depth = 0): Set<string> {
+  if (o == null || depth > 8) return out;
+  if (typeof o === 'string') { const v = normalizeNo(o); if (CTN_RE.test(v)) out.add(v); }
+  else if (Array.isArray(o)) o.forEach((x) => scanContainers(x, out, depth + 1));
+  else if (typeof o === 'object') Object.values(o as Record<string, unknown>).forEach((x) => scanContainers(x, out, depth + 1));
+  return out;
+}
+const firstStr = (o: unknown, paths: string[]): string | null => { for (const p of paths) { const v = str(g(o, p)); if (v) return normalizeNo(v); } return null; };
+function needsKeys(t: WatchTarget): boolean {
+  if (t.source !== 'trade' || !normalizeNo(t.trade_no)) return false;
+  return t.direction === 'export' ? !normalizeNo(t.booking_no) : !normalizeNo(t.bl_no);
+}
+// 取引を探して手がかりを返す（見つからなければ null）。いまの手がかりは消さず、足りない分だけ足す
+async function keysFromTrade(deps: Pick<WatchDeps, 'get'>, t: WatchTarget, count: () => void): Promise<TargetKeys | null> {
+  const no = normalizeNo(t.trade_no);
+  count();
+  const list = asArray(await deps.get('/API/v2/Trades/Search', { keyword: no }));
+  const tr = list.find((x) => normalizeNo(str(g(x, 'tradeNo'))) === no);
+  if (!tr) return null;
+  const ctns = scanContainers(tr);
+  try { count(); scanContainers(await deps.get('/API/v2/Trades/GetContainers/' + encodeURIComponent(str(g(tr, 'tradeNo')) || no), {}), ctns); } catch (_e) { /* 一覧が取れなくても続ける */ }
+  const old = (t.container_nos || []).map((c) => normalizeNo(c)).filter((c) => CTN_RE.test(c));
+  const merged = [...new Set([...old, ...ctns])].slice(0, 10);
+  return {
+    bl_no: normalizeNo(t.bl_no) || firstStr(tr, ['blNo', 'billOfLadingNo', 'billOfLadingDetail.blNo']),
+    booking_no: normalizeNo(t.booking_no) || firstStr(tr, ['bookingNo', 'bookingNumber', 'booking.bookingNo']),
+    container_nos: merged,
+  };
+}
+const sameKeys = (t: WatchTarget, k: TargetKeys) => (normalizeNo(t.bl_no) || null) === k.bl_no && (normalizeNo(t.booking_no) || null) === k.booking_no
+  && JSON.stringify((t.container_nos || []).map((c) => normalizeNo(c))) === JSON.stringify(k.container_nos);
+
 async function runWatchBatch(deps: WatchDeps, n: number): Promise<BatchSummary> {
   const sum: BatchSummary = { picked: 0, ok: 0, nodata: 0, failed: 0, changed: 0, calls: 0, skipped: 0, saveErrors: 0 };
   const targets = await deps.pick(n);
@@ -569,7 +610,19 @@ async function runWatchBatch(deps: WatchDeps, n: number): Promise<BatchSummary> 
       urgent_at: null, error: null, checked_at: new Date(nowMs).toISOString(), calls: 0,
     };
     try {
+      if (needsKeys(t)) {
+        try {
+          const k = await keysFromTrade(deps, t, () => { r.calls++; sum.calls++; });
+          if (k && !sameKeys(t, k)) { r.keys = k; Object.assign(t, { bl_no: k.bl_no, booking_no: k.booking_no, container_nos: k.container_nos }); }
+        } catch (_e) { /* 取引が取れなくても、いまの手がかりで確認を続ける */ }
+      }
       const qs = containerQueries(t);
+      if (!qs.length && t.source === 'trade') {   // 取引にまだ B/L・コンテナが載っていない＝失敗ではなく「待ち」
+        r.ok = true; r.status = 'nodata'; r.state_note = '取引に B/L・ブッキング・コンテナ番号がまだ登録されていません（次の確認で取り直します）';
+        sum.nodata++;
+        try { await deps.save(r); } catch (_e) { sum.saveErrors++; }
+        continue;
+      }
       if (!qs.length) throw Object.assign(new Error('照合キー（B/L番号・ブッキング番号・コンテナ番号）が入っていません'), { code: 'no_keys' });
       const prefix = '/API/v2/ColinsViewers/Get' + (t.direction === 'export' ? 'Export' : 'Import');
       const recs: unknown[] = [];
@@ -843,6 +896,7 @@ async function handleWatchRun(req: Request): Promise<Response> {
         last_checked_at: r.checked_at, last_status: r.status, last_error: r.error, updated_at: r.checked_at,
         consecutive_errors: r.status === 'error' ? (tg?.consecutive_errors ?? 0) + 1 : 0,
       };
+      if (r.keys) { upd.bl_no = r.keys.bl_no; upd.booking_no = r.keys.booking_no; upd.container_nos = r.keys.container_nos; }   // 取引から取り直した手がかり
       if (r.status === 'ok') {   // 該当なし・失敗のときは前回の写しを残す
         upd.snapshot = r.items; upd.urgent_at = r.urgent_at; upd.state = r.state; upd.state_note = r.state_note;
         if (r.state !== (tg?.state ?? 'active')) upd.state_at = r.checked_at;

@@ -205,7 +205,7 @@
 
   // 案件に固有の記録を除いた、新規案件用の内容
   const DROP_FIELDS = ['qf-ref', 'qf-core-ref', 'qf-lost-reason', 'qf-lost-note', 'qf-inq-kind', 'qf-inq-channel', 'qf-inq-spec',
-    'qf-first-presented', 'qf-recv-time', 'qf-versions', 'qf-related-data', 'qf-free-entries', 'qf-import-src', 'qf-revision-baseline', 'qf-follower', 'qf-follow-log',
+    'qf-first-presented', 'qf-recv-time', 'qf-versions', 'qf-related-data', 'qf-free-entries', 'qf-import-src', 'qf-revision-baseline', 'qf-follower', 'qf-follow-log', 'qf-ops', 'qf-core-ref2', 'qf-cp-keys',
     'qf-received', 'qf-date', 'qf-valid-until', 'qf-due'];
   function freshData(src) {
     const data = JSON.parse(JSON.stringify(src));
