@@ -180,12 +180,26 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await click(p, '#opmModal [data-opm="close"]'); await p.waitForTimeout(200);
   // ---- サイバーポートで確認 → 追いかける ----
   await p.evaluate(() => window.opsOpen('B9')); await p.waitForTimeout(400);
+  // 手がかりはアプリに保存する（自分で入れたブッキング番号）
+  await setId('#opmModal .oid-k[data-k="bk"]', ' ngosj0416 2965 '); await p.waitForTimeout(700);
+  const ck = await p.evaluate(() => JSON.parse(window.__db.quote_presets.find(r => r.id === 'B9').data.fields['qf-cp-keys'] || '{}'));
+  ok('手がかり（ブッキング番号）はアプリの案件に保存（qf-cp-keys・空白を除き大文字）', ck['1'] && ck['1'].bk === 'NGOSJ04162965', ck);
+  await setId('#opmModal .oid-k[data-k="ctn"]', 'ABC123'); await p.waitForTimeout(500);
+  const ck2 = await p.evaluate(() => JSON.parse(window.__db.quote_presets.find(r => r.id === 'B9').data.fields['qf-cp-keys'] || '{}'));
+  ok('形の違うコンテナ番号は保存しない', !ck2['1'].ctn, ck2);
+  await p.evaluate(() => window.opsOpen('B9')); await p.waitForTimeout(300);
   await click(p, '#opmModal [data-oid="check"]'); await p.waitForTimeout(800);
+  const bkv = await p.evaluate(() => (document.querySelector('#opmModal .oid-pane [data-k="bk"]') || {}).value);
+  ok('確認の欄にはアプリに保存したブッキング番号が入る', bkv === 'NGOSJ04162965', bkv);
   const pane = await p.evaluate(() => { const x = document.querySelector('#opmModal .oid-pane'); return x ? { t: x.textContent, dir: (x.querySelector('[data-k="dir"]') || {}).value, ctn: (x.querySelector('[data-k="ctn"]') || {}).value } : null; });
   ok('基幹 ID は取引名で照合して見つかり、取引番号・向き（輸出）・コンテナ番号が入る', !!pane && /EXP_2026111602062021/.test(pane.t) && pane.dir === 'export' && pane.ctn === 'MSCU1234567', pane);
   await click(p, '#opmModal [data-oid="watch"]'); await p.waitForTimeout(900);
   const w = await p.evaluate(() => window.__db.cp_watch_targets.find(t => t.trade_no === 'EXP_2026111602062021'));
   ok('追いかけの名簿に取引として入る（source=trade・本当の取引番号・名前は基幹 ID・コンテナ）', !!w && w.source === 'trade' && w.title === 'EXP2611303-00' && w.direction === 'export' && w.container_nos[0] === 'MSCU1234567' && w.trace === true, w);
+  ok('名簿にもアプリのブッキング番号が入る', !!w && w.booking_no === 'NGOSJ04162965', w && w.booking_no);
+  await setId('#opmModal .oid-k[data-k="bk"]', 'NGOSJ04169999'); await p.waitForTimeout(800);
+  const w2 = await p.evaluate(() => window.__db.cp_watch_targets.find(t => t.trade_no === 'EXP_2026111602062021'));
+  ok('追いかけ中に手がかりを直すと、名簿の手がかりもそろう', !!w2 && w2.booking_no === 'NGOSJ04169999', w2 && w2.booking_no);
   const st9b = await p.evaluate(() => (document.querySelector('#opmModal .oid-st') || {}).textContent || '');
   ok('登録後は「🛰 追跡中」', /追跡中/.test(st9b), st9b);
   ok('「サイバーポートで追跡中」の案内が出る', await p.evaluate(() => !!document.querySelector('#opmModal .opm-auto')));
