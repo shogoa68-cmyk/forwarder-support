@@ -990,6 +990,7 @@
     if (p.loading) return '<div class="oid-pane"><p>サイバーポートで取引「' + esc(L.val) + '」を探しています…</p></div>';
     if (p.err) return '<div class="oid-pane is-err"><p>' + esc(p.err) + '</p><div class="oj-crow-foot"><button type="button" class="opm-link" data-oid="cancel">閉じる</button></div></div>';
     const tr = p.trade || {};
+    if (!t && tr.no && AUTO.trades) t = AUTO.trades.get(normId(tr.no)) || null;   // 取引番号ですでに追いかけている
     let h = '<div class="oid-pane"><dl class="oid-dl"><dt>取引番号</dt><dd>' + esc(tr.no) + '</dd>' + (tr.name ? '<dt>取引名</dt><dd>' + esc(tr.name) + '</dd>' : '') +
       (tr.type ? '<dt>種別</dt><dd>' + esc(tr.type) + '</dd>' : '') + (tr.status ? '<dt>状態</dt><dd>' + esc(tr.status) + '</dd>' : '') + '</dl>';
     if (t) {
@@ -997,7 +998,7 @@
       return h + '<p class="oid-ok">この取引は、すでに追いかけの名簿に入っています（' + ws[0].replace('🛰 ', '') + '）。朝夕の自動確認の結果が、ここのチェックに反映されます。</p>' +
         '<div class="oj-crow-foot"><button type="button" class="opm-link" data-oid="cancel">閉じる</button></div></div>';
     }
-    h += '<p class="oj-hint">追いかけるには手がかりが 1 つ以上要ります（輸入＝B/L 番号・輸出＝ブッキング番号・コンテナ番号）。サイバーポートから取れたものを入れてあります。</p>' +
+    h += '<p class="oj-hint">サイバーポートから取れた手がかり（輸入＝B/L 番号・輸出＝ブッキング番号・コンテナ番号）を入れてあります。空のままでも登録でき、朝夕の自動確認のときに取引から取り直します。</p>' +
       '<div class="oj-grid">' +
       '<label class="oj-f"><span>向き</span><select class="oid-f" data-k="dir"><option value="import"' + (p.dir === 'import' ? ' selected' : '') + '>輸入</option><option value="export"' + (p.dir === 'export' ? ' selected' : '') + '>輸出</option></select></label>' +
       '<label class="oj-f"><span>B/L 番号</span><input type="text" class="oid-f" data-k="bl" value="' + esc(p.bl) + '" maxlength="40"></label>' +
@@ -1051,8 +1052,9 @@
     try {
       const r = await window.CyberPort.tradesSearch({ keyword: v });
       const list = Array.isArray(r.data) ? r.data : (r.data && Array.isArray(r.data.items) ? r.data.items : []);
-      const tr = list.find(x => normId(gv(x, 'tradeNo')) === v) || null;
-      if (!tr) return done({ err: 'サイバーポートに取引番号「' + v + '」が見つかりませんでした。番号を確かめるか、サイバーポートに登録されたあとでもう一度確かめてください。' });
+      // 基幹の番号は、サイバーポートでは「取引名」に入る（取引番号はサイバーポートが振る EXP_2026… の番号）。両方で照合する
+      const tr = list.find(x => normId(gv(x, 'tradeNo')) === v) || list.find(x => normId(gv(x, 'tradeName')) === v) || null;
+      if (!tr) return done({ err: 'サイバーポートに「' + v + '」の取引（取引名・取引番号）が見つかりませんでした。番号を確かめるか、サイバーポートに登録されたあとでもう一度確かめてください。' });
       const ctns = scanCtns(tr);
       try { const c = await window.CyberPort.get('/API/v2/Trades/GetContainers/' + encodeURIComponent(gv(tr, 'tradeNo'))); scanCtns(c && c.data, ctns); } catch (e) { /* コンテナ一覧が取れなくても続ける */ }
       const no = String(gv(tr, 'tradeNo') || v), type = String(gv(tr, 'tradeType') || '');
@@ -1068,10 +1070,10 @@
     const N = normId, bl = N(p.bl), bk = N(p.bk), ctns = String(p.ctn || '').split(/[\s,、;]+/).map(N).filter(Boolean);
     const bad = ctns.filter(c => !/^[A-Z]{4}\d{7}$/.test(c));
     p.ferr = bad.length ? 'コンテナ番号の形が違います（英字4文字＋数字7桁）：' + bad.join('、') : ctns.length > 10 ? 'コンテナ番号は10本までです。'
-      : !(p.dir === 'export' ? (bk || ctns.length) : (bl || ctns.length)) ? (p.dir === 'export' ? 'ブッキング番号' : 'B/L番号') + 'かコンテナ番号を入れてください（これが無いと動きを調べられません）。' : '';
+      : '';
     if (p.ferr) { idRerender(); return; }
     const c = client(), email = me(); if (!c || !email) { p.ferr = 'ログインが必要です。'; idRerender(); return; }
-    const { error } = await c.from('cp_watch_targets').insert({ source: 'trade', trade_no: p.trade.no, title: p.title || p.trade.name || null, direction: p.dir === 'export' ? 'export' : 'import',
+    const { error } = await c.from('cp_watch_targets').insert({ source: 'trade', trade_no: p.trade.no, title: normId(idLegs(p.kind, p.id).find(x => x.n === p.n).val) || p.trade.name || null, direction: p.dir === 'export' ? 'export' : 'import',
       bl_no: bl || null, booking_no: bk || null, container_nos: ctns, trace: true, state: 'active', created_by: email, updated_by: email });
     if (error) {
       const m = error.message || error.code || '';
@@ -1168,7 +1170,7 @@
   const autoTargetOfJob = (j, shipId) => targetsForJob(j, shipId).length > 0;
   async function autoLoad() {
     const c = client(); if (!c) return null;
-    let res = await c.from('cp_watch_targets').select('preset_id,direction,snapshot,source,trade_no,trace,state');
+    let res = await c.from('cp_watch_targets').select('preset_id,direction,snapshot,source,trade_no,title,trace,state');
     if (res.error && (res.error.code === '42703' || /source|trade_no/.test(res.error.message || ''))) res = await c.from('cp_watch_targets').select('preset_id,direction,snapshot,trace');
     if (res.error) {
       if (res.error.code === '42P01' || res.error.code === 'PGRST205' || /cp_watch_targets/.test(res.error.message || '')) AUTO.missing = true;
@@ -1177,7 +1179,10 @@
     const map = new Map(), trades = new Map();
     (res.data || []).forEach(t => {
       if ((t.source || 'case') === 'case' && t.preset_id) map.set(t.preset_id, t);
-      else if (t.source === 'trade' && t.trade_no) trades.set(normId(t.trade_no), t);
+      else if (t.source === 'trade' && t.trade_no) {
+        trades.set(normId(t.trade_no), t);
+        if (t.title && !trades.has(normId(t.title))) trades.set(normId(t.title), t);   // 基幹 ID は取引名（＝名簿の名前）でも引く
+      }
     });
     return { map, trades };
   }

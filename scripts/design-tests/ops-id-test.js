@@ -136,7 +136,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => {   // サイバーポートの問い合わせを差し替える
     window.__cpCalls = [];
     window.CyberPort = Object.assign({}, window.CyberPort, {
-      tradesSearch: async q => { window.__cpCalls.push(['search', q]); return { data: q.keyword === 'EXP2611303-00' ? [{ tradeNo: 'EXP2611303-00', tradeName: '輸出の取引', tradeType: 'Export', tradeStatus: '進行中', blNo: '' }] : [] }; },
+      tradesSearch: async q => { window.__cpCalls.push(['search', q]); return { data: q.keyword === 'EXP2611303-00' ? [{ tradeNo: 'EXP_2026111602062021', tradeName: 'EXP2611303-00', tradeType: 'Export', tradeStatus: 'Ongoing', blNo: '' }] : [] }; },
       get: async path => { window.__cpCalls.push(['get', path]); return { data: [{ container: { containerNo: 'MSCU1234567' } }] }; },
     });
   });
@@ -182,19 +182,19 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => window.opsOpen('B9')); await p.waitForTimeout(400);
   await click(p, '#opmModal [data-oid="check"]'); await p.waitForTimeout(800);
   const pane = await p.evaluate(() => { const x = document.querySelector('#opmModal .oid-pane'); return x ? { t: x.textContent, dir: (x.querySelector('[data-k="dir"]') || {}).value, ctn: (x.querySelector('[data-k="ctn"]') || {}).value } : null; });
-  ok('取引が見つかり、取引名・向き（輸出）・コンテナ番号が入る', !!pane && /輸出の取引/.test(pane.t) && pane.dir === 'export' && pane.ctn === 'MSCU1234567', pane);
+  ok('基幹 ID は取引名で照合して見つかり、取引番号・向き（輸出）・コンテナ番号が入る', !!pane && /EXP_2026111602062021/.test(pane.t) && pane.dir === 'export' && pane.ctn === 'MSCU1234567', pane);
   await click(p, '#opmModal [data-oid="watch"]'); await p.waitForTimeout(900);
-  const w = await p.evaluate(() => window.__db.cp_watch_targets.find(t => t.trade_no === 'EXP2611303-00'));
-  ok('追いかけの名簿に取引として入る（source=trade・取引番号・コンテナ）', !!w && w.source === 'trade' && w.direction === 'export' && w.container_nos[0] === 'MSCU1234567' && w.trace === true, w);
+  const w = await p.evaluate(() => window.__db.cp_watch_targets.find(t => t.trade_no === 'EXP_2026111602062021'));
+  ok('追いかけの名簿に取引として入る（source=trade・本当の取引番号・名前は基幹 ID・コンテナ）', !!w && w.source === 'trade' && w.title === 'EXP2611303-00' && w.direction === 'export' && w.container_nos[0] === 'MSCU1234567' && w.trace === true, w);
   const st9b = await p.evaluate(() => (document.querySelector('#opmModal .oid-st') || {}).textContent || '');
   ok('登録後は「🛰 追跡中」', /追跡中/.test(st9b), st9b);
   ok('「サイバーポートで追跡中」の案内が出る', await p.evaluate(() => !!document.querySelector('#opmModal .opm-auto')));
   await click(p, '#opmModal [data-opm="close"]'); await p.waitForTimeout(200);
   // 自動確認の結果が入ったら、取引番号で結び付けてチェック
-  await p.evaluate(() => { window.__db.cp_watch_targets.find(t => t.trade_no === 'EXP2611303-00').snapshot = [{ k: 'v:H|8:pol:atd', val: '2026-11-20 07:40', cat: 'date' }]; });
+  await p.evaluate(() => { window.__db.cp_watch_targets.find(t => t.trade_no === 'EXP_2026111602062021').snapshot = [{ k: 'v:H|8:pol:atd', val: '2026-11-20 07:40', cat: 'date' }]; });
   await p.evaluate(() => window.opsAutoSync()); await p.waitForTimeout(1200);
   const o9 = await ops(p, 'B9'), d9 = o9 && o9.s.find(x => /本船出港/.test(x.l));
-  ok('取引番号の追跡の実績で、案件の「本船出港」に自動チェック', !!d9 && d9.d && /07:40/.test(d9.src), d9);
+  ok('取引名（基幹 ID）で結び付けた追跡の実績で、案件の「本船出港」に自動チェック', !!d9 && d9.d && /07:40/.test(d9.src), d9);
   // 見つからない番号
   await p.evaluate(() => window.opsOpen('B5')); await p.waitForTimeout(400);
   await setId('#opmModal .oid-in[data-oid-n="1"]', 'IMP2611999-00'); await p.waitForTimeout(700);
