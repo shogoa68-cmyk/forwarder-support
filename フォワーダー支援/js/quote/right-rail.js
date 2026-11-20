@@ -241,6 +241,18 @@
     const box = document.getElementById('qrcRailMore'), b = document.getElementById('qrcMore2'); if (!box || !b) return;
     const open = (force == null) ? box.hidden : !!force;
     box.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); b.classList.toggle('is-open', open);
+    if (open) _placeMore(box, b);
+  }
+  // レール本体は overflow:auto で外へはみ出すと切れるため、メニューは画面基準（fixed）でボタンの左に置く
+  function _placeMore(box, b) {
+    try { b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
+    const r = b.getBoundingClientRect(), vw = window.innerWidth, vh = window.innerHeight;
+    box.style.right = 'auto'; box.style.bottom = 'auto';
+    const w = box.offsetWidth || 190, h = box.offsetHeight || 260;
+    let left = r.left - w - 6, top = r.bottom - h;
+    if (window.innerWidth <= 600) { left = Math.max(8, Math.min(vw - w - 8, r.right - w)); top = r.top - h - 6; }
+    box.style.left = Math.max(8, left) + 'px';
+    box.style.top = Math.max(8, Math.min(vh - h - 8, top)) + 'px';
   }
 
   // Esc：引き出しを閉じる（モーダル・メニューが開いているときは譲る）

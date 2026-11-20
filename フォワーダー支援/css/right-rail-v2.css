@@ -25,7 +25,7 @@ html.theme-quiet #tab-quote-make .qrc-drawer, html.theme-quiet #tab-quote-make .
 
 /* ［その他］は下へ伸ばさず、レールの左に小さなメニュー（幅 190px） */
 #tab-quote-make .qrc-rail { position: relative; }
-#tab-quote-make .qrc-rail-more { position: absolute; right: calc(100% + 6px); bottom: 0; width: 190px; padding: 6px; gap: 0; align-items: stretch; background: var(--surface, #fff); border: 1px solid var(--rr-line); border-radius: 8px; box-shadow: 0 6px 20px rgba(16, 24, 40, .18); z-index: 20; }
+#tab-quote-make .qrc-rail-more { position: fixed; width: 190px; padding: 6px; gap: 0; align-items: stretch; background: var(--surface, #fff); border: 1px solid var(--rr-line); border-radius: 8px; box-shadow: 0 6px 20px rgba(16, 24, 40, .18); z-index: 1300; }
 #tab-quote-make .qrc-rail-more[hidden] { display: none; }
 #tab-quote-make .qrc-more-item { width: 100%; min-height: 36px; flex-direction: row; justify-content: flex-start; gap: 8px; padding: 0 8px; border-radius: 6px; text-align: left; }
 #tab-quote-make .qrc-more-item em { font-size: var(--text-sm, 13px); white-space: nowrap; }
@@ -58,7 +58,7 @@ html.editor-v2 #tab-quote-make .qrc-drawer { height: auto; min-height: 0; }
 @media (max-width: 600px) {
   #tab-quote-make .qrc-drawer { height: auto; min-height: 0; border-radius: 14px 14px 0 0; }
   #tab-quote-make .qrc-rail-btn { min-height: 44px; }
-  #tab-quote-make .qrc-rail-more { right: 0; bottom: calc(100% + 6px); }
+  #tab-quote-make .qrc-rail-more { width: 200px; }
   #tab-quote-make .qrc-pin, #tab-quote-make .qrc-close { width: 44px; height: 44px; }
 }
 
