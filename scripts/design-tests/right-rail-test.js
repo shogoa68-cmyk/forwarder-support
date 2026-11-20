@@ -92,6 +92,16 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const openMore = async () => { if (!(await vis('#qrcRailMore'))) { await p.evaluate(() => document.getElementById('qrcMore2').click()); await p.waitForTimeout(150); } };
   const v2 = !!process.env.EDITOR;
   if (v2) { await p.evaluate(() => { const b = document.querySelector('#e2Total [data-e2d]'); b && b.click(); }); await p.waitForTimeout(400); }
+  await p.waitForTimeout(1000);
+  if (!v2 && W >= 700) {
+    ok('❓ はレールの下端（レールの子・下端が［その他］より下・押すとカードが開く）', await p.evaluate(() => { const f = document.getElementById('fbQuickFab'), r = document.getElementById('qrcRail'); if (!f || f.parentNode !== r) return false; const fb = f.getBoundingClientRect(), mb = document.getElementById('qrcMore2').getBoundingClientRect(); return fb.top >= mb.bottom - 1 && getComputedStyle(f).position === 'static'; }), null);
+    await p.evaluate(() => document.getElementById('fbQuickFab').click()); await p.waitForTimeout(250);
+    ok('❓ のカードがレールの近くに開く', await p.evaluate(() => { const c = document.getElementById('fbHelpCard'); return c && !c.hidden && c.getBoundingClientRect().right <= innerWidth; }), null);
+    await p.evaluate(() => document.getElementById('fbQuickFab').click());
+    await p.evaluate(() => window.qpShowDashboard && window.qpShowDashboard()); await p.waitForTimeout(1200);
+    ok('ダッシュボードでは ❓ は body へ戻る（右下に浮かぶ）', await p.evaluate(() => document.getElementById('fbQuickFab').parentNode === document.body), null);
+    await p.evaluate(() => window.cloudLoadPreset && window.cloudLoadPreset('A')); await p.waitForTimeout(1500);
+  }
   // レール
   const labels = await p.evaluate(() => [...document.querySelectorAll('#qrcRail > .qrc-rail-btn')].map(b => b.querySelector('em').textContent));
   ok('レールはよく使う 5 つ＋その他（絵文字でなく SVG）', labels.join('|') === '費用|金額|申し送り|サブコン|チャージ|その他' && await p.evaluate(() => [...document.querySelectorAll('#qrcRail > .qrc-rail-btn')].every(b => b.querySelector('.qrc-rail-ico svg'))), labels);
