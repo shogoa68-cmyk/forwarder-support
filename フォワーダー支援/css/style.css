@@ -6472,3 +6472,7 @@ html.theme-quiet #sqPanel { --sq-pri: var(--q-accent, #2f5fb3); --sq-pri-50: var
   .cat-grp .cat-more-label:not(:empty) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 .cat-grp .cat-more-label { order: 3; }
+/* 「💼 見積を作る」はまとまりに入れず直接開くボタン。狭い画面でもまとまりと等分 */
+@media (max-width: 800px) {
+  .cat-nav > .cat-btn { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; }
+}
