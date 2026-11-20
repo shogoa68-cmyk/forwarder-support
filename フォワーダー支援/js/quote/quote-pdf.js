@@ -619,7 +619,8 @@
     const _ptPush = () => {
       // パターン小計はサブコン内に2パターン以上あるときだけ出す
       // （1パターンのみだと直後のサブコン小計と同額の小計行が2行並び冗長）
-      if (_ptActive && _ptSubOn && _ptHas) {
+      // ただし、サブコン名を出していない枠ではサブコン小計を出さないので、パターンが 1 つだけでもパターンの小計を出す
+      if (_ptActive && _ptHas && (_ptSubOn || (_scActive && !_scHeadLabel))) {
         // パターン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
         lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ ${t('subtotal')}</td><td class="qd-num">${_subYen(_ptJpy, _ptJpyHi)}</td></tr>`);
       }
@@ -631,7 +632,8 @@
       // 案どうしの合算（比較用の案を足した意味のない金額）になるので出さない。パターンごとの小計だけを残す。
       // この時点の _ptSubOn は、いま閉じようとしているサブコンのもの（次のサブコンの判定は境界の後）
       const _scSumMeaningless = hideTotal && _ptSubOn;
-      if (_scActive && _scHas && !_scSumMeaningless) {
+      // サブコン名を出していない枠（客先表示名が空）は、サブコン別の小計も出さない（お客様には区切りの意味が無いため）
+      if (_scActive && _scHas && !_scSumMeaningless && _scHeadLabel) {
         // サブコン小計はページが分かれると見出し行が前ページに残り会社名が分からなくなるため、
         // 「小計」だけでなくサブコン名も併記する（例：「SEABRIDGE 小計」）
         lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${_scHeadLabel ? esc(_scHeadLabel) + ' ' : ''}${t('subtotal')}</td><td class="qd-num">${_subYen(_scJpy, _scJpyHi)}</td></tr>`);
@@ -695,7 +697,10 @@
       if (_scActive) {
         const k = _scNorm(r);
         if (_scHas && k !== _scKey) {
-          _scPush(); _scJpy = 0; _scJpyHi = 0; _scHas = false; _catKey = null;
+          _scPush(); _scJpy = 0; _scJpyHi = 0; _scHas = false;
+          // 名前を出さない枠どうしの境目では、カテゴリ見出しを出し直さない（同じ見出しが続けて並ばないように）
+          const _alNext = ((typeof getSubconAliases === 'function' ? getSubconAliases()[k] : '') || '').trim();
+          if (_scHeadLabel || _alNext) _catKey = null;
           _ptActive = false; _ptKey = null;
         }
         if (!_scHas) {
@@ -710,7 +715,7 @@
           if (_rmH && _rmH.show && _rmH.text && _rmH.text.trim()) {
             lineHTML.push(`<tr class="qd-subcon-remark"><td colspan="5">📝 ${linkify(esc(_enText(_rmH.text)))}</td></tr>`);
           }
-          _catKey = null;   // 新しいサブコンに入ったのでカテゴリ見出しを再出させる
+          if (_scHeadLabel) _catKey = null;   // 名前を出すサブコンに入ったのでカテゴリ見出しを再出させる
           const ps = scPatternSets[k] || new Set();
           _ptActive = ps.size >= 2 || (ps.size === 1 && !ps.has(''));
           _ptSubOn  = ps.size >= 2;
