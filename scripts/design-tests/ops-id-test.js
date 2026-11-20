@@ -23,6 +23,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     opts = opts || {};
     const ctx = await b.newContext({ viewport: { width: W, height: 1000 }, locale: 'ja-JP' });
     if (opts.nowatch) await ctx.addInitScript(() => { window.__nowatch = 1; });
+    await ctx.addInitScript(role => { window.__role = role || 'admin'; }, opts.role || 'admin');
     if (process.env.CLASSIC) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: false, doc: false })); } catch (e) {} });
     await ctx.addInitScript(() => {
       try { localStorage.setItem('fwd.uiMode', 'detail');  } catch (e) {}
@@ -42,7 +43,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
         ],
         allowed_emails: [{ email: 'me@x.com', role: 'admin', member_no: 1 }, { email: 'tanaka@x.com', role: 'member', member_no: 2 }, { email: 'suzuki@x.com', role: 'member', member_no: 3 }],
         user_profiles: [{ email: 'me@x.com', display_name: '自分' }, { email: 'tanaka@x.com', display_name: '田中' }, { email: 'suzuki@x.com', display_name: '鈴木' }],
-        quote_comments: [], quote_preset_links: [], master_votes: [], synonym_groups: [], master_details: [], alias_rules: [], organizations: [], teams: [], org_members: [], team_members: [],
+        quote_comments: [], quote_preset_links: [], master_requests: [], master_votes: [{ field: 'sv', value: 'OCEAN NETWORK EXPRESS', voter_email: 'me@x.com' }], synonym_groups: [], master_details: [{ field: 'sv', value: 'OCEAN NETWORK EXPRESS', details: { svTypes: ['FCL CARRIER'] }, updated_by: 'me@x.com', updated_at: '2026-11-01T00:00:00Z' }], alias_rules: [], organizations: [], teams: [], org_members: [], team_members: [],
       };
       Object.assign(db.quote_presets[0].data.fields, { 'cond-direction': 'export', 'cond-mode': '海上（FCL）' });
       Object.assign(db.quote_presets[1].data.fields, { 'cond-direction': 'import', 'cond-mode': '航空（AIR）' });
@@ -105,7 +106,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
       const ch = { on() { return ch; }, subscribe(cb) { cb && cb('SUBSCRIBED'); return ch; }, track() { return Promise.resolve(); }, untrack() { return Promise.resolve(); }, unsubscribe() {}, send() { return Promise.resolve(); }, presenceState() { return {}; } };
       const user = { email: 'me@x.com', user_metadata: { full_name: '自分' } };
       const client = {
-        from: qb, rpc: name => Promise.resolve({ data: name === 'get_my_role' ? 'admin' : (name === 'quote_acquire_lock' ? 'OK' : null), error: null }), channel: () => ch, removeChannel() {},
+        from: qb, rpc: name => Promise.resolve({ data: name === 'get_my_role' ? window.__role : (name === 'quote_acquire_lock' ? 'OK' : null), error: null }), channel: () => ch, removeChannel() {},
         auth: { getSession: () => Promise.resolve({ data: { session: { user } } }), onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; }, signInWithOAuth() { return Promise.resolve({}); }, signOut() { return Promise.resolve({}); } },
         storage: { from: () => ({ upload: async () => ({ error: null }), remove: async () => ({ error: null }), createSignedUrls: async () => ({ data: [], error: null }) }) },
       };
@@ -213,8 +214,22 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const ck3 = await p.evaluate(() => JSON.parse(window.__db.quote_presets.find(r => r.id === 'B9').data.fields['qf-cp-keys'] || '{}'));
   ok('本船名・船会社も手がかりとして保存（本船名は大文字・空白をそろえる）', ck3['1'] && ck3['1'].vs === 'ONE HARMONY 012E' && ck3['1'].cr === 'ONE' && ck3['1'].bk === 'NGOSJ04169999', ck3);
   const trk2 = await p.evaluate(() => { const x = document.querySelector('#opmModal .oid-trk'); return x ? { t: x.textContent, a: [...x.querySelectorAll('a')].map(a => ({ h: a.href, t: a.textContent, c: a.getAttribute('data-cg-copy') })) } : null; });
-  ok('選んだ船会社（ONE）が推測より優先され、番号を URL で渡す', !!trk2 && /選んだ船会社/.test(trk2.t) && trk2.a.some(a => /one-line\.com/.test(a.h) && /NGOSJ04169999/.test(a.h) && !a.c), trk2 && trk2.a);
+  ok('入力した船会社（ONE）が推測より優先され、番号を URL で渡す', !!trk2 && /入力した船会社/.test(trk2.t) && trk2.a.some(a => /one-line\.com/.test(a.h) && /NGOSJ04169999/.test(a.h) && !a.c), trk2 && trk2.a);
   ok('本船スケジュールのリンクは、開くときに本船名をコピー', !!trk2 && trk2.a.some(a => /本船スケジュール/.test(a.t) && a.c === 'ONE HARMONY 012E'), trk2 && trk2.a);
+  // ---- 船会社はマスター（サブコンのキャリア種別）から引用・自由入力・未登録は登録／申請 ----
+  const crOpts = await p.evaluate(() => [...document.querySelectorAll('#oidCrList option')].map(o => o.value));
+  ok('船会社の欄の候補はマスター（サブコン・キャリア種別）から', crOpts.includes('OCEAN NETWORK EXPRESS') && await p.evaluate(() => document.querySelector('#opmModal .oid-k[data-k="cr"]').getAttribute('list') === 'oidCrList'), crOpts);
+  await setId('#opmModal .oid-k[data-k="cr"]', 'OCEAN NETWORK EXPRESS'); await p.waitForTimeout(700);
+  const t3 = await p.evaluate(() => { const x = document.querySelector('#opmModal .oid-trk'); return { a: [...x.querySelectorAll('a')].map(a => a.href), mark: (document.querySelector('#opmModal .oid-cr-mark') || {}).textContent || '' }; });
+  ok('マスターの正式名（OCEAN NETWORK EXPRESS）でも ONE のトラッキングにつながる・未登録の印は出ない', t3.a.some(h => /one-line\.com/.test(h)) && !t3.mark, t3);
+  await setId('#opmModal .oid-k[data-k="cr"]', 'kaiun line'); await p.waitForTimeout(700);
+  const t4 = await p.evaluate(() => ({ mark: (document.querySelector('#opmModal .oid-cr-mark') || {}).textContent || '', bm: !!document.querySelector('#opmModal [data-oid="crbm"]'), t: document.querySelector('#opmModal .oid-trk').textContent }));
+  ok('マスターに無い名前も自由に入力できる（保存・大文字はそのまま）', (await p.evaluate(() => JSON.parse(window.__db.quote_presets.find(r => r.id === 'B9').data.fields['qf-cp-keys'])['1'].cr)) === 'kaiun line');
+  ok('未登録の船会社は「⚠ マスターに未登録」＋［☆ マスターに登録］（管理者）', /マスターに未登録/.test(t4.mark) && /マスターに登録/.test(t4.mark), t4.mark);
+  ok('トラッキングの URL が無い船会社は、リンク集のボタンと案内', t4.bm && /アプリにまだ登録がありません/.test(t4.t), t4);
+  await click(p, '#opmModal [data-oid="crreg"]'); await p.waitForTimeout(900);
+  const reg = await p.evaluate(() => ({ v: window.__db.master_votes.some(v => v.field === 'sv' && v.value === 'kaiun line'), d: (window.__db.master_details.find(d => d.field === 'sv' && d.value === 'kaiun line') || {}).details, mark: (document.querySelector('#opmModal .oid-cr-mark') || {}).textContent || '' }));
+  ok('管理者は即マスター登録（サブコン・FCL CARRIER の種別つき）・印が消える', reg.v && reg.d && reg.d.svTypes && reg.d.svTypes.includes('FCL CARRIER') && !reg.mark, reg);
   await click(p, '#opmModal [data-opm="close"]'); await p.waitForTimeout(200);
   // 自動確認の結果が入ったら、取引番号で結び付けてチェック
   await p.evaluate(() => { window.__db.cp_watch_targets.find(t => t.trade_no === 'EXP_2026111602062021').snapshot = [{ k: 'v:H|8:pol:atd', val: '2026-11-20 07:40', cat: 'date' }]; });
@@ -247,6 +262,20 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const t = await r.p.evaluate(() => (document.querySelector('#opmModal .oid-sec') || {}).textContent || '');
     ok('名簿の表が無いときは案内を出す（壊れない）', /cp-watch\.sql/.test(t), t.slice(0, 120));
     ok('（表なし）ページのエラーなし', r.errs.length === 0, r.errs);
+    await r.ctx.close();
+  }
+  // ---- メンバー（承認制）は申請になる ----
+  {
+    const r = await open({ role: 'member' });
+    await r.p.evaluate(() => window.opsOpen('B1')); await r.p.waitForTimeout(400);
+    await r.p.evaluate(() => { const i = document.querySelector('#opmModal .oid-in'); i.value = 'EXP2611399-00'; i.dispatchEvent(new Event('change', { bubbles: true })); }); await r.p.waitForTimeout(700);
+    await r.p.evaluate(() => { const i = document.querySelector('#opmModal .oid-k[data-k="cr"]'); i.value = 'NEW LINE'; i.dispatchEvent(new Event('change', { bubbles: true })); }); await r.p.waitForTimeout(700);
+    const mk = await r.p.evaluate(() => (document.querySelector('#opmModal .oid-cr-mark') || {}).textContent || '');
+    ok('（メンバー）未登録の船会社は［📨 マスター登録を申請］', /マスター登録を申請/.test(mk), mk);
+    await r.p.evaluate(() => document.querySelector('#opmModal [data-oid="crreg"]').click()); await r.p.waitForTimeout(900);
+    const rq = await r.p.evaluate(() => ({ req: window.__db.master_requests.find(x => x.field === 'sv' && x.value === 'NEW LINE'), vote: window.__db.master_votes.some(v => v.value === 'NEW LINE'), mark: (document.querySelector('#opmModal .oid-cr-mark') || {}).textContent || '' }));
+    ok('（メンバー）申請が出る（直接は登録しない）・「申請中」の印', !!rq.req && rq.req.status === 'pending' && !rq.vote && /申請中/.test(rq.mark), rq);
+    ok('（メンバー）ページのエラーなし', r.errs.length === 0, r.errs);
     await r.ctx.close();
   }
   await b.close(); srv.close();
