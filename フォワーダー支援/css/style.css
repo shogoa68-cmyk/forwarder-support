@@ -6397,3 +6397,10 @@ html.theme-quiet #sqPanel { --sq-pri: var(--q-accent, #2f5fb3); --sq-pri-50: var
   #sqPanel .sq-actions--phone { display: flex; flex: none; padding: 10px 14px; border-top: 1px solid var(--sq-line); background: var(--surface, #fff); }
   #sqPanel .sq-search-bar > .sq-actions { display: none; }
 }
+
+/* お客様の「倉庫・配送先」（拠点の入力行） */
+.md-site-row { display: flex; flex-wrap: wrap; gap: var(--sp-6); align-items: center; background: var(--amber-94); border: 1px solid var(--c-e8d8c0); border-radius: var(--r-6); padding: var(--sp-5) var(--sp-7); }
+.md-site-row .ar-input { font-size: var(--fs-12); padding: var(--sp-3) var(--sp-7); border: 1px solid var(--c-d8c8a8); border-radius: var(--r-5); flex: 1 1 140px; min-width: 100px; }
+.md-site-row .md-site-name { flex-basis: 220px; }
+.md-site-row .md-site-kind { flex: 0 0 96px; min-width: 0; }
+.md-site-row .md-site-addr, .md-site-row .md-site-terms { flex: 1 1 100%; }
