@@ -277,6 +277,9 @@
       else if (act === 'gsave') saveGuide(i);
       else if (act === 'nadd') addNote(i);
       else if (act === 'ndel') delNote(b.dataset.id);
+      else if (act === 'fopen') openFile(b.dataset.id, false);
+      else if (act === 'fdl') openFile(b.dataset.id, true);
+      else if (act === 'fdel') delFile(b.dataset.id);
       else if (act === 'dladd') dlAdd();
       else if (act === 'dlapply') { dlSetDate(i, b.dataset.v, '🛰 COLINS'); }
       else if (act === 'dlignore') { if (readOnly()) return; const x = dlOf(_cur.st)[i]; if (x) { x.cx = b.dataset.v; commit(); } }
@@ -286,6 +289,7 @@
       const t = e.target;
       if (t.matches('.opm-due')) setDue(+t.dataset.i, t.value);
       else if (t.matches('.opc-who')) setWho(+t.dataset.i, t.value);
+      else if (t.matches('.opc-f-in')) { const fl = Array.from(t.files || []); t.value = ''; uploadFiles(+t.dataset.i, fl); }
       else if (t.matches('.opc-wn')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (x) { x.wn = t.value.trim().slice(0, 80); commit(); } }
       else if (t.matches('.opc-dk')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (x) { x.dk = t.value; const dl = dlOf(_cur.st).find(d => d.id === x.dk); if (dl && dl.d && !x.d && !x.due) x.due = dl.d; commit(); } }
       else if (t.matches('.opm-dl-d')) dlSetDate(+t.dataset.i, t.value);
@@ -296,6 +300,10 @@
     ov.addEventListener('keydown', e => {
       if (e.key === 'Enter' && e.target.id === 'opmAddIn' && !e.isComposing) { e.preventDefault(); add(); }
     });
+    // 添付ファイルの欄へドラッグ＆ドロップ
+    ov.addEventListener('dragover', e => { const z = e.target.closest && e.target.closest('.opc-files'); if (!z || readOnlyFiles()) return; e.preventDefault(); z.classList.add('is-drag'); });
+    ov.addEventListener('dragleave', e => { const z = e.target.closest && e.target.closest('.opc-files'); if (z && !z.contains(e.relatedTarget)) z.classList.remove('is-drag'); });
+    ov.addEventListener('drop', e => { const z = e.target.closest && e.target.closest('.opc-files'); if (!z) return; e.preventDefault(); z.classList.remove('is-drag'); if (readOnlyFiles()) return; uploadFiles(+z.dataset.i, e.dataTransfer && e.dataTransfer.files); });
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
       if ($('opmModal') && !$('opmModal').hidden && !document.querySelector('.confirm-overlay')) { e.stopPropagation(); e.__opsHandled = true; close(); }
@@ -455,6 +463,72 @@
     if (_cur) render();
   }
   const notesOf = x => NOTES.target === curTarget() ? NOTES.list.filter(n => n.step_id === x.id) : [];
+  // ---- 📎 添付ファイル（表 ops_files＋非公開バケット ops-files＝docs/sql/ops-files.sql）。先に保存領域へ置き、そのあと行を作る ----
+  const OPF_BUCKET = 'ops-files', OPF_MAX = 10 * 1024 * 1024;
+  const FILES = { target: '', list: [], loading: false, missing: false, err: '', busy: 0 };
+  async function loadFiles() {
+    const c = client(), t = curTarget(); if (!c || !t) return;
+    FILES.loading = true; FILES.target = t; FILES.err = '';
+    try {
+      const { data, error } = await c.from('ops_files').select('id,step_id,storage_path,file_name,file_size,mime_type,uploaded_by,created_at').eq('target', t).order('created_at', { ascending: true }).limit(500);
+      if (curTarget() !== t) return;
+      if (error) { if (isMissingRel(error)) FILES.missing = true; else FILES.err = error.message || error.code || ''; FILES.list = []; }
+      else { FILES.list = data || []; FILES.missing = false; }
+    } catch (e) { FILES.err = String(e && e.message || e); }
+    FILES.loading = false;
+    if (_cur) render();
+  }
+  const filesOf = x => FILES.target === curTarget() ? FILES.list.filter(f => f.step_id === x.id) : [];
+  const fmtSize = n => n >= 1048576 ? (Math.round(n / 104857.6) / 10) + ' MB' : n >= 1024 ? Math.round(n / 1024) + ' KB' : (n || 0) + ' B';
+  const canDelFile = f => !!f && (f.uploaded_by === me() || window._myRole === 'admin');
+  function fileKey(file) {
+    const nm = file.name || 'file', dot = nm.lastIndexOf('.');
+    const ext = dot >= 0 ? nm.slice(dot).replace(/[^A-Za-z0-9.]/g, '').slice(0, 10) : '';
+    const base = (dot >= 0 ? nm.slice(0, dot) : nm).replace(/[^A-Za-z0-9._-]+/g, '_').replace(/_{2,}/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'file';
+    const t = new Date(), ym = t.getFullYear() + String(t.getMonth() + 1).padStart(2, '0');
+    return ym + '/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + base + ext;
+  }
+  async function uploadFiles(i, list) {
+    const x = _cur && _cur.st.s[i], c = client(); if (!x || !c) return;
+    list = Array.from(list || []).filter(Boolean); if (!list.length) return;
+    const t = curTarget(); let okN = 0;
+    for (const file of list) {
+      if (file.size > OPF_MAX) { toast('⚠️ ' + file.name + ' は 10MB を超えるため付けられません', 'warn', 5000); continue; }
+      if (/[\\/]/.test(file.name) || file.name.length > 200) { toast('⚠️ ' + file.name + '：ファイル名に / \\ は使えません', 'warn', 5000); continue; }
+      FILES.busy++; render();
+      const path = fileKey(file);
+      try {
+        const up = await c.storage.from(OPF_BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false });
+        if (up.error) throw new Error(up.error.message || up.error);
+        const ins = await c.from('ops_files').insert({ target: t, step_id: x.id, storage_path: path, file_name: file.name, mime_type: file.type || null }).select().single();
+        if (ins.error) { try { await c.storage.from(OPF_BUCKET).remove([path]); } catch (e) {} throw new Error(ins.error.message || ins.error.code); }
+        if (FILES.target === t) FILES.list.push(ins.data);
+        okN++;
+      } catch (e) {
+        const m = String(e && e.message || e);
+        if (/ops_files|ops-files|does not exist|Bucket not found|Could not find/i.test(m)) FILES.missing = true;
+        toast('⚠️ ' + file.name + ' を付けられませんでした：' + m, 'warn', 6500);
+      } finally { FILES.busy--; render(); }
+    }
+    if (okN) toast('📎 ' + okN + ' 個のファイルを付けました（チームで共有）', 'success', 2800);
+  }
+  async function openFile(id, download) {
+    const f = FILES.list.find(x => x.id === id), c = client(); if (!f || !c) return;
+    const res = await c.storage.from(OPF_BUCKET).createSignedUrl(f.storage_path, 300, download ? { download: f.file_name } : undefined);
+    if (res.error || !res.data) { toast('⚠️ ファイルを開けませんでした：' + ((res.error && res.error.message) || ''), 'warn', 4500); return; }
+    if (download) { const a = document.createElement('a'); a.href = res.data.signedUrl; a.download = f.file_name; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
+    else window.open(res.data.signedUrl, '_blank', 'noopener');
+  }
+  async function delFile(id) {
+    const f = FILES.list.find(x => x.id === id), c = client(); if (!f || !c) return;
+    const ok = typeof window.uiConfirm === 'function' ? await window.uiConfirm({ title: 'このファイルを消しますか？', lines: ['・' + f.file_name], irreversible: '消したファイルは元に戻せません。', okLabel: '消す', danger: true }) : true;
+    if (!ok) return;
+    try { await c.storage.from(OPF_BUCKET).remove([f.storage_path]); } catch (e) { /* 失敗しても行は消す。残りは掃除が消す */ }
+    const del = await c.from('ops_files').delete().eq('id', id).select('id');
+    if (del.error || !(del.data && del.data.length)) { toast('⚠️ 消せませんでした' + (del.error ? '：' + del.error.message : '（置いた本人と管理者だけが消せます）'), 'warn', 5000); return; }
+    FILES.list = FILES.list.filter(x => x.id !== id); render();
+  }
+  const FILE_ICON = f => /^image\//.test(f.mime_type || '') ? '🖼' : /pdf/i.test(f.mime_type || f.file_name) ? '📄' : /sheet|excel|\.xlsx?$|\.csv$/i.test((f.mime_type || '') + f.file_name) ? '📊' : /word|\.docx?$/i.test((f.mime_type || '') + f.file_name) ? '📝' : '📎';
   const members = () => { try { return typeof window.cloudTeamMembers === 'function' ? window.cloudTeamMembers() : []; } catch (e) { return []; } };
   function stepBadges(x, st) {
     const b = [];
@@ -464,6 +538,7 @@
     const dl = x.dk ? dlOf(st).find(d => d.id === x.dk) : null;
     if (dl) b.push('<span class="opm-b opm-b-dl is-' + dlState(st, dl) + '" title="つないだ締め切り">📅 ' + esc(stripLeg(dlLabel(st, dl))) + (dl.d ? ' ' + md(dl.d) : '') + '</span>');
     const n = notesOf(x).length; if (n) b.push('<span class="opm-b" title="やりとり・記録">💬 ' + n + '</span>');
+    const nf = filesOf(x).length; if (nf) b.push('<span class="opm-b" title="添付ファイル">📎 ' + nf + '</span>');
     if (GUIDE.map.get(guideKey(x.l)) && GUIDE.map.get(guideKey(x.l)).body) b.push('<span class="opm-b" title="手順メモがあります">📖</span>');
     return b.length ? '<span class="opm-badges">' + b.join('') + '</span>' : '';
   }
@@ -493,6 +568,21 @@
     else h += (g && g.body ? '<div class="opc-guide">' + linkify(g.body) + '</div><small class="opc-meta">最後に直した人：' + esc(nameOf(g.updated_by)) + (g.updated_at ? '（' + esc(whenText(g.updated_at)) + '）' : '') + '</small>' : '<p class="opc-empty">まだ手順がありません。やり方・使うページ・注意点を書いておくと、ほかの人も同じように進められます。</p>') +
       (logged ? '<div class="opc-acts"><button type="button" class="opm-link" data-opm="gedit" data-id="' + esc(x.id) + '">✎ 手順を' + (g && g.body ? '直す' : '書く') + '</button></div>' : '');
     h += '</div>';
+    // 添付ファイル
+    h += '<div class="opc-sec opc-files" data-i="' + i + '"><h5>📎 添付ファイル<small>B/L のドラフト・INV・写真など（チームで共有・1 ファイル 10MB まで）</small></h5>';
+    if (FILES.missing) h += '<p class="opc-miss">ファイルを付けるには、管理者が Supabase で <code>docs/sql/ops-files.sql</code> を実行してください。</p>';
+    else {
+      const fs = filesOf(x);
+      if (FILES.loading && FILES.target === curTarget()) h += '<p class="opc-empty">読み込み中…</p>';
+      else if (FILES.err) h += '<p class="opc-miss">読み込めませんでした：' + esc(FILES.err) + '</p>';
+      if (fs.length) h += '<ul class="opc-files-list">' + fs.map(f => '<li><button type="button" class="opc-f-name" data-opm="fopen" data-id="' + esc(f.id) + '" title="開く（新しいタブ）">' + FILE_ICON(f) + ' ' + esc(f.file_name) + '</button>' +
+        '<small>' + fmtSize(+f.file_size) + '・' + esc(nameOf(f.uploaded_by)) + '・' + esc(whenText(f.created_at)) + '</small>' +
+        '<button type="button" class="opc-f-btn" data-opm="fdl" data-id="' + esc(f.id) + '" title="ダウンロード" aria-label="' + esc(f.file_name) + ' をダウンロード">⬇</button>' +
+        (canDelFile(f) ? '<button type="button" class="opc-f-btn" data-opm="fdel" data-id="' + esc(f.id) + '" title="消す（置いた本人と管理者）" aria-label="' + esc(f.file_name) + ' を消す">✕</button>' : '') + '</li>').join('') + '</ul>';
+      if (FILES.busy) h += '<p class="opc-empty">アップロード中…</p>';
+      if (logged) h += '<label class="opc-f-drop"><input type="file" class="opc-f-in" data-i="' + i + '" multiple hidden>＋ ファイルを選ぶ<small>またはここへドラッグ</small></label>';
+    }
+    h += '</div>';
     // やりとり
     h += '<div class="opc-sec"><h5>💬 やりとり・記録<small>この作業のメモ・連絡の記録（チームで共有・追記だけ）</small></h5>';
     if (NOTES.missing) h += '<p class="opc-miss">やりとりを残すには、管理者が Supabase で <code>docs/sql/ops-cards.sql</code> を実行してください。</p>';
@@ -509,7 +599,7 @@
   function toggleCard(id) {
     if (!_cur) return;
     _cur.open = _cur.open === id ? '' : id; _cur.gedit = '';
-    if (_cur.open) { loadGuides(); if (NOTES.target !== curTarget() && !NOTES.loading) loadNotes(); }
+    if (_cur.open) { loadGuides(); if (NOTES.target !== curTarget() && !NOTES.loading) loadNotes(); if (FILES.target !== curTarget() && !FILES.loading) loadFiles(); }
     render();
   }
   function setWState(i, v) {
@@ -598,7 +688,8 @@
     if (!ok || !_cur) return;
     _cur.st.dl.splice(i, 1); _cur.st.s.forEach(s => { if (s.dk === x.id) delete s.dk; }); commit();
   }
-  function onOpenCard() { NOTES.target = ''; NOTES.list = []; loadGuides(); loadNotes(); }
+  function onOpenCard() { NOTES.target = ''; NOTES.list = []; FILES.target = ''; FILES.list = []; loadGuides(); loadNotes(); loadFiles(); }
+  const readOnlyFiles = () => !(typeof window.cloudIsLoggedIn === 'function' && window.cloudIsLoggedIn());
 
   function opsOpen(idAttr) {
     const id = decodeURIComponent(idAttr), r = rowById(id);

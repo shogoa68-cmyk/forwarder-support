@@ -417,3 +417,16 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .ops-card { grid-column: 2 / sp
 .oid-cr-mark.is-none { color: #9a4a06; }
 .oid-cr-mark.is-pending { color: #1d4f91; }
 .oid-trk-r button.oid-trk-a { cursor: pointer; font: inherit; font-size: var(--text-sm, 13px); }
+/* 📎 作業カードの添付ファイル */
+.opc-files.is-drag { outline: 2px dashed #2f5fb3; outline-offset: 4px; border-radius: 6px; background: #f2f6fc; }
+.opc-files-list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.opc-files-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 4px 8px; border-radius: 6px; background: #f7f9fc; }
+.opc-f-name { flex: 1 1 200px; min-width: 0; padding: 0; border: 0; background: none; color: var(--accent, #2f5fb3); font: inherit; font-size: var(--text-sm, 13px); text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.opc-f-name:hover { text-decoration: underline; }
+.opc-files-list small { color: var(--text-muted, #667085); font-size: var(--text-xs, 12px); }
+.opc-f-btn { width: 30px; height: 30px; border: 0; border-radius: 6px; background: transparent; color: var(--text-md, #475467); cursor: pointer; }
+.opc-f-btn:hover { background: var(--bg, #f2f4f7); }
+.opc-f-drop { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px; min-height: 40px; padding: 6px 10px; border: 1px dashed var(--border-md, #c8cfd9); border-radius: 6px; color: var(--accent, #2f5fb3); font-size: var(--text-sm, 13px); cursor: pointer; }
+.opc-f-drop:hover { background: #f2f6fc; }
+.opc-f-drop small { color: var(--text-muted, #667085); font-size: var(--text-xs, 12px); }
+@media (pointer: coarse), (max-width: 600px) { .opc-f-btn { width: 44px; height: 44px; } .opc-f-drop { min-height: 48px; } }

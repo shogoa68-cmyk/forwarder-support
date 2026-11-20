@@ -63,10 +63,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
             const rows = (db[t] = db[t] || []);
             let data = null;
             if (st.op === 'insert') {
-              const made = [].concat(st.payload).map(o => Object.assign({ id: 'id' + Math.random().toString(36).slice(2), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), created_by: 'me@x.com', updated_by: 'me@x.com' }, JSON.parse(JSON.stringify(o))));
+              const made = [].concat(st.payload).map(o => Object.assign({ id: 'id' + Math.random().toString(36).slice(2), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), created_by: 'me@x.com', updated_by: 'me@x.com', uploaded_by: 'me@x.com' }, JSON.parse(JSON.stringify(o))));
               made.forEach(r => rows.push(r)); data = st.single ? made[0] : made;
               window.__writes.push({ t, op: 'insert', payload: JSON.parse(JSON.stringify(st.payload)) });
-            } else if (st.op === 'delete') { db[t] = rows.filter(r => !st.filters.every(f => f(r))); }
+            } else if (st.op === 'delete') { data = rows.filter(r => st.filters.every(f => f(r))).map(r => ({ id: r.id })); db[t] = rows.filter(r => !st.filters.every(f => f(r))); }
             else if (st.op === 'update') {
               const hit = rows.filter(r => st.filters.every(f => f(r)) && !(t === 'quote_presets' && isLocked(r)));   // 編集ロック中は RLS で 0 行
               hit.forEach(r => Object.assign(r, JSON.parse(JSON.stringify(st.payload))));
@@ -86,7 +86,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
       const client = {
         from: qb, rpc: name => Promise.resolve({ data: name === 'get_my_role' ? 'admin' : (name === 'quote_acquire_lock' ? 'OK' : null), error: null }), channel: () => ch, removeChannel() {},
         auth: { getSession: () => Promise.resolve({ data: { session: { user } } }), onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; }, signInWithOAuth() { return Promise.resolve({}); }, signOut() { return Promise.resolve({}); } },
-        storage: { from: () => ({ upload: async () => ({ error: null }), remove: async () => ({ error: null }), createSignedUrls: async () => ({ data: [], error: null }) }) },
+        storage: { from: bk => ({ upload: async (path, f) => { (window.__obj = window.__obj || []).push({ bk, path, size: f && f.size }); return { error: null }; }, remove: async ps => { window.__obj = (window.__obj || []).filter(o => !ps.includes(o.path)); return { error: null }; }, createSignedUrls: async () => ({ data: [], error: null }), createSignedUrl: async (path, sec, o) => { (window.__signed = window.__signed || []).push({ path, dl: !!(o && o.download) }); return { data: { signedUrl: 'http://127.0.0.1:1/' + path }, error: null }; } }) },
       };
       window.supabase = { createClient: () => client };
     }, opts.missing || []);
@@ -172,6 +172,20 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const nt = await p.evaluate(() => window.__db.ops_notes || []);
   ok('やりとりは ops_notes に案件と作業の id で残る', nt.length === 1 && nt[0].target === 'q:B1' && nt[0].body === 'INV の確認を依頼しました', nt);
   ok('作業の行に「💬 1」「📖」の札', await p.evaluate(i => { const t = document.querySelectorAll('#opmModal .opm-step')[i].textContent; return /💬 1/.test(t) && /📖/.test(t); }, SI));
+  // 添付ファイル
+  await p.locator('#opmModal .opc-f-in').setInputFiles([{ name: 'BLドラフト.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test') }]); await p.waitForTimeout(800);
+  const fr = await p.evaluate(() => ({ rows: window.__db.ops_files || [], obj: window.__obj || [], list: [...document.querySelectorAll('#opmModal .opc-files-list li')].map(e => e.textContent) }));
+  ok('ファイルを選ぶと、保存領域に置いてから ops_files に案件と作業の id で行を作る', fr.obj.length === 1 && fr.obj[0].bk === 'ops-files' && fr.rows.length === 1 && fr.rows[0].target === 'q:B1' && fr.rows[0].file_name === 'BLドラフト.pdf' && fr.rows[0].storage_path === fr.obj[0].path, fr);
+  ok('保存場所は「年月/時刻_乱数_英数字の名前」（日本語名は表示名にだけ）', /^\d{6}\/\d+_[a-z0-9]+_[A-Za-z0-9._-]+$/.test(fr.obj[0].path), fr.obj[0].path);
+  ok('カードの一覧に名前・大きさ・置いた人、行に「📎 1」の札', /BLドラフト\.pdf/.test(fr.list[0] || '') && /自分/.test(fr.list[0] || '') && await p.evaluate(i => /📎 1/.test(document.querySelectorAll('#opmModal .opm-step')[i].textContent), SI), fr.list);
+  await p.evaluate(() => { const orig = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { if (this.download) { window.__dl = this.download; return; } return orig.call(this); }; });
+  await click(p, '#opmModal [data-opm="fdl"]'); await p.waitForTimeout(500);
+  ok('⬇ で署名つきの URL（ダウンロード）を作り、元の名前で保存する', await p.evaluate(() => (window.__signed || []).some(x => x.dl) && window.__dl === 'BLドラフト.pdf'));
+  await p.locator('#opmModal .opc-f-in').setInputFiles([{ name: 'big.zip', mimeType: 'application/zip', buffer: Buffer.alloc(11 * 1024 * 1024) }]); await p.waitForTimeout(500);
+  ok('10MB を超えるファイルは付けない', (await p.evaluate(() => (window.__db.ops_files || []).length)) === 1);
+  await click(p, '#opmModal [data-opm="fdel"]'); await p.waitForTimeout(300);
+  await p.evaluate(() => { const b = [...document.querySelectorAll('.confirm-overlay button')].find(b => /消す/.test(b.textContent)); b && b.click(); }); await p.waitForTimeout(600);
+  ok('自分のファイルは消せる（保存領域と行の両方）', await p.evaluate(() => (window.__db.ops_files || []).length === 0 && (window.__obj || []).length === 0));
   // ほかの案件の同じ名前の作業にも手順が出る
   await click(p, '#opmModal [data-opm="close"]'); await p.waitForTimeout(200);
   await p.evaluate(() => { const r = window.__db.quote_presets.find(x => x.id === 'B3'); r.status = '受注'; r.updated_at = new Date().toISOString(); r.data.fields['qf-status'] = '受注'; Object.assign(r.data.fields, { 'cond-direction': 'export', 'cond-mode': '海上（LCL）' }); });
@@ -239,11 +253,11 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await ctx.close();
   // ---- 表が無いとき ----
   {
-    const r = await open({ missing: ['ops_guides', 'ops_notes'] });
+    const r = await open({ missing: ['ops_guides', 'ops_notes', 'ops_files'] });
     await r.p.evaluate(() => window.opsOpen('B1')); await r.p.waitForTimeout(400);
     await r.p.evaluate(() => document.querySelectorAll('#opmModal .opm-step-l')[3].click()); await r.p.waitForTimeout(600);
     const t = await r.p.evaluate(() => (document.querySelector('#opmModal .opm-card') || {}).textContent || '');
-    ok('（表なし）手順・やりとりは「ops-cards.sql を実行」の案内・状態と担当は使える', (t.match(/ops-cards\.sql/g) || []).length === 2 && !!(await r.p.evaluate(() => document.querySelector('#opmModal .opc-seg'))), t.slice(0, 200));
+    ok('（表なし）手順・やりとり・添付は「SQL を実行」の案内・状態と担当は使える', (t.match(/ops-cards\.sql/g) || []).length === 2 && /ops-files\.sql/.test(t) && !!(await r.p.evaluate(() => document.querySelector('#opmModal .opc-seg'))), t.slice(0, 200));
     ok('（表なし）ページのエラーなし', r.errs.length === 0, r.errs);
     await r.ctx.close();
   }
