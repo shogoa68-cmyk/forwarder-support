@@ -271,3 +271,10 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .ops-card { grid-column: 2 / sp
 .oid-ok { color: #1e7a4a; font-size: var(--text-sm, 13px); }
 .oid-ferr { color: #b42318; font-size: var(--text-sm, 13px); }
 @media (max-width: 600px) { .oid-in { max-width: none; height: 44px; } }
+.oid-keys { display: grid; grid-template-columns: max-content 1fr 1fr; gap: 6px 10px; align-items: end; margin: 0 0 10px; padding: 8px 10px; border: 1px dashed var(--border, #d0d5dd); border-radius: 8px; }
+.oid-keys label { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-xs, 12px); color: var(--text-muted, #667085); }
+.oid-keys input { height: 32px; padding: 0 8px; border: 1px solid var(--border, #d0d5dd); border-radius: 6px; font: inherit; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.oid-keys .oid-k-wide { grid-column: 2 / -1; }
+.oid-keys-l { grid-row: span 2; align-self: center; font-weight: 600; font-size: var(--text-sm, 13px); display: flex; flex-direction: column; }
+.oid-keys-l small { font-weight: 400; color: var(--text-muted, #667085); font-size: var(--text-xs, 12px); }
+@media (max-width: 600px) { .oid-keys { grid-template-columns: 1fr; } .oid-keys .oid-k-wide { grid-column: auto; } .oid-keys-l { grid-row: auto; } .oid-keys input { height: 44px; } }

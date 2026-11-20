@@ -968,6 +968,38 @@
   }
   const WST = t => !t ? null : t.state === 'done' ? ['追跡完了', 'is-done'] : t.state === 'ask' ? ['確認待ち', 'is-ask'] : t.trace === false ? ['一時停止', 'is-off'] : ['🛰 追跡中', 'is-on'];
   let _idp = null;   // 開いている確認の欄 { kind, id, n, loading, err, trade, dir, bl, bk, ctn, title }
+  // 手がかり（B/L・ブッキング・コンテナ番号）はアプリ側でも持つ（案件＝fields の qf-cp-keys／進行＝data.cpKeys・往路 1／復路 2）
+  function idKeysAll(kind, id) {
+    try {
+      if (kind === 'case') { const r = rowById(id), raw = r && r.data && r.data.fields && r.data.fields['qf-cp-keys']; return raw ? JSON.parse(raw) || {} : {}; }
+      const j = jobById(id); return (j && j.data.cpKeys) ? JSON.parse(JSON.stringify(j.data.cpKeys)) : {};
+    } catch (e) { return {}; }
+  }
+  function idKeys(kind, id, n) { const a = idKeysAll(kind, id)[n] || {}; return { bl: a.bl || '', bk: a.bk || '', ctn: a.ctn || '' }; }
+  const ctnList = s => String(s || '').split(/[\s,、;]+/).map(normId).filter(Boolean);
+  function keysError(k) {
+    const ctns = ctnList(k.ctn), bad = ctns.filter(c => !/^[A-Z]{4}\d{7}$/.test(c));
+    return bad.length ? 'コンテナ番号の形が違います（英字4文字＋数字7桁）：' + bad.join('、') : ctns.length > 10 ? 'コンテナ番号は10本までです。' : '';
+  }
+  async function idKeysSave(kind, id, n, k, quiet) {
+    const clean = { bl: normId(k.bl), bk: normId(k.bk), ctn: ctnList(k.ctn).join(' ') };
+    const all = idKeysAll(kind, id), before = JSON.stringify(all[n] || {});
+    if (clean.bl || clean.bk || clean.ctn) all[n] = clean; else delete all[n];
+    if (JSON.stringify(all[n] || {}) === before) return true;
+    let ok;
+    if (kind === 'case') ok = await saveFields(id, { 'qf-cp-keys': JSON.stringify(all) });
+    else { const j = jobById(id), d = jobData(j); d.cpKeys = all; ok = await saveJob(id, { data: d }); }
+    // すでに追いかけている取引なら、名簿の手がかりもアプリの値にそろえる
+    const L = idLegs(kind, id).find(x => x.n === n), t = L && L.val && AUTO.trades ? AUTO.trades.get(normId(L.val)) : null, c = client();
+    if (ok && t && c) {
+      const upd = { bl_no: clean.bl || null, booking_no: clean.bk || null, container_nos: ctnList(clean.ctn), updated_by: me(), updated_at: new Date().toISOString() };
+      const { error } = await c.from('cp_watch_targets').update(upd).eq('preset_id', t.preset_id);
+      if (!error) Object.assign(t, upd);
+      else if (!quiet) toast('⚠️ 追いかけの名簿の手がかりは更新できませんでした：' + (error.message || error.code), 'warn', 5000);
+    }
+    if (ok && !quiet) toast('手がかりを保存しました', 'success', 2000);
+    return ok;
+  }
   function idSecHtml(kind, id) {
     const legs = idLegs(kind, id); if (!legs.length) return '';
     const ro = idReadOnly(kind, id);
@@ -980,6 +1012,13 @@
         '<input type="text" class="oid-in" data-oid-n="' + L.n + '" maxlength="40" autocomplete="off" spellcheck="false" inputmode="latin" value="' + esc(L.val) + '" placeholder="' + esc(ID_EX ? '例）' + ID_EX : '基幹システムの番号') + '" aria-label="基幹 ID' + (L.label ? '（' + L.label + '）' : '') + '"' + (ro ? ' disabled' : '') + '>' +
         (ws ? '<span class="oid-st ' + ws[1] + '">' + ws[0] + '</span>' : L.val ? '<span class="oid-st is-none">サイバーポート未登録</span>' : '') +
         (L.val && !ro ? '<button type="button" class="opm-btn" data-oid="check" data-n="' + L.n + '">🛰 サイバーポートで確認</button>' : '') + '</div>';
+      if (L.val) {
+        const k = idKeys(kind, id, L.n), dis = ro ? ' disabled' : '';
+        h += '<div class="oid-keys" data-oid-n="' + L.n + '"><span class="oid-keys-l">手がかり<small>アプリに保存</small></span>' +
+          '<label><span>B/L 番号</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="bl" maxlength="40" value="' + esc(k.bl) + '"' + dis + '></label>' +
+          '<label><span>ブッキング番号</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="bk" maxlength="40" value="' + esc(k.bk) + '"' + dis + '></label>' +
+          '<label class="oid-k-wide"><span>コンテナ番号（空白区切り・10 本まで）</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="ctn" maxlength="200" value="' + esc(k.ctn) + '"' + dis + '></label></div>';
+      }
       if (_idp && _idp.kind === kind && _idp.id === id && _idp.n === L.n) h += idPanelHtml(L, t);
     });
     if (AUTO.missing) h += '<p class="oj-hint">※ 追いかけの名簿（サーバー側の準備 cp-watch.sql）がまだのため、自動チェックは動きません。</p>';
@@ -1059,7 +1098,8 @@
       try { const c = await window.CyberPort.get('/API/v2/Trades/GetContainers/' + encodeURIComponent(gv(tr, 'tradeNo'))); scanCtns(c && c.data, ctns); } catch (e) { /* コンテナ一覧が取れなくても続ける */ }
       const no = String(gv(tr, 'tradeNo') || v), type = String(gv(tr, 'tradeType') || '');
       const dir = L.dir || idDir(normId(no)) || (/export|輸出/i.test(type) ? 'export' : 'import');
-      done({ trade: { no, name: String(gv(tr, 'tradeName') || ''), type, status: String(gv(tr, 'tradeStatus') || '') }, dir, bl: String(gv(tr, 'blNo') || ''), bk: String(gv(tr, 'bookingNo') || ''), ctn: [...ctns].slice(0, 10).join(' '), title: (kind === 'case' ? caseTitle(rowById(id)) : (jobById(id) || {}).title) || '' });
+      const mine = idKeys(kind, id, n);   // アプリに保存した手がかりを優先し、空の欄だけサイバーポートの値で埋める
+      done({ trade: { no, name: String(gv(tr, 'tradeName') || ''), type, status: String(gv(tr, 'tradeStatus') || '') }, dir, bl: mine.bl || String(gv(tr, 'blNo') || ''), bk: mine.bk || String(gv(tr, 'bookingNo') || ''), ctn: mine.ctn || [...ctns].slice(0, 10).join(' '), title: (kind === 'case' ? caseTitle(rowById(id)) : (jobById(id) || {}).title) || '' });
     } catch (e) {
       done({ err: (e && e.code === 'login' ? 'ログインが必要です。' : e && e.code === 'nofunction' ? 'サイバーポートとの接続（サーバー側）がまだ準備されていません。' : 'サイバーポートに問い合わせできませんでした：' + ((e && e.message) || e)) });
     }
@@ -1072,12 +1112,13 @@
     p.ferr = bad.length ? 'コンテナ番号の形が違います（英字4文字＋数字7桁）：' + bad.join('、') : ctns.length > 10 ? 'コンテナ番号は10本までです。'
       : '';
     if (p.ferr) { idRerender(); return; }
+    await idKeysSave(p.kind, p.id, p.n, { bl, bk, ctn: ctns.join(' ') }, true);   // 入れた手がかりはアプリにも保存
     const c = client(), email = me(); if (!c || !email) { p.ferr = 'ログインが必要です。'; idRerender(); return; }
     const { error } = await c.from('cp_watch_targets').insert({ source: 'trade', trade_no: p.trade.no, title: normId(idLegs(p.kind, p.id).find(x => x.n === p.n).val) || p.trade.name || null, direction: p.dir === 'export' ? 'export' : 'import',
       bl_no: bl || null, booking_no: bk || null, container_nos: ctns, trace: true, state: 'active', created_by: email, updated_by: email });
     if (error) {
       const m = error.message || error.code || '';
-      if (error.code !== '23505') { p.ferr = /does not exist|42P01|schema cache|relation|column|violates check/i.test(m) ? 'サーバー側の準備（docs/sql/cp-watch.sql）がまだのため、追いかけられません。' : '追いかけに入れられませんでした：' + m; idRerender(); return; }
+      if (error.code !== '23505') { p.ferr = (/does not exist|42P01|schema cache|relation|column|violates check/i.test(m) ? 'サーバー側の準備（docs/sql/cp-watch.sql）が足りないため、追いかけられません。' : '追いかけに入れられませんでした。') + '（サーバーの返事：' + m + (error.code ? '・' + error.code : '') + '）'; idRerender(); return; }
       toast('この取引は、すでに追いかけの名簿に入っています', 'info', 3500);
     } else toast('🛰 取引「' + p.trade.no + '」を追いかけます（朝夕に自動で確認します）', 'success', 4000);
     _idp = null; await autoRefreshTargets(); idRerender();
@@ -1091,12 +1132,18 @@
     else if (a === 'watch') idWatch(sec);
   });
   document.addEventListener('change', e => {
-    const t = e.target; if (!t.classList || !t.classList.contains('oid-in')) return;
-    const sec = t.closest('.oid-sec'); if (!sec) return;
-    idSave(sec.dataset.oidKind, sec.dataset.oidId, +t.dataset.oidN, t.value);
+    const t = e.target; if (!t.classList) return;
+    const sec = t.closest && t.closest('.oid-sec'); if (!sec) return;
+    if (t.classList.contains('oid-in')) idSave(sec.dataset.oidKind, sec.dataset.oidId, +t.dataset.oidN, t.value);
+    else if (t.classList.contains('oid-k')) {
+      const n = +t.dataset.oidN, box = sec.querySelector('.oid-keys[data-oid-n="' + n + '"]'), k = {};
+      box.querySelectorAll('.oid-k').forEach(el => { k[el.dataset.k] = el.value; });
+      const er = keysError(k); if (er) { toast('⚠️ ' + er, 'warn', 4500); return; }
+      idKeysSave(sec.dataset.oidKind, sec.dataset.oidId, n, k).then(() => idRerender());
+    }
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.isComposing && e.target.classList && e.target.classList.contains('oid-in')) { e.preventDefault(); e.target.blur(); }
+    if (e.key === 'Enter' && !e.isComposing && e.target.classList && (e.target.classList.contains('oid-in') || e.target.classList.contains('oid-k'))) { e.preventDefault(); e.target.blur(); }
   });
 
   // ---------- 🛰 サイバーポートの自動確認（COLINS）の実績から、出港・入港・返却のチェックを自動で入れる ----------
