@@ -636,6 +636,17 @@
           }).join('');
           return `<tr><th>${_cdEsc(s.label)}</th><td>${items}</td></tr>`;
         }
+        if (s.sites) {
+          const list = Array.isArray(raw) ? raw.filter(c => c && (c.name || c.address)) : [];
+          if (!list.length) return '';
+          const items = list.map(c => `<div class="cd-contact-item"><b>${_cdEsc(c.name || '（名称未入力）')}</b>` +
+            (c.kind ? `<span class="cd-contact-meta cd-contact-dept">${_cdEsc(c.kind)}</span>` : '') +
+            (c.address ? `<span class="cd-contact-meta cd-contact-loc">📍 ${_cdEsc(c.address)}</span>` : '') +
+            ([c.contact, c.phone].filter(Boolean).length ? `<span class="cd-contact-meta">${_cdEsc([c.contact, c.phone].filter(Boolean).join(' / '))}</span>` : '') +
+            (c.terms ? `<span class="cd-contact-meta">受入：${_cdEsc(c.terms)}</span>` : '') +
+            (c.note ? `<span class="cd-contact-meta">${_cdEsc(c.note)}</span>` : '') + `</div>`).join('');
+          return `<tr><th>${_cdEsc(s.label)}</th><td>${items}</td></tr>`;
+        }
         if (s.children) {
           const kids = typeof window.mdViaChildren === 'function' ? window.mdViaChildren(value) : [];
           if (!kids.length) return '';

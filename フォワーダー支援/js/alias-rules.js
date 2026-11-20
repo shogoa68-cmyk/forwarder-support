@@ -1774,6 +1774,7 @@
       { key: 'referrer',     label: '紹介元（誰から紹介されたか）', refer: true, placeholder: '例）○○商事の山田さん／株式会社○○（お客様・サブコンの名前が候補に出ます）' },
       { key: 'referralNote', label: '紹介の経緯・時期', placeholder: '例）2026-10 展示会で山田氏から紹介' },
       { key: 'contacts',     label: '担当者', contacts: true },
+      { key: 'sites',        label: '倉庫・配送先', sites: true },
       { key: 'location',     label: '所在地' },
       { key: 'mainGoods',    label: 'メイン商材' },
       { key: 'destCountry',  label: '仕向国/輸入国' },

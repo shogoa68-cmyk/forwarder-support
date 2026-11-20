@@ -417,6 +417,20 @@
     if (!d) { d = document.createElement('span'); d.className = 'qrc-rail-dot'; btn.appendChild(d); }
   }
 
+  // ❓（困ったとき）はレールの下端に置く（Design 49）。レールが画面に出ている間だけ移し、出ていないとき（他のタブ・ダッシュボード・閉じた引き出し）は body へ戻す
+  function _dockHelp() {
+    const f = document.getElementById('fbQuickFab'), rail = document.getElementById('qrcRail');
+    if (!f || !rail) return;
+    const tab = document.getElementById('tab-quote-make');
+    const railShown = !!(tab && tab.classList.contains('active') && !document.body.classList.contains('qp-dash-active') &&
+      rail.getClientRects().length && window.innerWidth > 600);
+    const inRail = f.parentNode === rail;
+    if (railShown && !inRail) { f.classList.add('fb-in-rail'); rail.appendChild(f); }
+    else if (!railShown && inRail) { f.classList.remove('fb-in-rail'); document.body.appendChild(f); }
+  }
+  setInterval(_dockHelp, 700);
+  window.addEventListener('resize', _dockHelp);
+
   // 外部（類似・チャット更新時）から再装飾できるよう公開
   window.qrcRefresh = function () {
     const col = document.querySelector('#tab-quote-make .quote-right-col--rail');
