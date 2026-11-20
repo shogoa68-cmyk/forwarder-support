@@ -5051,19 +5051,9 @@
   </div><!-- /#tab-ops -->
 
   <!-- 💬 情報共有（2026-11 新設・中身は準備中）。いまは既存の共有機能への入口だけ置く -->
+  <!-- 💬 情報共有＝新着まとめ（お知らせ・ニュース・申し送り・顧客カルテ・取引ルール）。ロジックは js/share-feed.js -->
   <div class="tab-content" id="tab-share">
-    <div class="share-root">
-      <h2 class="share-title">💬 情報共有</h2>
-      <p class="share-lead">チームで知らせたいこと・覚えておきたいことをまとめる場所です。<b>いまは準備中</b>で、中身はこれから作ります。</p>
-      <p class="share-sub">いま使える共有の機能はこちらです。</p>
-      <div class="share-links">
-        <button type="button" class="share-link" onclick="switchCategory('news', document.querySelector('.cat-btn[aria-controls=tab-news]'))"><b>📰 ニュースの投稿</b><span>お客様・サブコンの新しい情報を投稿し、時系列で見る</span></button>
-        <button type="button" class="share-link" onclick="switchCategory('quote', document.querySelector('.cat-btn[aria-controls=tab-quote-make]'))"><b>💼 案件の申し送り</b><span>見積の一覧で、案件カードの「💬 申し送り」から書けます</span></button>
-        <button type="button" class="share-link" onclick="switchCategory('bookmark', document.querySelector('.cat-btn[aria-controls=tab-bookmark]'))"><b>🔖 リンク集</b><span>船会社・サブコンのよく使うリンクをチームで共有</span></button>
-        <button type="button" class="share-link" onclick="switchCategory('master', document.querySelector('.cat-btn[aria-controls=tab-master]'))"><b>🗂 取引ルール・顧客カルテ・ニュース</b><span>マスター管理の、お客様・サブコンの詳細から</span></button>
-        <button type="button" class="share-link" onclick="switchCategory('bugreports')"><b>🐞 不具合報告・💡 アイデア</b><span>アプリへの要望や困りごとを送る・見る</span></button>
-      </div>
-    </div>
+    <div class="share-root" id="sfRoot"><div class="sf-empty">読み込み中…</div></div>
   </div><!-- /#tab-share -->
 
   <!-- 📰 ニュースの投稿（情報共有のまとまり・2026-11）。ロジックは js/news-feed.js（保存先は master_news＝マスター詳細のニュースと同じ） -->
@@ -5239,6 +5229,7 @@
 <script src="js/customer-rules.js"></script>
 <script src="js/master-news.js"></script>
 <script src="js/news-feed.js"></script>
+<script src="js/share-feed.js"></script>
 <script src="js/customer-cases.js"></script>
 <script src="js/master-tabs.js"></script>
 <script src="js/fix-hub.js"></script>
