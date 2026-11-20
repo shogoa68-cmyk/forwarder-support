@@ -171,7 +171,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   if (out) await p.screenshot({ path: path.join(out, 'e2-drawer.png') });
   { // 右カラム 案A（Design 33）
     const rc = await p.evaluate(() => { const r = document.getElementById('qrcRail'); const main = [...r.children].filter(x => x.matches('.qrc-rail-btn:not(.qrc-more2-btn)')).map(x => x.dataset.mod); const more = [...document.querySelectorAll('#qrcRailMore .qrc-rail-btn')].map(x => x.dataset.mod); const b = document.querySelector('#e2Total [data-e2q]'); return { main, more, moreOpen: !document.getElementById('qrcRailMore').hidden, pressed: b.classList.contains('is-open'), lab: document.querySelector('[data-mod="scenario"] .qrc-rail-ico').textContent }; });
-    ok('右レール：よく使う 5 つ＋その他（数量はその他の中・開いて見える）', rc.main.slice().sort().join() === 'charges,chat,digest,fin,subcon' && rc.more.includes('scenario') && rc.more.length === 6 && rc.moreOpen && rc.lab === '🔢', rc);
+    ok('右レール：よく使う 5 つ＋その他（数量はその他の中・開いて見える）', rc.main.slice().sort().join() === 'charges,chat,digest,fin,subcon' && rc.more.includes('scenario') && rc.more.length === 6, rc);   // Design 49：［その他］は左のメニュー（常時は閉じる）・アイコンは SVG
     ok('「数量登録」は開いている間、押された見た目', rc.pressed, rc);
     await p.keyboard.press('Escape'); await p.waitForTimeout(300);
     { const st = await p.evaluate(() => ({ d: document.body.classList.contains('e2-drawer'), o: [...document.querySelectorAll('#e2Total .is-open')].map(x => x.textContent.trim().slice(0, 8)), act: document.activeElement && (document.activeElement.id || document.activeElement.tagName), ov: !!document.querySelector('.confirm-overlay, #previewOverlay.open, #fbOverlay.open, #mdDetailModal.open, .nq-overlay') })); ok('Esc で引き出しが閉じる（ボタンの押された見た目も戻る）', !st.d && st.o.length === 0, st); }
