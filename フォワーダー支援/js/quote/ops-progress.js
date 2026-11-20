@@ -19,8 +19,8 @@
     'exp-fcl': { name: '輸出・海上（FCL）', s: ['ブッキング依頼', 'ブッキング確定（B/K 番号の受領）', 'バンニング・CY 搬入の手配', 'SI（船積指示）の提出', '輸出通関', '本船出港', 'B/L の発行・送付', '請求書の発行'] },
     'exp-lcl': { name: '輸出・海上（LCL）', s: ['ブッキング依頼', 'ブッキング確定', 'CFS 搬入の手配', 'SI（船積指示）の提出', '輸出通関', '本船出港', 'B/L の発行・送付', '請求書の発行'] },
     'exp-air': { name: '輸出・航空', s: ['ブッキング（スペースの確保）', '搬入の手配', '輸出通関', '搭載・出発', 'AWB の送付', '請求書の発行'] },
-    'imp-fcl': { name: '輸入・海上（FCL）', s: ['到着案内（A/N）の受領', '書類の受領（B/L・INV・P/L）', '輸入通関', 'D/O の取得・搬出', '配送', '空コンテナの返却', '請求書の発行'] },
-    'imp-lcl': { name: '輸入・海上（LCL）', s: ['到着案内（A/N）の受領', '書類の受領（B/L・INV・P/L）', '輸入通関', '貨物の引き取り（CFS）', '配送', '請求書の発行'] },
+    'imp-fcl': { name: '輸入・海上（FCL）', s: ['到着案内（A/N）の受領', '本船の入港（到着）', '書類の受領（B/L・INV・P/L）', '輸入通関', 'D/O の取得・搬出', '配送', '空コンテナの返却', '請求書の発行'] },
+    'imp-lcl': { name: '輸入・海上（LCL）', s: ['到着案内（A/N）の受領', '本船の入港（到着）', '書類の受領（B/L・INV・P/L）', '輸入通関', '貨物の引き取り（CFS）', '配送', '請求書の発行'] },
     'imp-air': { name: '輸入・航空', s: ['到着案内の受領', '書類の受領（AWB・INV・P/L）', '輸入通関', '貨物の引き取り', '配送', '請求書の発行'] },
     'dom':     { name: '国内の手配', s: ['手配', '実施（集荷・配送など）', '請求書の発行'] },
     'gen':     { name: '一般', s: ['手配（ブッキング）', '書類の準備', '通関', '輸送', '請求書の発行'] },
@@ -83,7 +83,8 @@
     const p = n => String(n).padStart(2, '0');
     return (d.getFullYear() !== new Date().getFullYear() ? d.getFullYear() + '/' : '') + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
   }
-  const nameOf = e => (e && typeof window.cloudNameFor === 'function') ? (window.cloudNameFor(e) || e) : (e || '');
+  const AUTO_BY = 'auto:colins';   // サイバーポートの自動確認（COLINS の実績）で入ったチェックの印
+  const nameOf = e => e === AUTO_BY ? '🛰 サイバーポート（自動）' : (e && typeof window.cloudNameFor === 'function') ? (window.cloudNameFor(e) || e) : (e || '');
   const rowsAll = () => (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []);
   const rowById = id => rowsAll().find(r => r.id === id);
   const caseTitle = r => {
@@ -181,6 +182,7 @@
     $('opmTitle').textContent = isJob ? '☑ 作業の進み具合' : '📦 受注後の業務';
     const pct = sm.total ? Math.round(sm.done / sm.total * 100) : 0;
     let h = isJob ? '<p class="opm-note">' + (_cur.shipId ? 'この便の' : 'この進行の') + '、手配から請求までの作業を記録します（チームで共有）。チェックを入れると、日時と名前が残ります。</p>' : '<p class="opm-note">受注した案件の、手配から請求までの作業を記録します（チームで共有）。チェックを入れると、日時と名前が残ります。</p>';
+    if (!isJob && targetsForCase(rowById(_cur.id)).length || isJob && autoTargetOfJob(jobById(_cur.jobId), _cur.shipId)) h += '<p class="opm-auto">🛰 サイバーポートで追跡中：出港・入港の実績、空コンテナの返却が入ると、当てはまる作業に自動でチェックが入ります（朝夕の自動確認の結果から）。</p>';
     if (lockedBy) h += '<p class="opm-lock">🔒 ' + esc(nameOf(lockedBy)) + ' さんがこの案件を編集中のため、いまは見るだけです。</p>';
     else if (ro) h += '<p class="opm-lock">ログインすると記録できます。</p>';
     h += '<div class="opm-prog"><div class="opm-bar"><span style="width:' + pct + '%"></span></div><b>' + sm.done + ' / ' + sm.total + ' 完了</b>' +
@@ -190,7 +192,7 @@
       return '<li class="opm-step' + (x.d ? ' is-done' : '') + (isNext ? ' is-next' : '') + '">' +
         '<button type="button" class="opm-chk" data-opm="toggle" data-i="' + i + '" role="checkbox" aria-checked="' + x.d + '"' + (ro ? ' disabled' : '') + ' title="' + (x.d ? '完了を取り消す' : '完了にする') + '">' + (x.d ? '✓' : '') + '</button>' +
         '<div class="opm-step-main"><span class="opm-step-l">' + (isNext ? '<em class="opm-next-tag">次</em>' : '') + esc(x.l) + '</span>' +
-          (x.d && x.at ? '<small class="opm-done-by">✓ ' + esc(whenText(x.at)) + (x.by ? ' ' + esc(nameOf(x.by)) : '') + '</small>' : '') + '</div>' +
+          (x.d && x.at ? '<small class="opm-done-by">✓ ' + esc(whenText(x.at)) + (x.by ? ' ' + esc(nameOf(x.by)) : '') + (x.src ? '（' + esc(x.src) + '）' : '') + '</small>' : '') + '</div>' +
         (x.d ? '' : '<label class="opm-due-w' + dueCls(x.due, today) + '"><span>期限</span><input type="date" class="opm-due" data-i="' + i + '" value="' + esc(x.due || '') + '"' + (ro ? ' disabled' : '') + '></label>') +
         (ro ? '' : '<span class="opm-tools">' +
           '<button type="button" data-opm="rename" data-i="' + i + '" title="作業名を変える">✎</button>' +
@@ -201,6 +203,7 @@
     }).join('') + '</ol>';
     if (!st.s.length) h += '<p class="opm-empty">作業がありません。下から足してください。</p>';
     if (!ro) h += '<div class="opm-add"><input type="text" id="opmAddIn" maxlength="60" placeholder="作業を追加（例：保険の手配）"><button type="button" class="opm-btn" data-opm="add">＋ 追加</button></div>';
+    if (!isJob) h += idSecHtml('case', _cur.id);
     h += '<div class="opm-foot">' + (ro ? '' : '<button type="button" class="opm-link" data-opm="reset">ひな形から作り直す…</button>') +
       '<button type="button" class="opm-link" data-opm="list">📦 進行管理で一覧を見る</button>' +
       '<button type="button" class="opm-btn opm-btn-pri" data-opm="close">閉じる</button></div>';
@@ -224,6 +227,7 @@
     const me = typeof window.cloudCurrentEmail === 'function' ? window.cloudCurrentEmail() : '';
     x.d = !x.d;
     if (x.d) { x.at = new Date().toISOString(); x.by = me; } else { x.at = ''; x.by = ''; }
+    x.src = '';   // 自動で入ったチェックを外しても、同じ作業へは二度と自動で入れない（st.ax に残る）
     const sm = summary(_cur.st);
     commit(x.d ? ('✅ 業務：「' + x.l + '」を完了' + (sm.all ? '（すべての作業が完了）' : '')) : '');
   }
@@ -508,7 +512,8 @@
     const g = groupsOf(all), today = g._today;
     const q = norm(TAB.q);
     let list = g[TAB.f] || g.active;
-    if (q) list = list.filter(x => norm(x.title + ' ' + x.customer + ' ' + (x.st.s || []).map(s => s.l).join(' ')).includes(q));
+    const qId = normId(TAB.q);   // 基幹 ID は「ー」「－」などもハイフンにそろえて探す
+    if (q) list = list.filter(x => norm(x.title + ' ' + x.customer + ' ' + idsOf(x).join(' ') + ' ' + (x.st.s || []).map(s => s.l).join(' ')).includes(q) || idsOf(x).some(id => id.includes(qId)));
     list = sortRows(list);
     const tile = (k, lbl, n, cls) => '<button type="button" class="opt-tile' + (cls ? ' ' + cls : '') + (TAB.f === k ? ' is-on' : '') + '" data-opt="f" data-f="' + k + '" aria-pressed="' + (TAB.f === k) + '"><span>' + lbl + '</span><b>' + n + '</b></button>';
     const canNew = !JOBS.missing;
@@ -527,7 +532,7 @@
       }).join('') + '</div>' +
       '<div class="opt-chips">' + FILTERS.filter(f => !['active', 'over', 'today', 'week', 'done'].includes(f[0])).map(f =>
         '<button type="button" class="opt-chip' + (TAB.f === f[0] ? ' is-on' : '') + '" data-opt="f" data-f="' + f[0] + '" aria-pressed="' + (TAB.f === f[0]) + '">' + f[1] + ' <b>' + g[f[0]].length + '</b></button>').join('') + '</div>' +
-      '<input type="search" id="optQ" class="opt-q" placeholder="🔍 案件名・お客様・作業名で探す" value="' + esc(TAB.q) + '" aria-label="検索">' +
+      '<input type="search" id="optQ" class="opt-q" placeholder="🔍 案件名・お客様・基幹 ID・作業名で探す" value="' + esc(TAB.q) + '" aria-label="検索">' +
       '<label class="opt-sort"><span>並び順</span><select id="optSort">' + SORTS.map(s => '<option value="' + s[0] + '"' + (TAB.sort === s[0] ? ' selected' : '') + '>' + s[1] + '</option>').join('') + '</select></label></div>';
     if ((TAB.loading || JOBS.loading) && !all0.length) h += '<div class="opt-empty">読み込み中…</div>';
     else if (!all0.length) h += '<div class="opt-empty">まだ進行はありません。<br><small>見積ダッシュボードで案件のステータスを「受注」にするか、［＋ 進行を作る］でスポット・レギュラーの進行を作ってください。</small><br>' +
@@ -547,12 +552,16 @@
     return (sm.all ? '<span class="ops-next is-all">✅ すべて完了</span>' : (nx ? '次：<b>' + esc(nx.l) + '</b>' + (nx.due ? '<span class="ops-due' + dueCls(nx.due, today) + '">期限 ' + md(nx.due) + '</span>' : '') : '')) +
       (sm.overdue ? ' <span class="ops-warn">⚠ 期限切れ ' + sm.overdue + '</span>' : '');
   }
+  function idsOf(x) {
+    if (x.src === 'quote') { const f = (x.r && x.r.data && x.r.data.fields) || {}; return [f['qf-core-ref'], f['qf-core-ref2']].map(normId).filter(Boolean); }
+    return x.job ? [x.job.data.coreId, x.job.data.coreId2].map(normId).filter(Boolean) : [];
+  }
   function rowHtml(x, today) {
     const sm = x.sm, id = esc(encodeURIComponent(x.id));
     const badge = '<span class="opt-kind opt-kind-' + x.src + '">' + KIND_LBL[x.src] + '</span>';
     if (x.src === 'quote') {
       const lockedBy = typeof window.cloudIsLockedByOther === 'function' ? window.cloudIsLockedByOther(x.id) : null;
-      const meta = [x.customer, x.mode, x.started ? '' : '未着手'].filter(Boolean);
+      const meta = [idsOf(x).length ? '🆔 ' + idsOf(x).join(' / ') : '', x.customer, x.mode, x.started ? '' : '未着手'].filter(Boolean);
       return '<li class="opt-row' + (sm.all ? ' is-all' : '') + (sm.overdue ? ' has-over' : '') + '" data-src="quote">' +
         '<div class="opt-main"><span class="opt-t">' + badge + '<b title="' + esc(x.title) + '">' + esc(x.title || '（案件名なし）') + '</b></span><small>' + esc(meta.join(' · ')) + (lockedBy ? ' · 🔒 ' + esc(nameOf(lockedBy)) + ' さんが編集中' : '') + '</small></div>' +
         '<div class="opt-prog"><span class="ops-segs" aria-hidden="true">' + segsHtml(x.st, today) + '</span><b>' + sm.done + '/' + sm.total + '</b></div>' +
@@ -565,7 +574,7 @@
     }
     const j = x.job, tot = totalsText(chargeTotals(j.data.charges));
     const linkQ = j.preset_id ? rowById(j.preset_id) : null;
-    const meta = [x.customer, x.mode, j.data.route, tot ? '請求 ' + tot + (j.kind === 'regular' ? '／便' : '') : ''].filter(Boolean);
+    const meta = [idsOf(x).length ? '🆔 ' + idsOf(x).join(' / ') : '', x.customer, x.mode, j.data.route, tot ? '請求 ' + tot + (j.kind === 'regular' ? '／便' : '') : ''].filter(Boolean);
     let prog;
     if (j.kind === 'regular') {
       prog = '<div class="opt-prog opt-prog-reg"><b>便 ' + sm.ships + '</b><small>進行中 ' + sm.open + (sm.unbilled ? '・未請求 ' + sm.unbilled : '') + '</small></div>';
@@ -798,6 +807,7 @@
       h += '<section class="oj-sec"><h3>☑ 作業の進み具合</h3><div class="opm-prog"><div class="opm-bar"><span style="width:' + pct + '%"></span></div><b>' + sm.done + ' / ' + sm.total + ' 完了</b>' +
         '<span class="oj-ship-next">' + nextHtml(sm, today) + '</span><button type="button" class="opm-btn" data-oj="steps">☑ チェックリストを開く</button></div></section>';
     }
+    h += idSecHtml('job', j.id);
     // 見積との紐付け
     const q = j.preset_id ? rowById(j.preset_id) : null;
     h += '<section class="oj-sec"><h3>💼 見積との紐付け</h3>';
@@ -909,8 +919,311 @@
     if (typeof ol === 'function' && !ol.__opsWrapped) { const wl = function () { _pendingLink = null; return ol.apply(this, arguments); }; wl.__opsWrapped = true; window.cloudLoadPreset = wl; }
   }
 
+  // ---------- 🆔 基幹 ID（＝サイバーポートの取引番号）で、見積・進行・サイバーポートをつなぐ ----------
+  // 基幹システムで採番した番号を、見積の案件（fields の qf-core-ref／往復の復路は qf-core-ref2）と
+  // 見積なしの進行（data.coreId／coreId2）に持たせる。番号はサイバーポートの「取引番号」と同じなので、
+  //  ①［🛰 サイバーポートで確認］で取引を探し、B/L・コンテナ番号を取ってきて、追いかけの名簿（cp_watch_targets・source='trade'）へ入れる
+  //  ②朝夕の自動確認の結果を、取引番号で案件・進行に結び付けて、出港・入港などのチェックを自動で入れる（autoSync）
+  // 番号の形（決まった書式）は ID_RE で確かめる（未設定なら空白を除いて大文字にそろえるだけ）。
+  // 形：EXP（輸出）／IMP（輸入）＋年 2 桁＋月 2 桁＋連番 3 桁＋「-」＋枝番 2 桁（例 EXP2611303-00）
+  let ID_RE = /^(EXP|IMP)\d{2}(0[1-9]|1[0-2])\d{3}-\d{2}$/, ID_EX = 'EXP2611303-00';
+  const normId = s => String(s == null ? '' : s).normalize('NFKC').replace(/[\s\u3000]+/g, '').replace(/[\u2010-\u2015\u2212\u30fc\uff70]/g, '-').toUpperCase();
+  const idDir = v => /^EXP/.test(v) ? 'export' : /^IMP/.test(v) ? 'import' : '';
+  const isRound = d => d === 'export_import' || d === 'import_export';
+  const legDirs = d => d === 'export_import' ? ['export', 'import'] : d === 'import_export' ? ['import', 'export'] : [d === 'export' || d === 'import' ? d : ''];
+  const DIR_LBL = { export: '輸出', import: '輸入' };
+  function idLegs(kind, id) {
+    let dir = '', vals = ['', ''];
+    if (kind === 'case') { const r = rowById(id), f = (r && r.data && r.data.fields) || {}; dir = f['cond-direction'] || ''; vals = [f['qf-core-ref'] || '', f['qf-core-ref2'] || '']; }
+    else { const j = jobById(id); if (!j) return []; dir = j.data.dir || ''; vals = [j.data.coreId || '', j.data.coreId2 || '']; }
+    const dirs = legDirs(dir);
+    if (isRound(dir)) return [{ n: 1, label: '往路', dir: dirs[0], val: vals[0] }, { n: 2, label: '復路', dir: dirs[1], val: vals[1] }];
+    return [{ n: 1, label: '', dir: dirs[0], val: vals[0] }];
+  }
+  // 同じ ID を使っているほかの案件・進行（見積に紐づいた進行どうしは同じ取引なので除く）
+  function idOwner(v, kind, id, n) {
+    const self = kind === 'job' ? jobById(id) : null;
+    for (const r of rowsAll()) {
+      const f = (r.data && r.data.fields) || {};
+      for (const [m, x] of [[1, f['qf-core-ref']], [2, f['qf-core-ref2']]]) {
+        if (normId(x) !== v) continue;
+        if (kind === 'case' && r.id === id && m === n) continue;
+        if (self && self.preset_id === r.id) continue;
+        return '見積「' + (caseTitle(r) || r.id) + '」';
+      }
+    }
+    for (const j of JOBS.list) {
+      for (const [m, x] of [[1, j.data.coreId], [2, j.data.coreId2]]) {
+        if (normId(x) !== v) continue;
+        if (kind === 'job' && j.id === id && m === n) continue;
+        if (kind === 'case' && j.preset_id === id) continue;
+        return '進行「' + (j.title || '') + '」';
+      }
+    }
+    return '';
+  }
+  function idReadOnly(kind, id) {
+    if (!(typeof window.cloudIsLoggedIn === 'function' && window.cloudIsLoggedIn())) return true;
+    return kind === 'case' && !!(typeof window.cloudIsLockedByOther === 'function' && window.cloudIsLockedByOther(id));
+  }
+  const WST = t => !t ? null : t.state === 'done' ? ['追跡完了', 'is-done'] : t.state === 'ask' ? ['確認待ち', 'is-ask'] : t.trace === false ? ['一時停止', 'is-off'] : ['🛰 追跡中', 'is-on'];
+  let _idp = null;   // 開いている確認の欄 { kind, id, n, loading, err, trade, dir, bl, bk, ctn, title }
+  function idSecHtml(kind, id) {
+    const legs = idLegs(kind, id); if (!legs.length) return '';
+    const ro = idReadOnly(kind, id);
+    if (!AUTO.loaded && !AUTO.busy && !AUTO.missing) autoRefreshTargets();
+    let h = '<section class="oj-sec oid-sec" data-oid-kind="' + kind + '" data-oid-id="' + esc(id) + '"><h3>🆔 基幹 ID・サイバーポート</h3>' +
+      '<p class="oj-hint">基幹システムで採番した番号（サイバーポートの取引番号と同じ）を入れると、サイバーポートの取引とつながり、出港・入港などが自動でチェックされます。' + (legs.length > 1 ? '往路と復路は別の番号です。' : '') + '</p>';
+    legs.forEach(L => {
+      const t = L.val && AUTO.trades ? AUTO.trades.get(normId(L.val)) : null, ws = WST(t);
+      h += '<div class="oid-row">' + (L.label ? '<span class="oid-l">' + L.label + (L.dir ? '<small>' + DIR_LBL[L.dir] + '</small>' : '') + '</span>' : '') +
+        '<input type="text" class="oid-in" data-oid-n="' + L.n + '" maxlength="40" autocomplete="off" spellcheck="false" inputmode="latin" value="' + esc(L.val) + '" placeholder="' + esc(ID_EX ? '例）' + ID_EX : '基幹システムの番号') + '" aria-label="基幹 ID' + (L.label ? '（' + L.label + '）' : '') + '"' + (ro ? ' disabled' : '') + '>' +
+        (ws ? '<span class="oid-st ' + ws[1] + '">' + ws[0] + '</span>' : L.val ? '<span class="oid-st is-none">サイバーポート未登録</span>' : '') +
+        (L.val && !ro ? '<button type="button" class="opm-btn" data-oid="check" data-n="' + L.n + '">🛰 サイバーポートで確認</button>' : '') + '</div>';
+      if (_idp && _idp.kind === kind && _idp.id === id && _idp.n === L.n) h += idPanelHtml(L, t);
+    });
+    if (AUTO.missing) h += '<p class="oj-hint">※ 追いかけの名簿（サーバー側の準備 cp-watch.sql）がまだのため、自動チェックは動きません。</p>';
+    return h + '</section>';
+  }
+  function idPanelHtml(L, t) {
+    const p = _idp;
+    if (p.loading) return '<div class="oid-pane"><p>サイバーポートで取引「' + esc(L.val) + '」を探しています…</p></div>';
+    if (p.err) return '<div class="oid-pane is-err"><p>' + esc(p.err) + '</p><div class="oj-crow-foot"><button type="button" class="opm-link" data-oid="cancel">閉じる</button></div></div>';
+    const tr = p.trade || {};
+    let h = '<div class="oid-pane"><dl class="oid-dl"><dt>取引番号</dt><dd>' + esc(tr.no) + '</dd>' + (tr.name ? '<dt>取引名</dt><dd>' + esc(tr.name) + '</dd>' : '') +
+      (tr.type ? '<dt>種別</dt><dd>' + esc(tr.type) + '</dd>' : '') + (tr.status ? '<dt>状態</dt><dd>' + esc(tr.status) + '</dd>' : '') + '</dl>';
+    if (t) {
+      const ws = WST(t);
+      return h + '<p class="oid-ok">この取引は、すでに追いかけの名簿に入っています（' + ws[0].replace('🛰 ', '') + '）。朝夕の自動確認の結果が、ここのチェックに反映されます。</p>' +
+        '<div class="oj-crow-foot"><button type="button" class="opm-link" data-oid="cancel">閉じる</button></div></div>';
+    }
+    h += '<p class="oj-hint">追いかけるには手がかりが 1 つ以上要ります（輸入＝B/L 番号・輸出＝ブッキング番号・コンテナ番号）。サイバーポートから取れたものを入れてあります。</p>' +
+      '<div class="oj-grid">' +
+      '<label class="oj-f"><span>向き</span><select class="oid-f" data-k="dir"><option value="import"' + (p.dir === 'import' ? ' selected' : '') + '>輸入</option><option value="export"' + (p.dir === 'export' ? ' selected' : '') + '>輸出</option></select></label>' +
+      '<label class="oj-f"><span>B/L 番号</span><input type="text" class="oid-f" data-k="bl" value="' + esc(p.bl) + '" maxlength="40"></label>' +
+      '<label class="oj-f"><span>ブッキング番号</span><input type="text" class="oid-f" data-k="bk" value="' + esc(p.bk) + '" maxlength="40"></label>' +
+      '<label class="oj-f oj-f-wide"><span>コンテナ番号（10 本まで・空白区切り）</span><input type="text" class="oid-f" data-k="ctn" value="' + esc(p.ctn) + '" maxlength="200"></label>' +
+      '</div>' + (p.ferr ? '<p class="oid-ferr">' + esc(p.ferr) + '</p>' : '') +
+      '<div class="oj-crow-foot"><button type="button" class="opm-link" data-oid="cancel">やめる</button><button type="button" class="opm-btn opm-btn-pri" data-oid="watch">🛰 この取引を追いかける</button></div></div>';
+    return h;
+  }
+  function idRerender() {
+    if (_cur && $('opmModal') && !$('opmModal').hidden) render();
+    if ($('ojModal') && !$('ojModal').hidden) renderJob();
+    renderTab();
+  }
+  function saveFields(id, patch, comment) {
+    const run = async () => (typeof window.cloudWriteCaseFields === 'function' ? window.cloudWriteCaseFields(encodeURIComponent(id), patch, { comment: comment || '' }) : false);
+    const p = _queue.then(run, run); _queue = p.catch(() => {}); return p;
+  }
+  async function idSave(kind, id, n, raw) {
+    const v = normId(raw), L = idLegs(kind, id).find(x => x.n === n); if (!L) return;
+    if (v === normId(L.val)) { idRerender(); return; }
+    if (v && ID_RE && !ID_RE.test(v)) { toast('⚠️ 番号の形が違います（例：' + (ID_EX || '') + '。輸入は先頭が IMP）', 'warn', 5000); idRerender(); return; }
+    if (v && L.dir && idDir(v) && idDir(v) !== L.dir) { toast('⚠️ この欄は' + DIR_LBL[L.dir] + 'です。番号の先頭は ' + (L.dir === 'export' ? 'EXP' : 'IMP') + ' になるはずです', 'warn', 5000); idRerender(); return; }
+    if (v) { const o = idOwner(v, kind, id, n); if (o) { toast('⚠️ この ID は ' + o + ' で使われています', 'warn', 5000); idRerender(); return; } }
+    if (_idp && _idp.kind === kind && _idp.id === id && _idp.n === n) _idp = null;
+    let ok;
+    if (kind === 'case') {
+      ok = await saveFields(id, { [n === 2 ? 'qf-core-ref2' : 'qf-core-ref']: v }, v ? '🆔 基幹 ID' + (L.label ? '（' + L.label + '）' : '') + 'を「' + v + '」にしました' : '');
+    } else {
+      const j = jobById(id), d = jobData(j); d[n === 2 ? 'coreId2' : 'coreId'] = v; ok = await saveJob(id, { data: d });
+    }
+    if (ok) toast(v ? '🆔 基幹 ID を保存しました' : '基幹 ID を消しました', 'success', 2500);
+    idRerender();
+  }
+  // 応答の中から、コンテナ番号の形（英字 4＋数字 7）の文字をすべて拾う（応答の形が分からなくても取れるように）
+  function scanCtns(o, out, depth) {
+    out = out || new Set(); depth = depth || 0;
+    if (o == null || depth > 8) return out;
+    if (typeof o === 'string') { const v = normId(o); if (/^[A-Z]{4}\d{7}$/.test(v)) out.add(v); }
+    else if (Array.isArray(o)) o.forEach(x => scanCtns(x, out, depth + 1));
+    else if (typeof o === 'object') Object.keys(o).forEach(k => scanCtns(o[k], out, depth + 1));
+    return out;
+  }
+  const gv = (o, path) => path.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
+  async function idCheck(kind, id, n) {
+    const L = idLegs(kind, id).find(x => x.n === n); if (!L || !L.val) return;
+    const v = normId(L.val);
+    _idp = { kind, id, n, loading: true }; idRerender();
+    const done = p => { if (_idp && _idp.kind === kind && _idp.id === id && _idp.n === n) { _idp = Object.assign({ kind, id, n }, p); idRerender(); } };
+    if (!window.CyberPort) return done({ err: 'サイバーポートの連携が読み込まれていません。' });
+    try {
+      const r = await window.CyberPort.tradesSearch({ keyword: v });
+      const list = Array.isArray(r.data) ? r.data : (r.data && Array.isArray(r.data.items) ? r.data.items : []);
+      const tr = list.find(x => normId(gv(x, 'tradeNo')) === v) || null;
+      if (!tr) return done({ err: 'サイバーポートに取引番号「' + v + '」が見つかりませんでした。番号を確かめるか、サイバーポートに登録されたあとでもう一度確かめてください。' });
+      const ctns = scanCtns(tr);
+      try { const c = await window.CyberPort.get('/API/v2/Trades/GetContainers/' + encodeURIComponent(gv(tr, 'tradeNo'))); scanCtns(c && c.data, ctns); } catch (e) { /* コンテナ一覧が取れなくても続ける */ }
+      const no = String(gv(tr, 'tradeNo') || v), type = String(gv(tr, 'tradeType') || '');
+      const dir = L.dir || idDir(normId(no)) || (/export|輸出/i.test(type) ? 'export' : 'import');
+      done({ trade: { no, name: String(gv(tr, 'tradeName') || ''), type, status: String(gv(tr, 'tradeStatus') || '') }, dir, bl: String(gv(tr, 'blNo') || ''), bk: String(gv(tr, 'bookingNo') || ''), ctn: [...ctns].slice(0, 10).join(' '), title: (kind === 'case' ? caseTitle(rowById(id)) : (jobById(id) || {}).title) || '' });
+    } catch (e) {
+      done({ err: (e && e.code === 'login' ? 'ログインが必要です。' : e && e.code === 'nofunction' ? 'サイバーポートとの接続（サーバー側）がまだ準備されていません。' : 'サイバーポートに問い合わせできませんでした：' + ((e && e.message) || e)) });
+    }
+  }
+  async function idWatch(sec) {
+    const p = _idp; if (!p || !p.trade) return;
+    sec.querySelectorAll('.oid-f').forEach(el => { p[el.dataset.k] = el.value; });
+    const N = normId, bl = N(p.bl), bk = N(p.bk), ctns = String(p.ctn || '').split(/[\s,、;]+/).map(N).filter(Boolean);
+    const bad = ctns.filter(c => !/^[A-Z]{4}\d{7}$/.test(c));
+    p.ferr = bad.length ? 'コンテナ番号の形が違います（英字4文字＋数字7桁）：' + bad.join('、') : ctns.length > 10 ? 'コンテナ番号は10本までです。'
+      : !(p.dir === 'export' ? (bk || ctns.length) : (bl || ctns.length)) ? (p.dir === 'export' ? 'ブッキング番号' : 'B/L番号') + 'かコンテナ番号を入れてください（これが無いと動きを調べられません）。' : '';
+    if (p.ferr) { idRerender(); return; }
+    const c = client(), email = me(); if (!c || !email) { p.ferr = 'ログインが必要です。'; idRerender(); return; }
+    const { error } = await c.from('cp_watch_targets').insert({ source: 'trade', trade_no: p.trade.no, title: p.title || p.trade.name || null, direction: p.dir === 'export' ? 'export' : 'import',
+      bl_no: bl || null, booking_no: bk || null, container_nos: ctns, trace: true, state: 'active', created_by: email, updated_by: email });
+    if (error) {
+      const m = error.message || error.code || '';
+      if (error.code !== '23505') { p.ferr = /does not exist|42P01|schema cache|relation|column|violates check/i.test(m) ? 'サーバー側の準備（docs/sql/cp-watch.sql）がまだのため、追いかけられません。' : '追いかけに入れられませんでした：' + m; idRerender(); return; }
+      toast('この取引は、すでに追いかけの名簿に入っています', 'info', 3500);
+    } else toast('🛰 取引「' + p.trade.no + '」を追いかけます（朝夕に自動で確認します）', 'success', 4000);
+    _idp = null; await autoRefreshTargets(); idRerender();
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-oid]'); if (!b) return;
+    const sec = b.closest('.oid-sec'); if (!sec) return;
+    const kind = sec.dataset.oidKind, id = sec.dataset.oidId, a = b.dataset.oid;
+    if (a === 'check') idCheck(kind, id, +b.dataset.n);
+    else if (a === 'cancel') { _idp = null; idRerender(); }
+    else if (a === 'watch') idWatch(sec);
+  });
+  document.addEventListener('change', e => {
+    const t = e.target; if (!t.classList || !t.classList.contains('oid-in')) return;
+    const sec = t.closest('.oid-sec'); if (!sec) return;
+    idSave(sec.dataset.oidKind, sec.dataset.oidId, +t.dataset.oidN, t.value);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.isComposing && e.target.classList && e.target.classList.contains('oid-in')) { e.preventDefault(); e.target.blur(); }
+  });
+
+  // ---------- 🛰 サイバーポートの自動確認（COLINS）の実績から、出港・入港・返却のチェックを自動で入れる ----------
+  // 朝夕の自動確認（cp_watch_targets.snapshot＝注目項目の写し）を読み、実績が入っていれば当てはまる作業を「済み」にする。
+  //  - 当てはまる作業：作業名で判断（出港／搭載・出発、入港・到着（「到着案内」は除く）、空コンテナの返却）
+  //  - 往復の案件：【往路】【復路】の作業は、追跡の向き（輸出／輸入）と合う側だけ
+  //  - 一度自動で入れた作業は st.ax に控え、人が外したら二度と自動では入れない
+  //  - 書き込みは人の操作と同じ入口（他のメンバーが編集中の案件は、次の機会に）。5 分に 1 回まで
+  const AUTO = { at: 0, busy: false, missing: false, loaded: false, map: null, trades: null };
+  const AUTO_EV = [
+    { k: 'dep', re: /出港|出発/, name: '出港実績' },
+    { k: 'arr', re: /入港|到着(?!案内)/, name: '入港実績' },
+    { k: 'ret', re: /空コンテナの返却|空コン返却/, name: '空コンテナの返却実績' },
+  ];
+  function parseVal(v) {
+    const m = /^(\d{4})[-/](\d{2})[-/](\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(String(v || ''));
+    if (!m) return null;
+    const d = new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0));
+    return isNaN(d) ? null : d;
+  }
+  const valText = d => (d.getMonth() + 1) + '/' + d.getDate() + (d.getHours() || d.getMinutes() ? ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') : '');
+  // 追跡の写しから「済んだこと」を取り出す（{dep, arr, ret} → Date）
+  function autoEvents(t) {
+    const items = Array.isArray(t && t.snapshot) ? t.snapshot : [];
+    const ev = {};
+    const firstVal = re => { for (const it of items) if (re.test(String(it && it.k || '')) && it.val) { const d = parseVal(it.val); if (d) return d; } return null; };
+    ev.dep = firstVal(/^v:.*:pol:atd$/);
+    // 入港：積み替えがあれば最後の積み替え本船の入港、無ければ本船の荷揚港の入港
+    const tr = items.filter(it => /^v:.*:tr(\d+)pod:ata$/.test(String(it && it.k || '')));
+    if (tr.length) {
+      const last = tr.slice().sort((a, b) => +/tr(\d+)pod/.exec(b.k)[1] - +/tr(\d+)pod/.exec(a.k)[1])[0];
+      ev.arr = last.val ? parseVal(last.val) : null;
+    } else ev.arr = firstVal(/^v:.*:pod:ata$/);
+    const rets = items.filter(it => /^c:.*:retAct$/.test(String(it && it.k || '')));
+    if (rets.length && rets.every(it => it.val)) ev.ret = rets.map(it => parseVal(it.val)).filter(Boolean).sort((a, b) => b - a)[0] || null;
+    return ev;
+  }
+  // 作業の並び st に、追跡の結果 t を当てはめる。変えた作業の一覧を返す（st は書き換える）
+  function autoApply(st, t, dirField) {
+    if (!st || !Array.isArray(st.s) || !t) return [];
+    const ev = autoEvents(t);
+    if (!ev.dep && !ev.arr && !ev.ret) return [];
+    const legDir = { export_import: { '往路': 'export', '復路': 'import' }, import_export: { '往路': 'import', '復路': 'export' } }[dirField] || null;
+    st.ax = Array.isArray(st.ax) ? st.ax : [];
+    const done = [];
+    st.s.forEach(x => {
+      if (x.d || st.ax.includes(x.id)) return;
+      const m = /^【(往路|復路)】/.exec(x.l || '');
+      if (m && legDir && legDir[m[1]] !== t.direction) return;
+      const l = String(x.l || '').replace(/^【(往路|復路)】/, '');
+      const e = AUTO_EV.find(a => ev[a.k] && a.re.test(l));
+      if (!e) return;
+      const d = ev[e.k];
+      x.d = true; x.at = d.toISOString(); x.by = AUTO_BY; x.src = 'COLINS の' + e.name + ' ' + valText(d);
+      st.ax.push(x.id); done.push(x);
+    });
+    return done;
+  }
+  // 案件・進行に当てはまる追跡（案件の id で追うもの＋基幹 ID＝取引番号で追うもの）
+  const uniq = a => a.filter((x, i) => x && a.indexOf(x) === i);
+  function targetsForCase(r) {
+    if (!r || !AUTO.map) return [];
+    const f = (r.data && r.data.fields) || {}, tm = AUTO.trades || new Map();
+    return uniq([AUTO.map.get(r.id), tm.get(normId(f['qf-core-ref'])), tm.get(normId(f['qf-core-ref2']))]);
+  }
+  function targetsForJob(j, shipId) {
+    if (!j || shipId || j.kind !== 'spot' || !AUTO.map) return [];
+    const tm = AUTO.trades || new Map(), q = j.preset_id ? rowById(j.preset_id) : null;
+    return uniq([j.preset_id ? AUTO.map.get(j.preset_id) : null, tm.get(normId(j.data.coreId)), tm.get(normId(j.data.coreId2))].concat(q ? targetsForCase(q) : []));
+  }
+  const autoTargetOfJob = (j, shipId) => targetsForJob(j, shipId).length > 0;
+  async function autoLoad() {
+    const c = client(); if (!c) return null;
+    let res = await c.from('cp_watch_targets').select('preset_id,direction,snapshot,source,trade_no,trace,state');
+    if (res.error && (res.error.code === '42703' || /source|trade_no/.test(res.error.message || ''))) res = await c.from('cp_watch_targets').select('preset_id,direction,snapshot,trace');
+    if (res.error) {
+      if (res.error.code === '42P01' || res.error.code === 'PGRST205' || /cp_watch_targets/.test(res.error.message || '')) AUTO.missing = true;
+      return null;
+    }
+    const map = new Map(), trades = new Map();
+    (res.data || []).forEach(t => {
+      if ((t.source || 'case') === 'case' && t.preset_id) map.set(t.preset_id, t);
+      else if (t.source === 'trade' && t.trade_no) trades.set(normId(t.trade_no), t);
+    });
+    return { map, trades };
+  }
+  // 追いかけの名簿だけを読み直す（基幹 ID の画面の状態の札・登録のあと）
+  async function autoRefreshTargets() {
+    if (AUTO.busy || AUTO.missing || !(typeof window.cloudIsLoggedIn === 'function' && window.cloudIsLoggedIn())) return;
+    AUTO.busy = true;
+    try { const m = await autoLoad(); if (m) { AUTO.map = m.map; AUTO.trades = m.trades; } } catch (e) {}
+    finally { AUTO.busy = false; AUTO.loaded = true; }
+    idRerender();
+  }
+  async function autoSync(force) {
+    if (AUTO.busy || AUTO.missing) return;
+    if (!force && Date.now() - AUTO.at < 5 * 60 * 1000) return;
+    if (!(typeof window.cloudIsLoggedIn === 'function' && window.cloudIsLoggedIn())) return;
+    if (!rowsAll().length && !JOBS.list.length) return;
+    AUTO.busy = true; AUTO.at = Date.now();
+    let n = 0;
+    try {
+      const m = await autoLoad();
+      if (!m) return;
+      AUTO.map = m.map; AUTO.trades = m.trades; AUTO.loaded = true;
+      for (const r of rowsAll()) {
+        const ts = targetsForCase(r); if (!ts.length || !isTarget(r)) continue;
+        if (typeof window.cloudIsLockedByOther === 'function' && window.cloudIsLockedByOther(r.id)) continue;
+        if (_cur && _cur.id === r.id) continue;   // チェックリストを開いている間は触らない（閉じたあとの機会に）
+        const st = JSON.parse(JSON.stringify(stateOf(r)));
+        const f = (r.data && r.data.fields) || {};
+        const done = [].concat(...ts.map(t => autoApply(st, t, f['cond-direction'])));
+        if (!done.length) continue;
+        const ok = await save(r.id, st, done.map(x => '🛰 業務：「' + x.l + '」を自動で完了（' + x.src + '）').join('\n'));
+        if (ok) n += done.length;
+      }
+      for (const j of JOBS.list) {
+        const ts = targetsForJob(j); if (!ts.length || j.status !== 'active') continue;
+        if (_cur && _cur.kind === 'job' && _cur.jobId === j.id) continue;
+        const d = jobData(j), done = [].concat(...ts.map(t => autoApply(d.st, t, d.dir || '')));
+        if (done.length && await saveJob(j.id, { data: d })) n += done.length;
+      }
+    } catch (e) { /* 自動確認の読み取りに失敗しても、画面は止めない */ }
+    finally { AUTO.busy = false; }
+    if (n) { toast('🛰 サイバーポートの実績から、作業 ' + n + ' 件に自動でチェックを入れました', 'success', 4000); renderBand(); renderTab(); }
+  }
+
   // 一覧が描き直されるたび（cloud.js → dtRefresh）に、帯とタブを更新する
-  function refreshAll() { renderBand(); renderTab(); if ($('ojModal') && !$('ojModal').hidden) renderJob(); }
+  function refreshAll() { renderBand(); renderTab(); autoSync(); if ($('ojModal') && !$('ojModal').hidden) renderJob(); }
   function hook() {
     const orig = window.dtRefresh;
     window.dtRefresh = function () { const r = orig ? orig.apply(this, arguments) : undefined; setTimeout(refreshAll, 0); if (!JOBS.loaded) setTimeout(() => loadJobs(), 0); return r; };
@@ -935,5 +1248,8 @@
   window.opsCreateJob = openCreate;
   window.opsReloadJobs = () => loadJobs(true);
   window.opsTemplateKeys = tplKeysOf;   // 試験・ほかの機能から
+  window.opsAutoSync = () => autoSync(true);
+  window.opsAutoApply = autoApply;   // 試験用
+  window.opsSetIdFormat = (re, ex) => { ID_RE = re || null; ID_EX = ex || ''; };   // 基幹 ID の形（試験・形が変わったとき）
   window.opsSummaryOf = r => (isTarget(r) ? summary(stateOf(r)) : null);
 })();

@@ -4395,6 +4395,7 @@
     if (_followOn()) newData.fields['qf-follower'] = (_cloudUser && _cloudUser.email) || ''; else delete newData.fields['qf-follower'];   // フォロー担当はコピーした人から（引き継ぎ履歴はコピー元のものなので消す）
     delete newData.fields['qf-follow-log'];
     delete newData.fields['qf-ops'];   // 受注後の業務の進捗はコピー元の案件のもの
+    delete newData.fields['qf-core-ref2'];   // 基幹 ID（復路）も手配した案件に固有
     delete newData.fields['qf-related-data'];   // 関連番号・メール件名も元の引き合いに固有のため引き継がない
     const existingNames = _cloudRows.map(r => r.name).concat(opts.usedNames ? Array.from(opts.usedNames) : []);
     let baseName = src.name + (asSub ? ' のサブ' : ' のコピー');
