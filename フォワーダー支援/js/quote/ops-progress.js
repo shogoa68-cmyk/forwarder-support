@@ -512,7 +512,8 @@
     const g = groupsOf(all), today = g._today;
     const q = norm(TAB.q);
     let list = g[TAB.f] || g.active;
-    if (q) list = list.filter(x => norm(x.title + ' ' + x.customer + ' ' + idsOf(x).join(' ') + ' ' + (x.st.s || []).map(s => s.l).join(' ')).includes(q));
+    const qId = normId(TAB.q);   // 基幹 ID は「ー」「－」などもハイフンにそろえて探す
+    if (q) list = list.filter(x => norm(x.title + ' ' + x.customer + ' ' + idsOf(x).join(' ') + ' ' + (x.st.s || []).map(s => s.l).join(' ')).includes(q) || idsOf(x).some(id => id.includes(qId)));
     list = sortRows(list);
     const tile = (k, lbl, n, cls) => '<button type="button" class="opt-tile' + (cls ? ' ' + cls : '') + (TAB.f === k ? ' is-on' : '') + '" data-opt="f" data-f="' + k + '" aria-pressed="' + (TAB.f === k) + '"><span>' + lbl + '</span><b>' + n + '</b></button>';
     const canNew = !JOBS.missing;
@@ -924,8 +925,10 @@
   //  ①［🛰 サイバーポートで確認］で取引を探し、B/L・コンテナ番号を取ってきて、追いかけの名簿（cp_watch_targets・source='trade'）へ入れる
   //  ②朝夕の自動確認の結果を、取引番号で案件・進行に結び付けて、出港・入港などのチェックを自動で入れる（autoSync）
   // 番号の形（決まった書式）は ID_RE で確かめる（未設定なら空白を除いて大文字にそろえるだけ）。
-  let ID_RE = null, ID_EX = '';
-  const normId = s => String(s == null ? '' : s).normalize('NFKC').replace(/[\s　]+/g, '').toUpperCase();
+  // 形：EXP（輸出）／IMP（輸入）＋年 2 桁＋月 2 桁＋連番 3 桁＋「-」＋枝番 2 桁（例 EXP2611303-00）
+  let ID_RE = /^(EXP|IMP)\d{2}(0[1-9]|1[0-2])\d{3}-\d{2}$/, ID_EX = 'EXP2611303-00';
+  const normId = s => String(s == null ? '' : s).normalize('NFKC').replace(/[\s\u3000]+/g, '').replace(/[\u2010-\u2015\u2212\u30fc\uff70]/g, '-').toUpperCase();
+  const idDir = v => /^EXP/.test(v) ? 'export' : /^IMP/.test(v) ? 'import' : '';
   const isRound = d => d === 'export_import' || d === 'import_export';
   const legDirs = d => d === 'export_import' ? ['export', 'import'] : d === 'import_export' ? ['import', 'export'] : [d === 'export' || d === 'import' ? d : ''];
   const DIR_LBL = { export: '輸出', import: '輸入' };
@@ -1016,7 +1019,8 @@
   async function idSave(kind, id, n, raw) {
     const v = normId(raw), L = idLegs(kind, id).find(x => x.n === n); if (!L) return;
     if (v === normId(L.val)) { idRerender(); return; }
-    if (v && ID_RE && !ID_RE.test(v)) { toast('⚠️ 番号の形が違います' + (ID_EX ? '（例：' + ID_EX + '）' : ''), 'warn', 4000); idRerender(); return; }
+    if (v && ID_RE && !ID_RE.test(v)) { toast('⚠️ 番号の形が違います（例：' + (ID_EX || '') + '。輸入は先頭が IMP）', 'warn', 5000); idRerender(); return; }
+    if (v && L.dir && idDir(v) && idDir(v) !== L.dir) { toast('⚠️ この欄は' + DIR_LBL[L.dir] + 'です。番号の先頭は ' + (L.dir === 'export' ? 'EXP' : 'IMP') + ' になるはずです', 'warn', 5000); idRerender(); return; }
     if (v) { const o = idOwner(v, kind, id, n); if (o) { toast('⚠️ この ID は ' + o + ' で使われています', 'warn', 5000); idRerender(); return; } }
     if (_idp && _idp.kind === kind && _idp.id === id && _idp.n === n) _idp = null;
     let ok;
@@ -1052,7 +1056,7 @@
       const ctns = scanCtns(tr);
       try { const c = await window.CyberPort.get('/API/v2/Trades/GetContainers/' + encodeURIComponent(gv(tr, 'tradeNo'))); scanCtns(c && c.data, ctns); } catch (e) { /* コンテナ一覧が取れなくても続ける */ }
       const no = String(gv(tr, 'tradeNo') || v), type = String(gv(tr, 'tradeType') || '');
-      const dir = L.dir || ((/^EXP/i.test(no) || /export|輸出/i.test(type)) ? 'export' : 'import');
+      const dir = L.dir || idDir(normId(no)) || (/export|輸出/i.test(type) ? 'export' : 'import');
       done({ trade: { no, name: String(gv(tr, 'tradeName') || ''), type, status: String(gv(tr, 'tradeStatus') || '') }, dir, bl: String(gv(tr, 'blNo') || ''), bk: String(gv(tr, 'bookingNo') || ''), ctn: [...ctns].slice(0, 10).join(' '), title: (kind === 'case' ? caseTitle(rowById(id)) : (jobById(id) || {}).title) || '' });
     } catch (e) {
       done({ err: (e && e.code === 'login' ? 'ログインが必要です。' : e && e.code === 'nofunction' ? 'サイバーポートとの接続（サーバー側）がまだ準備されていません。' : 'サイバーポートに問い合わせできませんでした：' + ((e && e.message) || e)) });
@@ -1246,6 +1250,6 @@
   window.opsTemplateKeys = tplKeysOf;   // 試験・ほかの機能から
   window.opsAutoSync = () => autoSync(true);
   window.opsAutoApply = autoApply;   // 試験用
-  window.opsSetIdFormat = (re, ex) => { ID_RE = re || null; ID_EX = ex || ''; };   // 基幹 ID の形（決まったら設定）
+  window.opsSetIdFormat = (re, ex) => { ID_RE = re || null; ID_EX = ex || ''; };   // 基幹 ID の形（試験・形が変わったとき）
   window.opsSummaryOf = r => (isTarget(r) ? summary(stateOf(r)) : null);
 })();

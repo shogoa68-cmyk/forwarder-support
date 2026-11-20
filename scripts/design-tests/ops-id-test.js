@@ -63,8 +63,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
       ];
       db.ops_jobs = [{ id: 'J1', kind: 'spot', title: 'スポット輸出', customer: 'Y社', status: 'active', preset_id: 'B7', updated_at: '2026-11-15T00:00:00Z', data: { dir: 'export', mode: '海上（FCL）', charges: [], ships: [] } }];
       ex('B9', 'ID輸出案件', { 'cond-direction': 'export', 'cond-mode': '海上（FCL）' });
-      db.ops_jobs.push({ id: 'J2', kind: 'spot', title: 'ID付きスポット', customer: 'Z社', status: 'active', preset_id: null, updated_at: '2026-11-16T00:00:00Z', data: { dir: 'export', mode: '海上（FCL）', coreId: 'JOBX1', charges: [], ships: [] } });
-      db.cp_watch_targets.push({ preset_id: 'TJ2', source: 'trade', trade_no: 'JOBX1', direction: 'export', trace: true, state: 'active', snapshot: [V('v:G|7:pol:atd', '2026-11-19 09:15')] });
+      db.ops_jobs.push({ id: 'J2', kind: 'spot', title: 'ID付きスポット', customer: 'Z社', status: 'active', preset_id: null, updated_at: '2026-11-16T00:00:00Z', data: { dir: 'export', mode: '海上（FCL）', coreId: 'EXP2611100-00', charges: [], ships: [] } });
+      db.cp_watch_targets.push({ preset_id: 'TJ2', source: 'trade', trade_no: 'EXP2611100-00', direction: 'export', trace: true, state: 'active', snapshot: [V('v:G|7:pol:atd', '2026-11-19 09:15')] });
       if (window.__nowatch) { delete db.cp_watch_targets; }
       window.__iso = iso;
       window.__db = db; window.__writes = [];
@@ -136,7 +136,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => {   // サイバーポートの問い合わせを差し替える
     window.__cpCalls = [];
     window.CyberPort = Object.assign({}, window.CyberPort, {
-      tradesSearch: async q => { window.__cpCalls.push(['search', q]); return { data: q.keyword === 'ABC123' ? [{ tradeNo: 'ABC123', tradeName: '輸出の取引', tradeType: 'Export', tradeStatus: '進行中', blNo: '' }] : [] }; },
+      tradesSearch: async q => { window.__cpCalls.push(['search', q]); return { data: q.keyword === 'EXP2611303-00' ? [{ tradeNo: 'EXP2611303-00', tradeName: '輸出の取引', tradeType: 'Export', tradeStatus: '進行中', blNo: '' }] : [] }; },
       get: async path => { window.__cpCalls.push(['get', path]); return { data: [{ container: { containerNo: 'MSCU1234567' } }] }; },
     });
   });
@@ -146,19 +146,27 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const j2d = j2 && j2.s.find(x => /本船出港/.test(x.l));
   ok('見積とつながらないスポットの進行も、基幹 ID の追跡で自動チェック', !!j2d && j2d.d && /09:15/.test(j2d.src), j2d);
   // ---- 見積の案件：ID を入れる ----
+  const setId = (sel, v) => p.evaluate(([sel, v]) => { const i = document.querySelector(sel); i.value = v; i.dispatchEvent(new Event('change', { bubbles: true })); }, [sel, v]);
+  // 形のチェック・向きのチェック
+  await p.evaluate(() => window.opsOpen('B1')); await p.waitForTimeout(400);
+  await setId('#opmModal .oid-in[data-oid-n="1"]', 'EXP261130300'); await p.waitForTimeout(500);
+  await setId('#opmModal .oid-in[data-oid-n="1"]', 'EXP2613303-00'); await p.waitForTimeout(500);
+  await setId('#opmModal .oid-in[data-oid-n="1"]', 'IMP2611303-05'); await p.waitForTimeout(500);
+  const f1 = await p.evaluate(() => window.__db.quote_presets.find(r => r.id === 'B1').data.fields['qf-core-ref'] || '');
+  ok('形が違う番号（ハイフンなし・13 月）と、向きの違う番号（輸出の案件に IMP）は保存しない', f1 === '', f1);
+  await click(p, '#opmModal [data-opm="close"]'); await p.waitForTimeout(200);
   await p.evaluate(() => window.opsOpen('B9')); await p.waitForTimeout(500);
   const sec = await p.evaluate(() => { const s = document.querySelector('#opmModal .oid-sec'); return s ? { n: s.querySelectorAll('.oid-in').length, t: s.textContent } : null; });
   ok('チェックリストに「🆔 基幹 ID・サイバーポート」の欄（片道は 1 つ）', !!sec && sec.n === 1, sec);
-  const setId = (sel, v) => p.evaluate(([sel, v]) => { const i = document.querySelector(sel); i.value = v; i.dispatchEvent(new Event('change', { bubbles: true })); }, [sel, v]);
-  await setId('#opmModal .oid-in[data-oid-n="1"]', ' abc123 '); await p.waitForTimeout(800);
+  await setId('#opmModal .oid-in[data-oid-n="1"]', ' exp2611303ー00 '); await p.waitForTimeout(800);
   const f9 = await p.evaluate(() => window.__db.quote_presets.find(r => r.id === 'B9').data.fields['qf-core-ref']);
-  ok('ID は空白を除いて大文字で保存（qf-core-ref）', f9 === 'ABC123', f9);
+  ok('ID は空白を除き、大文字・半角のハイフンにそろえて保存（qf-core-ref）', f9 === 'EXP2611303-00', f9);
   const st9 = await p.evaluate(() => (document.querySelector('#opmModal .oid-st') || {}).textContent || '');
   ok('まだ追いかけていない ID には「サイバーポート未登録」', /未登録/.test(st9), st9);
   // 重複
   await click(p, '#opmModal [data-opm="close"]'); await p.waitForTimeout(200);
   await p.evaluate(() => window.opsOpen('B5')); await p.waitForTimeout(400);
-  await setId('#opmModal .oid-in[data-oid-n="1"]', 'ABC123'); await p.waitForTimeout(600);
+  await setId('#opmModal .oid-in[data-oid-n="1"]', 'EXP2611303-00'); await p.waitForTimeout(600);
   const f5 = await p.evaluate(() => window.__db.quote_presets.find(r => r.id === 'B5').data.fields['qf-core-ref'] || '');
   ok('ほかの案件と同じ ID は保存しない', f5 === '', f5);
   await click(p, '#opmModal [data-opm="close"]'); await p.waitForTimeout(200);
@@ -166,9 +174,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => window.opsOpen('B6')); await p.waitForTimeout(400);
   const legs = await p.evaluate(() => [...document.querySelectorAll('#opmModal .oid-l')].map(x => x.textContent));
   ok('往復の案件は往路（輸出）・復路（輸入）の 2 つの欄', legs.length === 2 && /往路輸出/.test(legs[0]) && /復路輸入/.test(legs[1]), legs);
-  await setId('#opmModal .oid-in[data-oid-n="2"]', 'RET777'); await p.waitForTimeout(600);
+  await setId('#opmModal .oid-in[data-oid-n="2"]', 'IMP2611411-01'); await p.waitForTimeout(600);
   const f6 = await p.evaluate(() => window.__db.quote_presets.find(r => r.id === 'B6').data.fields);
-  ok('復路の ID は qf-core-ref2 に保存', f6['qf-core-ref2'] === 'RET777' && !f6['qf-core-ref'], f6['qf-core-ref2']);
+  ok('復路の ID は qf-core-ref2 に保存', f6['qf-core-ref2'] === 'IMP2611411-01' && !f6['qf-core-ref'], f6['qf-core-ref2']);
   await click(p, '#opmModal [data-opm="close"]'); await p.waitForTimeout(200);
   // ---- サイバーポートで確認 → 追いかける ----
   await p.evaluate(() => window.opsOpen('B9')); await p.waitForTimeout(400);
@@ -176,20 +184,20 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const pane = await p.evaluate(() => { const x = document.querySelector('#opmModal .oid-pane'); return x ? { t: x.textContent, dir: (x.querySelector('[data-k="dir"]') || {}).value, ctn: (x.querySelector('[data-k="ctn"]') || {}).value } : null; });
   ok('取引が見つかり、取引名・向き（輸出）・コンテナ番号が入る', !!pane && /輸出の取引/.test(pane.t) && pane.dir === 'export' && pane.ctn === 'MSCU1234567', pane);
   await click(p, '#opmModal [data-oid="watch"]'); await p.waitForTimeout(900);
-  const w = await p.evaluate(() => window.__db.cp_watch_targets.find(t => t.trade_no === 'ABC123'));
+  const w = await p.evaluate(() => window.__db.cp_watch_targets.find(t => t.trade_no === 'EXP2611303-00'));
   ok('追いかけの名簿に取引として入る（source=trade・取引番号・コンテナ）', !!w && w.source === 'trade' && w.direction === 'export' && w.container_nos[0] === 'MSCU1234567' && w.trace === true, w);
   const st9b = await p.evaluate(() => (document.querySelector('#opmModal .oid-st') || {}).textContent || '');
   ok('登録後は「🛰 追跡中」', /追跡中/.test(st9b), st9b);
   ok('「サイバーポートで追跡中」の案内が出る', await p.evaluate(() => !!document.querySelector('#opmModal .opm-auto')));
   await click(p, '#opmModal [data-opm="close"]'); await p.waitForTimeout(200);
   // 自動確認の結果が入ったら、取引番号で結び付けてチェック
-  await p.evaluate(() => { window.__db.cp_watch_targets.find(t => t.trade_no === 'ABC123').snapshot = [{ k: 'v:H|8:pol:atd', val: '2026-11-20 07:40', cat: 'date' }]; });
+  await p.evaluate(() => { window.__db.cp_watch_targets.find(t => t.trade_no === 'EXP2611303-00').snapshot = [{ k: 'v:H|8:pol:atd', val: '2026-11-20 07:40', cat: 'date' }]; });
   await p.evaluate(() => window.opsAutoSync()); await p.waitForTimeout(1200);
   const o9 = await ops(p, 'B9'), d9 = o9 && o9.s.find(x => /本船出港/.test(x.l));
   ok('取引番号の追跡の実績で、案件の「本船出港」に自動チェック', !!d9 && d9.d && /07:40/.test(d9.src), d9);
   // 見つからない番号
   await p.evaluate(() => window.opsOpen('B5')); await p.waitForTimeout(400);
-  await setId('#opmModal .oid-in[data-oid-n="1"]', 'NOPE99'); await p.waitForTimeout(700);
+  await setId('#opmModal .oid-in[data-oid-n="1"]', 'IMP2611999-00'); await p.waitForTimeout(700);
   await click(p, '#opmModal [data-oid="check"]'); await p.waitForTimeout(600);
   const err = await p.evaluate(() => (document.querySelector('#opmModal .oid-pane.is-err') || {}).textContent || '');
   ok('見つからない番号は案内を出す', /見つかりませんでした/.test(err), err);
@@ -197,13 +205,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
   // ---- 進行の画面の ID 欄 ----
   await p.evaluate(() => window.opsOpenJob('J2')); await p.waitForTimeout(500);
   const jsec = await p.evaluate(() => { const s = document.querySelector('#ojModal .oid-sec'); return s ? { v: s.querySelector('.oid-in').value, st: (s.querySelector('.oid-st') || {}).textContent } : null; });
-  ok('進行の画面にも ID の欄（JOBX1・追跡中）', !!jsec && jsec.v === 'JOBX1' && /追跡中/.test(jsec.st), jsec);
+  ok('進行の画面にも ID の欄（EXP2611100-00・追跡中）', !!jsec && jsec.v === 'EXP2611100-00' && /追跡中/.test(jsec.st), jsec);
   await p.evaluate(() => { const b = document.querySelector('#ojModal [data-oj="close"]'); b && b.click(); });
   // ---- 一覧の検索 ----
   await p.evaluate(() => window.opsGoTab('all')); await p.waitForTimeout(800);
-  await p.evaluate(() => { const i = document.getElementById('optQ'); i.value = 'abc123'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await p.waitForTimeout(300);
+  await p.evaluate(() => { const i = document.getElementById('optQ'); i.value = 'exp2611303ー00'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await p.waitForTimeout(300);
   const rows = await p.evaluate(() => [...document.querySelectorAll('#opsRoot .opt-row')].map(r => r.textContent.replace(/\s+/g, ' ')));
-  ok('進行管理の一覧は基幹 ID で探せる・🆔 が出る', rows.length === 1 && /ID輸出案件/.test(rows[0]) && /🆔 ABC123/.test(rows[0]), rows);
+  ok('進行管理の一覧は基幹 ID で探せる・🆔 が出る', rows.length === 1 && /ID輸出案件/.test(rows[0]) && /🆔 EXP2611303-00/.test(rows[0]), rows);
   ok('ページのエラーなし', errs.length === 0, errs);
   await ctx.close();
   {
