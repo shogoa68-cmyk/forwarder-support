@@ -215,3 +215,11 @@ html.editor-v2 #tab-quote-make .qrc-drawer { height: auto; min-height: 0; }
 #tab-quote-make .qsp-fin .qrc-group { margin-top: 12px; }
 #tab-quote-make .qsp-fin .qrc-group-body > .qsp-currency-row { display: flex; }
 #tab-quote-make .qrc-drawer-body .qsp-dig-row { display: none; }
+
+/* 費用：会社の頭の［＋］［除外］は［⋯］へ集約（元のボタンは残し、メニューから押す） */
+#tab-quote-make .qrc-drawer-body .qsp-dig-grp-item > :is(.qsp-dig-grp-add, .qsp-dig-grp-excl) { display: none; }
+#tab-quote-make .qsp-dig-grp-more { border: 0; background: transparent; color: var(--rr-ink-2); font-size: var(--text-base, 14px); cursor: pointer; min-width: 28px; height: 28px; border-radius: 6px; }
+#tab-quote-make .qsp-dig-grp-more:hover { background: var(--rr-face); }
+.qsp-grp-menu { position: fixed; z-index: 1400; width: 150px; padding: 4px; background: #fff; border: 1px solid #e4e7ec; border-radius: 8px; box-shadow: 0 6px 20px rgba(16,24,40,.18); display: flex; flex-direction: column; }
+.qsp-grp-menu button { height: 36px; border: 0; background: transparent; text-align: left; padding: 0 10px; font: inherit; font-size: 13px; border-radius: 6px; cursor: pointer; }
+.qsp-grp-menu button:hover { background: #f2f4f7; }

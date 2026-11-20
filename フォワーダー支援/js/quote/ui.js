@@ -4218,11 +4218,27 @@
             'onclick="window._qspGroupAction(' + i + ',\'exclude\')" ' +
             'title="' + (g.isExcluded ? '見積もりに含める' : '見積もりから除外') + '">' +
             (g.isExcluded ? '含む' : '除外') + '</button>' +
+          '<button type="button" class="qsp-dig-grp-more" onclick="window._qspGrpMenu(this,event)" title="明細を追加・見積から外す" aria-label="その他の操作">⋯</button>' +
           '</div>' + noteLine;
       }).join('') + '</div>';
     }
     el.innerHTML = html;
     if (typeof window._qspInitRowDrag === 'function') window._qspInitRowDrag();
+  };
+  // Design 49：会社の頭の［＋］［除外］は［⋯］1 つへ（元のボタンを押すだけ・DOM は残す）
+  window._qspGrpMenu = function (btn, ev) {
+    if (ev) ev.stopPropagation();
+    const old = document.getElementById('qspGrpMenu'); if (old) { old.remove(); return; }
+    const item = btn.closest('.qsp-dig-grp-item'); if (!item) return;
+    const add = item.querySelector('.qsp-dig-grp-add'), ex = item.querySelector('.qsp-dig-grp-excl');
+    const m = document.createElement('div'); m.id = 'qspGrpMenu'; m.className = 'qsp-grp-menu';
+    [[add, '＋ 明細を追加'], [ex, ex ? (ex.textContent === '含む' ? '見積に含める' : '見積から外す') : '']].forEach(function (a) {
+      if (!a[0]) return; const b = document.createElement('button'); b.type = 'button'; b.textContent = a[1];
+      b.onclick = function () { m.remove(); a[0].click(); }; m.appendChild(b);
+    });
+    document.body.appendChild(m);
+    const r = btn.getBoundingClientRect(); m.style.top = (r.bottom + 4) + 'px'; m.style.left = Math.max(8, r.right - 150) + 'px';
+    setTimeout(function () { document.addEventListener('click', function f() { m.remove(); document.removeEventListener('click', f); }); }, 0);
   };
   // 費用テーブルのサブコン／パターン見出し行＋明細行を DOM 順に収集（ジャンプ用）
   function _collectTableGroups() {
