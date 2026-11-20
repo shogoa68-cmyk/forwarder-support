@@ -16,6 +16,7 @@
     const company = isSv
       ? [L('md_location'), L('md_website'), holder(form, 'md_svTypes', '.master-detail-tags'), holder(form, 'md_areas', '.master-detail-areas'), L('md_group')].filter(Boolean)
       : [L('md_location'), L('md_mainGoods'), L('md_destCountry'), L('md_tendency'), L('md_website'), holder(form, 'md_tags', '.master-detail-tags')].filter(Boolean);
+    const sites = [holder(form, 'md_sites', '.master-detail-contacts')].filter(Boolean);
     const memo = [L('md_memo')].filter(Boolean);
     // 基本情報
     const top = document.createElement('div'); top.className = 'mt-basic';
@@ -25,13 +26,13 @@
     const panels = {};
     const defs = isSv
       ? [['people', '担当者'], ['company', '会社の詳細・種別・エリア'], ['mail', 'メール取込ルール'], ['news', 'ニュース'], ['memo', 'メモ・添付']]
-      : [['people', '担当者'], ['company', '会社の詳細・タグ'], ['cases', '顧客カルテ'], ['rules', '取引ルール'], ['news', 'ニュース'], ['memo', 'メモ・添付']];
+      : [['people', '担当者'], ['sites', '倉庫・配送先'], ['company', '会社の詳細・タグ'], ['cases', '顧客カルテ'], ['rules', '取引ルール'], ['news', 'ニュース'], ['memo', 'メモ・添付']];
     defs.forEach(([k, label]) => {
       const p = document.createElement('div'); p.className = 'mt-panel'; p.dataset.mt = k; p.setAttribute('role', 'tabpanel'); panels[k] = p;
       const b = document.createElement('button'); b.type = 'button'; b.className = 'mt-tab'; b.dataset.mt = k; b.setAttribute('role', 'tab');
       b.innerHTML = label + ' <span class="mt-sum"></span>'; b.addEventListener('click', () => show(k)); bar.appendChild(b);
     });
-    people.forEach(e => panels.people.appendChild(e)); company.forEach(e => panels.company.appendChild(e));
+    people.forEach(e => panels.people.appendChild(e)); if (panels.sites) sites.forEach(e => panels.sites.appendChild(e)); company.forEach(e => panels.company.appendChild(e));
     if (cr) panels.rules.appendChild(cr); if (mn) panels.news.appendChild(mn); if (cc) panels.cases.appendChild(cc); if (ir && panels.mail) panels.mail.appendChild(ir); memo.forEach(e => panels.memo.appendChild(e)); if (attach) panels.memo.appendChild(attach);
     form.innerHTML = ''; form.appendChild(top); form.appendChild(bar); defs.forEach(([k]) => form.appendChild(panels[k]));
     // 保存バー：下に常時表示（本文のスクロールの外）
@@ -51,6 +52,8 @@
     function refresh() {
       const named = [...modal.querySelectorAll('#md_contacts .md-contact-name')].filter(i => i.value.trim()).length;
       sum('people', named ? named + '名' : '');
+      const siteN = [...modal.querySelectorAll('#md_sites .md-site-row')].filter(r => [...r.querySelectorAll('input')].some(i => i.value.trim())).length;
+      sum('sites', siteN ? siteN + '件' : '');
       const tags = modal.querySelectorAll(isSv ? '#md_svTypes .stats-md-tag-chip, #md_areas .stats-md-tag-chip' : '#md_tags .stats-md-tag-chip').length;
       const filled = (isSv ? ['md_location', 'md_website', 'md_group'] : ['md_location', 'md_mainGoods', 'md_destCountry', 'md_tendency', 'md_website']).filter(i => (modal.querySelector('#' + i)?.value || '').trim()).length;
       sum('company', [filled ? filled + '項目' : '', tags ? (isSv ? '種別・エリア' : 'タグ') + tags : ''].filter(Boolean).join('・'));

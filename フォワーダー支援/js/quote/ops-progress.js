@@ -112,6 +112,53 @@
     if (n < 0) return state === 'past' ? '過ぎました' : '⚠ ' + (-n) + ' 日過ぎています';
     return n === 0 ? '今日' : n === 1 ? '明日' : 'あと ' + n + ' 日';
   }
+  // ---- 🛰 COLINS（朝夕の自動確認の写し）からの締め切りの候補。勝手には書き換えず、［反映］で入れる ----
+  const JST_MS = 9 * 3600000;
+  function jstYmd(v) {
+    const s0 = String(v == null ? '' : v).trim(); if (!s0) return '';
+    let m = /^(\d{4})-?(\d{2})-?(\d{2})$/.exec(s0);
+    if (m) return m[1] + '-' + m[2] + '-' + m[3];
+    m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(s0); if (!m) return '';
+    if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(s0)) return m[1] + '-' + m[2] + '-' + m[3];   // 時差の印が無い＝日本の日時として読む
+    const t = Date.parse(s0); if (isNaN(t)) return '';
+    const d = new Date(t + JST_MS);
+    return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
+  }
+  // 締め切りの種類 → 写しの項目（k の形）。min＝コンテナが複数あるときはいちばん早いもの
+  const CAND = {
+    cy_open: { re: /^v:.*:cyOpen$/, name: 'CYオープン' }, cy_cut: { re: /^v:.*:cyCut$/, name: 'CYカット' }, cfs_cut: { re: /^v:.*:cfsCut$/, name: 'CFSカット' },
+    etd: { re: /^v:.*:pol:etd$/, name: '出港予定（ETD）' }, eta: { re: /^v:.*:pod:eta$/, tr: /^v:.*:tr(\d+)pod:eta$/, name: '入港予定（ETA）' },
+    pickup: { re: /^c:.*:pickDue$/, min: true, name: '搬出期限' }, ret: { re: /^c:.*:retDue$/, min: true, name: '返却期限' },
+  };
+  function candOf(t, k) {
+    const c = CAND[k], items = Array.isArray(t && t.snapshot) ? t.snapshot : []; if (!c) return null;
+    let hits = items.filter(it => it && it.val && c.re.test(String(it.k || '')));
+    if (c.tr) {   // 入港：積み替えがあれば最後の積み替え本船の入港予定
+      const tr = items.filter(it => it && it.val && c.tr.test(String(it.k || '')));
+      if (tr.length) hits = [tr.sort((a, b) => +c.tr.exec(b.k)[1] - +c.tr.exec(a.k)[1])[0]];
+    }
+    const vals = hits.map(it => ({ ymd: jstYmd(it.val), it })).filter(v => v.ymd);
+    if (!vals.length) return null;
+    vals.sort((a, b) => a.ymd.localeCompare(b.ymd));
+    const v = c.min ? vals[0] : vals[0];
+    return { ymd: v.ymd, src: 'COLINS の' + c.name + '（' + (v.it.scope || '') + '）' };
+  }
+  // st の締め切り x に当てはまる候補（往復は締め切りの往路／復路と、追跡の向きを合わせる）
+  function dlCand(x, targets, dir) {
+    if (!targets || !targets.length || !CAND[x.k]) return null;
+    const ld = legDirs(dir)[x.g || 0] || '';
+    for (const t of targets) {
+      if (ld && t.direction && t.direction !== ld) continue;
+      const c = candOf(t, x.k); if (c) return c;
+    }
+    return null;
+  }
+  // 画面に出す候補：日付が違い、無視していないもの
+  const dlCandShow = (x, c) => !!c && c.ymd !== x.d && c.ymd !== x.cx;
+  function ctxTargets(kind, id, shipId) {
+    if (kind === 'quote' || kind === 'case') { const r = rowById(id); return { ts: r ? targetsForCase(r) : [], dir: r && r.data && r.data.fields ? r.data.fields['cond-direction'] : '' }; }
+    const j = jobById(id); return { ts: j ? targetsForJob(j, shipId) : [], dir: j ? j.data.dir : '' };
+  }
   // 作業の状態（チェックのほか）：''＝未着手／doing＝作業中／wait＝返事待ち（x.wn＝待っている相手）／x.who＝担当
   const WSTATE = [['', '未着手'], ['doing', '作業中'], ['wait', '返事待ち']];
   function tplName(st) { return String((st && st.tpl) || '').split('+').map(k => (TPL[k] || {}).name || '').filter(Boolean).join('＋'); }
@@ -230,13 +277,19 @@
       else if (act === 'gsave') saveGuide(i);
       else if (act === 'nadd') addNote(i);
       else if (act === 'ndel') delNote(b.dataset.id);
+      else if (act === 'fopen') openFile(b.dataset.id, false);
+      else if (act === 'fdl') openFile(b.dataset.id, true);
+      else if (act === 'fdel') delFile(b.dataset.id);
       else if (act === 'dladd') dlAdd();
+      else if (act === 'dlapply') { dlSetDate(i, b.dataset.v, '🛰 COLINS'); }
+      else if (act === 'dlignore') { if (readOnly()) return; const x = dlOf(_cur.st)[i]; if (x) { x.cx = b.dataset.v; commit(); } }
       else if (act === 'dldel') dlDel(i);
     });
     ov.addEventListener('change', e => {
       const t = e.target;
       if (t.matches('.opm-due')) setDue(+t.dataset.i, t.value);
       else if (t.matches('.opc-who')) setWho(+t.dataset.i, t.value);
+      else if (t.matches('.opc-f-in')) { const fl = Array.from(t.files || []); t.value = ''; uploadFiles(+t.dataset.i, fl); }
       else if (t.matches('.opc-wn')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (x) { x.wn = t.value.trim().slice(0, 80); commit(); } }
       else if (t.matches('.opc-dk')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (x) { x.dk = t.value; const dl = dlOf(_cur.st).find(d => d.id === x.dk); if (dl && dl.d && !x.d && !x.due) x.due = dl.d; commit(); } }
       else if (t.matches('.opm-dl-d')) dlSetDate(+t.dataset.i, t.value);
@@ -247,6 +300,10 @@
     ov.addEventListener('keydown', e => {
       if (e.key === 'Enter' && e.target.id === 'opmAddIn' && !e.isComposing) { e.preventDefault(); add(); }
     });
+    // 添付ファイルの欄へドラッグ＆ドロップ
+    ov.addEventListener('dragover', e => { const z = e.target.closest && e.target.closest('.opc-files'); if (!z || readOnlyFiles()) return; e.preventDefault(); z.classList.add('is-drag'); });
+    ov.addEventListener('dragleave', e => { const z = e.target.closest && e.target.closest('.opc-files'); if (z && !z.contains(e.relatedTarget)) z.classList.remove('is-drag'); });
+    ov.addEventListener('drop', e => { const z = e.target.closest && e.target.closest('.opc-files'); if (!z) return; e.preventDefault(); z.classList.remove('is-drag'); if (readOnlyFiles()) return; uploadFiles(+z.dataset.i, e.dataTransfer && e.dataTransfer.files); });
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
       if ($('opmModal') && !$('opmModal').hidden && !document.querySelector('.confirm-overlay')) { e.stopPropagation(); e.__opsHandled = true; close(); }
@@ -406,6 +463,72 @@
     if (_cur) render();
   }
   const notesOf = x => NOTES.target === curTarget() ? NOTES.list.filter(n => n.step_id === x.id) : [];
+  // ---- 📎 添付ファイル（表 ops_files＋非公開バケット ops-files＝docs/sql/ops-files.sql）。先に保存領域へ置き、そのあと行を作る ----
+  const OPF_BUCKET = 'ops-files', OPF_MAX = 10 * 1024 * 1024;
+  const FILES = { target: '', list: [], loading: false, missing: false, err: '', busy: 0 };
+  async function loadFiles() {
+    const c = client(), t = curTarget(); if (!c || !t) return;
+    FILES.loading = true; FILES.target = t; FILES.err = '';
+    try {
+      const { data, error } = await c.from('ops_files').select('id,step_id,storage_path,file_name,file_size,mime_type,uploaded_by,created_at').eq('target', t).order('created_at', { ascending: true }).limit(500);
+      if (curTarget() !== t) return;
+      if (error) { if (isMissingRel(error)) FILES.missing = true; else FILES.err = error.message || error.code || ''; FILES.list = []; }
+      else { FILES.list = data || []; FILES.missing = false; }
+    } catch (e) { FILES.err = String(e && e.message || e); }
+    FILES.loading = false;
+    if (_cur) render();
+  }
+  const filesOf = x => FILES.target === curTarget() ? FILES.list.filter(f => f.step_id === x.id) : [];
+  const fmtSize = n => n >= 1048576 ? (Math.round(n / 104857.6) / 10) + ' MB' : n >= 1024 ? Math.round(n / 1024) + ' KB' : (n || 0) + ' B';
+  const canDelFile = f => !!f && (f.uploaded_by === me() || window._myRole === 'admin');
+  function fileKey(file) {
+    const nm = file.name || 'file', dot = nm.lastIndexOf('.');
+    const ext = dot >= 0 ? nm.slice(dot).replace(/[^A-Za-z0-9.]/g, '').slice(0, 10) : '';
+    const base = (dot >= 0 ? nm.slice(0, dot) : nm).replace(/[^A-Za-z0-9._-]+/g, '_').replace(/_{2,}/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'file';
+    const t = new Date(), ym = t.getFullYear() + String(t.getMonth() + 1).padStart(2, '0');
+    return ym + '/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + base + ext;
+  }
+  async function uploadFiles(i, list) {
+    const x = _cur && _cur.st.s[i], c = client(); if (!x || !c) return;
+    list = Array.from(list || []).filter(Boolean); if (!list.length) return;
+    const t = curTarget(); let okN = 0;
+    for (const file of list) {
+      if (file.size > OPF_MAX) { toast('⚠️ ' + file.name + ' は 10MB を超えるため付けられません', 'warn', 5000); continue; }
+      if (/[\\/]/.test(file.name) || file.name.length > 200) { toast('⚠️ ' + file.name + '：ファイル名に / \\ は使えません', 'warn', 5000); continue; }
+      FILES.busy++; render();
+      const path = fileKey(file);
+      try {
+        const up = await c.storage.from(OPF_BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false });
+        if (up.error) throw new Error(up.error.message || up.error);
+        const ins = await c.from('ops_files').insert({ target: t, step_id: x.id, storage_path: path, file_name: file.name, mime_type: file.type || null }).select().single();
+        if (ins.error) { try { await c.storage.from(OPF_BUCKET).remove([path]); } catch (e) {} throw new Error(ins.error.message || ins.error.code); }
+        if (FILES.target === t) FILES.list.push(ins.data);
+        okN++;
+      } catch (e) {
+        const m = String(e && e.message || e);
+        if (/ops_files|ops-files|does not exist|Bucket not found|Could not find/i.test(m)) FILES.missing = true;
+        toast('⚠️ ' + file.name + ' を付けられませんでした：' + m, 'warn', 6500);
+      } finally { FILES.busy--; render(); }
+    }
+    if (okN) toast('📎 ' + okN + ' 個のファイルを付けました（チームで共有）', 'success', 2800);
+  }
+  async function openFile(id, download) {
+    const f = FILES.list.find(x => x.id === id), c = client(); if (!f || !c) return;
+    const res = await c.storage.from(OPF_BUCKET).createSignedUrl(f.storage_path, 300, download ? { download: f.file_name } : undefined);
+    if (res.error || !res.data) { toast('⚠️ ファイルを開けませんでした：' + ((res.error && res.error.message) || ''), 'warn', 4500); return; }
+    if (download) { const a = document.createElement('a'); a.href = res.data.signedUrl; a.download = f.file_name; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
+    else window.open(res.data.signedUrl, '_blank', 'noopener');
+  }
+  async function delFile(id) {
+    const f = FILES.list.find(x => x.id === id), c = client(); if (!f || !c) return;
+    const ok = typeof window.uiConfirm === 'function' ? await window.uiConfirm({ title: 'このファイルを消しますか？', lines: ['・' + f.file_name], irreversible: '消したファイルは元に戻せません。', okLabel: '消す', danger: true }) : true;
+    if (!ok) return;
+    try { await c.storage.from(OPF_BUCKET).remove([f.storage_path]); } catch (e) { /* 失敗しても行は消す。残りは掃除が消す */ }
+    const del = await c.from('ops_files').delete().eq('id', id).select('id');
+    if (del.error || !(del.data && del.data.length)) { toast('⚠️ 消せませんでした' + (del.error ? '：' + del.error.message : '（置いた本人と管理者だけが消せます）'), 'warn', 5000); return; }
+    FILES.list = FILES.list.filter(x => x.id !== id); render();
+  }
+  const FILE_ICON = f => /^image\//.test(f.mime_type || '') ? '🖼' : /pdf/i.test(f.mime_type || f.file_name) ? '📄' : /sheet|excel|\.xlsx?$|\.csv$/i.test((f.mime_type || '') + f.file_name) ? '📊' : /word|\.docx?$/i.test((f.mime_type || '') + f.file_name) ? '📝' : '📎';
   const members = () => { try { return typeof window.cloudTeamMembers === 'function' ? window.cloudTeamMembers() : []; } catch (e) { return []; } };
   function stepBadges(x, st) {
     const b = [];
@@ -415,6 +538,7 @@
     const dl = x.dk ? dlOf(st).find(d => d.id === x.dk) : null;
     if (dl) b.push('<span class="opm-b opm-b-dl is-' + dlState(st, dl) + '" title="つないだ締め切り">📅 ' + esc(stripLeg(dlLabel(st, dl))) + (dl.d ? ' ' + md(dl.d) : '') + '</span>');
     const n = notesOf(x).length; if (n) b.push('<span class="opm-b" title="やりとり・記録">💬 ' + n + '</span>');
+    const nf = filesOf(x).length; if (nf) b.push('<span class="opm-b" title="添付ファイル">📎 ' + nf + '</span>');
     if (GUIDE.map.get(guideKey(x.l)) && GUIDE.map.get(guideKey(x.l)).body) b.push('<span class="opm-b" title="手順メモがあります">📖</span>');
     return b.length ? '<span class="opm-badges">' + b.join('') + '</span>' : '';
   }
@@ -444,6 +568,21 @@
     else h += (g && g.body ? '<div class="opc-guide">' + linkify(g.body) + '</div><small class="opc-meta">最後に直した人：' + esc(nameOf(g.updated_by)) + (g.updated_at ? '（' + esc(whenText(g.updated_at)) + '）' : '') + '</small>' : '<p class="opc-empty">まだ手順がありません。やり方・使うページ・注意点を書いておくと、ほかの人も同じように進められます。</p>') +
       (logged ? '<div class="opc-acts"><button type="button" class="opm-link" data-opm="gedit" data-id="' + esc(x.id) + '">✎ 手順を' + (g && g.body ? '直す' : '書く') + '</button></div>' : '');
     h += '</div>';
+    // 添付ファイル
+    h += '<div class="opc-sec opc-files" data-i="' + i + '"><h5>📎 添付ファイル<small>B/L のドラフト・INV・写真など（チームで共有・1 ファイル 10MB まで）</small></h5>';
+    if (FILES.missing) h += '<p class="opc-miss">ファイルを付けるには、管理者が Supabase で <code>docs/sql/ops-files.sql</code> を実行してください。</p>';
+    else {
+      const fs = filesOf(x);
+      if (FILES.loading && FILES.target === curTarget()) h += '<p class="opc-empty">読み込み中…</p>';
+      else if (FILES.err) h += '<p class="opc-miss">読み込めませんでした：' + esc(FILES.err) + '</p>';
+      if (fs.length) h += '<ul class="opc-files-list">' + fs.map(f => '<li><button type="button" class="opc-f-name" data-opm="fopen" data-id="' + esc(f.id) + '" title="開く（新しいタブ）">' + FILE_ICON(f) + ' ' + esc(f.file_name) + '</button>' +
+        '<small>' + fmtSize(+f.file_size) + '・' + esc(nameOf(f.uploaded_by)) + '・' + esc(whenText(f.created_at)) + '</small>' +
+        '<button type="button" class="opc-f-btn" data-opm="fdl" data-id="' + esc(f.id) + '" title="ダウンロード" aria-label="' + esc(f.file_name) + ' をダウンロード">⬇</button>' +
+        (canDelFile(f) ? '<button type="button" class="opc-f-btn" data-opm="fdel" data-id="' + esc(f.id) + '" title="消す（置いた本人と管理者）" aria-label="' + esc(f.file_name) + ' を消す">✕</button>' : '') + '</li>').join('') + '</ul>';
+      if (FILES.busy) h += '<p class="opc-empty">アップロード中…</p>';
+      if (logged) h += '<label class="opc-f-drop"><input type="file" class="opc-f-in" data-i="' + i + '" multiple hidden>＋ ファイルを選ぶ<small>またはここへドラッグ</small></label>';
+    }
+    h += '</div>';
     // やりとり
     h += '<div class="opc-sec"><h5>💬 やりとり・記録<small>この作業のメモ・連絡の記録（チームで共有・追記だけ）</small></h5>';
     if (NOTES.missing) h += '<p class="opc-miss">やりとりを残すには、管理者が Supabase で <code>docs/sql/ops-cards.sql</code> を実行してください。</p>';
@@ -460,7 +599,7 @@
   function toggleCard(id) {
     if (!_cur) return;
     _cur.open = _cur.open === id ? '' : id; _cur.gedit = '';
-    if (_cur.open) { loadGuides(); if (NOTES.target !== curTarget() && !NOTES.loading) loadNotes(); }
+    if (_cur.open) { loadGuides(); if (NOTES.target !== curTarget() && !NOTES.loading) loadNotes(); if (FILES.target !== curTarget() && !FILES.loading) loadFiles(); }
     render();
   }
   function setWState(i, v) {
@@ -507,6 +646,7 @@
   // ---- 📅 日程・締め切りの欄 ----
   function dlSecHtml(st, ro, today) {
     const dls = dlOf(st), two = String(st.tpl || '').split('+').length > 1, dis = ro ? ' disabled' : '';
+    const ctx = _cur.kind === 'job' ? ctxTargets('job', _cur.jobId, _cur.shipId) : ctxTargets('case', _cur.id);
     let h = '<section class="opm-dl"><h4 class="opm-sec-h">📅 日程・締め切り<small>赤＝過ぎた・黄＝48 時間以内。作業とつないだ締め切りは、その作業が済むと「済み」になります</small></h4>';
     h += dls.length ? '<div class="opm-dl-list">' + dls.map((x, i) => {
       const state = dlState(st, x, today), linked = (st.s || []).filter(s => s.dk === x.id);
@@ -516,19 +656,24 @@
         (linked.length ? '<span class="opm-dl-link" title="つないだ作業">→ ' + linked.map(s => esc(stripLeg(s.l)) + (s.d ? ' ✓' : '')).join('、') + '</span>'
           : '<label class="opm-dl-okw"><input type="checkbox" class="opm-dl-ok" data-i="' + i + '"' + (x.ok ? ' checked' : '') + dis + '> 済み</label>') +
         '<input type="text" class="opm-dl-note" data-i="' + i + '" maxlength="80" value="' + esc(x.note || '') + '" placeholder="メモ" aria-label="メモ"' + dis + '>' +
-        (ro ? '' : '<button type="button" class="opm-dl-x" data-opm="dldel" data-i="' + i + '" title="この締め切りを消す">✕</button>') + '</div>';
+        (ro ? '' : '<button type="button" class="opm-dl-x" data-opm="dldel" data-i="' + i + '" title="この締め切りを消す">✕</button>') +
+        (() => { const c = dlCand(x, ctx.ts, ctx.dir);
+          if (dlCandShow(x, c)) return '<div class="opm-dl-cand"><span>🛰 ' + (x.d ? 'COLINS の日付が違います：<b>' + md(c.ymd) + '</b>（いまは ' + md(x.d) + '）' : 'COLINS に日付があります：<b>' + md(c.ymd) + '</b>') + '<small>' + esc(c.src) + '</small></span>' +
+            (ro ? '' : '<button type="button" class="opm-btn" data-opm="dlapply" data-i="' + i + '" data-v="' + c.ymd + '">反映する</button><button type="button" class="opm-link" data-opm="dlignore" data-i="' + i + '" data-v="' + c.ymd + '">このままにする</button>') + '</div>';
+          if (c && c.ymd === x.d) return '<div class="opm-dl-cand is-same"><small>🛰 COLINS と同じ日付（' + esc(c.src) + '）</small></div>';
+          return ''; })() + '</div>';
     }).join('') + '</div>' : '<p class="opm-empty">締め切りがありません。下から足してください。</p>';
     if (!ro) h += '<div class="opm-dl-add"><select id="opmDlType" aria-label="締め切りの種類">' + Object.keys(DL_TYPES).map(k => '<option value="' + k + '">' + esc(DL_TYPES[k][0]) + '</option>').join('') + '</select>' +
       (two ? '<select id="opmDlLeg" aria-label="往路・復路"><option value="0">往路</option><option value="1">復路</option></select>' : '') +
       '<input type="text" id="opmDlFree" maxlength="40" placeholder="名前（例：通関書類の提出）" hidden><button type="button" class="opm-btn" data-opm="dladd">＋ 締め切りを追加</button></div>';
     return h + '</section>';
   }
-  function dlSetDate(i, v) {
+  function dlSetDate(i, v, via) {
     if (readOnly()) return; const x = dlOf(_cur.st)[i]; if (!x) return;
-    const old = x.d || ''; x.d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
+    const old = x.d || ''; x.d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; delete x.cx;
     // つないだ作業の期限：空か、前の締め切りの日付のままなら、新しい日付にそろえる（手で決めた期限は変えない）
     _cur.st.s.forEach(s => { if (s.dk === x.id && !s.d && (!s.due || s.due === old)) s.due = x.d; });
-    commit(x.d ? '📅 業務：' + dlLabel(_cur.st, x) + ' を ' + md(x.d) + ' に' : '');
+    commit(x.d ? '📅 業務：' + dlLabel(_cur.st, x) + ' を ' + md(x.d) + ' に' + (via ? '（' + via + ' の日付を反映' + (old ? '・前は ' + md(old) : '') + '）' : '') : '');
   }
   function dlAdd() {
     if (readOnly()) return;
@@ -543,7 +688,8 @@
     if (!ok || !_cur) return;
     _cur.st.dl.splice(i, 1); _cur.st.s.forEach(s => { if (s.dk === x.id) delete s.dk; }); commit();
   }
-  function onOpenCard() { NOTES.target = ''; NOTES.list = []; loadGuides(); loadNotes(); }
+  function onOpenCard() { NOTES.target = ''; NOTES.list = []; FILES.target = ''; FILES.list = []; loadGuides(); loadNotes(); loadFiles(); }
+  const readOnlyFiles = () => !(typeof window.cloudIsLoggedIn === 'function' && window.cloudIsLoggedIn());
 
   function opsOpen(idAttr) {
     const id = decodeURIComponent(idAttr), r = rowById(id);
@@ -791,6 +937,7 @@
       return;
     }
     if (!JOBS.loaded && !JOBS.loading) loadJobs();
+    if (!AUTO.loaded && !AUTO.busy && !AUTO.missing) autoRefreshTargets();   // 締め切りの COLINS の候補のため
     if (!rowsAll().length && !TAB.asked && typeof window.cloudListPresets === 'function') {   // まだ案件一覧を読んでいない（見積タブを開いていない）
       TAB.asked = true; TAB.loading = true;
       Promise.resolve(window.cloudListPresets(true)).catch(() => {}).then(() => { TAB.loading = false; renderTab(); });
@@ -814,7 +961,7 @@
     h += '<div class="opt-tiles" role="group" aria-label="絞り込み">' +
       tile('active', '進行中', g.active.length) + tile('over', '⚠ 期限切れ', g.over.length, g.over.length ? 'is-over' : '') +
       tile('today', '今日まで', g.today.length, g.today.length ? 'is-today' : '') + tile('week', '7日以内', g.week.length) +
-      (() => { const n = dlAll.filter(o => o.state !== 'later').length; return tile('dl', '📅 締め切り 48h', n, dlAll.some(o => o.state === 'over') ? 'is-over' : n ? 'is-today' : ''); })() +
+      (() => { const n = dlAll.filter(o => o.state !== 'later').length, nc = collectCand(all).length; return tile('dl', '📅 締め切り 48h' + (nc ? ' <em class="opt-cand-n" title="COLINS に新しい日付がある締め切り">🛰 ' + nc + '</em>' : ''), n, dlAll.some(o => o.state === 'over') ? 'is-over' : n ? 'is-today' : ''); })() +
       tile('done', '完了', g.done.length, 'is-done') + '</div>';
     h += '<div class="opt-bar"><div class="opt-chips" role="group" aria-label="種類">' + SRCS.map(sv => {
         const n = sv[0] ? all0.filter(x => x.src === sv[0]).length : all0.length;
@@ -827,7 +974,7 @@
     if ((TAB.loading || JOBS.loading) && !all0.length) h += '<div class="opt-empty">読み込み中…</div>';
     else if (!all0.length) h += '<div class="opt-empty">まだ進行はありません。<br><small>見積ダッシュボードで案件のステータスを「受注」にするか、［＋ 進行を作る］でスポット・レギュラーの進行を作ってください。</small><br>' +
       (canNew ? '<button type="button" class="opt-btn opt-btn-pri" data-opt="new">＋ 進行を作る</button> ' : '') + '<button type="button" class="opt-btn opt-btn-pri" data-opt="dash">💼 見積ダッシュボードへ</button></div>';
-    else if (TAB.f === 'dl') h += dlListHtml(dlAll, q, today);
+    else if (TAB.f === 'dl') h += dlListHtml(dlAll, q, today, collectCand(all));
     else if (!list.length) h += '<div class="opt-empty">当てはまる進行はありません。</div>';
     else h += '<ul class="opt-list">' + list.map(x => rowHtml(x, today)).join('') + '</ul>';
     const hadFocus = document.activeElement && document.activeElement.id === 'optQ';
@@ -836,13 +983,28 @@
     if (hadFocus || keepSearch) { const qi = $('optQ'); if (qi && hadFocus) { qi.focus(); try { qi.setSelectionRange(pos, pos); } catch (e) {} } }
   }
   // 「📅 締め切り」の表示：過ぎた／今日・明日／7 日以内／それ以降 に分けて、日付の順に
-  function dlListHtml(dlAll, q, today) {
+  // COLINS の日付が、入っている日付と違う（または空の）締め切り
+  function collectCand(all) {
+    const out = [];
+    (all || collect()).filter(x => !x.sm.all && x.src !== 'regular').forEach(x => {
+      const ctx = ctxTargets(x.src === 'quote' ? 'case' : 'job', x.id); if (!ctx.ts.length) return;
+      dlOf(x.st).forEach(d => { if (dlState(x.st, d) === 'met') return; const c = dlCand(d, ctx.ts, ctx.dir); if (dlCandShow(d, c)) out.push({ x, st: x.st, d, c }); });
+    });
+    return out;
+  }
+  function dlListHtml(dlAll, q, today, cands) {
     let xs = dlAll;
+    let ch = '';
+    if (cands && cands.length) ch = '<h3 class="opt-dl-h is-cand">🛰 COLINS に新しい日付があります <b>' + cands.length + '</b><small>チェックリストを開いて［反映する］か［このままにする］を選んでください</small></h3><ul class="opt-dl">' + cands.map(o =>
+      '<li class="opt-dl-row is-cand"><span class="opt-dl-date">' + md(o.c.ymd) + '<small>' + (o.d.d ? 'いまは ' + md(o.d.d) : 'いまは空') + '</small></span>' +
+      '<span class="opt-dl-k">' + esc(dlLabel(o.st, o.d)) + '<small>' + esc(o.c.src) + '</small></span>' +
+      '<span class="opt-dl-case"><span class="opt-kind opt-kind-' + o.x.src + '">' + KIND_LBL[o.x.src] + '</span><b>' + esc(o.x.title || '（名前なし）') + '</b>' + (o.x.customer ? '<small>' + esc(o.x.customer) + '</small>' : '') + '</span><span></span>' +
+      '<button type="button" class="opt-btn" data-opt="dlopen" data-src="' + o.x.src + '" data-id="' + esc(encodeURIComponent(o.x.id)) + '" data-ship="">☑ 開く</button></li>').join('') + '</ul>';
     if (q) xs = xs.filter(o => norm(o.x.title + ' ' + o.x.customer + ' ' + dlLabel(o.st, o.d) + ' ' + (o.d.note || '') + ' ' + (o.ship ? o.ship.label : '')).includes(q));
-    if (!xs.length) return '<div class="opt-empty">これからの締め切りはありません。<br><small>チェックリストの「📅 日程・締め切り」に CY カット・ETA などの日付を入れると、ここに並びます。</small></div>';
+    if (!xs.length) return ch + '<div class="opt-empty">これからの締め切りはありません。<br><small>チェックリストの「📅 日程・締め切り」に CY カット・ETA などの日付を入れると、ここに並びます。</small></div>';
     const wk = addDays(today, 7);
     const secs = [['over', '⚠ 過ぎた締め切り', o => o.state === 'over'], ['soon', '今日・明日', o => o.state === 'soon'], ['week', '7 日以内', o => o.state === 'later' && o.d.d <= wk], ['later', 'それ以降', o => o.state === 'later' && o.d.d > wk]];
-    return secs.map(sv => {
+    return ch + secs.map(sv => {
       const rows = xs.filter(sv[2]); if (!rows.length) return '';
       return '<h3 class="opt-dl-h is-' + sv[0] + '">' + sv[1] + ' <b>' + rows.length + '</b></h3><ul class="opt-dl">' + rows.map(o => {
         const linked = (o.st.s || []).filter(s => s.dk === o.d.id);
@@ -1301,7 +1463,7 @@
     const all = idKeysAll(kind, id), old = all[n] || {}, before = JSON.stringify(old);
     const clean = { bl: normId(k.bl), bk: normId(k.bk), ctn: ctnList(k.ctn).join(' ') };
     // 本船名・船会社は、渡されたときだけ書き換える（追いかけ登録など、3 つの番号だけ渡す呼び出しで消さない）
-    const vs = 'vs' in k ? vsNorm(k.vs) : (old.vs || ''), cr = 'cr' in k ? String(k.cr || '') : (old.cr || '');
+    const vs = 'vs' in k ? vsNorm(k.vs) : (old.vs || ''), cr = 'cr' in k ? String(k.cr || '').normalize('NFKC').trim().replace(/\s+/g, ' ').slice(0, 60) : (old.cr || '');
     if (vs) clean.vs = vs; if (cr) clean.cr = cr;
     if (clean.bl || clean.bk || clean.ctn || clean.vs || clean.cr) all[n] = clean; else delete all[n];
     if (JSON.stringify(all[n] || {}) === before) return true;
@@ -1324,14 +1486,64 @@
   // 外部のページを新しいタブで開くだけ（アプリからは何も送らない）。番号を URL で受けない船会社は、開くときに番号をコピーする。
   const CR = () => (typeof CARRIERS !== 'undefined' && CARRIERS) ? CARRIERS : {};
   const crNorm = s => String(s || '').normalize('NFKC').toLowerCase().replace(/[^a-z0-9ぁ-んァ-ヶ一-龠]/g, '');
-  function trkCarrierOpts(cur) {
-    const ks = Object.keys(CR()).filter(k => typeof CR()[k].tracking === 'function' || typeof CR()[k].vessel === 'function');
-    return '<option value="">（自動で推測）</option>' + ks.map(k => '<option value="' + esc(k) + '"' + (k === cur ? ' selected' : '') + '>' + esc(k) + '</option>').join('');
+  // 船会社の欄の候補：マスター管理のサブコンのうち、種別がキャリア系（FCL／LCL／AIR／RORO／在来船 CARRIER）のもの（alias-rules.js mdCarrierNames）。
+  // マスターに無い名前も自由に入力できる（その場合は「マスターに登録／申請」を出す）
+  function crListSync() {
+    let dl = $('oidCrList');
+    if (!dl) { dl = document.createElement('datalist'); dl.id = 'oidCrList'; document.body.appendChild(dl); }
+    const names = typeof window.mdCarrierNames === 'function' ? window.mdCarrierNames() : [];
+    const key = names.join('\n'); if (dl.dataset.key === key) return;
+    dl.dataset.key = key; dl.innerHTML = names.map(n => '<option value="' + esc(n) + '"></option>').join('');
   }
-  function crFromName(name) {
+  // 正式名でよく使う名前 → data/carriers.js の名前（トラッキングの URL を持つ表）
+  const CR_ALIAS = { mediterraneanshipping: 'MSC', oceannetworkexpress: 'ONE', オーシャンネットワークエクスプレス: 'ONE', hyundaimerchantmarine: 'HMM', orientoverseas: 'OOCL',
+    pacificinternationallines: 'PIL', koreamarinetransport: 'KMTC', マースク: 'Maersk', エバーグリーン: 'Evergreen', ハパックロイド: 'Hapag-Lloyd', ヤンミン: 'Yang Ming' };
+  function crKeyOf(name) {
     const n = crNorm(name); if (!n) return '';
     const ks = Object.keys(CR());
-    return ks.find(k => crNorm(k) === n) || ks.find(k => crNorm(k).length >= 3 && n.indexOf(crNorm(k)) === 0) || '';
+    const hit = ks.find(k => crNorm(k) === n) || ks.find(k => crNorm(k).length >= 3 && n.indexOf(crNorm(k)) === 0);
+    if (hit) return hit;
+    const a = Object.keys(CR_ALIAS).find(x => n.indexOf(crNorm(x)) === 0);
+    return a && CR()[CR_ALIAS[a]] ? CR_ALIAS[a] : '';
+  }
+  // マスターの別名・代表名も順に試す（例：マスター名「OCEAN NETWORK EXPRESS」・別名「ONE」）
+  function crFromName(name) {
+    const vs = typeof window.nameVariants === 'function' ? window.nameVariants('sv', name) : [name];
+    for (const v of [name].concat(vs)) { const k = crKeyOf(v); if (k) return k; }
+    return '';
+  }
+  const crCanon = v => (typeof window.nameCanon === 'function' ? window.nameCanon('sv', v) : v) || v;
+  // マスターの状態：'master'／'pending'（申請中）／'none'（未登録）／'unknown'（判定しない）
+  const crState = v => !v ? 'unknown' : typeof window.statsMasterState === 'function' ? window.statsMasterState('sv', crCanon(v)) : 'unknown';
+  function crMarkHtml(n, v, ro) {
+    const st = crState(v);
+    if (st === 'pending') return '<span class="oid-cr-mark is-pending">📨 マスター申請中（管理者の承認待ち）</span>';
+    if (st !== 'none') return '';
+    const req = typeof window.statsIsApprovalOn === 'function' && window.statsIsApprovalOn();
+    return '<span class="oid-cr-mark is-none">⚠ マスターに未登録' + (ro ? '' : '<button type="button" class="opm-link" data-oid="crreg" data-n="' + n + '">' + (req ? '📨 マスター登録を申請' : '☆ マスターに登録') + '</button>') + '</span>';
+  }
+  // マスターに登録（管理者・承認制でないとき）／申請（承認制のメンバー）。種別は輸送モードからキャリアの種別を付ける
+  async function crRegister(kind, id, n) {
+    const k = idKeys(kind, id, n), v = String(k.cr || '').trim(); if (!v) return;
+    let mode = '';
+    if (kind === 'case') { const r = rowById(id); mode = (r && r.data && r.data.fields && r.data.fields['cond-mode']) || ''; } else { const j = jobById(id); mode = (j && j.data.mode) || ''; }
+    const type = /航空|AIR/i.test(mode) ? 'AIR CARRIER' : /LCL/i.test(mode) ? 'LCL CARRIER' : /RO\/?RO/i.test(mode) ? 'RORO CARRIER' : /在来/.test(mode) ? '在来船 CARRIER' : 'FCL CARRIER';
+    if (typeof window.cloudIsLoggedIn === 'function' && !window.cloudIsLoggedIn()) { toast('ログインすると登録できます', 'info'); return; }
+    if (typeof window.statsIsApprovalOn === 'function' && window.statsIsApprovalOn()) {
+      if (typeof window.statsMasterRequest !== 'function') return;
+      await window.statsMasterRequest('sv', v, '', { details: { svTypes: [type] }, note: '進行管理の「船会社」の欄から（' + type + '）' });
+    } else {
+      if (typeof window.statsEnsureMaster !== 'function') return;
+      await window.statsEnsureMaster('sv', v);
+      if (typeof window.mdGet === 'function' && typeof window.mdSave === 'function') {
+        const prev = (window.mdGet('sv', v) || {}).details || {};
+        const types = Array.isArray(prev.svTypes) ? prev.svTypes.slice() : [];
+        if (!types.some(t => typeof window.mdIsCarrierType === 'function' && window.mdIsCarrierType(t))) { types.push(type); await window.mdSave('sv', v, Object.assign({}, prev, { svTypes: types })); }
+      }
+      if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
+      toast('☆ 「' + v + '」をサブコン（' + type + '）としてマスターに登録しました', 'success', 3500);
+    }
+    idRerender();
   }
   function quoteCarrier(kind, id) {
     if (kind !== 'case') return '';
@@ -1342,11 +1554,12 @@
     for (const nm of names) { const c = crFromName(nm); if (c) return c; }
     return '';
   }
+  // 戻り値：{ name（表示する名前）, key（data/carriers.js の名前・トラッキングの URL が無い会社は ''）, why }
   function trkCarrier(kind, id, k) {
-    if (k.cr && CR()[k.cr]) return { name: k.cr, why: '選んだ船会社' };
+    if (k.cr) { const key = CR()[k.cr] ? k.cr : crFromName(k.cr); return { name: k.cr, key, why: '入力した船会社' }; }
     const G = window.CpCarrierGuide;
-    if (G) for (const no of [k.bl].concat(ctnList(k.ctn), [k.bk])) { const g = no && G.guess(no); if (g) return { name: g, why: '番号「' + no + '」の頭文字から推測' }; }
-    const q = quoteCarrier(kind, id); if (q) return { name: q, why: '見積の幹線輸送のキャリアから' };
+    if (G) for (const no of [k.bl].concat(ctnList(k.ctn), [k.bk])) { const g = no && G.guess(no); if (g) return { name: g, key: g, why: '番号「' + no + '」の頭文字から推測' }; }
+    const q = quoteCarrier(kind, id); if (q) return { name: q, key: q, why: '見積の幹線輸送のキャリアから' };
     return null;
   }
   function trkLink(url, label, copy, pri) {
@@ -1354,7 +1567,7 @@
     return '<a class="oid-trk-a' + (pri ? ' is-pri' : '') + '" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"' + (copy ? ' data-cg-copy="' + esc(copy) + '" title="開くときに「' + esc(copy) + '」をコピーします。ページの入力欄に貼り付けてください"' : '') + '>' + label + (copy ? ' 📋' : '') + ' ↗</a>';
   }
   function trkHtml(kind, id, n, k) {
-    const ctns = ctnList(k.ctn), cr = trkCarrier(kind, id, k), c = cr ? CR()[cr.name] : null;
+    const ctns = ctnList(k.ctn), cr = trkCarrier(kind, id, k), c = cr && cr.key ? CR()[cr.key] : null;
     let track = '', vessel = '';
     if (c) {
       const tr = no => { if (typeof c.tracking !== 'function') return ''; try { return String(c.tracking(encodeURIComponent(no))); } catch (e) { return ''; } };
@@ -1365,13 +1578,16 @@
       if (!track && typeof c.tracking === 'function') track = trkLink(tr(''), '🔎 ' + esc(cr.name) + ' のトラッキング', '', true);
       let vu = ''; if (typeof c.vessel === 'function') { try { vu = String(c.vessel(encodeURIComponent(k.vs || ''))); } catch (e) { vu = ''; } }
       vessel += trkLink(vu, '🚢 ' + esc(cr.name) + ' の本船スケジュール', k.vs, true);
-      const vss = (typeof VSS_CARRIERS !== 'undefined' ? VSS_CARRIERS : []).find(x => x.name === cr.name);
+      const vss = (typeof VSS_CARRIERS !== 'undefined' ? VSS_CARRIERS : []).find(x => x.name === cr.key);
       if (vss) vessel += trkLink(vss.url, '🗓 VSS（' + esc(cr.name) + '）', k.vs, false);
     }
     (typeof VESSEL_PORTALS !== 'undefined' ? VESSEL_PORTALS : []).forEach(p => { if (p.url && !(c && /VSS/.test(p.name) && vessel.indexOf('VSS') >= 0)) vessel += trkLink(p.url, '🌐 ' + esc(p.name.replace(/\s*\(.*\)$/, '')), k.vs, false); });
-    if (!c && !k.bl && !k.bk && !ctns.length && !k.vs) return '';
+    if (!c && !cr && !k.bl && !k.bk && !ctns.length && !k.vs) return '';
+    const noUrl = cr && !(c && typeof c.tracking === 'function');   // 入力した船会社のトラッキングページが data/carriers.js に無い
+    if (noUrl && typeof window.bmShowForCarrier === 'function') track += '<button type="button" class="oid-trk-a" data-oid="crbm" data-name="' + esc(crCanon(cr.name)) + '">🔖 ' + esc(cr.name) + ' のリンク集を見る</button>';
     return '<div class="oid-trk" data-oid-n="' + n + '"><div class="oid-trk-h">🔎 船会社のページで確認する' +
-      (cr ? '<small>船会社：<b>' + esc(cr.name) + '</b>（' + esc(cr.why) + '）</small>' : '<small>船会社が分からないため、上の「船会社」で選んでください</small>') + '</div>' +
+      (cr ? '<small>船会社：<b>' + esc(cr.name) + '</b>（' + esc(cr.why) + '）</small>' : '<small>船会社が分からないため、上の「船会社」に入力してください</small>') + '</div>' +
+      (noUrl ? '<p class="oid-trk-n">この船会社のトラッキングページは、アプリにまだ登録がありません。リンク集（🔖）に登録したページを開くか、下の本船スケジュールのサイトで確認してください。</p>' : '') +
       (track ? '<div class="oid-trk-r"><span>貨物の追跡</span><div>' + track + '</div></div>' : '') +
       (vessel ? '<div class="oid-trk-r"><span>本船の動静</span><div>' + vessel + '</div></div>' : '') +
       '<p class="oid-trk-n">新しいタブで開くだけで、アプリからは何も送りません。「📋」のリンクは、開くときに番号や本船名をコピーします（ページの入力欄に貼り付けてください）。</p></div>';
@@ -1382,6 +1598,7 @@
 
   function idSecHtml(kind, id) {
     const legs = idLegs(kind, id); if (!legs.length) return '';
+    crListSync();
     const ro = idReadOnly(kind, id);
     if (!AUTO.loaded && !AUTO.busy && !AUTO.missing) autoRefreshTargets();
     let h = '<section class="oj-sec oid-sec" data-oid-kind="' + kind + '" data-oid-id="' + esc(id) + '"><h3>🆔 基幹 ID・サイバーポート</h3>' +
@@ -1399,7 +1616,7 @@
           '<label><span>ブッキング番号</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="bk" maxlength="40" value="' + esc(k.bk) + '"' + dis + '></label>' +
           '<label class="oid-k-wide"><span>コンテナ番号（空白区切り・10 本まで）</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="ctn" maxlength="200" value="' + esc(k.ctn) + '"' + dis + '></label>' +
           '<label><span>本船名・航海番号</span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="vs" maxlength="60" value="' + esc(k.vs) + '" placeholder="例）ONE HARMONY 012E"' + dis + '></label>' +
-          '<label><span>船会社</span><select class="oid-k" data-oid-n="' + L.n + '" data-k="cr"' + dis + '>' + trkCarrierOpts(k.cr) + '</select></label></div>' +
+          '<label><span>船会社<small>（マスターから選ぶ・無ければ入力）</small></span><input type="text" class="oid-k" data-oid-n="' + L.n + '" data-k="cr" maxlength="60" list="oidCrList" autocomplete="off" value="' + esc(k.cr) + '" placeholder="空＝番号から自動で推測"' + dis + '>' + crMarkHtml(L.n, k.cr, ro) + '</label></div>' +
           trkHtml(kind, id, L.n, k);
       }
       if (_idp && _idp.kind === kind && _idp.id === id && _idp.n === L.n) h += idPanelHtml(L, t);
@@ -1513,6 +1730,8 @@
     if (a === 'check') idCheck(kind, id, +b.dataset.n);
     else if (a === 'cancel') { _idp = null; idRerender(); }
     else if (a === 'watch') idWatch(sec);
+    else if (a === 'crreg') crRegister(kind, id, +b.dataset.n);
+    else if (a === 'crbm') { if (typeof window.bmShowForCarrier === 'function') window.bmShowForCarrier(b.dataset.name, e); }
   });
   document.addEventListener('change', e => {
     const t = e.target; if (!t.classList) return;

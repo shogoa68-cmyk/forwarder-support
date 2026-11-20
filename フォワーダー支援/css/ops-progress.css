@@ -402,3 +402,31 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .ops-card { grid-column: 2 / sp
 .opt-dl-case .opt-kind { align-self: flex-start; }
 .opt-dl-row { grid-template-columns: 120px 190px 1fr 1fr auto; }
 @media (max-width: 760px) { .opt-dl-row { grid-template-columns: 96px 1fr; } }
+/* 🛰 COLINS の日付の候補 */
+.opm-dl-cand { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 8px; border-radius: 6px; background: #eef3fb; color: #1d4f91; font-size: var(--text-sm, 13px); }
+.opm-dl-cand > span { display: flex; flex-direction: column; flex: 1 1 260px; }
+.opm-dl-cand small { color: var(--text-md, #475467); font-size: var(--text-xs, 12px); }
+.opm-dl-cand.is-same { background: transparent; padding: 0; }
+.opt-dl-h.is-cand { color: #1d4f91; flex-wrap: wrap; }
+.opt-dl-h small { font-weight: 400; color: var(--text-muted, #667085); font-size: var(--text-xs, 12px); }
+.opt-dl-row.is-cand { background: #f2f6fc; box-shadow: inset 3px 0 0 #2f5fb3; }
+.opt-cand-n { margin-left: 6px; padding: 0 6px; border-radius: 999px; background: #2f5fb3; color: #fff; font-style: normal; font-size: var(--text-xs, 12px); }
+/* 船会社の欄：マスターの状態 */
+.oid-keys label small { font-weight: 400; }
+.oid-cr-mark { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 2px; font-size: var(--text-xs, 12px); }
+.oid-cr-mark.is-none { color: #9a4a06; }
+.oid-cr-mark.is-pending { color: #1d4f91; }
+.oid-trk-r button.oid-trk-a { cursor: pointer; font: inherit; font-size: var(--text-sm, 13px); }
+/* 📎 作業カードの添付ファイル */
+.opc-files.is-drag { outline: 2px dashed #2f5fb3; outline-offset: 4px; border-radius: 6px; background: #f2f6fc; }
+.opc-files-list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.opc-files-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 4px 8px; border-radius: 6px; background: #f7f9fc; }
+.opc-f-name { flex: 1 1 200px; min-width: 0; padding: 0; border: 0; background: none; color: var(--accent, #2f5fb3); font: inherit; font-size: var(--text-sm, 13px); text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.opc-f-name:hover { text-decoration: underline; }
+.opc-files-list small { color: var(--text-muted, #667085); font-size: var(--text-xs, 12px); }
+.opc-f-btn { width: 30px; height: 30px; border: 0; border-radius: 6px; background: transparent; color: var(--text-md, #475467); cursor: pointer; }
+.opc-f-btn:hover { background: var(--bg, #f2f4f7); }
+.opc-f-drop { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px; min-height: 40px; padding: 6px 10px; border: 1px dashed var(--border-md, #c8cfd9); border-radius: 6px; color: var(--accent, #2f5fb3); font-size: var(--text-sm, 13px); cursor: pointer; }
+.opc-f-drop:hover { background: #f2f6fc; }
+.opc-f-drop small { color: var(--text-muted, #667085); font-size: var(--text-xs, 12px); }
+@media (pointer: coarse), (max-width: 600px) { .opc-f-btn { width: 44px; height: 44px; } .opc-f-drop { min-height: 48px; } }
