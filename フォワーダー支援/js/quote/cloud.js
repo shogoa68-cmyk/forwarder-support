@@ -5448,6 +5448,7 @@
   window.cloudFollowRelease = cloudFollowRelease;
   window.cloudFilterFollower = cloudFilterFollower;
   window.cloudCurrentEmail = () => (_cloudUser && _cloudUser.email) || '';
+  window.cloudTeamMembers = () => _followMembers();   // 担当に選べる人（進行管理の作業カードから）
   window.cloudNameFor = e => _nameFor(e);
   window.toggleCloudAdvSearch  = toggleCloudAdvSearch;
   window.cloudFilterAdvanced   = cloudFilterAdvanced;
