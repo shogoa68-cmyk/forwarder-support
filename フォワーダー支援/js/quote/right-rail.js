@@ -70,7 +70,7 @@
     { id: 'bookmark', label: 'リンク',  more: 1, desc: 'ブックマーク', title: 'ブックマーク',  panel: 'bmRailPanel' },
     { id: 'similar',  label: '類似',    more: 1, desc: '過去の案件', title: '類似見積',     panel: 'sqPanel' },
     { id: 'scenario', label: '数量', more: 1, desc: 'まとめて変更', title: '単位で数量を一括変更', panel: 'scPanel' },
-    { id: 'pattern',  label: '行セット', more: 1, desc: '行パターン', title: '行パターン',   action: 'openRowPatternMgr' },
+    { id: 'pattern',  label: '行セット', more: 1, desc: '行パターン', title: '行パターン',   panel: 'rpRailPanel' },
   ];
 
   // 引き出しの既定幅（モジュール別・Design 33）。最小 300・最大 560。左端ドラッグで変更（モジュールごとに記憶）
@@ -115,6 +115,7 @@
       siPanel:           document.getElementById('siPanel'),
       lcRailPanel:       document.getElementById('lcRailPanel'),
       bmRailPanel:       document.getElementById('bmRailPanel'),
+      rpRailPanel:       document.getElementById('rpRailPanel'),
     };
 
     // シェル骨格
@@ -129,6 +130,7 @@
         '</div>' +
         '<div class="qrc-drawer-status" id="qrcStatus" hidden></div>' +
         '<div class="qrc-drawer-body" id="qrcBody"></div>' +
+        '<div class="qrc-drawer-foot" id="qrcFoot" hidden></div>' +
       '</div>' +
       '<nav class="qrc-rail" id="qrcRail">' +
         MODS.filter(function (m) { return !m.more; }).map(_railBtn).join('') +
@@ -197,7 +199,9 @@
       if (typeof window[actDef.action] === 'function') window[actDef.action]();
       return;
     }
+    if (state.active === 'pattern' && mod !== 'pattern') _pattBack();
     state.active = mod;
+    if (mod === 'pattern') _pattIn();
     if (!mod) document.dispatchEvent(new CustomEvent('qrc:close'));
     if (mod) state.width = _wOf(mod, _load());
     _save({ active: mod });
@@ -262,13 +266,54 @@
     if (mod === 'subcon') { const n = q('#siPanel .rp-sc-card'); return n ? B(n + ' 社') : ''; }
     if (mod === 'compare') { const n = (typeof window.getCompareGroupCount === 'function') ? window.getCompareGroupCount() : 0; return n ? '比べられる品目 ' + B(n) : ''; }
     if (mod === 'bookmark') { const n = q('#bmRailPanel a, #bmRailPanel .bm-chip'); return n ? 'この案件に合うリンク ' + B(n) : ''; }
+    if (mod === 'fcllcl') return window._flStatus || '';
+    if (mod === 'charges') { const n = q('#lcRailListWrap input[type=checkbox]:checked'), t = q('#lcRailListWrap input[type=checkbox]'); const d = document.querySelector('#lcRailPanel .lc-rail-dir-btn.is-active'); return t ? (d ? d.textContent.replace(/^\S+\s*/, '') + ' · ' : '') + B(n + ' 件選択') + ' · 全 ' + t + ' 件' : ''; }
+    if (mod === 'scenario') { const n = q('#scPanel .ud-row'); const m = q('#scPanel .ud-row:not(.ud-row--excluded)'); let rows = 0; document.querySelectorAll('#scPanel .ud-row:not(.ud-row--excluded)').forEach(function (r) { try { rows += JSON.parse(r.dataset.ids || '[]').length; } catch (e) {} }); return n ? '選んだ単位 ' + B(m) + ' · ' + rows + ' 行' : ''; }
+    if (mod === 'pattern') { const n = q('#rpRailPanel .preset-item, #rpRailPanel .preset-row, #rpRailPanel .rp-item'); return n ? '行セット ' + B(n) : ''; }
     return '';
   }
+  function _foot() {
+    const el = document.getElementById('qrcFoot'); if (!el) return;
+    let h = '';
+    if (state.active === 'digest' && window._qspLast) h = '<span class="qrc-foot-note">行を押すと本文のその行へ移ります</span><button type="button" class="qrc-btn-pri" onclick="qrcAddRow()">＋ 明細を追加</button>';
+    if (el.innerHTML !== h) el.innerHTML = h;
+    el.hidden = !h;
+  }
+  window.qrcAddRow = function () { if (typeof window.addRow === 'function') window.addRow(); };
+  // ④ 費用のステップ／セクションへ（新画面はステップ、旧画面はスクロール）
+  window.qrcGoCost = function () {
+    const b = document.querySelector('#e2Steps [data-e2s="4"]');
+    if (b) { b.click(); return; }
+    const t = document.getElementById('tableWrap') || document.getElementById('tableScrollWrap');
+    if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // ---- 行セット（P1）：#rowPatternModal の中身（.preset-mgr-box）を開いている間だけ引き出しへ移す ----
+  function _pattIn() {
+    const host = document.getElementById('rpRailPanel'), box = document.querySelector('#rowPatternModal .preset-mgr-box');
+    if (!host || !box) return;
+    host.appendChild(box);
+    if (typeof window.loadRowPatternsFromCloud === 'function') window.loadRowPatternsFromCloud();
+    const inp = document.getElementById('rowPatternNameInput');
+    if (inp && !inp.value) { const d = new Date(), p = function (n) { return String(n).padStart(2, '0'); }; inp.value = '行セット_' + p(d.getMonth() + 1) + p(d.getDate()) + '_' + p(d.getHours()) + p(d.getMinutes()); }
+  }
+  function _pattBack() {
+    const modal = document.getElementById('rowPatternModal'), box = document.querySelector('#rpRailPanel .preset-mgr-box');
+    if (modal && box) modal.appendChild(box);
+  }
+  // 外から従来のダイアログが開かれたら、中身をダイアログへ戻す（空のダイアログを出さない）
+  (function () {
+    const m = document.getElementById('rowPatternModal'); if (!m || !window.MutationObserver) return;
+    new MutationObserver(function () {
+      if (m.classList.contains('open') && document.querySelector('#rpRailPanel .preset-mgr-box')) { _pattBack(); if (state.active === 'pattern') setActive(null); }
+    }).observe(m, { attributes: true, attributeFilter: ['class'] });
+  })();
   function _status() {
     const el = document.getElementById('qrcStatus'); if (!el) return;
     const h = state.active ? _statusHtml(state.active) : '';
     if (el.innerHTML !== h) el.innerHTML = h;
     el.hidden = !h;
+    _foot();
   }
   let _stT = 0;
   function _statusSoon() { clearTimeout(_stT); _stT = setTimeout(_status, 150); }
@@ -303,7 +348,7 @@
 
     // パネル出し分け（active のモジュールの panel だけ表示）
     const showPanel = def ? def.panel : null;
-    ['quoteSummaryPanel', 'sqPanel', 'scPanel', 'cmpRailPanel', 'flPanel', 'siPanel', 'lcRailPanel', 'bmRailPanel'].forEach(function (id) {
+    ['quoteSummaryPanel', 'sqPanel', 'scPanel', 'cmpRailPanel', 'flPanel', 'siPanel', 'lcRailPanel', 'bmRailPanel', 'rpRailPanel'].forEach(function (id) {
       const el = document.getElementById(id);
       if (!el) return;
       // sqPanel は内部で hidden 属性を自前制御するため、表示は wrapper 側で行う

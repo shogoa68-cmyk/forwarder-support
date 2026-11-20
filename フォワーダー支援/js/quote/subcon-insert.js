@@ -871,7 +871,7 @@
     if (!wrap) return;
     const groups = _collectCurrentQuoteBySubcon();
     if (!groups.length) {
-      wrap.innerHTML = '<div class="preset-empty">費用テーブルにサブコン情報のある行がありません<br><small style="color:#bbb;">各行の「サブコン」欄に会社名を入力してください</small></div>';
+      wrap.innerHTML = '<div class="qrc-empty preset-empty"><b>サブコンの行がありません</b><span>各行の「サブコン」欄に会社名を入力すると、ここに会社ごとにまとまります。</span><button type="button" class="qrc-btn-sub" onclick="siSetTab(\'past\')">過去の案件から探す</button></div><div hidden><small style="color:#bbb;">各行の「サブコン」欄に会社名を入力してください</small></div>';
       return;
     }
     wrap.innerHTML = groups.map(function(g, gi) {
@@ -900,6 +900,7 @@
       return '<div class="sic-card" data-gi="' + gi + '">' +
         '<div class="sic-head">' +
           '<span class="sic-sv">' + _esc(g.sv) + '</span>' +
+          (function () { const r0 = ptGroups.reduce(function (a, p) { return a.concat(p.rows); }, []).find(function (r) { return r.cat; }); return r0 ? '<span class="sic-role">' + _esc(ROLE[r0.cat] || r0.cat) + '</span>' : ''; })() +
           '<span class="sic-total">' +
             '仕入 ' + _fmtMoney(g.costTotal, 'JPY') + (mixed ? '※' : '') +
             '  売 ' + _fmtMoney(g.sellTotal, 'JPY') + (mixed ? '※' : '') +
@@ -907,7 +908,7 @@
         '</div>' +
         '<div class="sic-body">' + ptsHtml + '</div>' +
         '<div class="sic-foot">' +
-          '<button class="sic-copy-btn" onclick="siCopyGroup(' + gi + ')" title="この会社分をテキストでコピー">📋 コピー</button>' +
+          '<button class="sic-copy-btn" onclick="siCopyGroup(' + gi + ')" title="この会社分をテキストでコピー">📋 ' + _esc(g.sv) + 'の行を文字でコピー</button>' +
         '</div>' +
         '</div>';
     }).join('');
