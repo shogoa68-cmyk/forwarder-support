@@ -148,4 +148,7 @@
     if (document.body.contains(el)) _paint(el);
   };
   window.MN_KINDS = KINDS;
+  // 情報共有タブ「ニュースの投稿」（js/news-feed.js）用：全件（新しい順）・保存先の有無
+  window.mnAll = () => _sorted(_items);
+  window.mnIsMissing = () => _missing;
 })();
