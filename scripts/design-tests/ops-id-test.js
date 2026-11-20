@@ -203,6 +203,18 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const st9b = await p.evaluate(() => (document.querySelector('#opmModal .oid-st') || {}).textContent || '');
   ok('登録後は「🛰 追跡中」', /追跡中/.test(st9b), st9b);
   ok('「サイバーポートで追跡中」の案内が出る', await p.evaluate(() => !!document.querySelector('#opmModal .opm-auto')));
+  // ---- 🔎 船会社のトラッキング・本船の動静への近道 ----
+  const trk = await p.evaluate(() => { const x = document.querySelector('#opmModal .oid-trk'); return x ? { t: x.textContent, a: [...x.querySelectorAll('a')].map(a => ({ h: a.href, t: a.textContent, c: a.getAttribute('data-cg-copy'), tg: a.target })) } : null; });
+  ok('コンテナ番号の頭文字（MSCU）から船会社を推測し、近道を出す', !!trk && /MSC/.test(trk.t) && /頭文字から推測/.test(trk.t), trk && trk.t);
+  ok('貨物の追跡：ブッキング・コンテナごとのリンク（MSC は番号をコピー）', !!trk && trk.a.some(a => /NGOSJ04169999/.test(a.t) && /msc\.com/.test(a.h) && a.c === 'NGOSJ04169999') && trk.a.some(a => /MSCU1234567/.test(a.t)), trk && trk.a);
+  ok('本船の動静：船会社の本船スケジュール・VSS・東洋信号へのリンク（新しいタブ）', !!trk && trk.a.some(a => /本船スケジュール/.test(a.t)) && trk.a.some(a => /vessel-schedule-service\.com\/msc/.test(a.h)) && trk.a.some(a => /toyoshingo/.test(a.h)) && trk.a.every(a => a.tg === '_blank'), trk && trk.a.map(a => a.t));
+  await setId('#opmModal .oid-k[data-k="vs"]', ' one  harmony 012e '); await p.waitForTimeout(600);
+  await p.evaluate(() => { const s = document.querySelector('#opmModal .oid-k[data-k="cr"]'); s.value = 'ONE'; s.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(700);
+  const ck3 = await p.evaluate(() => JSON.parse(window.__db.quote_presets.find(r => r.id === 'B9').data.fields['qf-cp-keys'] || '{}'));
+  ok('本船名・船会社も手がかりとして保存（本船名は大文字・空白をそろえる）', ck3['1'] && ck3['1'].vs === 'ONE HARMONY 012E' && ck3['1'].cr === 'ONE' && ck3['1'].bk === 'NGOSJ04169999', ck3);
+  const trk2 = await p.evaluate(() => { const x = document.querySelector('#opmModal .oid-trk'); return x ? { t: x.textContent, a: [...x.querySelectorAll('a')].map(a => ({ h: a.href, t: a.textContent, c: a.getAttribute('data-cg-copy') })) } : null; });
+  ok('選んだ船会社（ONE）が推測より優先され、番号を URL で渡す', !!trk2 && /選んだ船会社/.test(trk2.t) && trk2.a.some(a => /one-line\.com/.test(a.h) && /NGOSJ04169999/.test(a.h) && !a.c), trk2 && trk2.a);
+  ok('本船スケジュールのリンクは、開くときに本船名をコピー', !!trk2 && trk2.a.some(a => /本船スケジュール/.test(a.t) && a.c === 'ONE HARMONY 012E'), trk2 && trk2.a);
   await click(p, '#opmModal [data-opm="close"]'); await p.waitForTimeout(200);
   // 自動確認の結果が入ったら、取引番号で結び付けてチェック
   await p.evaluate(() => { window.__db.cp_watch_targets.find(t => t.trade_no === 'EXP_2026111602062021').snapshot = [{ k: 'v:H|8:pol:atd', val: '2026-11-20 07:40', cat: 'date' }]; });
