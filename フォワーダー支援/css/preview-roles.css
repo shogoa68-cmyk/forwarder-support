@@ -116,3 +116,9 @@ body:has(#quoteDocOverlay.open) #quoteActionDock { display: none !important; }
 #tab-quote-make #previewTable .pv-scs-costcol { color: #8a5a2b; font-weight: 700; white-space: nowrap; }
 #tab-quote-make #previewTable .pv-scs-marginv { display: block; font-size: var(--text-xs, 12px); font-weight: 400; color: var(--text-sub, #5a6475); white-space: nowrap; }
 #tab-quote-make #previewTable .pv-scs-marginv.pv-neg { color: #b42318; }
+
+/* PDF 出力設定「小計の表示」（2026-11）：パネルの入力欄と同じ見た目の選択欄 */
+#quoteDocOverlay .qd-st-fg label small { display: block; font-size: var(--text-xs, 12px); opacity: .7; font-weight: 400; }
+#quoteDocOverlay .qd-inp select { flex: 1 1 auto; min-width: 0; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; font-size: var(--text-sm, 13px); padding: 0; cursor: pointer; }
+#quoteDocOverlay .qd-inp select:focus { outline: none; }
+#quoteDocOverlay .qd-inp select option { color: #1d2433; background: #fff; }
