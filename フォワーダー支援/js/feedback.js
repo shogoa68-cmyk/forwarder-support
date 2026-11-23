@@ -1040,6 +1040,8 @@
     _hintEl = el;
     _hintPlace();
     if (!force && _hintCovers()) { fbHintHide(false); return; }      // 重なるなら出さない（回数は数えない）
+    // Design 42-4：通知（トースト）が出ている間は出さない（回数は数えない）
+    if (!force && document.querySelector('#toast-container > .toast')) { fbHintHide(false); return; }
     if (!force) _ls.set(HINT_N, String(HINT_MAX));
     _hintPosTimer = setInterval(_hintPlace, 500);     // 全体リマークの引き出し等でボタンの位置が動いても追従
     _hintTimer = setTimeout(() => fbHintHide(false), HINT_SHOW_MS);

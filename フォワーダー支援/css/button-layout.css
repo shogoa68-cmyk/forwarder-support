@@ -188,3 +188,13 @@ html.editor-v2 #tableWrap.sf-empty #e2CostBar [data-f="openAddSubconFrame"] { di
 .sf-pop-in { flex: 1; min-width: 0; min-height: 36px; padding: 0 10px; border: 1px solid #98a2b3; border-radius: 6px; font: inherit; }
 .sf-pop-none { display: block; margin-top: 10px; padding: 0; border: 0; background: none; color: #475467; font: inherit; text-decoration: underline; cursor: pointer; }
 @media (max-width: 600px) { .sf-pop { left: 8px !important; right: 8px; width: auto; } .sf-hint-btn, .sf-pop-ok, .sf-pop-in, .sf-e-none { min-height: 44px; } .sf-hint.sf-empty-card { padding: 24px 14px; } }
+
+/* ===== Design 42-4：スマホの通知（トースト）は画面の上の 1 か所（新しいものが上・押すと消える） ===== */
+@media (max-width: 600px) {
+  #toast-container {
+    top: var(--toast-top, 8px) !important; left: 12px !important; right: 12px !important; bottom: auto !important;
+    transform: none !important; max-width: none !important; width: auto !important;
+    display: flex !important; flex-direction: column-reverse !important; align-items: stretch !important; gap: 6px;
+  }
+  #toast-container > .toast { pointer-events: auto; border-radius: 8px !important; max-width: none !important; width: auto !important; cursor: pointer; }
+}
