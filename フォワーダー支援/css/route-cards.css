@@ -1,0 +1,87 @@
+/* ==========================================================================
+   Design 42-3（2026-11）：幹線輸送の「航路」の一覧はカード／採用が見積書に出す航路を決める
+   描画は conditions.js（_routeCardHtml・_placeRlBox）。入力欄は #z2RlBox にまとめ、
+   航路が 1 本以上あるときは畳んで［＋ 航路を追加］／［✎ 直す］で点線の箱として開く。
+   ========================================================================== */
+#tab-quote-make #z2RouteList { display: flex; flex-direction: column; gap: 8px; margin-top: 0; }
+#tab-quote-make #z2RouteList:empty { display: none; }
+#tab-quote-make .z2-rl-sp { flex: 1 1 auto; }
+
+/* 一覧の見出し */
+#tab-quote-make .z2-rl-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; }
+#tab-quote-make .z2-rl-head[hidden] { display: none; }
+#tab-quote-make .z2-rl-ttl { font-size: 14px; font-weight: 700; color: var(--text, #1d2433); }
+#tab-quote-make .z2-rl-sub { font-size: 12px; color: var(--text-sub, #5a6475); }
+#tab-quote-make .z2-rl-add {
+  min-height: 32px; padding: 0 12px; border: 1px solid var(--rc-pri, #2f5fb3); border-radius: 6px;
+  background: var(--surface, #fff); color: var(--rc-pri, #2f5fb3); font-weight: 700; font-size: 13px; cursor: pointer;
+}
+#tab-quote-make .z2-rl-add[hidden] { display: none; }
+
+/* カード */
+#tab-quote-make .z2-rcard {
+  --rc-pri: #2f5fb3; --rc-ok: #1e7a4a; --rc-ok-50: #ecf7f0;
+  position: relative; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px;
+  border: 1px solid var(--border, #d0d5dd); border-radius: 8px; background: var(--surface, #fff);
+}
+#tab-quote-make .z2-rcard.is-adopt { border-color: var(--rc-ok); box-shadow: inset 3px 0 0 var(--rc-ok); background: var(--rc-ok-50); }
+#tab-quote-make .z2-rcard.is-reject { opacity: .6; }
+#tab-quote-make .z2-rcard.is-ng { opacity: .75; }
+#tab-quote-make .z2-rcard.is-dragging { opacity: .4; }
+#tab-quote-make .z2-rcard.drag-over-top { box-shadow: 0 -3px 0 var(--rc-pri); }
+#tab-quote-make .z2-rcard.drag-over-bottom { box-shadow: 0 3px 0 var(--rc-pri); }
+#tab-quote-make .z2-rc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 28px; }
+#tab-quote-make .z2-rc-drag { cursor: grab; color: #98a2b3; user-select: none; touch-action: none; padding: 0 2px; }
+#tab-quote-make .z2-rc-name { font-size: 14px; font-weight: 700; }
+#tab-quote-make .z2-rc-noname { font-size: 14px; color: #98a2b3; }
+#tab-quote-make .z2-rc-link {
+  border: 0; background: none; padding: 2px 0; color: var(--rc-pri, #2f5fb3); font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
+#tab-quote-make .z2-rc-badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; font-size: 12px; font-weight: 700; border: 0; }
+#tab-quote-make .z2-rc-badge.is-adopt { background: var(--rc-ok, #1e7a4a); color: #fff; }
+#tab-quote-make .z2-rc-badge.is-reject { background: #e4e7ec; color: #475467; text-decoration: line-through; }
+#tab-quote-make .z2-rc-badge.is-ng { background: #fdecea; color: #b42318; cursor: pointer; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-quote-make .z2-rc-edit,
+#tab-quote-make .z2-rc-more {
+  min-height: 28px; padding: 0 10px; border: 1px solid #98a2b3; border-radius: 6px; background: var(--surface, #fff);
+  font-size: 13px; cursor: pointer; color: var(--text, #1d2433);
+}
+#tab-quote-make .z2-rc-more { font-weight: 700; padding: 0 8px; }
+#tab-quote-make .z2-rc-edit, #tab-quote-make .z2-rc-more, #tab-quote-make .z2-rc-link { white-space: nowrap; width: auto; flex: 0 0 auto; }
+#tab-quote-make .z2-rc-segadd { align-self: flex-start; margin: 2px 0 0; }
+#tab-quote-make .z2-rc-line { font-size: 13px; color: var(--text, #1d2433); word-break: break-word; }
+#tab-quote-make .z2-rc-extra { font-size: 12px; color: var(--text-sub, #5a6475); }
+#tab-quote-make .z2-rc-segs { list-style: none; margin: 4px 0 0; padding: 0 0 0 4px; display: flex; flex-direction: column; gap: 4px; }
+#tab-quote-make .z2-rc-segs li { position: relative; display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--text-sub, #5a6475); padding-left: 16px; }
+#tab-quote-make .z2-rc-segs li::before { content: ""; position: absolute; left: 0; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: #98a2b3; }
+#tab-quote-make .z2-rc-segs li + li::after { content: ""; position: absolute; left: 3.5px; top: -6px; width: 1px; height: 10px; background: #d0d5dd; }
+#tab-quote-make .z2-rc-segs li.is-sea::before { background: var(--rc-pri, #2f5fb3); }
+#tab-quote-make .z2-rc-sm { font-weight: 700; color: var(--text, #1d2433); }
+#tab-quote-make .z2-rcard .z2-route-legbtn { height: 22px; }
+
+/* 入力の箱（航路が 1 本以上あるときだけ点線） */
+#tab-quote-make .z2-rl-box[hidden] { display: none !important; }
+#tab-quote-make .z2-rl-boxfoot { display: none; }
+#tab-quote-make #zone2Card.rl-open .z2-rl-box {
+  margin-top: 8px; padding: 10px 12px; border: 1.5px dashed var(--rc-pri, #2f5fb3); border-radius: 8px; background: var(--surface-2, #f8fafc);
+}
+#tab-quote-make #zone2Card.rl-open .z2-rl-boxfoot { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+#tab-quote-make .z2-rl-boxttl { font-size: 13px; font-weight: 700; }
+#tab-quote-make .z2-rl-cancel { min-height: 32px; padding: 0 12px; border: 1px solid #98a2b3; border-radius: 6px; background: var(--surface, #fff); font-size: 13px; cursor: pointer; }
+#tab-quote-make .z2-rl-slot { display: block; }
+#tab-quote-make .z2-rl-slot > .z2-rl-box { margin-top: 0 !important; }
+
+/* ［⋯］のメニュー（body 直下） */
+.z2-rc-menu {
+  position: fixed; z-index: 10070; min-width: 200px; padding: 4px; display: flex; flex-direction: column;
+  background: var(--surface, #fff); border: 1px solid #d0d5dd; border-radius: 8px; box-shadow: 0 8px 24px rgba(16,24,40,.18);
+}
+.z2-rc-mi { min-height: 36px; text-align: left; padding: 0 12px; border: 0; background: transparent; font-size: 13px; border-radius: 6px; cursor: pointer; color: var(--text, #1d2433); }
+.z2-rc-mi:hover, .z2-rc-mi:focus { background: var(--surface-2, #f2f4f7); outline: none; }
+.z2-rc-mi.is-danger { color: #b42318; }
+.z2-rc-sep { height: 1px; margin: 4px 6px; background: #e4e7ec; }
+@media (max-width: 600px), (pointer: coarse) {
+  #tab-quote-make .z2-rc-edit, #tab-quote-make .z2-rc-more, #tab-quote-make .z2-rl-add, #tab-quote-make .z2-rl-cancel { min-height: 44px; }
+  #tab-quote-make .z2-rc-link { min-height: 44px; }
+  .z2-rc-mi { min-height: 44px; }
+}

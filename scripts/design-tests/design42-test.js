@@ -51,6 +51,46 @@ const http = require('http'), fs = require('fs'), path = require('path');
   } else if (OUT) await p.screenshot({ path: OUT + '/d42-preview-pc.png' });
   await p.evaluate(() => window.closePreview()); await p.waitForTimeout(300);
 
+  // ===== 3：航路の一覧（カード・採用 1 本） =====
+  await p.evaluate(() => window.editorV2Go(2, true)); await p.waitForTimeout(300);
+  await p.evaluate(() => window.rfOpenCarrier && window.rfOpenCarrier());
+  const setF = (id, v) => p.evaluate(([id, v]) => { const e = document.getElementById(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }, [id, v]);
+  ok('3：航路が無いときは入力欄をそのまま（箱の枠・見出しなし）', await p.evaluate(() => !document.getElementById('zone2Card').classList.contains('rl-has')) && await vis('#z2Pol') && !(await vis('#z2RlHead')));
+  await setF('z2Pol', 'YOKOHAMA'); await setF('z2Pod', 'SHANGHAI'); await setF('z2Carrier', 'ONE'); await setF('z2Tt', '3日');
+  await p.evaluate(() => window.addRouteEntry()); await p.waitForTimeout(200);
+  ok('3：1 本目を登録するとカード 1 枚・自動で採用', await p.evaluate(() => document.querySelectorAll('#z2RouteList .z2-rcard').length === 1 && document.querySelector('.z2-rcard').classList.contains('is-adopt')));
+  ok('3：1 本以上あると入力欄は畳み、見出しと［＋ 航路を追加］', !(await vis('#z2Pol')) && await vis('#z2RlHead .z2-rl-add') && await p.evaluate(() => /1 本 ・ 見積書に出すのは「採用」の 1 本/.test(document.querySelector('#z2RlHead .z2-rl-sub').textContent)));
+  ok('3：カードの 2 行目は「キャリア · POL → POD · T/T」', await p.evaluate(() => document.querySelector('.z2-rc-line').textContent === 'ONE · YOKOHAMA → SHANGHAI · T/T 3日'));
+  ok('3：案名が無いときは「案名なし」＋「＋ 名前」・区間が無いときは「＋ 区間を足す」', await p.evaluate(() => /案名なし/.test(document.querySelector('.z2-rc-head').textContent) && !!document.querySelector('.z2-rcard .z2-rc-nameadd') && /区間を足す/.test(document.querySelector('.z2-rcard .z2-rc-segadd').textContent)));
+  await p.click('#z2RlHead .z2-rl-add'); await p.waitForTimeout(150);
+  ok('3：［＋ 航路を追加］で一覧の下に点線の箱が開く', await vis('#z2Pol') && await p.evaluate(() => { const b = document.getElementById('z2RlBox'), l = document.getElementById('z2RouteList'); return b.previousElementSibling === l && getComputedStyle(b).borderTopStyle === 'dashed' && /この航路を登録/.test(b.querySelector('.z2-route-add').textContent); }));
+  await setF('z2Carrier', 'MSC'); await setF('z2Via', 'BUSAN');
+  await p.evaluate(() => document.querySelector('#z2RlBox .z2-route-add').click()); await p.waitForTimeout(200);
+  const st = await p.evaluate(() => ({ n: document.querySelectorAll('.z2-rcard').length, ad: [...document.querySelectorAll('.z2-rcard')].map(c => c.classList.contains('is-adopt')), out: window.getConditions().routes.map(r => r.carrier), boxOpen: !document.getElementById('z2RlBox').hidden }));
+  ok('3：2 本目は未定で登録（採用は 1 本だけ）・箱は閉じる', st.n === 2 && JSON.stringify(st.ad) === '[true,false]' && !st.boxOpen, st);
+  ok('3：見積書に出す航路は採用の 1 本', JSON.stringify(st.out) === '["ONE"]', st.out);
+  await p.evaluate(() => document.querySelector('.z2-rcard[data-i="1"] .z2-rc-adopt').click()); await p.waitForTimeout(150);
+  ok('3：別のカードを「採用にする」と、前の採用は未定に戻る', await p.evaluate(() => JSON.stringify([...document.querySelectorAll('.z2-rcard')].map(c => c.classList.contains('is-adopt'))) === '[false,true]' && JSON.stringify(window.getConditions().routes.map(r => r.carrier)) === '["MSC"]'));
+  await p.evaluate(() => document.querySelector('.z2-rcard[data-i="0"] .z2-rc-more').click()); await p.waitForTimeout(150);
+  const mi = await p.evaluate(() => [...document.querySelectorAll('.z2-rc-menu .z2-rc-mi')].map(b => b.textContent));
+  ok('3：［⋯］に 案の名前・区間・不採用・使用不可・下へ・削除', ['案の名前を付ける', '区間を足す', '不採用にする', '使用不可にする', '下へ', '削除'].every(t => mi.includes(t)), mi);
+  await p.evaluate(() => [...document.querySelectorAll('.z2-rc-menu .z2-rc-mi')].find(b => b.textContent === '不採用にする').click()); await p.waitForTimeout(150);
+  ok('3：不採用は薄く・取り消し線の札', await p.evaluate(() => { const c = document.querySelector('.z2-rcard[data-i="0"]'); return c.classList.contains('is-reject') && +getComputedStyle(c).opacity < 0.7 && /不採用/.test(c.querySelector('.z2-rc-badge.is-reject').textContent); }));
+  await p.evaluate(() => document.querySelector('.z2-rcard[data-i="1"] .z2-rc-edit').click()); await p.waitForTimeout(150);
+  ok('3：✎ 直すは、そのカードの場所に箱を開く', await p.evaluate(() => { const b = document.getElementById('z2RlBox'); return !!b.closest('.z2-rl-slot') && document.getElementById('z2Carrier').value === 'MSC' && /この内容で直す/.test(b.querySelector('.z2-route-add').textContent); }));
+  await setF('z2Tt', '5日');
+  await p.evaluate(() => document.querySelector('#z2RlBox .z2-route-add').click()); await p.waitForTimeout(150);
+  ok('3：直すと、その場で書き換わる（採用はそのまま・本数は同じ）', await p.evaluate(() => { const c = document.querySelectorAll('.z2-rcard'); return c.length === 2 && c[1].classList.contains('is-adopt') && /T\/T 5日/.test(c[1].textContent); }));
+  await p.evaluate(() => document.querySelector('.z2-rcard[data-i="0"] .z2-rc-edit').click()); await p.waitForTimeout(100);
+  await setF('z2Carrier', 'XXX');
+  await p.evaluate(() => window.routeAddCancel()); await p.waitForTimeout(100);
+  ok('3：キャンセルすると直さない（カードはそのまま）', await p.evaluate(() => /ONE/.test(document.querySelectorAll('.z2-rcard')[0].textContent) && !document.querySelector('.z2-rl-slot')));
+  // 旧いデータ：「使う ✓」が 2 本 → 一番上の 1 本を採用に
+  await p.evaluate(() => { const d = document.getElementById('z2-routes-data'); d.value = JSON.stringify([{ carrier: 'A', pol: 'P', pod: 'Q', enabled: true }, { carrier: 'B', pol: 'P', pod: 'Q', enabled: true }]); window.syncRouteEntries ? window.syncRouteEntries() : null; });
+  await p.waitForTimeout(150);
+  ok('3：旧い見積（使う ✓ が 2 本）は一番上の 1 本を採用に', await p.evaluate(() => JSON.stringify(window.getConditions().routes.map(r => r.carrier)) === '["A"]'));
+  if (OUT) await p.screenshot({ path: OUT + '/d42-route' + (PHONE ? '-phone' : '') + '.png', fullPage: false });
+
   ok('JS エラーなし', errs.length === 0, errs);
   await b.close(); srv.close();
   console.log(fails ? `\n${fails} 件 FAIL` : '\nALL PASS'); process.exit(fails ? 1 : 0);

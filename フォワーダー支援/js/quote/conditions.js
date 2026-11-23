@@ -2241,6 +2241,7 @@
       (_routeEntries || []).forEach(r => {
         if (r.rid && Object.prototype.hasOwnProperty.call(links, r.rid)) r.enabled = !!links[r.rid];
       });
+      if (typeof window.routesNormalize === 'function') window.routesNormalize();   // 採用は 1 本だけ（Design 42-3）
       window._outputPatternView = i;
       return fn();
     } finally {
@@ -3605,66 +3606,234 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
-  window.cycleRouteAdopt = function (i) {
-    const r = _routeEntries[i]; if (!r) return;
-    r.adopt = r.adopt === 'adopt' ? 'reject' : r.adopt === 'reject' ? '' : 'adopt';
-    _renderRouteEntries();
+
+
+  // ===== Design 42-3：航路の一覧はカード／「採用」1 つで見積書に出す航路を決める（2026-11） =====
+  // 採用＝enabled が true（かつ使用不可でない）。採用はグループに 1 本だけ（片道は全体で 1 本、往復は往路・復路で
+  // 1 本ずつ。往復で往路／復路の指定が無い航路は、従来どおり 1 本目＝往路・2 本目＝復路として 2 本まで）。
+  // r.adopt は表示用に同期（'adopt'＝採用・'reject'＝不採用・''＝未定）。物量パターンの航路の紐付け（routeLinks）は enabled のまま。
+  function _rAdopted(r) { return !!r && !r.ng && r.enabled !== false; }
+  function _rGroup(r) {
+    if (!dirIsRound(_currentDirection)) return 'one';
+    return r.leg === 'out' || r.leg === 'ret' ? r.leg : 'auto';
+  }
+  function _rGroupMax(g) { return g === 'auto' ? 2 : 1; }
+  // 各グループの採用を上限までに整える（上から順に残す）。1 本しかないときは自動で採用。戻り値＝変えたか
+  function _routesNormalize(list) {
+    list = list || _routeEntries;
+    let changed = false;
+    const cnt = {};
+    list.forEach(r => {
+      if (!_rAdopted(r)) return;
+      const g = _rGroup(r); cnt[g] = (cnt[g] || 0) + 1;
+      if (cnt[g] > _rGroupMax(g)) { r.enabled = false; changed = true; }
+    });
+    const live = list.filter(r => !r.ng && r.adopt !== 'reject');
+    if (list.length === 1 && live.length === 1 && !_rAdopted(live[0])) { live[0].enabled = true; changed = true; }
+    list.forEach(r => {
+      const a = _rAdopted(r) ? 'adopt' : (r.adopt === 'reject' ? 'reject' : '');
+      if ((r.adopt || '') !== a) { r.adopt = a; }
+    });
+    return changed;
+  }
+  window.routesNormalize = _routesNormalize;
+  function _routeSaved() {
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+  // この航路を採用にする（同じグループのほかの採用は未定に戻す）
+  window.adoptRoute = function (i) {
+    const r = _routeEntries[i]; if (!r) return;
+    const g = _rGroup(r), max = _rGroupMax(g);
+    r.enabled = true; r.ng = false; r.ngReason = ''; r.adopt = 'adopt';
+    const others = _routeEntries.map((x, k) => k).filter(k => k !== i && _rAdopted(_routeEntries[k]) && _rGroup(_routeEntries[k]) === g);
+    while (others.length > max - 1) {
+      const k = others.pop();
+      _routeEntries[k].enabled = false; _routeEntries[k].adopt = '';
+      _recordPatternRouteState(k);
+    }
+    _recordPatternRouteState(i);
+    _routesNormalize(); _renderRouteEntries(); _routeSaved(); _triggerCarrierBmFetch();
   };
+  window.rejectRoute = function (i) {
+    const r = _routeEntries[i]; if (!r) return;
+    r.enabled = false; r.adopt = 'reject';
+    _recordPatternRouteState(i);
+    _routesNormalize(); _renderRouteEntries(); _routeSaved(); _triggerCarrierBmFetch();
+  };
+  window.unsetRoute = function (i) {
+    const r = _routeEntries[i]; if (!r) return;
+    r.enabled = false; r.adopt = '';
+    _recordPatternRouteState(i);
+    _routesNormalize(); _renderRouteEntries(); _routeSaved(); _triggerCarrierBmFetch();
+  };
+  // 互換：旧ボタン（✓）と同じ入口。採用 ⇔ 未定
+  window.cycleRouteAdopt = function (i) {
+    const r = _routeEntries[i]; if (!r) return;
+    if (_rAdopted(r)) window.rejectRoute(i); else if (r.adopt === 'reject') window.unsetRoute(i); else window.adoptRoute(i);
+  };
+
+  // ［⋯］のメニュー
+  let _rcMenu = null;
+  function _closeRcMenu() { if (_rcMenu) { _rcMenu.remove(); _rcMenu = null; } }
+  window.openRouteMenu = function (i, anchor) {
+    const r = _routeEntries[i]; if (!r) return;
+    if (_rcMenu && _rcMenu.dataset.i === String(i)) { _closeRcMenu(); return; }
+    _closeRcMenu();
+    const ad = _rAdopted(r), n = _routeEntries.length;
+    const items = [
+      { t: r.plan ? '案の名前を変える' : '案の名前を付ける', f: () => window.editRoutePlan(i) },
+      { t: _segs(r).length ? '区間を直す' : '区間を足す', f: () => window.openRouteSegs(i, anchor) },
+      ad ? { t: '未定に戻す（見積書に出さない）', f: () => window.unsetRoute(i) } : null,
+      r.adopt === 'reject' ? { t: '未定に戻す', f: () => window.unsetRoute(i) } : { t: '不採用にする', f: () => window.rejectRoute(i) },
+      { t: r.ng ? '使用不可を解除する' : '使用不可にする', f: () => toggleRouteNg(i) },
+      '-',
+      i > 0 ? { t: '上へ', f: () => moveRouteEntry(i, -1) } : null,
+      i < n - 1 ? { t: '下へ', f: () => moveRouteEntry(i, 1) } : null,
+      '-',
+      { t: '削除', danger: true, f: () => removeRouteEntry(i) },
+    ].filter(Boolean);
+    const m = document.createElement('div'); m.className = 'z2-rc-menu'; m.setAttribute('role', 'menu'); m.dataset.i = String(i);
+    items.forEach((it, k) => {
+      if (it === '-') { if (k && items[k - 1] !== '-' && k < items.length - 1) { const h = document.createElement('div'); h.className = 'z2-rc-sep'; m.appendChild(h); } return; }
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem');
+      b.className = 'z2-rc-mi' + (it.danger ? ' is-danger' : ''); b.textContent = it.t;
+      b.addEventListener('click', () => { _closeRcMenu(); it.f(); });
+      m.appendChild(b);
+    });
+    document.body.appendChild(m); _rcMenu = m;
+    const rc = anchor.getBoundingClientRect();
+    m.style.top = Math.min(window.innerHeight - m.offsetHeight - 8, rc.bottom + 4) + 'px';
+    m.style.left = Math.max(8, Math.min(rc.right - m.offsetWidth, window.innerWidth - m.offsetWidth - 8)) + 'px';
+    const first = m.querySelector('button'); if (first) first.focus();
+    setTimeout(() => document.addEventListener('mousedown', function h(ev) { if (_rcMenu && !_rcMenu.contains(ev.target) && ev.target !== anchor) _closeRcMenu(); if (!_rcMenu) document.removeEventListener('mousedown', h); }), 0);
+  };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && _rcMenu) { e.stopImmediatePropagation(); _closeRcMenu(); } }, true);
+
+  // 入力欄（＝次の航路を足す欄）の出し方：航路が 1 本も無いときはそのまま。1 本以上あるときは畳み、
+  // ［＋ 航路を追加］／［✎ 直す］で、一覧の下（直すときはそのカードの場所）に点線の箱として開く
+  let _rlAdding = false, _rlEditIdx = null, _rlEditBackup = null;
+  function _rlBox() {
+    const card = document.getElementById('zone2Card');
+    const inputs = card && card.querySelector('.zone2-inputs');
+    const list = document.getElementById('z2RouteList');
+    if (!inputs || !list) return null;
+    let box = document.getElementById('z2RlBox');
+    if (!box) {
+      box = document.createElement('div'); box.id = 'z2RlBox'; box.className = 'z2-rl-box';
+      // 一覧・隠し項目・候補（datalist）以外の子を、まとめて箱に入れる（要素ごと・id は不変）
+      [...inputs.children].forEach(c => {
+        if (c === list || c.id === 'z2RlHead' || c.tagName === 'DATALIST' || (c.tagName === 'INPUT' && c.type === 'hidden')) return;
+        box.appendChild(c);
+      });
+      inputs.insertBefore(box, inputs.firstChild);
+      const head = document.createElement('div'); head.id = 'z2RlHead'; head.className = 'z2-rl-head'; head.hidden = true;
+      head.innerHTML = '<b class="z2-rl-ttl">航路</b><span class="z2-rl-sub"></span><span class="z2-rl-sp"></span>'
+        + '<button type="button" class="z2-rl-add" onclick="routeAddOpen()">＋ 航路を追加</button>';
+      inputs.insertBefore(head, list);
+      const foot = document.createElement('div'); foot.className = 'z2-rl-boxfoot';
+      foot.innerHTML = '<span class="z2-rl-boxttl"></span><span class="z2-rl-sp"></span><button type="button" class="z2-rl-cancel" onclick="routeAddCancel()">キャンセル</button>';
+      box.insertBefore(foot, box.firstChild);
+    }
+    return box;
+  }
+  window.routeAddOpen = function () {
+    if (_rlEditIdx != null) window.routeAddCancel();
+    _rlAdding = true; _renderRouteEntries(true);
+    const pol = document.getElementById('z2Pol'); if (pol) { pol.focus(); }
+  };
+  window.routeAddCancel = function () {
+    if (_rlEditIdx != null && _rlEditBackup) {
+      _restoreForm(_rlEditBackup.form);
+    }
+    _rlAdding = false; _rlEditIdx = null; _rlEditBackup = null;
+    _renderRouteEntries(true);
+    if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
+  };
+  const _FORM_IDS = ['z2Carrier', 'z2Service', 'z2CarrierRole', 'z2ActualCarrier', 'z2Pol', 'z2Via', 'z2Pod', 'z2Icd', 'z2Tt'];
+  function _readForm() { const o = {}; _FORM_IDS.forEach(id => { const e = document.getElementById(id); o[id] = e ? e.value : ''; }); return o; }
+  function _restoreForm(o) { _FORM_IDS.forEach(id => { const e = document.getElementById(id); if (e && o && id in o) e.value = o[id]; }); }
+  function _placeRlBox() {
+    const card = document.getElementById('zone2Card');
+    const list = document.getElementById('z2RouteList');
+    const box = _rlBox(); if (!card || !list || !box) return;
+    const has = _routeEntries.length > 0;
+    const open = !has || _rlAdding || _rlEditIdx != null;
+    card.classList.toggle('rl-has', has);
+    card.classList.toggle('rl-open', has && open);
+    box.hidden = !open;
+    const head = document.getElementById('z2RlHead');
+    if (head) {
+      head.hidden = !has;
+      const sub = head.querySelector('.z2-rl-sub');
+      const round = dirIsRound(_currentDirection);
+      if (sub) sub.textContent = _routeEntries.length + ' 本 ・ 見積書に出すのは「採用」の' + (round ? '航路（往路・復路で 1 本ずつ）' : ' 1 本');
+      const ab = head.querySelector('.z2-rl-add'); if (ab) ab.hidden = open;
+    }
+    const ttl = box.querySelector('.z2-rl-boxttl');
+    if (ttl) ttl.textContent = _rlEditIdx != null ? '航路を直す' : '航路を追加';
+    const add = box.querySelector('.z2-route-add');
+    if (add) {
+      if (!add.dataset.rlOrig) add.dataset.rlOrig = add.textContent;
+      add.textContent = has ? (_rlEditIdx != null ? 'この内容で直す' : 'この航路を登録') : add.dataset.rlOrig;
+    }
+    // 置き場所：直すときはそのカードの場所、追加は一覧の下、航路が無いときは一覧の上（今までどおり）
+    const inputs = list.parentNode;
+    if (_rlEditIdx != null) {
+      const slot = list.querySelector('.z2-rl-slot');
+      if (slot) slot.appendChild(box); else inputs.insertBefore(box, list.nextSibling);
+    } else if (has) {
+      if (box.parentNode !== inputs || box.previousElementSibling !== list) inputs.insertBefore(box, list.nextSibling);
+    } else if (box.parentNode !== inputs || inputs.firstElementChild !== box) inputs.insertBefore(box, inputs.firstChild);
+  }
+
+  function _routeCardHtml(r, i) {
+    const ng = !!r.ng, ad = _rAdopted(r), rej = !ad && r.adopt === 'reject';
+    const nm = String(r.plan || '').trim();
+    const ports = [r.pol, r.via, r.pod].map(x => String(x || '').trim());
+    const route = (ports[0] || ports[2]) ? [ports[0] || '—', ports[1], ports[2] || '—'].filter(Boolean).map(_escMulti).join(' → ') : 'ポート未設定';
+    const line = [r.carrier ? `<b class="z2-rc-car">${_escMulti(r.carrier)}</b>` : '', r.service ? _escMulti(r.service) : '', route, r.tt ? 'T/T ' + _escMulti(r.tt) : ''].filter(Boolean).join(' · ');
+    const extra = [];
+    const role = ROUTE_ROLE_LABELS[r.carrierRole] || '';
+    if (role) extra.push(_escMulti(role));
+    if (r.actualCarrier) extra.push('実運送人 ' + _escMulti(r.actualCarrier));
+    if (r.icd) extra.push('🚉 ' + _escMulti(r.icd));
+    const badge = ad ? '<span class="z2-rc-badge is-adopt">✓ 採用</span>' : rej ? '<span class="z2-rc-badge is-reject">不採用</span>' : '';
+    const ngTag = ng ? `<button type="button" class="z2-rc-badge is-ng" onclick="editRouteNgReason(${i})" title="${_escMulti('使用不可の理由を直す' + (r.ngReason ? '\n' + r.ngReason : ''))}">🚫 使用不可${r.ngReason ? '：' + _escMulti(r.ngReason) : ''}</button>` : '';
+    const sg = _segs(r);
+    const segHtml = sg.length
+      ? `<ol class="z2-rc-segs">${sg.map(x => `<li class="${/海上/.test(x.mode || '') ? 'is-sea' : ''}"><span class="z2-rc-sm">${_escMulti(x.mode || '—')}</span>${x.carrier ? `<span>${_escMulti(x.carrier)}</span>` : ''}${x.etd ? `<span>ETD ${_escMulti(x.etd)}</span>` : ''}${x.note ? `<span class="z2-rc-sn">${_escMulti(x.note)}</span>` : ''}</li>`).join('')}</ol>`
+      : `<button type="button" class="z2-rc-link z2-rc-segadd" onclick="openRouteSegs(${i}, this)">＋ 区間を足す</button>`;
+    const nameHtml = nm
+      ? `<b class="z2-rc-name">${_escMulti(nm)}</b>`
+      : `<span class="z2-rc-noname">案名なし</span><button type="button" class="z2-rc-link z2-rc-nameadd" onclick="editRoutePlan(${i})">＋ 名前</button>`;
+    const canAdopt = !ad && !ng;
+    const cls = 'z2-rcard' + (ad ? ' is-adopt' : '') + (rej ? ' is-reject' : '') + (ng ? ' is-ng' : '');
+    return `<div class="${cls}" data-i="${i}">`
+      + `<div class="z2-rc-head"><span class="z2-route-drag z2-rc-drag" title="ドラッグして並び替え">⠿</span>${nameHtml}${badge}${_legBtn(r, i)}${ngTag}<span class="z2-rl-sp"></span>`
+      + (canAdopt ? `<button type="button" class="z2-rc-link z2-rc-adopt" onclick="adoptRoute(${i})">採用にする</button>` : '')
+      + `<button type="button" class="z2-rc-edit" onclick="editRouteEntry(${i})">✎ 直す</button>`
+      + `<button type="button" class="z2-rc-more" onclick="openRouteMenu(${i}, this)" title="そのほかの操作" aria-haspopup="menu">⋯</button></div>`
+      + `<div class="z2-rc-line">${line}</div>`
+      + (extra.length ? `<div class="z2-rc-extra">${extra.join(' · ')}</div>` : '')
+      + segHtml + '</div>';
+  }
 
   // viewOnly=true：チップの再描画だけ行い、保存用の隠しフィールド（z2-routes-data）には書き込まない。
   // 案件を開く途中（フィールド復元後・航路の復元前）に呼ばれても、前の案件の航路で隠しフィールドを
   // 上書きして新しい案件へ混入させないため（setDirection から呼ぶときに使う）
   function _renderRouteEntries(viewOnly) {
     const data = document.getElementById('z2-routes-data');
+    if (!viewOnly) _routesNormalize();
     if (data && !viewOnly) data.value = JSON.stringify(_routeEntries);
     const list = document.getElementById('z2RouteList');
     if (!list) return;
-    if (!_routeEntries.length) { list.innerHTML = ''; return; }
-    list.innerHTML = _routeEntries.map((r, i) => {
-      const ng = !!r.ng;                       // 使用不可（候補から外すが記録は残す）
-      const on = !ng && r.enabled !== false;
-      const parts = [];
-      if (r.pol) parts.push(_escMulti(r.pol));
-      if (r.via) parts.push('<span class="z2-route-via">via:' + _escMulti(r.via) + '</span>');
-      if (r.pod) parts.push(_escMulti(r.pod));
-      if (r.icd) parts.push('<span class="z2-route-icd" title="ICD（インランドデポ）">🚉 ' + _escMulti(r.icd) + '</span>');
-      const route = parts.length ? parts.join(' → ') : 'ポート未設定';
-      const _roleLabel = ROUTE_ROLE_LABELS[r.carrierRole] || '';
-      const _roleChip  = _roleLabel ? `<span class="z2-route-role" title="契約先の役割">${_escMulti(_roleLabel)}</span>` : '';
-      const _actualChip = r.actualCarrier ? `<span class="z2-route-actual" title="実運送人（実際の船会社）">as ${_escMulti(r.actualCarrier)}</span>` : '';
-      // 理由が長いとチップからはみ出すので表示は省略し、全文は title に持たせる
-      const _ngTitle = '使用不可の理由を編集' + (r.ngReason ? '\n' + r.ngReason : '');
-      const _ngChip = ng
-        ? `<button type="button" class="z2-route-ngtag" onclick="editRouteNgReason(${i})" title="${_escMulti(_ngTitle)}">🚫 使用不可`
-          + (r.ngReason ? `<span class="z2-route-ngreason">：${_escMulti(r.ngReason)}</span>` : '')
-          + `</button>`
-        : '';
-      const _chipCls = ng ? ' z2-route-chip--ng' : (on ? '' : ' z2-route-chip--off');
-      const _atFirst = i === 0, _atLast = i === _routeEntries.length - 1;
-      // 物量パターンを複数使っている案件で、この航路の有効/無効がアクティブなパターンに
-      // 紐付け記録済みの場合はトグルに印を付ける（pq-pattern-linked と同じ考え方）
-      const _routeLinked = (_packingPatterns && _packingPatterns.length > 1 && r.rid) &&
-        Object.prototype.hasOwnProperty.call((_packingPatterns[_packingActiveIdx] && _packingPatterns[_packingActiveIdx].routeLinks) || {}, r.rid);
-      const _toggleTitle = (on ? '無効にする（一時停止）' : '有効にする') +
-        (_routeLinked ? '\n（この航路の有効/無効は現在のパターンに紐付けて記憶されています）' : '');
-      return `<span class="z2-route-chip${_chipCls}">`
-        + `<span class="z2-route-drag" title="ドラッグして並び替え">⠿</span>`
-        + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},-1)" ${_atFirst ? 'disabled' : ''} title="上へ移動">↑</button>`
-        + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},1)" ${_atLast ? 'disabled' : ''} title="下へ移動">↓</button>`
-        + `<button type="button" class="z2-route-toggle${_routeLinked ? ' route-pattern-linked' : ''}" onclick="toggleRouteEntry(${i})" title="${_escMulti(_toggleTitle)}">${on ? '✓' : '—'}</button>`
-        + _legBtn(r, i)
-        + _planChip(r, i) + _segChip(r, i)
-        + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
-        + _roleChip + _actualChip + _ngChip
-        + (r.service ? `<span class="z2-route-service">${_escMulti(r.service)}</span>` : '')
-        + `<span class="z2-route-leg">${route}</span>`
-        + (r.tt ? `<span class="z2-route-tt" title="Transit Time（所要日数）">⏱️ ${_escMulti(r.tt)}</span>` : '')
-        + `<button type="button" class="z2-route-ng" onclick="toggleRouteNg(${i})" title="${ng ? '使用不可を解除する' : '使用不可として記録する（見積の対象外にするが、候補として検討した記録は残す）'}">🚫</button>`
-        + `<button type="button" class="z2-route-edit" onclick="editRouteEntry(${i})" title="編集（フォームに書き戻す）">✎</button>`
-        + `<button type="button" class="me-chip-del" onclick="removeRouteEntry(${i})" title="削除">×</button></span>`;
-    }).join('');
+    // 直す途中の箱が一覧の中にあるときは、描き直しで消えないよう先に外へ出す
+    const box = document.getElementById('z2RlBox');
+    if (box && list.contains(box)) list.parentNode.insertBefore(box, list.nextSibling);
+    _closeRcMenu();
+    list.innerHTML = _routeEntries.map((r, i) => (_rlEditIdx === i ? '<div class="z2-rl-slot"></div>' : _routeCardHtml(r, i))).join('');
+    _placeRlBox();
     if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
     // パターン入力の候補（ptSuggestions）に航路（POL→via→POD）を供給：表記揺れ防止
     const dl = document.getElementById('ptSuggestions');
@@ -3691,8 +3860,8 @@
     list.addEventListener('pointerdown', e => {
       const handle = e.target.closest('.z2-route-drag');
       if (!handle) return;
-      const chip = handle.closest('.z2-route-chip');
-      const chips = Array.from(list.children);
+      const chip = handle.closest('.z2-rcard');
+      const chips = Array.from(list.querySelectorAll(':scope > .z2-rcard, :scope > .z2-rl-slot'));
       const idx = chips.indexOf(chip);
       if (!chip || idx < 0) return;
       e.preventDefault();
@@ -3701,18 +3870,18 @@
       chip.classList.add('is-dragging');
       const onMove = ev => {
         const el = document.elementFromPoint(ev.clientX, ev.clientY);
-        const target = el && el.closest ? el.closest('.z2-route-chip') : null;
-        list.querySelectorAll('.z2-route-chip').forEach(c => c.classList.remove('drag-over-left', 'drag-over-right'));
+        const target = el && el.closest ? el.closest('.z2-rcard') : null;
+        list.querySelectorAll('.z2-rcard').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
         if (!target || target === chip) { _routeDragOverIdx = null; return; }
         const rect = target.getBoundingClientRect();
-        const after = ev.clientX >= rect.left + rect.width / 2;
-        target.classList.add(after ? 'drag-over-right' : 'drag-over-left');
-        const tIdx = Array.from(list.children).indexOf(target);
+        const after = ev.clientY >= rect.top + rect.height / 2;
+        target.classList.add(after ? 'drag-over-bottom' : 'drag-over-top');
+        const tIdx = Array.from(list.querySelectorAll(':scope > .z2-rcard, :scope > .z2-rl-slot')).indexOf(target);
         _routeDragOverIdx = after ? tIdx + 1 : tIdx;
       };
       const onUp = () => {
         document.removeEventListener('pointermove', onMove);
-        list.querySelectorAll('.z2-route-chip').forEach(c => c.classList.remove('drag-over-left', 'drag-over-right', 'is-dragging'));
+        list.querySelectorAll('.z2-rcard').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom', 'is-dragging'));
         if (_routeDragOverIdx !== null && _routeDragOverIdx !== _routeDragIdx) {
           let to = _routeDragOverIdx;
           const [moved] = _routeEntries.splice(_routeDragIdx, 1);
@@ -3744,15 +3913,37 @@
       return;
     }
     // carrier=契約先（ブッキング/支払先）、carrierRole=その役割、actualCarrier=実運送人（実際の船会社）
+    if (_rlEditIdx != null && _routeEntries[_rlEditIdx]) {
+      // ✎ 直す：その場で書き換える（採用・不採用・使用不可・案の名前・区間・往路／復路・rid はそのまま）
+      Object.assign(_routeEntries[_rlEditIdx], { carrier, service, carrierRole, actualCarrier, pol, via, pod, icd, tt });
+      _rlEditIdx = null; _rlEditBackup = null; _rlAdding = false;
+      _renderRouteEntries();
+      _clearCarrierFields();
+      _routeSaved(); _triggerCarrierBmFetch();
+      return;
+    }
     const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '', rid: null, leg: '', plan: '', adopt: '', segs: [] };
     _pendingRouteFlags = null;
-    _routeEntries.push({ carrier, service, carrierRole, actualCarrier, pol, via, pod, icd, tt,
-                         enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason, rid: flags.rid || _newRouteId(), leg: flags.leg || '', plan: flags.plan || '', adopt: flags.adopt || '', segs: Array.isArray(flags.segs) ? flags.segs : [] });
+    // 新しい航路は、同じグループにまだ採用が無ければ採用、あれば未定（採用は 1 本だけ）
+    const _nr = { carrier, service, carrierRole, actualCarrier, pol, via, pod, icd, tt,
+                  enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason, rid: flags.rid || _newRouteId(), leg: flags.leg || '', plan: flags.plan || '', adopt: flags.adopt || '', segs: Array.isArray(flags.segs) ? flags.segs : [] };
+    if (_nr.enabled && !_nr.ng) {
+      const g = _rGroup(_nr);
+      if (_routeEntries.filter(x => _rAdopted(x) && _rGroup(x) === g).length >= _rGroupMax(g)) { _nr.enabled = false; _nr.adopt = ''; }
+    }
+    _routeEntries.push(_nr);
+    _rlAdding = false;
     if (flags.ng && typeof quoteShowToast === 'function') {
       quoteShowToast('🚫 使用不可の記録を引き継ぎました', 'info', 1800);
     }
     _renderRouteEntries();
-    // キャリア・サービス名・T/T・契約形態をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
+    _clearCarrierFields();
+    document.getElementById('z2Pol')?.focus();   // 欄の並び（POL → POD → キャリア）の先頭へ
+    _routeSaved();
+    _triggerCarrierBmFetch();
+  }
+  // キャリア・サービス名・T/T・契約形態をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
+  function _clearCarrierFields() {
     const carrierEl = document.getElementById('z2Carrier');
     if (carrierEl) { carrierEl.value = ''; }
     const serviceEl = document.getElementById('z2Service');
@@ -3764,13 +3955,10 @@
     const ttEl = document.getElementById('z2Tt');
     if (ttEl) { ttEl.value = ''; }
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
-    document.getElementById('z2Pol')?.focus();   // 欄の並び（POL → POD → キャリア）の先頭へ
-    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
-    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
-    _triggerCarrierBmFetch();
   }
 
   function removeRouteEntry(i) {
+    if (_rlEditIdx != null) window.routeAddCancel();
     _routeEntries.splice(i, 1);
     _renderRouteEntries();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -3791,20 +3979,11 @@
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
   window.moveRouteEntry = moveRouteEntry;
+  // 互換（旧「使う ✓」）：採用 ⇔ 未定
   function toggleRouteEntry(i) {
     const cur = _routeEntries[i];
     if (!cur) return;
-    // 有効化するときは「使用不可」も解除する（使えるようになった＝記録は不要）
-    const turnOn = cur.enabled === false || cur.ng;
-    _routeEntries[i] = Object.assign({}, cur, turnOn
-      ? { enabled: true, ng: false, ngReason: '' }
-      : { enabled: false });
-    // 物量パターンを複数使っている案件では、この有効/無効をアクティブなパターンに記憶する
-    // （パターンを切り替えると、切替先で最後に記録した状態へ自動で戻る）
-    _recordPatternRouteState(i);
-    _renderRouteEntries();
-    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
-    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    if (_rAdopted(cur)) window.unsetRoute(i); else window.adoptRoute(i);
   }
 
   // 使用不可の記録：チップを消さずに「候補として検討したが使えなかった」旨と理由を残す。
@@ -3813,11 +3992,11 @@
     const r = _routeEntries[i];
     if (!r) return;
     if (r.ng) {
-      _routeEntries[i] = Object.assign({}, r, { ng: false, ngReason: '', enabled: true });
+      _routeEntries[i] = Object.assign({}, r, { ng: false, ngReason: '', enabled: false, adopt: '' });
     } else {
       const reason = prompt(NG_REASON_HINT, r.ngReason || '');
       if (reason === null) return;   // キャンセル
-      _routeEntries[i] = Object.assign({}, r, { ng: true, ngReason: reason.trim(), enabled: false });
+      _routeEntries[i] = Object.assign({}, r, { ng: true, ngReason: reason.trim(), enabled: false, adopt: '' });
     }
     _renderRouteEntries();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -3833,10 +4012,12 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
+  // ✎ 直す：そのカードの場所に入力の箱を開き、値を書き戻す（キャンセルで元の入力欄の内容に戻す）
   function editRouteEntry(i) {
     const r = _routeEntries[i];
     if (!r) return;
-    // フォームへ書き戻し
+    if (_rlEditIdx != null && _rlEditIdx !== i) window.routeAddCancel();
+    if (_rlEditIdx == null) _rlEditBackup = { form: _readForm() };
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
     set('z2Carrier', r.carrier);
     set('z2Service', r.service);
@@ -3847,17 +4028,12 @@
     set('z2Pod', r.pod);
     set('z2Icd', r.icd);
     set('z2Tt', r.tt);
-    // 契約形態パネルは常時表示のため展開処理は不要
-    // 無効・使用不可の状態・rid（パターン紐付けの識別子）は再登録時に引き継ぐ（✎ で消えてしまわないように）
-    _pendingRouteFlags = { enabled: r.enabled !== false && !r.ng, ng: !!r.ng, ngReason: r.ngReason || '', rid: r.rid, leg: r.leg || '', plan: r.plan || '', adopt: r.adopt || '', segs: Array.isArray(r.segs) ? r.segs : [] };
-    // エントリを削除して再描画
-    _routeEntries.splice(i, 1);
-    _renderRouteEntries();
+    _rlEditIdx = i; _rlAdding = false;
+    _renderRouteEntries(true);
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
     if (typeof window.icdRefresh === 'function') window.icdRefresh();
+    if (typeof window.rfOpenCarrier === 'function') window.rfOpenCarrier();
     document.getElementById('z2Pol')?.focus();   // 欄の並び（POL → POD → キャリア）の先頭へ
-    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
-    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
   window.toggleRouteEntry  = toggleRouteEntry;
   window.editRouteEntry    = editRouteEntry;
@@ -3905,6 +4081,7 @@
     catch(e) { _routeEntries = []; }
     if (!Array.isArray(_routeEntries)) _routeEntries = [];
     _ensureRouteIds();   // 旧データ（rid 未保存）を補完
+    _rlAdding = false; _rlEditIdx = null; _rlEditBackup = null;
     _applyPatternRouteLinks(_packingActiveIdx);   // 読込時点のアクティブパターンの有効/無効を適用
     _renderRouteEntries();
   }
