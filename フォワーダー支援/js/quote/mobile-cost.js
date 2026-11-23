@@ -77,14 +77,25 @@
     if (r.ccy === 'JPY' || !r.amount || typeof window.toJPY !== 'function') return '';
     try { const y = window.toJPY(r.amount, r.ccy); return isFinite(y) && y ? '≈ ¥' + Math.round(y).toLocaleString('ja-JP') : ''; } catch (e) { return ''; }
   }
+  // グループの売（見積書に出す行だけ・JPY 換算）。外貨が入っていれば「※」（換算の目安）
+  function yenSum(items) {
+    let y = 0, fx = false;
+    items.forEach(i => {
+      if (i.hidden || i.out || !i.amount) return;
+      if (i.ccy === 'JPY') { y += i.amount; return; }
+      fx = true;
+      try { const v = typeof window.toJPY === 'function' ? window.toJPY(i.amount, i.ccy) : NaN; if (isFinite(v)) y += v; } catch (e) {}
+    });
+    return '売 ¥' + Math.round(y).toLocaleString('ja-JP') + (fx ? '<small title="外貨は為替レートで円に換算した目安">※</small>' : '');
+  }
   function renderV2(groups, rows) {
     let h = '';
     groups.forEach(g => {
       const last = g.items[g.items.length - 1];
+      // 見出しは 1 段：名前・行数・売（JPY 換算・外貨があれば ※）・［⋯］。［＋ 明細を追加］はグループのいちばん下（Design 50r）
       h += '<div class="mc-sv mc2-sv"><span class="mc-sv-name">' + esc(g.sv || '（サブコン未設定）') + '</span><span class="mc2-n">' + g.items.length + '行</span>' +
-        '<span class="mc-sv-sum">' + sumHtml(sums(g.items)) + '</span>' +
-        '<button type="button" class="mc2-more" data-gmore="' + esc(g.items[0].id) + '" aria-label="その他の操作" title="その他の操作">⋯</button>' +
-        '<button type="button" class="mc-add mc2-add" data-add="' + esc(last.id) + '">＋ 明細を追加</button></div>';
+        '<span class="mc-sv-sum">' + yenSum(g.items) + '</span>' +
+        '<button type="button" class="mc2-more" data-gmore="' + esc(g.items[0].id) + '" aria-label="その他の操作" title="その他の操作">⋯</button></div>';
       let curPt = null;
       g.items.forEach(r => {
         if (r.pt !== curPt && (r.pt || curPt)) h += '<div class="mc-pt">' + esc(r.pt || '（パターン設定なし）') + '</div>';
@@ -96,6 +107,7 @@
           '<b class="mc2-st">' + esc(r.st || '—') + ' <small>' + esc(r.ccy) + '</small></b></span>' +
           (yen ? '<span class="mc2-yen">' + esc(yen) + '</span>' : '') + '</button>';
       });
+      h += '<button type="button" class="mc2-addrow" data-add="' + esc(last.id) + '">＋ 明細を追加</button>';
     });
     const tot = ($('tot-subtotal')?.textContent || '').trim();
     return h + addBtn() + '<div class="mc-total"><span class="mc-total-l">合計（売）</span><span class="mc-total-v">' + sumHtml(sums(rows)) + '</span>' + (tot && tot !== '—' ? '<small>見積合計 ' + esc(tot) + '</small>' : '') + '</div>';

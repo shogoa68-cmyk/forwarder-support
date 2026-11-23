@@ -280,3 +280,31 @@ html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row.ca-zero-
   html.editor-v2 #tab-quote-make.ca-on .quote-cmdbar .cmdbar-main > :not([data-f="openAddSubconFrame"]):not([data-f="lcOpenPicker"]):not(#caMoreBtn) { display: none !important; }
   html.editor-v2 #tab-quote-make.ca-on .quote-cmdbar .cmdbar-main { padding: 6px 0; gap: 8px; }
 }
+
+/* ===== Design 50r（50 の報告への返事・2026-11） ===== */
+/* 3-1 項目名の欄は列いっぱい（最小 160px）。状態の札・「· 備考」は欄の右 */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-name > input[data-field="nm"] { flex: 1 1 160px !important; field-sizing: fixed; width: auto !important; min-width: 160px !important; max-width: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-note { flex: 0 1 auto; max-width: 40%; }
+/* 3-6 行の右端の［⋯］：枠つき 30px（いつも出す・色は灰） */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .row-acts-hint { width: 30px !important; height: 30px !important; border: 1px solid #d0d5dd !important; background: #fff; color: #475467; font-size: 16px; line-height: 1; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .row-acts-hint:hover { border-color: #98a2b3 !important; background: #f9fafb; }
+/* ⠿ はキーボードで行・欄に焦点があるときも出す */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row:focus-within > td.handle-cell > .drag-handle,
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row:focus > td.handle-cell > .drag-handle { opacity: 1; }
+/* 3-4 ［↺ 一括解除］は［⋯］の中（「入力完了をすべて外す」）へ */
+html.editor-v2 #tab-quote-make.ca-on #doneResetBtn { display: none !important; }
+/* 3-7 パターン見出しの「パターン」の文字は出さない（🔖 で分かる） */
+html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-subgroup-header .subcon-subgroup-leg::before { content: none !important; display: none !important; }
+/* 3-5 PC：❓ が表の右端（粗利の列）に重ならないよう、❓ が画面右下に浮いている間だけ表の右に 56px あける */
+@media (min-width: 601px) {
+  html.editor-v2 body:not(:has(#qrcRail > #fbQuickFab)) #tab-quote-make.ca-on #tableWrap { padding-right: 56px; }
+}
+/* 3-2 スマホ：見出しは 1 段（［＋ 明細を追加］はグループのいちばん下・幅いっぱい・44px・主色の文字・上に 1px の線） */
+@media (max-width: 600px) {
+  html.editor-v2 #tab-quote-make .mc2-sv { flex-wrap: nowrap; }
+  html.editor-v2 #tab-quote-make .mc2-sv .mc-sv-name { flex: 1 1 auto; min-width: 0; }
+  html.editor-v2 #tab-quote-make .mc2-sv .mc-sv-sum { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+  html.editor-v2 #tab-quote-make .mc2-sv .mc-sv-sum small { font-size: 12px; margin-left: 1px; opacity: .85; }
+  html.editor-v2 #tab-quote-make .mc2-addrow { display: block; width: 100%; height: 44px; margin: 0; padding: 0 12px; border: 0; border-top: 1px solid #e3e6ea; background: #fff; color: var(--ca-pri, #2f5fb3); font: inherit; font-weight: 700; font-size: 14px; text-align: left; cursor: pointer; }
+  html.editor-v2 #tab-quote-make .mc2-addrow:hover, html.editor-v2 #tab-quote-make .mc2-addrow:focus-visible { background: #f5f8fd; }
+}

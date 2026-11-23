@@ -114,6 +114,9 @@
     tr.classList.toggle('ca-zero-margin', !!pr && /(^|[^\d])0\.0%/.test(pr.textContent));
     const title = q('.ca-dtitle'), name = q('input[data-field="nm"]');
     if (title) { const t = (name && name.value.trim() ? name.value.trim() : '（項目名なし）') + ' の詳細'; if (title.textContent !== t) title.textContent = t; }
+    // カテゴリが未設定のときの選択肢は「（なし）」（旧い画面へ戻すと元の文字へ）
+    const o0 = q('select.w-cat option[value=""]');
+    if (o0 && o0.textContent !== '（なし）') { o0.dataset.caOrig = o0.textContent; o0.textContent = '（なし）'; }
     // 単価の扱いのチップ：元のボタンが ON か
     tr.querySelectorAll('.ca-chip[data-ca-q]').forEach(c => {
       const o = tr.querySelector('.' + c.dataset.caQ);
@@ -218,6 +221,17 @@
     if (pos) {
       items.push('-');
       [...pos.options].forEach(o => items.push([(pos.value === o.value ? '● ' : '○ ') + '追加する位置：' + o.textContent.trim(), () => { pos.value = o.value; pos.dispatchEvent(new Event('change', { bubbles: true })); }]));
+    }
+    // 入力完了マークがあるときだけ「入力完了をすべて外す」（旧［↺ 一括解除］・要調査は外さない）
+    const doneN = document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])[data-done="1"]').length;
+    if (doneN && typeof window.clearAllDoneMarks === 'function') {
+      items.push('-');
+      items.push(['入力完了をすべて外す（' + doneN + '行）', async () => {
+        const ok = typeof window.uiConfirm === 'function'
+          ? await window.uiConfirm({ title: '入力完了をすべて外しますか？', lines: ['入力完了の印（✓）と、押した日時・名前の記録を ' + doneN + ' 行ぶん外します。', '要調査の印・入力した内容はそのままです。'], okLabel: 'すべて外す', danger: true })
+          : confirm('入力完了をすべて外しますか？');
+        if (ok) window.clearAllDoneMarks();
+      }]);
     }
     items.push('-');
     items.push(['⚙ 表の設定（為替・カテゴリ）', () => { const g = $('cmdbarGear'); if (g) { g.open = true; const s = g.querySelector('summary'); if (s) s.click(); g.open = true; } }]);
@@ -332,6 +346,7 @@
     document.querySelectorAll('#tableBody tr.ca-row').forEach(tr => { tr.classList.remove('ca-row', 'ca-open', 'ca-mute', 'ca-picked', 'ca-ccy-diff', 'ca-zero-margin'); tr.__caDone = false; });
     closeMenu(); restoreAll(); restoreTexts();
     document.querySelectorAll('[data-ca-new]').forEach(e => e.remove());
+    document.querySelectorAll('#tableBody select.w-cat option[data-ca-orig]').forEach(o => { o.textContent = o.dataset.caOrig; delete o.dataset.caOrig; });
   }
   function sync() { if (isOn()) enable(); else disable(); }
 

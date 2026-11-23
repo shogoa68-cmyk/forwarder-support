@@ -88,15 +88,41 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('［✕ 選択を外す］で帯が消える', await p.evaluate(() => document.getElementById('caSel').hidden));
   // 保存データは変わらない（行の配列）
   ok('保存データ：行の項目はそのまま（gatherAllData の行数 4・品名あり）', await p.evaluate(() => { const d = window.gatherAllData(); const r = (d.rows || []).filter(x => x._type === 'data' || !x._type); return r.length >= 4; }));
+  // Design 50r：項目名の欄は列いっぱい・行の［⋯］は枠つき 30px・「パターン」の文字なし・一括解除は［⋯］へ・カテゴリ未設定は「（なし）」
+  const r50 = await p.evaluate(() => {
+    const tr = document.querySelector('#tableBody tr.ca-row'); const nm = tr.querySelector('[data-field="nm"]'), cell = tr.querySelector('.ca-name');
+    const hint = tr.querySelector('.row-acts-hint'), hs = getComputedStyle(hint);
+    const leg = document.querySelector('#tableBody tr.subcon-subgroup-header .subcon-subgroup-leg');
+    const rst = document.getElementById('doneResetBtn');
+    return { nmW: Math.round(nm.getBoundingClientRect().width), cellW: Math.round(cell.getBoundingClientRect().width), hint: [Math.round(hint.getBoundingClientRect().width), Math.round(hint.getBoundingClientRect().height), hs.borderTopWidth],
+      leg: leg ? getComputedStyle(leg, '::before').content : 'none', rst: !rst || !rst.getClientRects().length,
+      cat0: tr.querySelector('select.w-cat option[value=""]').textContent };
+  });
+  ok('50r：項目名の欄は列いっぱい（最小 160px）', r50.nmW >= 160 && r50.nmW >= r50.cellW * 0.5, r50);
+  ok('50r：行の［⋯］は枠つき 30px', r50.hint[0] === 30 && r50.hint[1] === 30 && r50.hint[2] !== '0px', r50.hint);
+  ok('50r：パターン見出しに「パターン」の文字を出さない', r50.leg === 'none' || r50.leg === 'normal', r50.leg);
+  ok('50r：カテゴリ未設定の選択肢は「（なし）」', r50.cat0 === '（なし）', r50.cat0);
+  ok('50r：［↺ 一括解除］は上の行に出さない', r50.rst);
+  await p.evaluate(() => document.getElementById('caMoreBtn').click()); await p.waitForTimeout(150);
+  const mi50 = await p.evaluate(() => [...document.querySelectorAll('.ca-menu .ca-mi')].map(x => x.textContent));
+  ok('50r：［⋯］に「入力完了をすべて外す（N行）」', mi50.some(t => /^入力完了をすべて外す（\d+行）$/.test(t)), mi50);
+  await p.evaluate(() => { const b = [...document.querySelectorAll('.ca-menu .ca-mi')].find(x => /入力完了をすべて外す/.test(x.textContent)); b && b.click(); }); await p.waitForTimeout(250);
+  const cf = await p.evaluate(() => { const d = document.querySelector('.confirm-overlay, .confirm-dialog'); return d ? d.textContent : ''; });
+  ok('50r：押すと確認（uiConfirm）', /入力完了をすべて外しますか/.test(cf), cf.slice(0, 80));
+  await p.evaluate(() => { const b = [...document.querySelectorAll('.confirm-dialog button, .confirm-overlay button')].find(x => /すべて外す/.test(x.textContent)); b && b.click(); }); await p.waitForTimeout(300);
+  ok('50r：確認すると入力完了がすべて外れる', await p.evaluate(() => !document.querySelector('#tableBody tr[data-done="1"]')));
   // 7. スマホ（〜600px）：見出し＝名前・行数・売・［⋯］・［＋ 明細を追加］／1 行＝2 段のカード
   await p.setViewportSize({ width: 390, height: 844 }); await p.waitForTimeout(600);
   const mc = await p.evaluate(() => {
     const L = document.getElementById('mcList'); const hd = L.querySelector('.mc2-sv'); const rows = [...L.querySelectorAll('.mc2-row')];
-    return { vis: !!L.getClientRects().length, n: hd && hd.querySelector('.mc2-n').textContent, more: !!(hd && hd.querySelector('[data-gmore]')), add: hd && hd.querySelector('.mc2-add').textContent,
+    const nx = hd && hd.nextElementSibling; let lastOfGrp = null; for (let e = hd.nextElementSibling; e && !e.classList.contains('mc2-sv'); e = e.nextElementSibling) lastOfGrp = e;
+    return { vis: !!L.getClientRects().length, n: hd && hd.querySelector('.mc2-n').textContent, more: !!(hd && hd.querySelector('[data-gmore]')), add: !hd.querySelector('.mc2-add,[data-add]') && lastOfGrp && lastOfGrp.classList.contains('mc2-addrow') ? lastOfGrp.textContent : null,
+      addH: lastOfGrp && Math.round(lastOfGrp.getBoundingClientRect().height), hdH: Math.round(hd.getBoundingClientRect().height), sum: hd.querySelector('.mc-sv-sum').textContent,
       top: rows[0] && rows[0].querySelector('.mc2-top .mc-nm').textContent, bot: rows[0] && rows[0].querySelector('.mc2-bot').textContent, yen: rows[0] && (rows[0].querySelector('.mc2-yen') || {}).textContent,
       tag: rows[1] && (rows[1].querySelector('.mc2-tag') || {}).textContent, hmin: Math.min(...rows.map(r => r.getBoundingClientRect().height)) };
   });
-  ok('スマホ：見出しは 名前・行数・売・［⋯］・［＋ 明細を追加］', mc.vis && /^\d+行$/.test(mc.n) && mc.more && mc.add === '＋ 明細を追加', mc);
+    ok('スマホ：見出しは 1 段（名前・行数・売・［⋯］）・［＋ 明細を追加］はグループのいちばん下（44px）', mc.vis && /^\d+行$/.test(mc.n) && mc.more && mc.add === '＋ 明細を追加' && mc.addH >= 44 && mc.hdH <= 60, mc);
+  ok('スマホ：見出しの金額は「売 ¥…」（JPY 換算・外貨があれば ※）・通貨別の内訳は出さない', /^売 ¥[\d,]+※$/.test(mc.sum) && !/USD/.test(mc.sum), mc.sum);
   ok('スマホ：1 行＝2 段（上段 項目名＋札・下段 数量 × 単位 ・ 売の小計）・44px 以上', mc.top && /×/.test(mc.bot) && /・/.test(mc.bot) && mc.tag === '要調査' && mc.hmin >= 44, mc);
   ok('スマホ：外貨の行は小計の下に ≈ 円', /^≈ ¥[\d,]+$/.test(mc.yen || ''), mc);
   ok('スマホ：見出しの［⋯］で見出しのメニュー（複製・注記・見積書から外す）', await p.evaluate(async () => { document.querySelector('#mcList [data-gmore]').click(); await new Promise(r => setTimeout(r, 200)); const m = document.getElementById('gbMenu'); const t = m && !m.hidden ? m.textContent : ''; document.body.click(); return /複製/.test(t) && /見積書から外す/.test(t); }));
