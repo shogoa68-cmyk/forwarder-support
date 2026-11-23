@@ -40,6 +40,8 @@ const { parseReport } = require('../lib/recording-steps');
   ok('連打 ×3 と通知・エラーの中身', r0.steps[11].times === 3 && r0.steps[7].type === 'warn' && /入力が足りません/.test(r0.steps[7].msg) && /TypeError/.test(r0.steps[8].msg), r0.steps[11]);
   ok('節（起きたこと・エラー）も読める', /あ/.test(r0.sections['起きたこと']) && r0.errors.length === 1 && r0.hasRecording, r0.errors);
   ok('最後の注意書き（記録 …）はエラーに混ざらない', parseReport(body + '\n（記録 0:14・12手順。伏せています）').errors.length === 1);
+  ok('処理の方法：書かれていない古い報告はバッチ・リアルタイムは realtime', r0.mode === 'batch' && parseReport('【処理の方法】⚡ リアルタイム（すぐ直す）\n' + body).mode === 'realtime');
+  ok('【処理の方法】の行があっても手順は同じに読める', parseReport('【処理の方法】🕐 バッチ（まとめて直す）\n\n' + body).steps.length === 12);
   ok('見張り番の報告でない本文は手順なし', !parseReport('ただの報告').hasRecording && parseReport('ただの報告').steps.length === 0);
 
   // ② fetch-feedback（偽の RPC サーバー）
@@ -47,6 +49,8 @@ const { parseReport } = require('../lib/recording-steps');
     { report_no: 11, status: 'open', category: 'バグ報告', body: 'ふつうの報告', context: {} },
     { report_no: 12, status: 'open', category: 'バグ報告', body, context: { recording: { steps: 12, seconds: 14, marks: 1, errors: 1 } } },
     { report_no: 13, status: 'resolved', category: 'バグ報告', body, context: {} },
+    { report_no: 14, status: 'open', category: 'バグ報告', body: '【処理の方法】⚡ リアルタイム（すぐ直す）\n\n' + body, context: { recording: { steps: 12, mode: 'realtime' } } },
+    { report_no: 15, status: 'open', category: 'バグ報告', body: '【処理の方法】🕐 バッチ（まとめて直す）\n\n' + body, context: { recording: { steps: 12, mode: 'realtime' } } },
   ];
   const rpc = http.createServer((q, r) => { let b = ''; q.on('data', d => (b += d)); q.on('end', () => { r.writeHead(200, { 'Content-Type': 'application/json' }); r.end(JSON.stringify(rows)); }); });
   await new Promise(r => rpc.listen(0, '127.0.0.1', r));
@@ -54,7 +58,12 @@ const { parseReport } = require('../lib/recording-steps');
   // 偽サーバーは同じプロセスにいるので、子プロセスは非同期で呼ぶ（同期だとサーバーが応答できず固まる）
   const run = (args) => new Promise(res => execFile('node', [path.join(root, 'scripts', 'fetch-feedback.js')].concat(args), { env, encoding: 'utf8' }, (err, stdout, stderr) => res({ status: err ? (err.code || 1) : 0, stdout, stderr })));
   const a = (await run(['--recordings', '--status', 'open'])).stdout;
-  ok('--recordings --status open：再現記録つきの未対応だけ（#12 のみ）', /#12/.test(a) && !/#11/.test(a) && !/#13/.test(a), a.slice(0, 300));
+  ok('--recordings --status open：再現記録つきの未対応だけ（#11・#13 は出ない）', /#12/.test(a) && !/#11/.test(a) && !/#13/.test(a), a.slice(0, 300));
+  const rt = (await run(['--recordings', '--mode', 'realtime'])).stdout;
+  ok('--mode realtime：リアルタイムを選んだ報告だけ（本文の選び直しを優先）', /#14/.test(rt) && !/#15/.test(rt) && !/#12/.test(rt), rt.slice(0, 300));
+  const bt = (await run(['--recordings', '--status', 'open', '--mode', 'batch'])).stdout;
+  ok('--mode batch：バッチの報告（行の無い古い記録もバッチ扱い）', /#12/.test(bt) && /#15/.test(bt) && !/#14/.test(bt), bt.slice(0, 300));
+  ok('一覧に処理の方法が出る', /処理の方法: ⚡ リアルタイム/.test(rt), rt);
   ok('一覧に「再現記録つき」の行が出る', /🔴 再現記録つき: 12手順/.test(a), a);
   const raw = (await run(['--report', '12', '--raw'])).stdout;
   ok('--report 12 --raw：本文だけ（そのまま再生に渡せる）', raw.startsWith('【起きたこと】') && raw.includes('【再現手順（自動記録）】') && !raw.includes('# 不具合報告'), raw.slice(0, 80));
@@ -86,6 +95,8 @@ const { parseReport } = require('../lib/recording-steps');
   await p.fill('#tableBody tr[id^="row-"] [data-field="pp"]', '12345.5'); await p.keyboard.press('Tab');
     await p.evaluate(() => { console.error('テスト用のエラー ABC'); });
   await p.keyboard.press('Control+Shift+L');
+  await p.waitForSelector('#fbBrecMode');
+  await p.click('#fbBrecMode [data-mode="batch"]');
   await p.waitForSelector('#fbOverlay.open');
   const recBody = await p.evaluate(() => document.getElementById('fbBody').value);
   const catLabel = await p.evaluate(() => { const o = document.querySelector('#tableBody tr[id^="row-"] [data-field="cat"]').options; return o[1] ? o[1].text : ''; });

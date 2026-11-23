@@ -406,6 +406,7 @@
   function fbOpenQuick() {
     if (typeof window.openFeedback !== 'function') return;
     window.openFeedback('全体');
+    const recSw = $('fbBrecModeSw'); if (recSw) recSw.hidden = true;      // 見張り番の「処理の方法」は再現記録のときだけ（bug-recorder.js が出し直す）
     const secSel = $('fbSection'); if (secSel) secSel.value = 'わからない';     // 該当セクションは任意（開いていた画面は自動で記録される）
     const r = document.querySelector('#fbForm input[name="fbCategory"][value="バグ報告"]');
     if (r) { r.checked = true; const lab = r.closest('.fb-radio'); if (lab) { document.querySelectorAll('#fbForm .fb-radio').forEach(x => x.classList.remove('checked')); lab.classList.add('checked'); } }

@@ -381,6 +381,7 @@ IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案�
 - **🚩 ここが不具合**（バーのボタン）：その瞬間の画面の状態を控える（報告の「不具合に気づいた時点の画面の状態」）。
 - **再読み込みしても続く**（`sessionStorage fwd.bugRec_v1`・「（ページを再読み込みした）」の印）。報告フォームを開いている間は始まらない。✕で記録を捨てる。
 - 報告の `context.recording`（手順数・秒・目印数・エラー数）は、本文に「【再現手順（自動記録）】」がある報告にだけ添える（`feedback.js buildContext`）。`bugRecToggle／Start／Stop／Mark／Active` を公開。
+- **記録が終わったら「処理の方法」を選ぶ（2026-11）**：止めると、報告フォームの前に選択画面 `#fbBrecMode`（⚡ リアルタイム処理＝すぐ直す・ほかの報告より先／🕐 バッチ処理＝ほかの報告とまとめて決まった時間に）。Esc で閉じたときはバッチ（記録は消えない）。選んだ結果は本文の先頭の行 `【処理の方法】…`・`context.recording.mode`（`realtime`／`batch`）・題名の ⚡（リアルタイムのとき）に入り、報告フォームの本文の上の切替 `#fbBrecModeSw` で選び直せる（`bugRecSetMode`・本文と context の両方を書き換える・ふつうの報告では隠す＝`fbOpenQuick`）。`fetch-feedback.js --mode realtime|batch`（本文の行を優先→context→古い記録はバッチ）・`recording-steps.js parseReport().mode`・一覧に「処理の方法」。**いまは選んだ結果を記録するだけで、時間を決めて自動で動く仕組み（定期実行）はまだ無い**＝AI はユーザーが `/fix-reports realtime` などと頼んだときに、リアルタイムを先に扱う。`.claude/commands/fix-reports.md` は以前 `.gitignore`（`.claude/*`）で追跡されず失われていたため作り直し、`!.claude/commands/` を足して追跡するようにした。
 - **未実施**：画面の写真の自動撮影（報告フォームの「📸 画面を撮る」から添付できる）・定期実行（予約した作業が毎日報告を読む）・報告の状態の自動更新（AI 用の読み取り口は読み取り専用）。
 - テストは `scripts/design-tests/bug-recorder-test.js`（現行／`THEME=1`・約 35 項目）。❓カードは 7 行になった（`fab-hint-test.js` を更新）。
 

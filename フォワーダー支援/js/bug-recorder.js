@@ -224,10 +224,12 @@
   function fmtSteps(r) {
     return r.steps.map((s, i) => (i + 1) + '. [' + mmss(s.t) + (s.tab ? '・' + s.tab : '') + '] ' + s.text + (s.n > 1 ? ' ×' + s.n : '')).join('\n');
   }
-  function buildReport(r) {
+  function buildReport(r, mode) {
     const marks = r.steps.filter(s => s.snap);
     const dur = Math.round((Date.now() - r.t0) / 1000);
     const lines = [
+      modeLine(mode),
+      '',
       '【起きたこと】（何がおかしかったか、ここに書いてください）',
       '',
       '【本当はこうなるはず】（期待していた動きを、ここに書いてください）',
@@ -243,23 +245,87 @@
     lines.push('', '（記録 ' + mmss(dur) + '・' + r.steps.length + '手順。金額などの数字・自由入力の文字は伏せています。送る前に内容を確認・修正できます）');
     return lines.join('\n');
   }
+  // ---------------- 処理の方法（記録が終わったあとに選ぶ） ----------------
+  //   realtime＝⚡ すぐ直す（ほかの報告より先に・届いたら早めに AI が取りかかる）
+  //   batch   ＝🕐 まとめて直す（ほかの報告と一緒に、決まった時間にまとめて）
+  //   選んだ結果は本文の【処理の方法】と context.recording.mode に入る（scripts/fetch-feedback.js --mode で絞れる）
+  const MODES = {
+    realtime: { label: '⚡ リアルタイム（すぐ直す）', short: 'リアルタイム' },
+    batch: { label: '🕐 バッチ（まとめて直す）', short: 'バッチ' },
+  };
+  function chooseMode(done) {
+    const old = $('fbBrecMode'); if (old) old.remove();
+    const w = document.createElement('div');
+    w.id = 'fbBrecMode'; w.className = 'fb-brec-mode';
+    w.innerHTML = '<div class="fb-brec-mode-box" role="dialog" aria-modal="true" aria-labelledby="fbBrecModeT">'
+      + '<h3 id="fbBrecModeT">記録が終わりました。この不具合をどう直しますか？</h3>'
+      + '<button type="button" class="fb-brec-mode-btn is-rt" data-mode="realtime"><b>⚡ リアルタイム処理</b><span>すぐ直してほしいとき。ほかの報告より先に取りかかります。</span></button>'
+      + '<button type="button" class="fb-brec-mode-btn" data-mode="batch"><b>🕐 バッチ処理</b><span>急がないとき。ほかの報告とまとめて、決まった時間に直します。</span></button>'
+      + '<p class="fb-brec-mode-note">このあと報告の下書きが開きます。送る前に、選び直すこともできます。</p>'
+      + '</div>';
+    document.body.appendChild(w);
+    let fin = false;
+    const pick = m => {
+      if (fin) return; fin = true;
+      document.removeEventListener('keydown', onEsc, true);
+      w.remove();
+      done(MODES[m] ? m : 'batch');
+    };
+    const onEsc = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); pick('batch'); } };   // 閉じたときは急がない方
+    document.addEventListener('keydown', onEsc, true);
+    w.addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (b) pick(b.dataset.mode); });
+    try { w.querySelector('[data-mode]').focus(); } catch (e) {}
+  }
+  function modeLine(m) { return '【処理の方法】' + (MODES[m] || MODES.batch).label; }
+  // 報告フォームで選び直したとき（本文の行を書き換える）
+  function setMode(m) {
+    if (!MODES[m]) return;
+    if (window.__fbRecCtx) window.__fbRecCtx.mode = m;
+    const body = $('fbBody');
+    if (body && /【処理の方法】[^\n]*/.test(body.value)) {
+      body.value = body.value.replace(/【処理の方法】[^\n]*/, modeLine(m));
+      body.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    const sw = $('fbBrecModeSw');
+    if (sw) sw.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+  }
+  function mountModeSwitch(m) {
+    const body = $('fbBody'); if (!body) return;
+    let sw = $('fbBrecModeSw');
+    if (!sw) {
+      sw = document.createElement('div');
+      sw.id = 'fbBrecModeSw'; sw.className = 'fb-brec-modesw';
+      sw.innerHTML = '<span>処理の方法：</span>'
+        + '<button type="button" data-mode="realtime">⚡ リアルタイム</button>'
+        + '<button type="button" data-mode="batch">🕐 バッチ</button>';
+      sw.addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (b) setMode(b.dataset.mode); });
+      body.parentNode.insertBefore(sw, body);
+    }
+    sw.hidden = false;
+    setMode(m);
+  }
   function stop() {
     if (!rec) return;
     const r = rec;
     rec = null;
     try { sessionStorage.removeItem(KEY); } catch (e) {}
     detach();
-    window.__fbRecCtx = { steps: r.steps.length, seconds: Math.round((Date.now() - r.t0) / 1000), marks: r.steps.filter(s => s.snap).length, errors: r.errors.length };
+    const ctx = { steps: r.steps.length, seconds: Math.round((Date.now() - r.t0) / 1000), marks: r.steps.filter(s => s.snap).length, errors: r.errors.length };
+    chooseMode(m => openReport(r, Object.assign(ctx, { mode: m })));
+  }
+  function openReport(r, ctx) {
+    window.__fbRecCtx = ctx;
     if (typeof window.fbOpenQuick !== 'function') { toast('⚠ 報告フォームを開けませんでした', 'warn'); return; }
     window.fbOpenQuick();
     const body = $('fbBody');
     if (body) {
-      body.value = buildReport(r);
+      body.value = buildReport(r, ctx.mode);
       body.dispatchEvent(new Event('input', { bubbles: true }));
       try { body.focus(); body.setSelectionRange(0, 0); body.scrollTop = 0; } catch (e) {}
     }
+    mountModeSwitch(ctx.mode);
     const t = $('fbTitle');
-    if (t && !t.value) t.value = '（再現記録）';
+    if (t && !t.value) t.value = (ctx.mode === 'realtime' ? '⚡' : '') + '（再現記録）';
   }
   function toggle() { if (rec) stop(); else start(); }
 
@@ -286,4 +352,5 @@
   window.bugRecStop = stop;
   window.bugRecMark = mark;
   window.bugRecActive = () => !!rec;
+  window.bugRecSetMode = setMode;
 })();

@@ -13,6 +13,7 @@
  *
  *   ・--status を付けるとその状態だけ。省略時は全件（解決済み/対応しないは直近10件のみ表示）
  *   ・--json は整形せず JSON のまま出力
+ *   ・--mode realtime|batch は、見張り番の記録のあとに選んだ「処理の方法」で絞る（本文の【処理の方法】→ context.recording.mode の順に見る）
  *   ・--recordings は、見張り番（js/bug-recorder.js）の「再現手順つき」の報告だけ（本文に【再現手順（自動記録）】がある）
  *   ・--report 12 は、その 1 件（報告番号 #12）だけ。--raw を足すと本文だけを出す
  *     （scripts/replay-recording.js へそのまま渡せる：… --report 12 --raw > 報告.txt）
@@ -61,6 +62,15 @@ async function main() {
   if (!Array.isArray(rows)) rows = [];
   const st = arg('--status', '');
   if (typeof st === 'string' && st) rows = rows.filter(r => (r.status || 'open') === st);
+  // 処理の方法（見張り番の記録のあとに選ぶ）：本文の【処理の方法】を優先（送る前に書き換えられるため）、無ければ context
+  const modeOf = r => {
+    const m = String(r.body || '').match(/【処理の方法】([^\n]*)/);
+    if (m) return /リアルタイム/.test(m[1]) ? 'realtime' : 'batch';
+    const c = (r.context && r.context.recording) || null;
+    return c ? (c.mode === 'realtime' ? 'realtime' : 'batch') : '';
+  };
+  const md = arg('--mode', '');
+  if (md && md !== true) rows = rows.filter(r => modeOf(r) === md);
   if (arg('--recordings', false)) rows = rows.filter(r => String(r.body || '').indexOf('【再現手順（自動記録）】') >= 0);
   const one = arg('--report', '');
   if (one && one !== true) {

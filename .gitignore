@@ -8,6 +8,7 @@
 !.claude/agents/
 !.claude/settings.json
 !.claude/hooks/
+!.claude/commands/
 
 # ========== バックアップファイル群 ==========
 # Phase 2b / 2c で量産したもの + ユーザー手動バックアップ

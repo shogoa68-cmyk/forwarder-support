@@ -3,7 +3,7 @@
  * recording-steps.js — 見張り番（フォワーダー支援/js/bug-recorder.js）が作った報告の本文から、
  * 「再現手順（自動記録）」を構造に戻す（純粋関数・ブラウザ不要）。
  *
- *   parseReport(body) → { steps:[…], sections:{…}, errors:[…] }
+ *   parseReport(body) → { steps:[…], sections:{…}, errors:[…], mode:'realtime'|'batch' }
  *
  * steps の 1 件：{ n, t, tab, times, kind, … }
  *   kind='click'   : { label, id, row }        「ラベル #id」を押す（明細N行目）
@@ -85,7 +85,9 @@ function parseReport(body) {
   const errText = sections['記録中に出たエラー'] || '';
   // 「- 」で始まる行だけがエラー（最後の節の末尾にある「（記録 …）」の注意書きは含めない）
   const errors = errText.split('\n').filter(l => /^-\s+/.test(l)).map(l => l.replace(/^-\s+/, '').trim()).filter(Boolean);
-  return { steps, sections, errors, hasRecording: raw.length > 0 };
+  // 処理の方法（見張り番の記録のあとに選ぶ）：realtime｜batch（書かれていない古い報告は batch）
+  const mode = /リアルタイム/.test(sections['処理の方法'] || '') ? 'realtime' : 'batch';
+  return { steps, sections, errors, mode, hasRecording: raw.length > 0 };
 }
 
 module.exports = { parseReport, parseStepText, FIELD_BY_LABEL };
