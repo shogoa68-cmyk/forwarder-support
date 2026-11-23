@@ -122,3 +122,63 @@ body:has(#quoteDocOverlay.open) #quoteActionDock { display: none !important; }
 #quoteDocOverlay .qd-inp select { flex: 1 1 auto; min-width: 0; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; font-size: var(--text-sm, 13px); padding: 0; cursor: pointer; }
 #quoteDocOverlay .qd-inp select:focus { outline: none; }
 #quoteDocOverlay .qd-inp select option { color: #1d2433; background: #fff; }
+
+/* ===== Design 42-1：プレビュー（表計算）の既定の列を減らす ===== */
+/* 円換算の列を出しているときは、小計の横の「≈¥」は出さない（重ねない） */
+#tab-quote-make #previewTable:not(.pv-jpy-off) td.pv-subtotal .pv-jpy-hint { display: none; }
+#tab-quote-make #previewTable.pv-jpy-off td.pv-subtotal .pv-jpy-hint {
+  font-size: 12px; color: #667085; font-style: normal;
+}
+/* それでも溢れるときだけ、左の 3 列を止める（境目に右向きの薄い影） */
+#tab-quote-make #previewTable.pv-stick-lead [data-pv-stk] { position: sticky; z-index: 2; }
+#tab-quote-make #previewTable.pv-stick-lead td[data-pv-stk] { background: var(--surface, #fff); }
+#tab-quote-make #previewTable.pv-stick-lead thead [data-pv-stk] { z-index: 3; }
+#tab-quote-make #previewTable.pv-stick-lead [data-pv-stk="last"] { box-shadow: 6px 0 6px -6px rgba(16, 24, 40, .28); }
+
+/* ===== Design 42-2：プレビューのスマホの上部は 1 行 ===== */
+#tab-quote-make #previewBox .pv-ph-title,
+#tab-quote-make #previewBox .pv-more-btn,
+#tab-quote-make #previewBox .pv-more-menu,
+#tab-quote-make #previewBox .pv-ph-sum { display: none; }
+@media (max-width: 600px) {
+  #tab-quote-make #previewBox .pv-main-head {
+    flex-wrap: nowrap !important; align-items: center; gap: 6px; min-height: 56px; padding: 6px 8px !important; position: relative;
+  }
+  #tab-quote-make #previewBox .pv-main-title,
+  #tab-quote-make #previewBox .pv-main-sp,
+  #tab-quote-make #previewBox .pv-btns .pv-btn-email-plain,
+  #tab-quote-make #previewBox .pv-btns .pv-btn-excel,
+  #tab-quote-make #previewBox .pv-btns .pv-btn-grp { display: none !important; }
+  #tab-quote-make #previewBox .pv-ph-title { display: block; flex: 1 1 auto; min-width: 0; font-weight: 700; font-size: var(--text-base, 16px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #tab-quote-make #previewBox .pv-btns { display: flex; flex-wrap: nowrap; gap: 6px; margin: 0; }
+  #tab-quote-make #previewBox .pv-set-btn,
+  #tab-quote-make #previewBox .pv-more-btn,
+  #tab-quote-make #previewBox .pv-btns > button { min-height: 44px; min-width: 44px; padding: 0 10px; white-space: nowrap; }
+  #tab-quote-make #previewBox .pv-more-btn {
+    display: inline-flex; align-items: center; justify-content: center; border: 1px solid #98a2b3; border-radius: 6px;
+    background: var(--surface, #fff); font-weight: 700; font-size: 18px; line-height: 1;
+  }
+  /* 閉じるは ✕ の印だけ（幅が足りないため・名前は title／読み上げで伝える） */
+  #tab-quote-make #previewBox .pv-btns .pv-btn-close { font-size: 0 !important; width: 44px; padding: 0 !important; }
+  #tab-quote-make #previewBox .pv-btns .pv-btn-close::before { content: "✕"; font-size: 18px; }
+  #tab-quote-make #previewBox .pv-main-head > button,
+  #tab-quote-make #previewBox .pv-btns,
+  #tab-quote-make #previewBox .pv-btns > button { flex: 0 0 auto; }
+  #tab-quote-make #previewBox .pv-set-btn, #tab-quote-make #previewBox .pv-btns > .pv-btn-pdf { padding: 0 8px !important; font-size: var(--text-sm, 14px); }
+  #tab-quote-make #previewBox .pv-more-menu:not([hidden]) {
+    display: flex; flex-direction: column; position: absolute; right: 8px; top: 54px; z-index: 10061; min-width: 180px; padding: 4px;
+    background: var(--surface, #fff); border: 1px solid #d0d5dd; border-radius: 8px; box-shadow: 0 8px 24px rgba(16,24,40,.18);
+  }
+  #tab-quote-make #previewBox .pv-more-menu button { min-height: 44px; text-align: left; padding: 0 12px; border: 0; background: transparent; font-size: var(--text-sm, 14px); border-radius: 6px; }
+  #tab-quote-make #previewBox .pv-more-menu button:hover { background: var(--surface-2, #f2f4f7); }
+  #tab-quote-make #previewBox .pv-ph-sum:not([hidden]) { display: block; font-size: 13px; color: var(--text-sub, #5a6475); padding: 4px 12px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 見積番号・お客様の欄は要約の 1 行に置き換え（発行日・有効期限は ⚙ の中） */
+  #tab-quote-make #previewBox #pvMeta { display: none !important; }
+  #tab-quote-make #previewBox.pv-rail-open .pv-rail #pvDateEdit { display: flex !important; flex-direction: column; gap: 8px; }
+}
+@media (max-width: 600px) {
+  /* 上の 1 行に題名まで入るよう、外側の余白を詰める */
+  #tab-quote-make #previewOverlay { padding: 8px 6px !important; }
+  #tab-quote-make #previewBox .pv-main-head { gap: 4px !important; }
+  #tab-quote-make #previewBox .pv-ph-title { font-size: 14px; min-width: 64px; }
+}
