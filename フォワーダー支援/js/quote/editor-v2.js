@@ -394,7 +394,10 @@
     b.id = 'hdrEditorV2Btn'; b.href = '#'; b.className = ref ? ref.className : ''; b.setAttribute('role', 'button');
     b.addEventListener('click', e => { e.preventDefault(); window.editorV2Toggle(); });
     const lab = document.createElement('p'); lab.className = 'hdr-panel-label'; lab.textContent = '画面の切替';
-    panel.appendChild(lab); panel.appendChild(b); syncBtn(); return true;
+    // Design 42-6：旧い画面は動く状態を保つだけ（新しい機能・見た目の改修は新しい画面だけ）
+    const note = document.createElement('p'); note.id = 'hdrEditorV2Note'; note.className = 'hdr-panel-note';
+    note.textContent = '旧い画面では一部の新しい機能は使えません';
+    panel.appendChild(lab); panel.appendChild(b); panel.appendChild(note); syncBtn(); return true;
   }
 
   document.addEventListener('DOMContentLoaded', () => {

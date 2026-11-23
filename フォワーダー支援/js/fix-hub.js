@@ -45,6 +45,30 @@
     val.addEventListener('click', e => { if (e.target.closest('button, a, input, select')) return; flip(); });
     bar.querySelector('.fh-more').addEventListener('click', e => { const o = tr.classList.toggle('fh-more-on'); e.currentTarget.setAttribute('aria-expanded', o); });
     bar.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b) act(b.dataset.act, tr, kind, field); });
+    // Design 42-5：スマホでは表記ごとの「☆ 登録」と「☆ マスターに登録」を 1 つのボタンにし、押すと下から 2 択
+    tr.querySelectorAll('.stats-chip').forEach(c => {
+      const v = c.querySelector('.stats-vote-btn'), sy = c.querySelector('.stats-syn-star');
+      if (!v || !sy || c.querySelector('.fh-star1')) return;
+      const one = document.createElement('button'); one.type = 'button'; one.className = 'fh-star1';
+      one.textContent = (v.classList.contains('stats-voted') || sy.classList.contains('on')) ? '⭐ 登録' : '☆ 登録';
+      one.addEventListener('click', e => { e.stopPropagation(); starSheet(c, v, sy); });
+      v.parentNode.insertBefore(one, v);
+    });
+  }
+  function starSheet(chip, v, sy) {
+    const old = document.getElementById('fhStarSheet'); if (old) old.remove();
+    const name = (chip.querySelector('.stats-chip-text')?.textContent || '').replace(/^\s*⭐\s*/, '').trim();
+    const w = document.createElement('div'); w.id = 'fhStarSheet'; w.className = 'sm-sheet-wrap';
+    const voted = v.classList.contains('stats-voted'), canon = sy.classList.contains('on');
+    w.innerHTML = '<div class="sm-sheet-bg"></div><div class="sm-sheet" role="dialog" aria-label="登録のしかた"><div class="sm-sheet-head"><b>「' + esc(name) + '」を登録</b><button type="button" class="sm-btn" data-x aria-label="閉じる">✕</button></div>' +
+      '<div class="fh-star-opts"><button type="button" class="fh-star-opt" data-k="v">' + (voted ? '⭐ 自分の登録を外す' : '☆ 登録（自分の分だけ）') + '</button>' +
+      '<button type="button" class="fh-star-opt" data-k="s">' + (canon ? '⭐ マスターの設定を外す' : '☆ マスターに登録（チームで使う）') + '</button></div></div>';
+    document.body.appendChild(w);
+    w.addEventListener('click', e => {
+      if (e.target.classList.contains('sm-sheet-bg') || e.target.closest('[data-x]')) { w.remove(); return; }
+      const o = e.target.closest('[data-k]'); if (!o) return;
+      w.remove(); (o.dataset.k === 'v' ? v : sy).click();
+    });
   }
   function enhance() {
     if (busy) return; busy = true;

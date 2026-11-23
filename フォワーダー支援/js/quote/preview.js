@@ -783,7 +783,7 @@
         html += `<tr class="pv-subcon-subtotal pv-grp-c${(d.gi ?? 0) % 4}">
           <td colspan="6" class="pv-scs-label pv-scs-label--split" style="${_scStyle}text-align:right !important;">↳ 小計${internalBits}</td>
           <td data-ft-col="pay" class="pv-num pv-scs-costcol" style="${_scStyle}">${costCell}</td>
-          <td data-ft-col="pay" style="${_scStyle}"></td>
+          <td data-ft-col="cd" style="${_scStyle}"></td>
           <td data-ft-col="bill" style="${_scStyle}"></td>
           <td data-ft-col="bill" style="${_scStyle}"></td>
           <td data-ft-col="bill" style="${_scStyle}"></td>
@@ -948,7 +948,7 @@
         <td data-ft-col="unit"></td>
         <td data-ft-col="pay"></td>
         <td data-ft-col="pay"></td>
-        <td data-ft-col="pay"></td>
+        <td data-ft-col="cd"></td>
         <td data-ft-col="bill"></td>
         <td data-ft-col="bill" class="pv-ccy-badge">${escHtml(ccy)}</td>
         <td data-ft-col="bill"></td>

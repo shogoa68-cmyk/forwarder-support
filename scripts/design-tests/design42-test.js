@@ -91,6 +91,15 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('3：旧い見積（使う ✓ が 2 本）は一番上の 1 本を採用に', await p.evaluate(() => JSON.stringify(window.getConditions().routes.map(r => r.carrier)) === '["A"]'));
   if (OUT) await p.screenshot({ path: OUT + '/d42-route' + (PHONE ? '-phone' : '') + '.png', fullPage: false });
 
+  // ===== 6：旧い画面の注意書き =====
+  ok('6：☰ の「画面の切替」の横に「旧い画面では一部の新しい機能は使えません」', await p.evaluate(() => { const n = document.getElementById('hdrEditorV2Note'); return !!n && /旧い画面では一部の新しい機能は使えません/.test(n.textContent) && n.previousElementSibling && n.previousElementSibling.id === 'hdrEditorV2Btn'; }));
+  // ===== 5：KPI の空の状態（スマホ） =====
+  await p.evaluate(() => { const b = document.querySelector('.cat-btn[aria-controls="tab-stats"]'); if (b) b.click(); else if (window.switchCategory) window.switchCategory('stats'); });
+  await p.waitForTimeout(700);
+  await p.evaluate(() => (window.smOpenPane && matchMedia('(max-width: 600px)').matches) ? window.smOpenPane('kpi') : window.statsSetPane('kpi')); await p.waitForTimeout(300);
+  if (PHONE) ok('5：スマホの KPI は空の状態のカード', await vis('#statsPane-kpi .sm-kpi-empty') && !(await vis('#statsPane-kpi .stats-empty')));
+  else ok('5：PC の KPI は従来の案内のまま', !(await vis('#statsPane-kpi .sm-kpi-empty')));
+
   ok('JS エラーなし', errs.length === 0, errs);
   await b.close(); srv.close();
   console.log(fails ? `\n${fails} 件 FAIL` : '\nALL PASS'); process.exit(fails ? 1 : 0);

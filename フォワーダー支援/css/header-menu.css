@@ -64,3 +64,6 @@
 .header .hdr-icon-btn.is-acct.has-name { overflow: hidden; }
 .header .hdr-icon-btn.is-acct.has-name .hdr-cloud-avatar { width: 30px; height: 30px; border-radius: 50%; font-size: 13px; }
 @media (max-width: 600px) { .header .hdr-icon-btn.is-acct.has-name .hdr-cloud-avatar { width: 34px; height: 34px; } }
+
+/* Design 42-6：画面の切替の横の小さな注意書き */
+#hdrMenuPanel .hdr-panel-note { margin: 2px 12px 8px; font-size: 12px; line-height: 1.5; color: var(--text-sub, #5a6475); }
