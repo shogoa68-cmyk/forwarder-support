@@ -39,6 +39,7 @@
     // サブコンごと（出てきた順）→ パターン（変わったところだけ見出し）
     const groups = []; const idx = {};
     rows.forEach(r => { const k = r.sv || '\u0000'; if (!(k in idx)) { idx[k] = groups.length; groups.push({ sv: r.sv, items: [] }); } groups[idx[k]].items.push(r); });
+    if (document.documentElement.classList.contains('editor-v2')) { listEl.innerHTML = renderV2(groups, rows); wire(); return; }
     let h = '';
     groups.forEach(g => {
       const last = g.items[g.items.length - 1];
@@ -60,10 +61,61 @@
     h += addBtn() + '<div class="mc-total"><span class="mc-total-l">合計（売）</span><span class="mc-total-v">' + sumHtml(sums(rows)) + '</span>' + (tot && tot !== '—' ? '<small>見積合計 ' + esc(tot) + '</small>' : '') + '</div>';
     listEl.innerHTML = h; wire();
   }
+  // Design 50（案A・7）：新しい画面のスマホは、見出し＝Design 43 の形（名前・行数・売・［⋯］・［＋ 明細を追加］）、1 行＝2 段のカード
+  //   上段「項目名＋状態の札（1 つまで・+N）／入力完了は ✓」、下段「数量 × 単位 ・ 売の小計（太字）」。外貨は小計の下に ≈ 円
+  function badgeV2(r) {
+    const why = r.tr.dataset.outReason || '';
+    const list = [];
+    if (r.pending) list.push(['要調査', 'is-warn']);
+    if (r.hidden) list.push(['見積書に出さない', 'is-mute']);
+    if (r.out) list.push([why === 'condition' ? '条件外' : why === 'incoterms' ? '貿易条件外' : '期間外', 'is-mute']);
+    if (!list.length) return r.done ? '<b class="mc2-ok" title="入力完了' + (r.doneText ? '（' + esc(r.doneText) + '）' : '') + '">✓</b>' : '';
+    const t = list.map(x => x[0]).join('・');
+    return '<b class="mc2-tag ' + list[0][1] + '" title="' + esc(t) + '">' + esc(list[0][0]) + '</b>' + (list.length > 1 ? '<b class="mc2-tag is-more" title="' + esc(t) + '">+' + (list.length - 1) + '</b>' : '') + (r.done ? '<b class="mc2-ok" title="入力完了">✓</b>' : '');
+  }
+  function yenOf(r) {
+    if (r.ccy === 'JPY' || !r.amount || typeof window.toJPY !== 'function') return '';
+    try { const y = window.toJPY(r.amount, r.ccy); return isFinite(y) && y ? '≈ ¥' + Math.round(y).toLocaleString('ja-JP') : ''; } catch (e) { return ''; }
+  }
+  function renderV2(groups, rows) {
+    let h = '';
+    groups.forEach(g => {
+      const last = g.items[g.items.length - 1];
+      h += '<div class="mc-sv mc2-sv"><span class="mc-sv-name">' + esc(g.sv || '（サブコン未設定）') + '</span><span class="mc2-n">' + g.items.length + '行</span>' +
+        '<span class="mc-sv-sum">' + sumHtml(sums(g.items)) + '</span>' +
+        '<button type="button" class="mc2-more" data-gmore="' + esc(g.items[0].id) + '" aria-label="その他の操作" title="その他の操作">⋯</button>' +
+        '<button type="button" class="mc-add mc2-add" data-add="' + esc(last.id) + '">＋ 明細を追加</button></div>';
+      let curPt = null;
+      g.items.forEach(r => {
+        if (r.pt !== curPt && (r.pt || curPt)) h += '<div class="mc-pt">' + esc(r.pt || '（パターン設定なし）') + '</div>';
+        curPt = r.pt;
+        const yen = yenOf(r);
+        h += '<button type="button" class="mc-row mc2-row' + (r.hidden || r.out ? ' is-mute' : '') + (r.pending ? ' is-pending' : '') + '" data-row="' + esc(r.id) + '">' +
+          '<span class="mc2-top"><span class="mc-nm">' + (esc(r.nm) || '<i>（品名未入力）</i>') + '</span>' + badgeV2(r) + '</span>' +
+          '<span class="mc2-bot"><span class="mc2-q">' + esc(r.qty || '—') + (r.un ? ' × ' + esc(r.un) : '') + '</span><span class="mc2-dot">・</span>' +
+          '<b class="mc2-st">' + esc(r.st || '—') + ' <small>' + esc(r.ccy) + '</small></b></span>' +
+          (yen ? '<span class="mc2-yen">' + esc(yen) + '</span>' : '') + '</button>';
+      });
+    });
+    const tot = ($('tot-subtotal')?.textContent || '').trim();
+    return h + addBtn() + '<div class="mc-total"><span class="mc-total-l">合計（売）</span><span class="mc-total-v">' + sumHtml(sums(rows)) + '</span>' + (tot && tot !== '—' ? '<small>見積合計 ' + esc(tot) + '</small>' : '') + '</div>';
+  }
+  function openGroupMenu(btn) {
+    let tr = $(btn.dataset.gmore);
+    while (tr && !(tr.classList && tr.classList.contains('subcon-group-header'))) tr = tr.previousElementSibling;
+    if (!tr || typeof window.gbOpenMenu !== 'function') return;
+    window.gbOpenMenu(tr);
+    const m = $('gbMenu'); if (!m || m.hidden) return;
+    const r = btn.getBoundingClientRect(), w = m.offsetWidth, hh = m.offsetHeight;
+    let left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)), top = r.bottom + 4;
+    if (top + hh > window.innerHeight - 8) top = Math.max(8, r.top - hh - 4);
+    m.style.left = left + 'px'; m.style.top = top + 'px';
+  }
   const addBtn = () => '<button type="button" class="mc-addrow" data-addrow="1">＋ 行を追加</button>';
   function wire() {
     listEl.querySelectorAll('[data-row]').forEach(b => b.addEventListener('click', () => openRow(b.dataset.row)));
     listEl.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const tr = $(b.dataset.add); const btn = tr && tr.querySelector('.row-add-btn'); if (btn && window.rowAddBelow) { window.rowAddBelow(btn); schedule(); } }));
+    listEl.querySelectorAll('[data-gmore]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openGroupMenu(b); }));
     listEl.querySelectorAll('[data-addrow]').forEach(b => b.addEventListener('click', () => { if (window.addRow) { window.addRow(); schedule(); } }));
   }
   // 段階 1：行をタップしたら、実際の表をその行まで開く（編集シートは段階 2）
@@ -92,7 +144,7 @@
     $('mcModeBtn').addEventListener('click', () => { document.body.classList.toggle('mc-table-on'); setMode(); });
     const tb = $('tableBody');
     if (tb) {
-      obs = new MutationObserver(schedule); obs.observe(tb, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'data-pending', 'data-done', 'data-hide-quote', 'data-out-range'] });
+      obs = new MutationObserver(schedule); obs.observe(tb, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'data-pending', 'data-done', 'data-hide-quote', 'data-out-range', 'data-out-reason'] });
       tb.addEventListener('input', schedule); tb.addEventListener('change', schedule);
     }
     if (mq) (mq.addEventListener ? mq.addEventListener('change', apply) : mq.addListener(apply));
