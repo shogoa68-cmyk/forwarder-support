@@ -32,11 +32,18 @@ function arg(name, dflt) {
 }
 
 async function main() {
-  const url = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
-  const key = process.env.SUPABASE_ANON_KEY || '';
+  // URL と公開キー（publishable key）は公開してよい値なので、環境変数が無ければ cloud-config.js から読む
+  let cfgUrl = '', cfgKey = '';
+  try {
+    const cfg = require('fs').readFileSync(path.join(__dirname, '..', 'フォワーダー支援', 'js', 'quote', 'cloud-config.js'), 'utf8');
+    cfgUrl = ((cfg.match(/url:\s*'([^']+)'/) || [])[1]) || '';
+    cfgKey = ((cfg.match(/publishableKey:\s*'([^']+)'/) || [])[1]) || '';
+  } catch (e) {}
+  const url = (process.env.SUPABASE_URL || cfgUrl).replace(/\/+$/, '');
+  const key = process.env.SUPABASE_ANON_KEY || cfgKey;
   const token = process.env.FEEDBACK_EXPORT_TOKEN || '';
   if (!url || !key || !token) {
-    console.log('SUPABASE_URL / SUPABASE_ANON_KEY / FEEDBACK_EXPORT_TOKEN を環境変数に設定してください（docs/sql/feedback-ai-export.sql 参照）。');
+    console.log('FEEDBACK_EXPORT_TOKEN を環境変数に設定してください（docs/sql/feedback-ai-export.sql 参照。URL と公開キーは cloud-config.js から読みます）。');
     return;
   }
   const limit = Number(arg('--limit', 200)) || 200;
