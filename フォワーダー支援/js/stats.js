@@ -752,6 +752,8 @@
     return out;
   }
 
+  // 使っている案件の数（読み込み済みの案件から数える。スマホの先のお客様の一覧などから）
+  window.statsCasesCount = function (field, value) { try { return _casesUsing(field, value).length; } catch (e) { return null; } };
   // 「使用案件」ポップオーバー（body 直下に fixed 配置、既存 syn-suggest と同じ流儀）
   let _usagePop = null;
   function _usagePopOutsideClick(e) {
@@ -2806,11 +2808,13 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape') _closeOpsMenu(); });
   // 個別マスターの解除（確認つき。入力候補から外れる）
   window.statsMasterRemove = async function (field, value) {
+    // Design 42-4：使っている案件の数を出す（読み込み済みの案件から数える＝追加の通信なし）
+    let n = null;
+    try { n = _casesUsing(field, value).length; } catch (e) { n = null; }
     const ok = await window.uiConfirm({
-      title: 'マスターから解除しますか？',
-      lines: [(_FIELD_LABEL[field] || field) + '「' + value + '」を、チーム共有のマスター（入力候補）から外します。', '見積データそのものは削除されません。'],
-      irreversible: '解除すると、入力候補から消えます（再び使うには、あらためて登録・申請が必要です）。',
-      okLabel: '外す', danger: true,
+      title: '「' + value + '」をマスターから解除しますか？',
+      lines: [(n == null ? 'この名前を使っている案件があるかもしれません。' : 'この名前を使っている案件：' + n + ' 件'), '案件の中の表記はそのまま残ります（マスターの候補に出なくなるだけ）。'],
+      cancelLabel: 'やめる', okLabel: '解除する', danger: true,
     });
     if (ok) await window.statsToggleVote(field, value);
   };
