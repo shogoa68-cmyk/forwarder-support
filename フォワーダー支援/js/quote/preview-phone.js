@@ -63,9 +63,13 @@
     if (!sum) return;
     const v = id => { const e = document.getElementById(id); return e ? String(e.value || '').trim() : ''; };
     const valid = v('qf-valid-until') || v('pvDocValid');
-    const parts = [v('qf-ref'), v('qf-customer'), valid ? '有効期限 ' + valid.replace(/-/g, '/') : ''].filter(Boolean);
-    sum.textContent = parts.join(' · ');
-    sum.hidden = !parts.length;
+    // Design 42r-1：題名は要約の行の頭（「プレビュー · 番号 · お客様 · 有効 11/30」・題名だけ太字）
+    const vd = valid ? valid.replace(/^\d{4}-0?(\d+)-0?(\d+)$/, '$1/$2') : '';
+    const parts = [v('qf-ref'), v('qf-customer'), vd ? '有効 ' + vd : ''].filter(Boolean);
+    sum.innerHTML = '';
+    const b = document.createElement('b'); b.textContent = 'プレビュー'; sum.appendChild(b);
+    if (parts.length) sum.appendChild(document.createTextNode(' · ' + parts.join(' · ')));
+    sum.hidden = false;
   }
   // 発行日・有効期限の欄は、スマホでは［⚙ 設定］のシートの中へ（PC では元の場所）
   function placeDates() {

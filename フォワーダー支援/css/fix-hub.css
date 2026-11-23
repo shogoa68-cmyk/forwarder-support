@@ -38,3 +38,7 @@
 }
 #fhStarSheet .fh-star-opts { display: flex; flex-direction: column; gap: 8px; padding: 4px 16px 16px; }
 #fhStarSheet .fh-star-opt { min-height: 44px; text-align: left; padding: 0 14px; border: 1px solid #d0d5dd; border-radius: 8px; background: var(--surface, #fff); font-size: 15px; cursor: pointer; }
+#fhStarSheet .fh-star-opt { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 14px; min-height: 56px; }
+#fhStarSheet .fh-star-opt b { font-size: 15px; }
+#fhStarSheet .fh-star-opt small { font-size: 12px; color: #667085; font-weight: 400; line-height: 1.5; }
+#fhStarSheet .fh-star-opt:disabled { opacity: .65; cursor: not-allowed; background: var(--surface-2, #f2f4f7); }

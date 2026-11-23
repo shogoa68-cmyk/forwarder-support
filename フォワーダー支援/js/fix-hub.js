@@ -55,14 +55,22 @@
       v.parentNode.insertBefore(one, v);
     });
   }
+  // Design 42r-3：1 つめは「自分の 1 票」、2 つめは「マスターに登録」（承認制のメンバーは押せない理由を 1 行）
+  function starOpts(voted, canon) {
+    const restricted = typeof window.statsAliasNeedsApproval === 'function' && !!window.statsAliasNeedsApproval();
+    const o1 = '<button type="button" class="fh-star-opt" data-k="v"><b>' + (voted ? '★ 1票を入れています（取り消す）' : '☆ 自分の1票を入れる') + '</b><small>票が集まると、マスターに入れる候補になります</small></button>';
+    const o2 = restricted
+      ? '<button type="button" class="fh-star-opt" disabled><b>☆ マスターに登録（チームで使う）</b><small>マスターへの登録は管理者が行います（名前をまとめるときは「まとめるを申請」から）</small></button>'
+      : '<button type="button" class="fh-star-opt" data-k="s"><b>' + (canon ? '⭐ マスターの設定を外す' : '☆ マスターに登録（チームで使う）') + '</b><small>' + (canon ? 'チームの候補から外れます' : 'すぐにチームの候補に出ます') + '</small></button>';
+    return '<div class="fh-star-opts">' + o1 + o2 + '</div>';
+  }
   function starSheet(chip, v, sy) {
     const old = document.getElementById('fhStarSheet'); if (old) old.remove();
     const name = (chip.querySelector('.stats-chip-text')?.textContent || '').replace(/^\s*⭐\s*/, '').trim();
     const w = document.createElement('div'); w.id = 'fhStarSheet'; w.className = 'sm-sheet-wrap';
     const voted = v.classList.contains('stats-voted'), canon = sy.classList.contains('on');
     w.innerHTML = '<div class="sm-sheet-bg"></div><div class="sm-sheet" role="dialog" aria-label="登録のしかた"><div class="sm-sheet-head"><b>「' + esc(name) + '」を登録</b><button type="button" class="sm-btn" data-x aria-label="閉じる">✕</button></div>' +
-      '<div class="fh-star-opts"><button type="button" class="fh-star-opt" data-k="v">' + (voted ? '⭐ 自分の登録を外す' : '☆ 登録（自分の分だけ）') + '</button>' +
-      '<button type="button" class="fh-star-opt" data-k="s">' + (canon ? '⭐ マスターの設定を外す' : '☆ マスターに登録（チームで使う）') + '</button></div></div>';
+      starOpts(voted, canon) + '</div>';
     document.body.appendChild(w);
     w.addEventListener('click', e => {
       if (e.target.classList.contains('sm-sheet-bg') || e.target.closest('[data-x]')) { w.remove(); return; }

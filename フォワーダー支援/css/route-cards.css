@@ -26,7 +26,7 @@
 }
 #tab-quote-make .z2-rcard.is-adopt { border-color: var(--rc-ok); box-shadow: inset 3px 0 0 var(--rc-ok); background: var(--rc-ok-50); }
 #tab-quote-make .z2-rcard.is-reject { opacity: .6; }
-#tab-quote-make .z2-rcard.is-ng { opacity: .75; }
+#tab-quote-make .z2-rcard.is-ng { opacity: .6; }
 #tab-quote-make .z2-rcard.is-dragging { opacity: .4; }
 #tab-quote-make .z2-rcard.drag-over-top { box-shadow: 0 -3px 0 var(--rc-pri); }
 #tab-quote-make .z2-rcard.drag-over-bottom { box-shadow: 0 3px 0 var(--rc-pri); }
@@ -39,8 +39,12 @@
 }
 #tab-quote-make .z2-rc-badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; font-size: 12px; font-weight: 700; border: 0; }
 #tab-quote-make .z2-rc-badge.is-adopt { background: var(--rc-ok, #1e7a4a); color: #fff; }
-#tab-quote-make .z2-rc-badge.is-reject { background: #e4e7ec; color: #475467; text-decoration: line-through; }
-#tab-quote-make .z2-rc-badge.is-ng { background: #fdecea; color: #b42318; cursor: pointer; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-quote-make .z2-rc-badge.is-reject { background: #e4e7ec; color: #475467; }
+#tab-quote-make .z2-rc-badge.is-ng { background: #fdecea; color: #b42318; }
+/* 使用不可の理由（2 行目の下に 1 行） */
+#tab-quote-make .z2-rc-why { align-self: flex-start; max-width: 100%; border: 0; background: none; padding: 0; font-size: 12px; color: #8a4b45; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-quote-make .z2-rc-why.is-empty { color: #98a2b3; }
+#tab-quote-make .z2-rc-why:hover { text-decoration: underline; }
 #tab-quote-make .z2-rc-edit,
 #tab-quote-make .z2-rc-more {
   min-height: 28px; padding: 0 10px; border: 1px solid #98a2b3; border-radius: 6px; background: var(--surface, #fff);

@@ -3685,8 +3685,9 @@
       { t: r.plan ? '案の名前を変える' : '案の名前を付ける', f: () => window.editRoutePlan(i) },
       { t: _segs(r).length ? '区間を直す' : '区間を足す', f: () => window.openRouteSegs(i, anchor) },
       ad ? { t: '未定に戻す（見積書に出さない）', f: () => window.unsetRoute(i) } : null,
-      r.adopt === 'reject' ? { t: '未定に戻す', f: () => window.unsetRoute(i) } : { t: '不採用にする', f: () => window.rejectRoute(i) },
-      { t: r.ng ? '使用不可を解除する' : '使用不可にする', f: () => toggleRouteNg(i) },
+      r.ng ? null : (r.adopt === 'reject' ? { t: '未定に戻す', f: () => window.unsetRoute(i) } : { t: '不採用にする', f: () => window.rejectRoute(i) }),
+      { t: r.ng ? '使用不可を解除' : '使用不可にする', f: () => toggleRouteNg(i) },
+      r.ng ? { t: '理由を直す', f: () => editRouteNgReason(i) } : null,
       '-',
       i > 0 ? { t: '上へ', f: () => moveRouteEntry(i, -1) } : null,
       i < n - 1 ? { t: '下へ', f: () => moveRouteEntry(i, 1) } : null,
@@ -3799,7 +3800,9 @@
     if (r.actualCarrier) extra.push('実運送人 ' + _escMulti(r.actualCarrier));
     if (r.icd) extra.push('🚉 ' + _escMulti(r.icd));
     const badge = ad ? '<span class="z2-rc-badge is-adopt">✓ 採用</span>' : rej ? '<span class="z2-rc-badge is-reject">不採用</span>' : '';
-    const ngTag = ng ? `<button type="button" class="z2-rc-badge is-ng" onclick="editRouteNgReason(${i})" title="${_escMulti('使用不可の理由を直す' + (r.ngReason ? '\n' + r.ngReason : ''))}">🚫 使用不可${r.ngReason ? '：' + _escMulti(r.ngReason) : ''}</button>` : '';
+    // Design 42r-4：使用不可＝赤い札＋2 行目の下に理由 1 行（空なら「理由：未入力」・押すと理由を直す）。採用にはできない
+    const ngTag = ng ? '<span class="z2-rc-badge is-ng">🚫 使用不可</span>' : '';
+    const ngWhy = ng ? `<button type="button" class="z2-rc-why${r.ngReason ? '' : ' is-empty'}" onclick="editRouteNgReason(${i})" title="使用不可の理由を直す">${r.ngReason ? '理由：' + _escMulti(r.ngReason) : '理由：未入力'}</button>` : '';
     const sg = _segs(r);
     const segHtml = sg.length
       ? `<ol class="z2-rc-segs">${sg.map(x => `<li class="${/海上/.test(x.mode || '') ? 'is-sea' : ''}"><span class="z2-rc-sm">${_escMulti(x.mode || '—')}</span>${x.carrier ? `<span>${_escMulti(x.carrier)}</span>` : ''}${x.etd ? `<span>ETD ${_escMulti(x.etd)}</span>` : ''}${x.note ? `<span class="z2-rc-sn">${_escMulti(x.note)}</span>` : ''}</li>`).join('')}</ol>`
@@ -3814,7 +3817,7 @@
       + (canAdopt ? `<button type="button" class="z2-rc-link z2-rc-adopt" onclick="adoptRoute(${i})">採用にする</button>` : '')
       + `<button type="button" class="z2-rc-edit" onclick="editRouteEntry(${i})">✎ 直す</button>`
       + `<button type="button" class="z2-rc-more" onclick="openRouteMenu(${i}, this)" title="そのほかの操作" aria-haspopup="menu">⋯</button></div>`
-      + `<div class="z2-rc-line">${line}</div>`
+      + `<div class="z2-rc-line">${line}</div>` + ngWhy
       + (extra.length ? `<div class="z2-rc-extra">${extra.join(' · ')}</div>` : '')
       + segHtml + '</div>';
   }
@@ -3996,7 +3999,9 @@
     } else {
       const reason = prompt(NG_REASON_HINT, r.ngReason || '');
       if (reason === null) return;   // キャンセル
+      const wasAdopted = _rAdopted(r);
       _routeEntries[i] = Object.assign({}, r, { ng: true, ngReason: reason.trim(), enabled: false, adopt: '' });
+      if (wasAdopted) { _recordPatternRouteState(i); if (typeof quoteShowToast === 'function') quoteShowToast('採用を外しました（使用不可のため）', 'info', 2600); }
     }
     _renderRouteEntries();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();

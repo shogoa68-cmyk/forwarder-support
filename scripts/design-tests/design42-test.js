@@ -45,7 +45,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('2：［⋯］の中は メール本文・Excel', await p.evaluate(() => [...document.querySelectorAll('#pvMoreMenu button')].map(b => b.textContent).join('|') === '✉ メール本文|📊 Excel'));
     await p.keyboard.press('Escape'); await p.waitForTimeout(100);
     ok('2：Esc で［⋯］だけ閉じる（プレビューは開いたまま）', await p.evaluate(() => document.getElementById('pvMoreMenu').hidden && !!document.querySelector('#previewOverlay.open')));
-    ok('2：見積番号・お客様は 1 行の要約', await p.evaluate(() => /99-261123-001 · 山田商事/.test(document.getElementById('pvPhSum').textContent)) && !(await vis('#pvMeta')));
+    ok('2：題名は 2 行目の要約の頭（プレビュー · 番号 · お客様）', await p.evaluate(() => /^プレビュー · 99-261123-001 · 山田商事/.test(document.getElementById('pvPhSum').textContent) && document.querySelector('#pvPhSum b').textContent === 'プレビュー') && !(await vis('#pvMeta')) && !(await vis('#previewBox .pv-ph-title')));
     ok('2：発行日・有効期限の欄は ⚙ の中', await p.evaluate(() => !!document.querySelector('#previewBox .pv-rail #pvDateEdit')));
     if (OUT) await p.screenshot({ path: OUT + '/d42-preview-phone.png' });
   } else if (OUT) await p.screenshot({ path: OUT + '/d42-preview-pc.png' });
@@ -75,7 +75,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const mi = await p.evaluate(() => [...document.querySelectorAll('.z2-rc-menu .z2-rc-mi')].map(b => b.textContent));
   ok('3：［⋯］に 案の名前・区間・不採用・使用不可・下へ・削除', ['案の名前を付ける', '区間を足す', '不採用にする', '使用不可にする', '下へ', '削除'].every(t => mi.includes(t)), mi);
   await p.evaluate(() => [...document.querySelectorAll('.z2-rc-menu .z2-rc-mi')].find(b => b.textContent === '不採用にする').click()); await p.waitForTimeout(150);
-  ok('3：不採用は薄く・取り消し線の札', await p.evaluate(() => { const c = document.querySelector('.z2-rcard[data-i="0"]'); return c.classList.contains('is-reject') && +getComputedStyle(c).opacity < 0.7 && /不採用/.test(c.querySelector('.z2-rc-badge.is-reject').textContent); }));
+  ok('3：不採用は薄く・「不採用」の札', await p.evaluate(() => { const c = document.querySelector('.z2-rcard[data-i="0"]'); return c.classList.contains('is-reject') && +getComputedStyle(c).opacity < 0.7 && /不採用/.test(c.querySelector('.z2-rc-badge.is-reject').textContent); }));
   await p.evaluate(() => document.querySelector('.z2-rcard[data-i="1"] .z2-rc-edit').click()); await p.waitForTimeout(150);
   ok('3：✎ 直すは、そのカードの場所に箱を開く', await p.evaluate(() => { const b = document.getElementById('z2RlBox'); return !!b.closest('.z2-rl-slot') && document.getElementById('z2Carrier').value === 'MSC' && /この内容で直す/.test(b.querySelector('.z2-route-add').textContent); }));
   await setF('z2Tt', '5日');
@@ -85,11 +85,36 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await setF('z2Carrier', 'XXX');
   await p.evaluate(() => window.routeAddCancel()); await p.waitForTimeout(100);
   ok('3：キャンセルすると直さない（カードはそのまま）', await p.evaluate(() => /ONE/.test(document.querySelectorAll('.z2-rcard')[0].textContent) && !document.querySelector('.z2-rl-slot')));
+  // ===== 42r-4：使用不可 =====
+  await p.evaluate(() => { window.prompt = () => '満席'; window.adoptRoute(0); window.toggleRouteNg(0); }); await p.waitForTimeout(200);
+  const ng = await p.evaluate(() => { const c = document.querySelector('.z2-rcard[data-i="0"]'); return { ng: c.classList.contains('is-ng'), op: +getComputedStyle(c).opacity, why: (c.querySelector('.z2-rc-why') || {}).textContent, adoptBtn: !!c.querySelector('.z2-rc-adopt'), toast: [...document.querySelectorAll('#toast-container .toast')].some(t => /採用を外しました（使用不可のため）/.test(t.textContent)), adopted: c.classList.contains('is-adopt') }; });
+  ok('42r-4：使用不可は赤い札＋理由 1 行・60% の薄さ・［採用にする］を出さない', ng.ng && Math.abs(ng.op - 0.6) < 0.05 && ng.why === '理由：満席' && !ng.adoptBtn, ng);
+  ok('42r-4：採用中を使用不可にすると採用を外してトースト', !ng.adopted && ng.toast, ng);
+  await p.evaluate(() => document.querySelector('.z2-rcard[data-i="0"] .z2-rc-more').click()); await p.waitForTimeout(100);
+  const mi2 = await p.evaluate(() => [...document.querySelectorAll('.z2-rc-menu .z2-rc-mi')].map(b => b.textContent));
+  ok('42r-4：［⋯］に「使用不可を解除」「理由を直す」（不採用にするは出さない）', mi2.includes('使用不可を解除') && mi2.includes('理由を直す') && !mi2.includes('不採用にする'), mi2);
+  await p.keyboard.press('Escape');
+  await p.evaluate(() => { window.prompt = () => ''; window.editRouteNgReason(0); }); await p.waitForTimeout(100);
+  ok('42r-4：理由が空なら「理由：未入力」', await p.evaluate(() => document.querySelector('.z2-rcard[data-i="0"] .z2-rc-why').textContent === '理由：未入力'));
+  ok('42r-4：不採用の札は取り消し線なし', await p.evaluate(() => { window.unsetRoute(0); window.rejectRoute(1); const b = document.querySelector('.z2-rcard[data-i="1"] .z2-rc-badge.is-reject'); return !!b && !/line-through/.test(getComputedStyle(b).textDecorationLine); }));
   // 旧いデータ：「使う ✓」が 2 本 → 一番上の 1 本を採用に
   await p.evaluate(() => { const d = document.getElementById('z2-routes-data'); d.value = JSON.stringify([{ carrier: 'A', pol: 'P', pod: 'Q', enabled: true }, { carrier: 'B', pol: 'P', pod: 'Q', enabled: true }]); window.syncRouteEntries ? window.syncRouteEntries() : null; });
   await p.waitForTimeout(150);
   ok('3：旧い見積（使う ✓ が 2 本）は一番上の 1 本を採用に', await p.evaluate(() => JSON.stringify(window.getConditions().routes.map(r => r.carrier)) === '["A"]'));
   if (OUT) await p.screenshot({ path: OUT + '/d42-route' + (PHONE ? '-phone' : '') + '.png', fullPage: false });
+
+  // ===== 42r-2：上のバーの「🔗 関連 N件」 =====
+  await p.evaluate(() => { window.editorV2Go(1, true); window.quoteCloudLoadedId = () => 'P1'; window.cloudFetchPresetLinks = async () => [{ otherId: 'A', kids: [{ id: 'B', kids: [] }] }, { otherId: 'C', kids: [] }]; window.e2RefreshRelated(); });
+  await p.waitForTimeout(400);
+  if (!PHONE) {
+    ok('42r-2：関連があると上のバーに「🔗 関連 3件」（孫も数える）', await p.evaluate(() => { const b = document.getElementById('e2Rel'); return !!b && !b.hidden && b.textContent === '🔗 関連 3件' && b.getClientRects().length > 0; }));
+    await p.evaluate(() => document.getElementById('e2Rel').click()); await p.waitForTimeout(400);
+    ok('42r-2：押すと右の「類似」の引き出しが開く', await p.evaluate(() => document.body.classList.contains('e2-drawer') && document.body.dataset.e2drawer === 'similar'));
+    await p.evaluate(() => { document.body.classList.remove('e2-drawer'); });
+  } else ok('42r-2：スマホは ⋯ の中に「🔗 関連 3件」', await p.evaluate(() => { const m = document.getElementById('e2RelMi'); return !!m && !m.hidden && /関連 3件/.test(m.textContent) && !document.getElementById('e2Rel').getClientRects().length; }));
+  await p.evaluate(() => { window.cloudFetchPresetLinks = async () => []; window.e2RefreshRelated(); }); await p.waitForTimeout(300);
+  ok('42r-2：関連が 0 件なら出さない', await p.evaluate(() => document.getElementById('e2Rel').hidden && document.getElementById('e2RelMi').hidden));
+  await p.evaluate(() => { window.quoteCloudLoadedId = () => null; window.e2RefreshRelated(); });
 
   // ===== 6：旧い画面の注意書き =====
   ok('6：☰ の「画面の切替」の横に「旧い画面では一部の新しい機能は使えません」', await p.evaluate(() => { const n = document.getElementById('hdrEditorV2Note'); return !!n && /旧い画面では一部の新しい機能は使えません/.test(n.textContent) && n.previousElementSibling && n.previousElementSibling.id === 'hdrEditorV2Btn'; }));

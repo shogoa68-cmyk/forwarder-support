@@ -182,3 +182,13 @@ body:has(#quoteDocOverlay.open) #quoteActionDock { display: none !important; }
   #tab-quote-make #previewBox .pv-main-head { gap: 4px !important; }
   #tab-quote-make #previewBox .pv-ph-title { font-size: 14px; min-width: 64px; }
 }
+@media (max-width: 600px) {
+  /* Design 42r-1：上の行はボタンだけ（右寄せ）・題名は 2 行目の要約の頭 */
+  #tab-quote-make #previewBox .pv-ph-title { display: none !important; }
+  #tab-quote-make #previewBox .pv-main-head { justify-content: flex-end; padding-left: 12px !important; }
+  #tab-quote-make #previewBox .pv-ph-sum b { font-weight: 700; color: var(--text, #1d2433); }
+}
+@media (max-width: 600px) {
+  /* 「コピーしました」は出ている間だけ場所を取る（ふだんは幅 0。出るときは上の行に重ねて出す） */
+  #tab-quote-make #previewBox .pv-copy-msg { position: absolute; right: 12px; top: 58px; pointer-events: none; }
+}
