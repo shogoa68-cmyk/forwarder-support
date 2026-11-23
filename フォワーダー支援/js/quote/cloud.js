@@ -550,32 +550,10 @@
 
   // サブをメインの直下へ（深さ優先）。メインの位置は「その家族のうち最初に並んだ人」の位置＝緊急タグ・並び替えの意味を保つ。
   // 絞り込みでメインが見えていないサブは、単独のカードとして元の位置に残す（カードの「↳ サブ」行で親が分かる）
+  // Design 42-7：サブ案件をやめたので、メイン／サブの並び替え・字下げはしない（カードには「🔗 関連 N件」だけ）
   function _groupByHierarchy(rows) {
-    _dashKidCount = new Map();
-    _linkParents.forEach(pid => _dashKidCount.set(pid, (_dashKidCount.get(pid) || 0) + 1));
-    _dashDepth = new Map();
-    if (!_linkParents.size || !rows.length) return rows;
-    const ids = new Set(rows.map(r => r.id));
-    const parentOf = id => {
-      const p = _linkParents.get(id);
-      if (!p || p === id || !ids.has(p)) return null;
-      let cur = p, n = 0;                                   // 輪になっていたら親なしとして扱う（画面を壊さない）
-      while (cur && n++ < 8) { if (cur === id) return null; cur = _linkParents.get(cur); }
-      return p;
-    };
-    const rootOf = id => { let cur = id, n = 0; while (n++ < 8) { const p = parentOf(cur); if (!p) break; cur = p; } return cur; };
-    const children = new Map(), rootOrder = [], seenRoot = new Set();
-    rows.forEach(r => {
-      const rt = rootOf(r.id);
-      if (!seenRoot.has(rt)) { seenRoot.add(rt); rootOrder.push(rt); }
-      const p = parentOf(r.id);
-      if (p) (children.get(p) || children.set(p, []).get(p)).push(r);
-    });
-    const byId = new Map(rows.map(r => [r.id, r]));
-    const out = [];
-    const walk = (r, d) => { out.push(r); _dashDepth.set(r.id, d); (children.get(r.id) || []).forEach(k => walk(k, d + 1)); };
-    rootOrder.forEach(id => { const r = byId.get(id); if (r) walk(r, 0); });
-    return out.length === rows.length ? out : rows;         // 取りこぼしがあれば元の並びのまま（安全側）
+    _dashKidCount = new Map(); _dashDepth = new Map();
+    return rows;
   }
   // 全案件のメイン／サブの対応を 1 クエリで取る（描画は取得前の状態で先に出し、変わったときだけ描き直す）
   function _ensureLinkParents() {
@@ -1529,14 +1507,7 @@
   }
   // リスト行の見積番号の欄に入れる印：サブ＝「↳」（メインの名前はホバーで）・メイン＝「👑 サブ N」
   function _hierListMark(r) {
-    const d = _dashDepth.get(r.id) || 0, k = _dashKidCount.get(r.id) || 0;
-    let pre = '', post = '';
-    if (d > 0) {
-      const pr = _cloudRows.find(x => x.id === _linkParents.get(r.id));
-      pre = '<span class="qpd-sub-mark" title="サブ案件' + (pr ? '（メイン：' + escHtml(pr.name || '') + '）' : '') + '">↳</span>';
-    }
-    if (k > 0) post = '<span class="qpd-main-mark" title="この案件のサブ案件が ' + k + ' 件あります">👑 サブ ' + k + '</span>';
-    return { pre, post };
+    return { pre: '', post: '' };   // Design 42-7：メイン／サブの印は出さない
   }
 
   function _cloudListRow(r, simpleList) {
@@ -5107,36 +5078,28 @@
   }
   // カード上部の「↳ サブ／メイン：○○」（この案件がサブのとき）
   function _dashParentLineHtml(presetId, e) {
-    if (!e || !e.parent) return '';
-    return '<span class="clink-parent-lbl" title="この案件は、下のメイン案件のサブです">↳ サブ</span>' + _clinkRowHtml(e.parent, presetId, 'main');
+    return '';   // Design 42-7：「↳ サブ：○○」は出さない（関連の一覧に入る）
   }
+  // Design 42-7：メイン・サブ・関連を 1 つの「🔗 関連 N件」にまとめる（札を押すと一覧が開く）
+  const _dashLinkOpen = new Set();
+  window.dashToggleLinkList = function (pid) {
+    const id = decodeURIComponent(pid);
+    if (_dashLinkOpen.has(id)) _dashLinkOpen.delete(id); else _dashLinkOpen.add(id);
+    _applyDashLinks(id);
+  };
   function _dashLinksInnerHtml(presetId, e) {
-    if (!e || (!e.kids.length && !e.peers.length)) return '';   // 関連なしは何も描かない（:empty で非表示）
-    let html = '';
-    if (e.kids.length) {
-      // すでに下のカード（インデント付き）として出ているサブは、ここには重ねて出さない（そのカードが自分のサブを持つ）。
-      // 絞り込み・ページ送りで下に出ていないサブだけを、ここにツリーで残す
-      const prune = ns => ns.filter(n => !_dashShownIds.has(n.id)).map(n => Object.assign({}, n, { kids: prune(n.kids || []) }));
-      const rest = prune(e.kids), total = _treeCount(e.kids), hidden = _treeCount(rest), below = total - hidden;
-      html += '<div class="cloud-card-links-head">🌳 サブ案件（' + total + '）' +
-        (below > 0 ? '<span class="cloud-card-links-note">' + (hidden ? 'うち ' + below + ' 件は' : '') + '下のカードに表示</span>' : '') + '</div>' +
-        (rest.length ? '<ul class="clink-tree clink-tree--root">' + rest.map(k => _clinkTreeNodeHtml(k, presetId)).join('') + '</ul>' : '');
-    }
-    if (e.peers.length) {
-      const arr = e.peers;
-      const expanded = _dashLinkExpanded.has(presetId);
-      const shown = expanded ? arr : arr.slice(0, DASH_LINKS_TOP_N);
-      const remain = arr.length - shown.length;
-      const items = shown.map(m => _clinkRowHtml(m, presetId, 'none')).join('');
-      const more = remain > 0
-        ? '<button type="button" class="cloud-clink-more" onclick="dashToggleCardLinks(\'' + encodeURIComponent(presetId) + '\')">さらに表示（+' + remain + '）</button>'
-        : (expanded && arr.length > DASH_LINKS_TOP_N
-            ? '<button type="button" class="cloud-clink-more" onclick="dashToggleCardLinks(\'' + encodeURIComponent(presetId) + '\')">▲ 折りたたむ</button>'
-            : '');
-      html += '<div class="cloud-card-links-head">🔗 関連案件（' + arr.length + '）</div>' +
-        '<div class="cloud-clink-list">' + items + '</div>' + more;
-    }
-    return html;
+    if (!e) return '';
+    const flat = [];
+    const seen = new Set([presetId]);
+    const push = (m, anchor) => { if (!m || seen.has(m.id)) return; seen.add(m.id); flat.push({ m, anchor }); };
+    if (e.parent) push(e.parent, presetId);
+    const walk = (ns, anchor) => (ns || []).forEach(n => { push(n, anchor); walk(n.kids, n.id); });
+    walk(e.kids, presetId);
+    (e.peers || []).forEach(m => push(m, presetId));
+    if (!flat.length) return '';   // 関連なしは何も描かない（:empty で非表示）
+    const open = _dashLinkOpen.has(presetId);
+    return '<button type="button" class="cloud-link-badge" aria-expanded="' + (open ? 'true' : 'false') + '" onclick="event.stopPropagation();dashToggleLinkList(\'' + encodeURIComponent(presetId) + '\')">🔗 関連 ' + flat.length + '件 ' + (open ? '▴' : '▾') + '</button>' +
+      (open ? '<div class="cloud-clink-list">' + flat.map(x => _clinkRowHtml(x.m, x.anchor, 'none')).join('') + '</div>' : '');
   }
 
   window.dashToggleCardLinks = function (encId) {

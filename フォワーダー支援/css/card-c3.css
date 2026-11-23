@@ -242,3 +242,10 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-title.is-empty { color: #5
 #tab-quote-make #qpDashboard #qpdListWrap .cust-reg-pend { display: inline-block; margin: 4px 0 0; padding: 2px 10px; border-radius: 999px; background: #e7f0fb; color: #2f5fb3; font-size: var(--text-xs, 12px); font-weight: 700; white-space: nowrap; }
 #tab-quote-make #qpDashboard #qpdListWrap .qpd-row-cust .cust-reg-btn, #tab-quote-make #qpDashboard #qpdListWrap .qpd-row-cust .cust-reg-pend { margin: 0 0 0 6px; min-height: 24px; align-self: center; }
 @media (max-width: 600px) { #tab-quote-make #qpDashboard #qpdListWrap .cust-reg-btn { min-height: 44px; padding: 0 14px; font-size: var(--text-sm, 14px); } }
+
+/* Design 42-7：関連（メイン／サブも含む）は「🔗 関連 N件」の札だけ。押すと一覧が開く */
+#tab-quote-make #qpDashboard .cloud-link-badge {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 10px; margin: 4px 0;
+  border: 1px solid #c8d3e6; border-radius: 14px; background: #eef3fb; color: #24467a; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+@media (max-width: 600px), (pointer: coarse) { #tab-quote-make #qpDashboard .cloud-link-badge { min-height: 44px; } }

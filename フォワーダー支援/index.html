@@ -54,6 +54,7 @@
 <link rel="stylesheet" href="css/preview-roles.css">
 <link rel="stylesheet" href="css/input-grid.css">
 <link rel="stylesheet" href="css/steps-b.css">
+  <link rel="stylesheet" href="css/route-cards.css">
 <link rel="stylesheet" href="css/group-header-b.css">
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
@@ -4532,12 +4533,13 @@
             <div class="pv-rail-grp">
               <div class="pv-rail-h3">表示列</div>
               <label class="pv-sw"><span>カテゴリ</span><input type="checkbox" class="pv-col-chk" data-col="cat" checked></label>
-              <label class="pv-sw"><span>原価列（数量/通貨/単価/CD）</span><input type="checkbox" class="pv-col-chk" data-col="pay" checked></label>
+              <label class="pv-sw"><span>原価列（数量/通貨/単価）</span><input type="checkbox" class="pv-col-chk" data-col="pay" checked></label>
+              <label class="pv-sw"><span>CD</span><input type="checkbox" class="pv-col-chk" data-col="cd"></label>
               <label class="pv-sw"><span>単位</span><input type="checkbox" class="pv-col-chk" data-col="unit" checked></label>
               <label class="pv-sw"><span>請求列（数量/通貨/単価）</span><input type="checkbox" class="pv-col-chk" data-col="bill" checked></label>
               <label class="pv-sw"><span>乗せ幅</span><input type="checkbox" class="pv-col-chk" data-col="mk" checked></label>
-              <label class="pv-sw"><span>円換算</span><input type="checkbox" class="pv-col-chk" data-col="jpy-conv" checked></label>
-              <label class="pv-sw"><span>消費税</span><input type="checkbox" class="pv-col-chk" data-col="tax-col" checked></label>
+              <label class="pv-sw"><span>円換算</span><input type="checkbox" class="pv-col-chk" data-col="jpy-conv"></label>
+              <label class="pv-sw"><span>消費税</span><input type="checkbox" class="pv-col-chk" data-col="tax-col"></label>
               <label class="pv-sw"><span>利益</span><input type="checkbox" class="pv-col-chk" data-col="profit" checked></label>
               <label class="pv-sw"><span>備考</span><input type="checkbox" class="pv-col-chk" data-col="note" checked></label>
               <label class="pv-sw"><span>サブコン</span><input type="checkbox" class="pv-col-chk" data-col="sv" checked></label>
@@ -5195,6 +5197,7 @@
 <script src="js/feedback-md.js"></script>
 <script src="js/feedback-annotate.js"></script>
 <script src="js/feedback.js"></script>
+<script src="js/toast-phone.js"></script>
 <!-- Quiet テーマの置き場所変更（ヘッダーのボタンまとめ・見出しの絵文字）。html.theme-quiet のときだけ働く -->
 <script src="js/header-menu.js"></script>
 <script src="js/quote/editor-v2.js"></script>

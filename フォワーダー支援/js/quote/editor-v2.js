@@ -117,11 +117,51 @@
     const need = document.createElement('button'); need.type = 'button'; need.id = 'e2PatNeed'; need.hidden = true;
     need.addEventListener('click', () => { if (typeof window.jumpToQtyNeedsCheck === 'function') window.jumpToQtyNeedsCheck(); });
     pat.after(need);
+    // Design 42r-2：関連が 1 件以上のときだけ「🔗 関連 N件」（押すと右の「類似」の引き出し＝上に関連付けた案件）
+    const rel = document.createElement('button'); rel.type = 'button'; rel.id = 'e2Rel'; rel.hidden = true; rel.title = '関連付けた案件を見る';
+    rel.addEventListener('click', e => { e.stopPropagation(); openRel(); });
+    st.after(rel);
+    const menu = $('tbMenuMore');
+    if (menu && !$('e2RelMi')) {
+      const mi = document.createElement('button'); mi.type = 'button'; mi.id = 'e2RelMi'; mi.className = 'tb-menu-item e2-rel-mi'; mi.hidden = true;
+      mi.innerHTML = '<span class="tb-mi-icon">🔗</span><span class="tb-mi-body"><span class="tb-mi-title"></span><span class="tb-mi-sub">関連付けた案件を見る</span></span>';
+      mi.addEventListener('click', () => { if (typeof window.closeTbMenus === 'function') window.closeTbMenus(); openRel(); });
+      menu.insertBefore(mi, menu.firstChild);
+    }
     const br = document.createElement('span'); br.id = 'e2Br'; t.after(br);
     $('e2PatBtn').addEventListener('click', e => { e.stopPropagation(); $('e2PatMenu').hidden = !$('e2PatMenu').hidden; });
     $('e2PatMenu').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; $('e2PatMenu').hidden = true; if (typeof window.switchPackingPattern === 'function') window.switchPackingPattern(+b.dataset.i); });
     document.addEventListener('click', e => { const m = $('e2PatMenu'); if (m && !m.hidden && !$('e2Pat').contains(e.target)) m.hidden = true; });
   }
+  // 関連の件数（ダッシュボードのカードと同じ数え方＝メイン・サブ・孫・ただの関連をまとめる）。案件が変わったとき・60 秒ごとに読み直す
+  let relId = null, relAt = 0, relN = 0, relBusy = false;
+  function openRel() {
+    const btn = document.querySelector('#qrcRail .qrc-rail-btn[data-mod="similar"]');
+    if (document.body.classList.contains('e2-drawer') && document.body.dataset.e2drawer === 'similar') return;
+    toggleDrawer('similar');
+    if (!btn) return;
+    setTimeout(() => { const sec = document.querySelector('#sqPanel .sq-links-section'); if (sec && sec.scrollIntoView) sec.scrollIntoView({ block: 'start' }); }, 300);
+  }
+  window.e2OpenRelated = openRel;
+  function paintRel() {
+    const b = $('e2Rel'), mi = $('e2RelMi'), t = relN > 0 ? '🔗 関連 ' + relN + '件' : '';
+    if (b) { b.hidden = !t; if (b.textContent !== t) b.textContent = t; }
+    if (mi) { mi.hidden = !t; const tt = mi.querySelector('.tb-mi-title'); if (tt && tt.textContent !== t) tt.textContent = t; }
+  }
+  function refreshRel(force) {
+    const id = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
+    if (!id) { relId = null; relN = 0; paintRel(); return; }
+    if (relBusy || (!force && id === relId && Date.now() - relAt < 60000)) { paintRel(); return; }
+    if (typeof window.cloudFetchPresetLinks !== 'function') return;
+    relBusy = true; relId = id; relAt = Date.now();
+    Promise.resolve(window.cloudFetchPresetLinks(id)).then(list => {
+      const seen = new Set([id]);
+      const walk = l => (l || []).forEach(x => { const oid = x.otherId || x.id || (x.preset && x.preset.id); if (oid && !seen.has(oid)) seen.add(oid); walk(x.kids); });
+      walk(list);
+      if (id === relId) relN = seen.size - 1;
+    }).catch(() => {}).finally(() => { relBusy = false; paintRel(); });
+  }
+  window.e2RefreshRelated = () => refreshRel(true);
   function refreshTitle() {
     const n = $('e2tName'); if (!n) return;
     const name = val('qf-case-name') || (($('qf-memo') && $('qf-memo').value || '').split('\n')[0].trim()) || val('qf-customer') || '（案件名なし）';
@@ -131,7 +171,7 @@
     const sa = $('e2tSave'), q = ($('qmBanner') && $('qmBanner').textContent || '').trim();
     const sat = /編集中|閲覧モード/.test(q) ? '' : q;   // 「編集中（あなたが作業中）」はツールバー側のチップに出ているので重ねて出さない
     if (sa && sa.textContent !== sat) sa.textContent = sat;
-    refreshState(q); refreshPat();
+    refreshState(q); refreshPat(); refreshRel();
   }
   // 作業状態の札：閲覧中／編集中（未保存なら足す）／ロック（他の人が編集中＝この画面では判定できないため、押したときの案内に出る）
   function refreshState(q) {
@@ -394,7 +434,10 @@
     b.id = 'hdrEditorV2Btn'; b.href = '#'; b.className = ref ? ref.className : ''; b.setAttribute('role', 'button');
     b.addEventListener('click', e => { e.preventDefault(); window.editorV2Toggle(); });
     const lab = document.createElement('p'); lab.className = 'hdr-panel-label'; lab.textContent = '画面の切替';
-    panel.appendChild(lab); panel.appendChild(b); syncBtn(); return true;
+    // Design 42-6：旧い画面は動く状態を保つだけ（新しい機能・見た目の改修は新しい画面だけ）
+    const note = document.createElement('p'); note.id = 'hdrEditorV2Note'; note.className = 'hdr-panel-note';
+    note.textContent = '旧い画面では一部の新しい機能は使えません';
+    panel.appendChild(lab); panel.appendChild(b); panel.appendChild(note); syncBtn(); return true;
   }
 
   document.addEventListener('DOMContentLoaded', () => {

@@ -73,9 +73,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1500);
 
   const pick = () => p.evaluate(() => [...document.querySelectorAll('#cpCondInfo .cp-route-chk')].map(c => ({ on: c.checked, txt: c.closest('.cp-kv').textContent.trim() })));
-  const chips = () => p.evaluate(() => [...document.querySelectorAll('#z2RouteList .z2-route-chip')].map(c => ({
-    carrier: c.querySelector('.z2-route-carrier')?.textContent, leg: c.querySelector('.z2-route-leg')?.textContent,
-    ng: c.classList.contains('z2-route-chip--ng'), off: c.classList.contains('z2-route-chip--off'), icd: !!c.querySelector('.z2-route-icd'),
+  // Design 42-3：航路はカード（.z2-rcard）
+  const chips = () => p.evaluate(() => [...document.querySelectorAll('#z2RouteList .z2-rcard')].map(c => ({
+    carrier: c.querySelector('.z2-rc-car')?.textContent, leg: c.querySelector('.z2-rc-line')?.textContent,
+    ng: c.classList.contains('is-ng'), off: !c.classList.contains('is-adopt'), icd: /🚉/.test(c.textContent),
   })));
 
   // 1) 類似案件のプレビュー（いまの見積は空）

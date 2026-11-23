@@ -142,3 +142,17 @@
   #tab-stats.sm-on #statsPane-winrate .sm-hid { display: none !important; }
   #tab-stats.sm-on #statsPane-winrate .stats-kpi-section-title { display: none !important; }
 }
+
+/* ===== Design 42-5：統計のスマホの残り ===== */
+#tab-stats .sm-kpi-empty { display: none; }
+@media (max-width: 600px) {
+  #tab-stats #statsPane-kpi .stats-empty { display: none; }
+  #tab-stats #statsPane-kpi .sm-kpi-empty {
+    display: flex; flex-direction: column; gap: 6px; margin: 12px; padding: 18px 16px; border: 1px solid #d0d5dd; border-radius: 10px; background: var(--surface, #fff);
+  }
+  #tab-stats #statsPane-kpi .sm-kpi-empty b { font-size: 16px; }
+  #tab-stats #statsPane-kpi .sm-kpi-empty span { font-size: 14px; line-height: 1.7; color: var(--text-sub, #475467); }
+  /* 受注率の細い横棒（高さ 8px・主色） */
+  #tab-stats #statsPane-winrate .sa-bar { display: block; height: 8px; border-radius: 4px; background: #e4e7ec; overflow: hidden; margin: 4px 0 2px; width: 100%; }
+  #tab-stats #statsPane-winrate .sa-bar > i { display: block; height: 100%; background: var(--accent, #2f5fb3); border-radius: 4px; }
+}

@@ -235,3 +235,20 @@ html.editor-v2 #e2PvMenu .qad-pdf { display: flex !important; width: 100%; min-h
   html.editor-v2 #quoteActionDock #qadMode { flex: 1 1 0; min-height: 44px; }
   html.editor-v2 #quoteActionDock #e2PvMenu:not([hidden]) { bottom: 60px; left: 10px; }
 }
+
+/* Design 42r-2：上のバーの「🔗 関連 N件」（関連があるときだけ・スマホは ⋯ の中） */
+html.editor-v2 #tab-quote-make #e2Rel {
+  flex: 0 0 auto; height: 24px; padding: 0 10px; border: 1px solid transparent; border-radius: 12px;
+  background: #eef0f3; color: #344054; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+html.editor-v2 #tab-quote-make #e2Rel:hover, html.editor-v2 #tab-quote-make #e2Rel:focus-visible { border-color: #98a2b3; }
+html.editor-v2 #tab-quote-make #e2Rel[hidden] { display: none; }
+#tbMenuMore .e2-rel-mi { display: none; }
+@media (max-width: 600px) {
+  html.editor-v2 #tab-quote-make #e2Rel { display: none !important; }
+  html.editor-v2 #tbMenuMore .e2-rel-mi:not([hidden]) { display: flex; min-height: 44px; }
+}
+@media (max-width: 600px) {
+  /* Design 42r-5：本文の下に ❓ の分の余白（56px）を足す（いちばん下のカードのボタンに ❓ が重ならない） */
+  html.editor-v2 #tab-quote-make:not(.qp-dash) { padding-bottom: 186px !important; }
+}
