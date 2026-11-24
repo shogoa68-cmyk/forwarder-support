@@ -56,6 +56,11 @@ const http = require('http'), fs = require('fs'), path = require('path');
         { id: 'd3', k: 'si_cut', l: '', d: iso(0), note: '', g: 0 },
         { id: 'd4', k: 'free', l: '日付なし', d: '', note: '', g: 0 },
       ] });
+      db.calendar_holidays = [
+        { id: 'h1', source_type: 'jp', name: '試験の祝日', event_date: iso(1) },
+        { id: 'h2', source_type: 'partner', name: '夏季休業', company_name: '山田運送', event_date: iso(2), end_date: iso(3) },
+        { id: 'h3', source_type: 'overseas', name: 'Test Day', country_code: 'CN', event_date: iso(0) },
+      ];
       window.__iso = iso;
       window.__db = db; window.__writes = [];
       const isLocked = r => r.locked_by && r.locked_by !== 'me@x.com' && (Date.now() - new Date(r.locked_at).getTime()) < 90000;
@@ -150,6 +155,31 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('検索で絞り込める', await p.evaluate(() => { const ks = [...document.querySelectorAll('#opsRoot .opc-ev-k')].map(e => e.textContent); return ks.length >= 1 && ks.every(k => /CY カット/.test(k)); }));
   await p.evaluate(() => { const q = document.getElementById('optQ'); q.value = ''; q.dispatchEvent(new Event('input', { bubbles: true })); }); await p.waitForTimeout(200);
   if (process.env.OUT) await p.locator('#opsRoot').screenshot({ path: process.env.OUT });
+  // 祝日・休業日の重ね表示
+  await p.evaluate(() => document.querySelector('#opsRoot [data-opt="calhol"]') && document.querySelector('#opsRoot [data-opt="calmode"][data-v="week"]').click()); await p.waitForTimeout(400);
+  const hd1 = () => p.evaluate(() => Object.fromEntries([...document.querySelectorAll('#opsRoot .opc-day')].map(d => [d.dataset.day, { cls: d.className, hol: [...d.querySelectorAll('.opc-hol')].map(h => h.className.replace('opc-hol ', '') + ':' + h.textContent) }])));
+  // 今日の週と次の週の両方を読む（曜日によって、明日〜3 日後が次の週になるため）
+  const hd = async () => {
+    const A = await hd1();
+    await p.evaluate(() => document.querySelector('#opsRoot [data-opt="calnav"][data-d="1"]').click()); await p.waitForTimeout(200);
+    const B = await hd1();
+    await p.evaluate(() => document.querySelector('#opsRoot [data-opt="caltoday"]').click()); await p.waitForTimeout(200);
+    return Object.assign(B, A);
+  };
+  let H = await hd();
+  ok('重ねて表示のチップ 3 つ（日本の祝日・協力会社・海外）・既定は日本と協力会社', await p.evaluate(() => { const c = [...document.querySelectorAll('#opsRoot .opc-holchip')]; return c.length === 3 && c.filter(b => b.classList.contains('is-on')).length === 2 && !document.querySelector('#opsRoot .opc-holchip.is-overseas.is-on'); }));
+  ok('日本の祝日はマスに名前と赤み', H[t1] && /is-hol/.test(H[t1].cls) && H[t1].hol.some(x => /is-jp.*試験の祝日/.test(x)), H[t1]);
+  ok('祝日に締め切り（CY カット）があると「⚠ 休日」', H[t1] && /is-warn/.test(H[t1].cls), H[t1]);
+  ok('協力会社の休業日は期間の毎日に会社名つき', H[t2] && H[t2].hol.some(x => /is-partner.*山田運送/.test(x)) && H[await iso(3)] && H[await iso(3)].hol.some(x => /山田運送/.test(x)), [H[t2], H[await iso(3)]]);
+  ok('海外の祝日は既定では出さない', !(H[t0].hol || []).some(x => /overseas/.test(x)), H[t0]);
+  await p.evaluate(() => document.querySelector('#opsRoot .opc-holchip.is-overseas').click()); await p.waitForTimeout(300);
+  H = await hd();
+  ok('海外の祝日を ON にすると国コードつきで出る', H[t0].hol.some(x => /is-overseas.*CN/.test(x)), H[t0]);
+  await p.evaluate(() => document.querySelector('#opsRoot .opc-holchip.is-jp').click()); await p.waitForTimeout(300);
+  H = await hd();
+  ok('日本の祝日を OFF にすると消える・設定は端末に保存', !H[t1].hol.some(x => /is-jp/.test(x)) && await p.evaluate(() => { const v = JSON.parse(localStorage.getItem('opsCalHol_v1')); return v.jp === false && v.overseas === true; }), H[t1]);
+  await p.evaluate(() => document.querySelector('#opsRoot .opc-holchip.is-jp').click()); await p.waitForTimeout(300);
+  if (process.env.OUT2) await p.locator('#opsRoot .opc-cal').screenshot({ path: process.env.OUT2 });
   // タイルを押すと一覧へ戻る
   await p.evaluate(() => document.querySelector('#opsRoot .opt-tile[data-f="active"]').click()); await p.waitForTimeout(300);
   ok('タイルを押すと一覧の表示へ', await p.evaluate(() => !document.querySelector('#opsRoot .opc-cal') && !!document.querySelector('#opsRoot .opt-list')));
