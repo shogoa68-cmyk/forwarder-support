@@ -1544,6 +1544,19 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(async () => { await statsJumpToMaster('customer', '飛び先のお客様', true); }); await p.waitForTimeout(800);
     ok(L + 'タブの指定なしは従来どおり「担当者」で開く', await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab.is-on'); return !!t && t.dataset.mt === 'people'; }));
     await p.evaluate(() => statsCloseMasterDetail({ force: true })); await p.waitForTimeout(200);
+    // 他の画面から飛んで詳細を開いたとき：詳細の見出しに［← ○○に戻る］
+    await p.evaluate(() => { switchCategory('quote', document.querySelector('.cat-btn[aria-controls="tab-quote-make"]')); }); await p.waitForTimeout(600);
+    await p.evaluate(async () => { await statsJumpToMaster('customer', '飛び先のお客様', 'news'); }); await p.waitForTimeout(800);
+    ok(L + '詳細の見出しに［← 見積を作るに戻る］が出る', await p.evaluate(() => { const b = document.querySelector('#mdDetailModal .md-back-btn'); return !!b && /見積/.test(b.textContent) && /戻る/.test(b.textContent); }));
+    await p.evaluate(() => { const i = document.querySelector('#mdDetailModal input[id^="md_"]'); if (i) { i.value = 'x'; i.dispatchEvent(new Event('input', { bubbles: true })); } });
+    await p.evaluate(() => document.querySelector('#mdDetailModal .md-back-btn').click()); await p.waitForTimeout(300);
+    ok(L + '未保存のまま戻ろうとすると確認が出る（まだ移らない）', await p.evaluate(() => !!document.querySelector('.confirm-overlay') && document.getElementById('tab-master').classList.contains('active')));
+    await p.evaluate(() => { const b = [...document.querySelectorAll('.confirm-overlay button')].find(x => /破棄/.test(x.textContent)); if (b) b.click(); }); await p.waitForTimeout(600);
+    ok(L + '「破棄して戻る」で詳細を閉じて元の画面（見積）へ戻る', await p.evaluate(() => !document.getElementById('mdDetailModal') && document.getElementById('tab-quote-make').classList.contains('active')));
+    await p.evaluate(() => { switchCategory('master', document.querySelector('.cat-btn[aria-controls="tab-master"]')); }); await p.waitForTimeout(600);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="飛び先のお客様"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    ok(L + 'ナビから開いた詳細には戻るボタンを出さない', await p.evaluate(() => !document.querySelector('#mdDetailModal .md-back-btn')));
+    await p.evaluate(() => statsCloseMasterDetail({ force: true })); await p.waitForTimeout(200);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

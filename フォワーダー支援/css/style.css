@@ -6530,13 +6530,13 @@ html.theme-quiet #sqPanel { --sq-pri: var(--q-accent, #2f5fb3); --sq-pri-50: var
 .mpk-x { border: 0; background: none; font-size: 16px; cursor: pointer; color: inherit; min-width: 32px; min-height: 32px; border-radius: 6px; }
 .mpk-x:hover { background: var(--hover-bg, #f2f4f7); }
 .mpk-sub { padding: 0 14px 8px; color: var(--text-muted, #5a6475); border-bottom: 1px solid var(--border, #e4e7ec); }
-.mpk-list { list-style: none; margin: 0; padding: 4px 14px; overflow-y: auto; flex: 1 1 auto; }
+.mpk-list { list-style: none; margin: 0; padding: 4px 14px; overflow-y: auto; flex: 1 1 auto; min-height: 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .mpk-item { padding: 10px 0; border-bottom: 1px solid var(--border, #e4e7ec); }
 .mpk-item:last-child { border-bottom: 0; }
 .mpk-item.is-warn .mpk-title { color: #b42318; }
 .mpk-meta { display: flex; justify-content: space-between; gap: 8px; font-size: var(--text-xs, 12px); color: var(--text-muted, #5a6475); }
 .mpk-title { font-weight: 700; margin-top: 2px; }
-.mpk-body { margin-top: 2px; white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: var(--lh-body, 1.7); }
+.mpk-body { margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--lh-body, 1.7); }
 .mpk-link { font-size: var(--text-xs, 12px); }
 .mpk-empty { padding: 16px 14px; color: var(--text-muted, #5a6475); }
 .mpk-ft { padding: 10px 14px 12px; border-top: 1px solid var(--border, #e4e7ec); }
