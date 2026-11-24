@@ -1684,7 +1684,7 @@
         ' 件（' + e.winRate + '%）' + (e.lost ? '／失注 ' + e.lost + ' 件' : '') + '">受注 ' +
         e.won + '（' + e.winRate + '%）</span>' : '';
       return '<button type="button" class="qpd-rank-item' + (on ? ' is-active' : '') + '" ' +
-          'onclick="qpdFilterCustomer(\'' + encodeURIComponent(e.key) + '\')" ' +
+          'onclick="qpdFilterCustomer(\'' + jsAttr(encodeURIComponent(e.key)) + '\')" ' +
           'title="' + escHtml(e.label) + ' の案件だけに絞り込む（もう一度押すと解除）">' +
         '<span class="qpd-rank-no">' + (i + 1) + '</span>' +
         '<span class="qpd-rank-body">' +
@@ -2140,12 +2140,13 @@
   }
 
   // 保存して作業終了：クラウド保存 → ロック解放 → 閲覧モードへ（cloudSaveCurrent 内で解放）
-  async function quoteModeSaveDone() {
+  // 保存できたら true を返す（未保存の確認の「保存して進む」が、この結果で先へ進むかを決める）
+  async function quoteModeSaveDone(opts) {
     if (_shareMode === 'view') {
       quoteShowToast('🔒 閲覧中です。編集するには「✏️ 編集」を押してください', 'warn', 4000);
-      return;
+      return false;
     }
-    await cloudSaveCurrent();
+    return (await cloudSaveCurrent(opts)) === true;
   }
 
   // 入力を空にして新規案件（保持ロックは解放）
@@ -2232,9 +2233,12 @@
       // 既存ハンドラを毎回作り直さないよう、押下時に一度だけ使う形で差し替える
       ov.querySelector('.qplc-save').onclick = async () => {
         ov.classList.add('is-busy');
-        try { await quoteModeSaveDone(); } finally { ov.classList.remove('is-busy'); }
-        // 保存に失敗した場合（dirty が残る）は進まずに留まる
-        finish(!_quoteDirty);
+        // stay：保存後の「ダッシュボードに戻りますか？」を出さない（このあと選んだ操作へ進むため）
+        let ok = false;
+        try { ok = await quoteModeSaveDone({ stay: true }); } finally { ov.classList.remove('is-busy'); }
+        // 保存に失敗した場合は進まずに留まる。以前は「未保存の印」で判定していたが、印は 1 拍遅れて下ろす作り
+        // （_resetQuoteDirty の setTimeout）のため、保存できても「中止」と同じ扱いになっていた
+        finish(ok === true);
       };
       ov.querySelector('.qplc-discard').onclick = () => finish(true);
       ov.querySelector('.qplc-cancel').onclick  = () => finish(false);
@@ -3254,13 +3258,14 @@
     cloudListPresets();
     // 保存後の遷移はユーザーに選ばせる（OK＝ダッシュボードへ／キャンセル＝この見積に留まる）
     // 自由入力の保管：stay＝確認なしでこの案件に留まる／toDashboard＝確認なしでダッシュボードへ戻る
-    if (opts && opts.stay === true) return;
-    if (opts && opts.toDashboard === true) { qpShowDashboard(); return; }
+    if (opts && opts.stay === true) return true;
+    if (opts && opts.toDashboard === true) { qpShowDashboard(); return true; }
     setTimeout(() => {
       if (confirm('💾 保存しました。\n📊 ダッシュボードに戻りますか？\n（キャンセル＝この見積を表示したまま）')) {
         qpShowDashboard();
       }
     }, 150);
+    return true;   // 保存できた
   }
 
   // ---------- 読込 ----------
@@ -3591,7 +3596,7 @@
     tbody.innerHTML = groups.map(g => {
       const svEsc = escHtml(g.sv);
       const header = `<tr class="cp-group-head">
-        <td><input type="checkbox" class="cp-group-chk" data-group="${escHtml(g.sv)}" checked onchange="cpToggleGroup(this,'${escHtml(g.sv)}')" title="このサブコンを一括選択"></td>
+        <td><input type="checkbox" class="cp-group-chk" data-group="${escHtml(g.sv)}" checked onchange="cpToggleGroup(this,'${jsAttr(g.sv)}')" title="このサブコンを一括選択"></td>
         <td colspan="8" class="cp-group-label">🏢 ${svEsc} <span class="cp-group-cnt">${g.rows.length}行</span></td>
       </tr>`;
 

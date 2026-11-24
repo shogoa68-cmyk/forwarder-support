@@ -1644,8 +1644,9 @@ function calcDuty() {
 
   // 消費税の課税標準: 課税価格 + 関税（1,000円未満切り捨て）
   const consTaxBase = Math.floor((cifBase + totalDuty) / 1000) * 1000;
-  // 消費税: 課税標準 × 10%（100円未満切り捨て）
-  const consTax     = Math.floor(consTaxBase * 0.10 / 100) * 100;
+  // 消費税（国税）: 課税標準 × 7.8%（100円未満切り捨て）。地方消費税（2.2%＝国税 × 22/78）と合わせて 10%。
+  // 以前は国税を 10% で計算したうえに地方消費税を足していて、税が約 28% 多く出ていた。
+  const consTax     = Math.floor(consTaxBase * 0.078 / 100) * 100;
   // 地方消費税: 消費税 × 22/78（100円未満切り捨て）
   const localTax    = Math.floor(consTax * (22/78) / 100) * 100;
   const totalTax    = totalDuty + consTax + localTax;
@@ -1661,8 +1662,8 @@ function calcDuty() {
     ['追加関税'+pct(extraRate), `¥${fmt(extra)}`, extra===0?'—':''],
     ['関税合計', `¥${fmt(totalDuty)}`, ''],
     ['消費税課税標準', `¥${fmt(consTaxBase)}`, '（課税価格＋関税合計）1000円未満切捨'],
-    ['消費税（10%）', `¥${fmt(consTax)}`, '100円未満切捨'],
-    ['地方消費税（消費税×22/78）', `¥${fmt(localTax)}`, '100円未満切捨'],
+    ['消費税（国税 7.8%）', `¥${fmt(consTax)}`, '100円未満切捨'],
+    ['地方消費税（国税×22/78＝2.2%）', `¥${fmt(localTax)}`, '100円未満切捨'],
     ['▶ 税金合計', `¥${fmt(totalTax)}`, '関税＋消費税＋地方消費税'],
     ['▶ 輸入総コスト概算', `¥${fmt(totalCost)}`, 'CIF（入力値）＋税金合計'],
   ];
