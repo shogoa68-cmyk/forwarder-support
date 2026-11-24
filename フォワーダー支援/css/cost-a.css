@@ -4,7 +4,7 @@
    明細の <tr> は CSS グリッドで 1 段に並べ、細かい欄は同じ行の中の「行の詳細」（.row-detail-panel）へ。
    ========================================================================== */
 html.editor-v2 #tab-quote-make.ca-on {
-  --ca-cols: 24px minmax(160px, 1fr) 116px 36px 84px 80px 96px 104px 84px 30px;
+  --ca-cols: 24px minmax(160px, 1fr) 116px 36px 84px 80px 96px 104px 84px 70px;
   --ca-pri: #2f5fb3; --ca-pri-50: #f5f8fd; --ca-line: #e4e7ec; --ca-sub: #667085;
 }
 
@@ -254,6 +254,10 @@ html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row.ca-zero-
   html.editor-v2 #tab-quote-make .mc2-n { font-weight: 400; font-size: 12px; opacity: .85; white-space: nowrap; }
   html.editor-v2 #tab-quote-make .mc2-more { flex: none; width: 44px; height: 36px; border: 1px solid rgba(255,255,255,.6); background: transparent; color: #fff; font-size: 18px; line-height: 1; cursor: pointer; border-radius: 6px; }
   html.editor-v2 #tab-quote-make .mc2-add { width: auto; padding: 0 10px; font-size: 13px; font-weight: 700; border-radius: 6px; white-space: nowrap; }
+  html.editor-v2 #tab-quote-make .mc2-line { display: flex; align-items: stretch; }
+  html.editor-v2 #tab-quote-make .mc2-line > .mc2-row { flex: 1 1 auto; min-width: 0; }
+  html.editor-v2 #tab-quote-make .mc2-done { flex: none; width: 48px; min-height: 48px; border: 0; border-left: 1px solid #eaecf0; background: #fff; color: #98a2b3; font-size: 18px; font-weight: 700; cursor: pointer; padding: 0; }
+  html.editor-v2 #tab-quote-make .mc2-done.is-on { background: #1e7a4a; color: #fff; }
   html.editor-v2 #tab-quote-make .mc2-row { flex-direction: column; align-items: stretch; gap: 2px; min-height: 48px; padding: 6px 12px; border-left: 0; }
   html.editor-v2 #tab-quote-make .mc2-row.is-mute { opacity: .5; }
   html.editor-v2 #tab-quote-make .mc2-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -308,3 +312,22 @@ html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-subgroup-header .subco
   html.editor-v2 #tab-quote-make .mc2-addrow { display: block; width: 100%; height: 44px; margin: 0; padding: 0 12px; border: 0; border-top: 1px solid #e3e6ea; background: #fff; color: var(--ca-pri, #2f5fb3); font: inherit; font-weight: 700; font-size: 14px; text-align: left; cursor: pointer; }
   html.editor-v2 #tab-quote-make .mc2-addrow:hover, html.editor-v2 #tab-quote-make .mc2-addrow:focus-visible { background: #f5f8fd; }
 }
+
+/* 入力完了の［✓］（右端・［⋯］の左・いつも見える） */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell { display: flex !important; align-items: center; justify-content: center; gap: 4px; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .ca-done-btn {
+  width: 30px; height: 30px; border-radius: 6px; border: 1px solid #d0d5dd; background: #fff; color: #98a2b3;
+  font-size: 15px; font-weight: 700; line-height: 1; cursor: pointer; padding: 0; flex: none;
+}
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .ca-done-btn:hover { border-color: #1e7a4a; color: #1e7a4a; background: #f3faf5; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .ca-done-btn.is-on { background: #1e7a4a; border-color: #1e7a4a; color: #fff; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .ca-done-btn:focus-visible { outline: 2px solid var(--ca-pri, #2f5fb3); outline-offset: 1px; }
+@media (pointer: coarse) { html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .ca-done-btn { width: 36px; height: 36px; } }
+@media print { html.editor-v2 #tab-quote-make.ca-on .ca-done-btn { display: none !important; } }
+
+/* 有効期間の札（サーチャージ・期間のある行）：押すと行の詳細の期間の欄へ */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-valid { flex: none; border: 1px solid #b9cbe8; background: #eef3fb; color: #2f5fb3; border-radius: 999px; font-size: 12px; line-height: 20px; padding: 0 8px; cursor: pointer; white-space: nowrap; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-valid.is-empty { border-style: dashed; background: #fff; color: #b45309; border-color: #f0c48a; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-valid[hidden] { display: none !important; }
+/* 行の詳細の「さらに」の中の有効期間は、いつも出す（空の欄を隠す規則・サーチャージ以外は隠す規則より強く） */
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row.ca-open .ca-dmore .rd-group .w-valid { display: flex !important; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; }

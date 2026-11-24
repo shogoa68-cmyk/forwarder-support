@@ -111,6 +111,26 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('50r：押すと確認（uiConfirm）', /入力完了をすべて外しますか/.test(cf), cf.slice(0, 80));
   await p.evaluate(() => { const b = [...document.querySelectorAll('.confirm-dialog button, .confirm-overlay button')].find(x => /すべて外す/.test(x.textContent)); b && b.click(); }); await p.waitForTimeout(300);
   ok('50r：確認すると入力完了がすべて外れる', await p.evaluate(() => !document.querySelector('#tableBody tr[data-done="1"]')));
+  // 行の右端の［✓］（入力完了・いつも見える）
+  const dv = await p.evaluate(() => { const rows = [...document.querySelectorAll('#tableBody tr.ca-row')]; return rows.length > 0 && rows.every(tr => { const b = tr.querySelector('td.handle-cell > .ca-done-btn'); const h = tr.querySelector('.row-acts-hint'); if (!b || !b.getClientRects().length) return false; const r = b.getBoundingClientRect(), hr = h.getBoundingClientRect(); return r.width >= 28 && r.right <= hr.left + 1 && Math.abs(r.top - hr.top) < 6; }); });
+  ok('［✓］：全ての明細行の右端（［⋯］の左）にいつも見える', dv);
+  await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[0].querySelector('.ca-done-btn').click()); await p.waitForTimeout(200);
+  ok('［✓］：押すと入力完了（緑・記録あり）・行の詳細は開かない', await p.evaluate(() => { const tr = document.querySelectorAll('#tableBody tr.ca-row')[0]; const b = tr.querySelector('.ca-done-btn'); return tr.dataset.done === '1' && !!tr.dataset.doneAt && b.classList.contains('is-on') && b.getAttribute('aria-pressed') === 'true' && /押すと外す/.test(b.title) && !tr.classList.contains('ca-open'); }));
+  await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[0].querySelector('.ca-done-btn').click()); await p.waitForTimeout(200);
+  ok('［✓］：もう一度押すと外れる', await p.evaluate(() => { const tr = document.querySelectorAll('#tableBody tr.ca-row')[0]; return tr.dataset.done !== '1' && !tr.querySelector('.ca-done-btn').classList.contains('is-on'); }));
+  // サーチャージ（有効期間）：品名の欄に戻して隠さない・「📅 期間を設定」から期間の欄へ
+  const vp = await p.evaluate(async () => {
+    const tr = document.querySelectorAll('#tableBody tr.ca-row')[3]; const vis = e => !!e && !!e.getClientRects().length;
+    const c = tr.querySelector('select[data-field="cat"]'); c.value = 'surcharge'; c.dispatchEvent(new Event('change', { bubbles: true })); await new Promise(r => setTimeout(r, 400));
+    const chip = tr.querySelector('.ca-valid'); const r = { chip: vis(chip) && chip.textContent, inMore: !!tr.querySelector('.ca-dmore .w-valid') };
+    chip.click(); await new Promise(r => setTimeout(r, 300));
+    const vf = tr.querySelector('[data-field="vf"]'); r.open = tr.classList.contains('ca-open'); r.vf = vis(vf) && vf.getBoundingClientRect().width > 40;
+    vf.value = '2026-12-01'; vf.dispatchEvent(new Event('input', { bubbles: true })); vf.dispatchEvent(new Event('change', { bubbles: true })); await new Promise(r => setTimeout(r, 300));
+    r.chip2 = tr.querySelector('.ca-valid').textContent; r.inMore2 = !!tr.querySelector('.ca-dmore .w-valid');
+    window.caToggleDetail(tr, false); return r; });
+  ok('サーチャージの行：有効期間は行の詳細の「さらに」の中（品名の欄に戻して隠さない）', vp.inMore && vp.inMore2, vp);
+  ok('サーチャージの行：項目名の後ろに「📅 期間を設定」・押すと詳細が開き期間の欄が見える', vp.chip === '📅 期間を設定' && vp.open && vp.vf, vp);
+  ok('期間を入れると札が「📅 12/1〜…」になる', /^📅 12\/1〜/.test(vp.chip2), vp);
   // 7. スマホ（〜600px）：見出し＝名前・行数・売・［⋯］・［＋ 明細を追加］／1 行＝2 段のカード
   await p.setViewportSize({ width: 390, height: 844 }); await p.waitForTimeout(600);
   const mc = await p.evaluate(() => {
@@ -125,6 +145,12 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('スマホ：見出しの金額は「売 ¥…」（JPY 換算・外貨があれば ※）・通貨別の内訳は出さない', /^売 ¥[\d,]+※$/.test(mc.sum) && !/USD/.test(mc.sum), mc.sum);
   ok('スマホ：1 行＝2 段（上段 項目名＋札・下段 数量 × 単位 ・ 売の小計）・44px 以上', mc.top && /×/.test(mc.bot) && /・/.test(mc.bot) && mc.tag === '要調査' && mc.hmin >= 44, mc);
   ok('スマホ：外貨の行は小計の下に ≈ 円', /^≈ ¥[\d,]+$/.test(mc.yen || ''), mc);
+  ok('スマホ：各カードの右に［✓］（48px）・押すと入力完了／もう一度で外れる', await p.evaluate(async () => {
+    const L = document.getElementById('mcList'); const b = L.querySelector('.mc2-line > .mc2-done'); if (!b) return false;
+    const w = b.getBoundingClientRect().width; const id = b.dataset.done; b.click(); await new Promise(r => setTimeout(r, 400));
+    const on = document.getElementById(id).dataset.done === '1' && !!document.querySelector('#mcList .mc2-done[data-done="' + id + '"].is-on') && !document.getElementById('mcSheet')?.classList.contains('open');
+    document.querySelector('#mcList .mc2-done[data-done="' + id + '"]').click(); await new Promise(r => setTimeout(r, 400));
+    return w >= 44 && on && document.getElementById(id).dataset.done !== '1'; }));
   ok('スマホ：見出しの［⋯］で見出しのメニュー（複製・注記・見積書から外す）', await p.evaluate(async () => { document.querySelector('#mcList [data-gmore]').click(); await new Promise(r => setTimeout(r, 200)); const m = document.getElementById('gbMenu'); const t = m && !m.hidden ? m.textContent : ''; document.body.click(); return /複製/.test(t) && /見積書から外す/.test(t); }));
   ok('スマホ：編集シートは 数量・単位 → 仕入 → 乗せ幅 → 売 → 備考 → カテゴリ の順', await p.evaluate(async () => {
     document.querySelector('#mcList .mc2-row').click(); await new Promise(r => setTimeout(r, 300));

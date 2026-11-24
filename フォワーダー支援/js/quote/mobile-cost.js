@@ -101,11 +101,12 @@
         if (r.pt !== curPt && (r.pt || curPt)) h += '<div class="mc-pt">' + esc(r.pt || '（パターン設定なし）') + '</div>';
         curPt = r.pt;
         const yen = yenOf(r);
-        h += '<button type="button" class="mc-row mc2-row' + (r.hidden || r.out ? ' is-mute' : '') + (r.pending ? ' is-pending' : '') + '" data-row="' + esc(r.id) + '">' +
+        h += '<div class="mc2-line"><button type="button" class="mc-row mc2-row' + (r.hidden || r.out ? ' is-mute' : '') + (r.pending ? ' is-pending' : '') + '" data-row="' + esc(r.id) + '">' +
           '<span class="mc2-top"><span class="mc-nm">' + (esc(r.nm) || '<i>（品名未入力）</i>') + '</span>' + badgeV2(r) + '</span>' +
           '<span class="mc2-bot"><span class="mc2-q">' + esc(r.qty || '—') + (r.un ? ' × ' + esc(r.un) : '') + '</span><span class="mc2-dot">・</span>' +
           '<b class="mc2-st">' + esc(r.st || '—') + ' <small>' + esc(r.ccy) + '</small></b></span>' +
-          (yen ? '<span class="mc2-yen">' + esc(yen) + '</span>' : '') + '</button>';
+          (yen ? '<span class="mc2-yen">' + esc(yen) + '</span>' : '') + '</button>' +
+          '<button type="button" class="mc2-done' + (r.done ? ' is-on' : '') + '" data-done="' + esc(r.id) + '" aria-pressed="' + (r.done ? 'true' : 'false') + '" aria-label="' + (r.done ? '入力完了（押すと外す）' : '入力完了にする') + '" title="' + (r.done ? '入力完了' + (r.doneText ? '（' + esc(r.doneText) + '）' : '') + '（押すと外す）' : '入力完了にする') + '">✓</button></div>';
       });
       h += '<button type="button" class="mc2-addrow" data-add="' + esc(last.id) + '">＋ 明細を追加</button>';
     });
@@ -127,6 +128,7 @@
   function wire() {
     listEl.querySelectorAll('[data-row]').forEach(b => b.addEventListener('click', () => openRow(b.dataset.row)));
     listEl.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const tr = $(b.dataset.add); const btn = tr && tr.querySelector('.row-add-btn'); if (btn && window.rowAddBelow) { window.rowAddBelow(btn); schedule(); } }));
+    listEl.querySelectorAll('[data-done]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const tr = $(b.dataset.done); const btn = tr && tr.querySelector('.row-done-btn'); if (btn) { btn.click(); schedule(); } }));
     listEl.querySelectorAll('[data-gmore]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openGroupMenu(b); }));
     listEl.querySelectorAll('[data-addrow]').forEach(b => b.addEventListener('click', () => { if (window.addRow) { window.addRow(); schedule(); } }));
   }
