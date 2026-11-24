@@ -161,6 +161,16 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('保存すると下書きが消える', !(await draftRaw(p)).c1);
   ok('保存された値がサーバへ', await p.evaluate(() => window.__db.quote_presets[0].data.fields['qf-customer'] === '復元する会社'));
 
+  // 案件を開いて（編集中・変更なし）ダッシュボードに戻り、検索欄を触っても「未保存」にならない（更新時の警告が出ない）
+  await p.evaluate(() => window.cloudLoadPreset('c1')); await p.waitForTimeout(600);
+  await p.evaluate(() => window.quoteModeEdit()); await p.waitForTimeout(600);
+  ok('（前提）編集中になっている', !(await viewing(p)));
+  await p.evaluate(() => window.qpShowDashboard()); await p.waitForTimeout(300);
+  await p.evaluate(() => { const i = document.getElementById('qpdSearch'); i.value = 'abc'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); });
+  await p.waitForTimeout(100);
+  ok('ダッシュボードで検索しても未保存にならない', !(await p.evaluate(() => window.quoteIsDirty())));
+  await p.evaluate(() => { const i = document.getElementById('qpdSearch'); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); });
+
   // ===== 7) 他の人の下書きは出さない =====
   await p.evaluate(() => { localStorage.setItem('quoteIdleDrafts_v1', JSON.stringify({ c1: { at: Date.now(), reason: 'idle', by: 'other@x.com', base: null, data: { fields: {}, rows: [] } } })); });
   await p.evaluate(() => window.cloudLoadPreset('c1')); await p.waitForTimeout(600);

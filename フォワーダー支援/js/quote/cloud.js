@@ -4579,8 +4579,8 @@
     _applyShareMode('edit');
     // 未保存検知：編集中のユーザー入力で dirty フラグを立てる
     var _qtab = document.getElementById('tab-quote-make');
-    // メール取込モーダルの入力欄（原文・お客様名など）は案件の内容ではないので、未保存の変更とは数えない
-    const _markUnlessImportModal = e => { if (e.target && e.target.closest && e.target.closest('#emailImportModal')) return; _markQuoteDirty(); };
+    // メール取込モーダルの入力欄（原文・お客様名など）と、ダッシュボードの検索・絞り込み欄は案件の内容ではないので、未保存の変更とは数えない
+    const _markUnlessImportModal = e => { if (e.target && e.target.closest && e.target.closest('#emailImportModal, #qpDashboard')) return; _markQuoteDirty(); };
     if (_qtab) { _qtab.addEventListener('input', _markUnlessImportModal); _qtab.addEventListener('change', _markUnlessImportModal); }
     // タブを閉じる/離れる時はロックを即時解放（best-effort。失敗しても90秒で自動失効）
     window.addEventListener('pagehide', () => { if (_lockHeldId) _dropLock(); });
