@@ -430,3 +430,13 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .ops-card { grid-column: 2 / sp
 .opc-f-drop:hover { background: #f2f6fc; }
 .opc-f-drop small { color: var(--text-muted, #667085); font-size: var(--text-xs, 12px); }
 @media (pointer: coarse), (max-width: 600px) { .opc-f-btn { width: 44px; height: 44px; } .opc-f-drop { min-height: 48px; } }
+
+/* 作業のドラッグ並べ替え（左端の ⠿ をつかむ） */
+.opm-grip { flex: 0 0 auto; width: 20px; align-self: center; text-align: center; color: var(--text-muted, #98a2b3); cursor: grab; touch-action: none; user-select: none; font-size: 16px; line-height: 1; padding: 6px 0; }
+.opm-grip:hover { color: var(--text, #1d2939); }
+@media (pointer: coarse) { .opm-grip { width: 28px; padding: 12px 0; } }
+body.opm-dragging, body.opm-dragging * { cursor: grabbing !important; user-select: none !important; }
+.opm-step.is-dragging { opacity: .45; background: var(--surface-2, #f2f4f7); }
+.opm-step.drop-before { box-shadow: inset 0 3px 0 var(--accent, #2f5fb3); }
+.opm-steps.drop-end > .opm-step:last-child { box-shadow: inset 0 -3px 0 var(--accent, #2f5fb3); }
+@media print { .opm-grip { display: none; } }

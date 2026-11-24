@@ -297,6 +297,7 @@
       else if (t.matches('.opm-dl-ok')) { if (readOnly()) return; const x = dlOf(_cur.st)[+t.dataset.i]; if (x) { x.ok = t.checked; commit(); } }
       else if (t.id === 'opmDlType') { const f = $('opmDlFree'); if (f) f.hidden = t.value !== 'free'; }
     });
+    ov.addEventListener('pointerdown', e => { const g = e.target.closest && e.target.closest('.opm-grip'); if (g) dragStart(e, g); });
     ov.addEventListener('keydown', e => {
       if (e.key === 'Enter' && e.target.id === 'opmAddIn' && !e.isComposing) { e.preventDefault(); add(); }
     });
@@ -338,6 +339,7 @@
     h += '<ol class="opm-steps">' + st.s.map((x, i) => {
       const isNext = sm.next === x, open = _cur.open === x.id;
       return '<li class="opm-step' + (x.d ? ' is-done' : '') + (isNext ? ' is-next' : '') + (open ? ' is-open' : '') + (x.w === 'wait' && !x.d ? ' is-wait' : '') + '">' +
+        (ro || st.s.length < 2 ? '' : '<span class="opm-grip" data-i="' + i + '" title="ドラッグで並べ替え" aria-hidden="true">⠿</span>') +
         '<button type="button" class="opm-chk" data-opm="toggle" data-i="' + i + '" role="checkbox" aria-checked="' + x.d + '"' + (ro ? ' disabled' : '') + ' title="' + (x.d ? '完了を取り消す' : '完了にする') + '">' + (x.d ? '✓' : '') + '</button>' +
         '<div class="opm-step-main"><button type="button" class="opm-step-l" data-opm="card" data-id="' + esc(x.id) + '" aria-expanded="' + open + '">' + (isNext ? '<em class="opm-next-tag">次</em>' : '') + esc(x.l) + '<span class="opm-caret" aria-hidden="true">' + (open ? '▾' : '▸') + '</span></button>' +
           stepBadges(x, st) +
@@ -385,6 +387,43 @@
     if (readOnly()) return;
     const s = _cur.st.s, j = i + d; if (j < 0 || j >= s.length) return;
     [s[i], s[j]] = [s[j], s[i]]; commit();
+  }
+  // ドラッグで並べ替え（作業の左端の ⠿ をつかむ・マウスでも指でも）。to＝入れたい位置（0〜件数）
+  function moveTo(from, to) {
+    if (readOnly()) return;
+    const s = _cur.st.s; if (from < 0 || from >= s.length) return;
+    if (to > from) to--;
+    if (to === from || to < 0 || to > s.length - 1) return;
+    const [x] = s.splice(from, 1); s.splice(to, 0, x); commit();
+  }
+  let _drag = null;
+  function dragStart(e, grip) {
+    if (readOnly() || e.button > 0) return;
+    const li = grip.closest('.opm-step'), ol = li && li.parentElement; if (!li) return;
+    e.preventDefault();
+    _drag = { from: +grip.dataset.i, to: +grip.dataset.i, li, ol, id: e.pointerId };
+    li.classList.add('is-dragging'); document.body.classList.add('opm-dragging');
+    try { grip.setPointerCapture(e.pointerId); } catch (_) {}
+    const mv = ev => dragMove(ev), up = ev => { grip.removeEventListener('pointermove', mv); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up); dragEnd(ev.type === 'pointercancel'); };
+    grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+  }
+  function dragMove(e) {
+    if (!_drag) return;
+    const lis = Array.from(_drag.ol.querySelectorAll(':scope > .opm-step'));
+    let to = lis.length;
+    for (let k = 0; k < lis.length; k++) { const r = lis[k].getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { to = k; break; } }
+    _drag.to = to;
+    lis.forEach((l, k) => { l.classList.toggle('drop-before', k === to && to !== _drag.from && to !== _drag.from + 1); });
+    _drag.ol.classList.toggle('drop-end', to === lis.length && to !== _drag.from + 1);
+    // 画面の端に近づいたら、中身をスクロール
+    const box = _drag.ol.closest('.opm-body'); if (box) { const r = box.getBoundingClientRect(); if (e.clientY < r.top + 40) box.scrollTop -= 12; else if (e.clientY > r.bottom - 40) box.scrollTop += 12; }
+  }
+  function dragEnd(cancel) {
+    const d = _drag; _drag = null; if (!d) return;
+    document.body.classList.remove('opm-dragging');
+    d.li.classList.remove('is-dragging'); d.ol.classList.remove('drop-end');
+    d.ol.querySelectorAll('.drop-before').forEach(l => l.classList.remove('drop-before'));
+    if (!cancel) moveTo(d.from, d.to);
   }
   async function del(i) {
     if (readOnly()) return;
