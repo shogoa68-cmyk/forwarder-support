@@ -4,7 +4,7 @@
    明細の <tr> は CSS グリッドで 1 段に並べ、細かい欄は同じ行の中の「行の詳細」（.row-detail-panel）へ。
    ========================================================================== */
 html.editor-v2 #tab-quote-make.ca-on {
-  --ca-cols: 24px minmax(160px, 1fr) 116px 36px 84px 80px 96px 104px 84px 70px;
+  --ca-cols: 24px minmax(160px, 1fr) 116px 36px 84px 80px 96px 104px 84px 104px;
   --ca-pri: #2f5fb3; --ca-pri-50: #f5f8fd; --ca-line: #e4e7ec; --ca-sub: #667085;
 }
 
@@ -257,6 +257,8 @@ html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row.ca-zero-
   html.editor-v2 #tab-quote-make .mc2-line { display: flex; align-items: stretch; }
   html.editor-v2 #tab-quote-make .mc2-line > .mc2-row { flex: 1 1 auto; min-width: 0; }
   html.editor-v2 #tab-quote-make .mc2-done { flex: none; width: 48px; min-height: 48px; border: 0; border-left: 1px solid #eaecf0; background: #fff; color: #98a2b3; font-size: 18px; font-weight: 700; cursor: pointer; padding: 0; }
+  html.editor-v2 #tab-quote-make .mc2-hide { flex: none; width: 44px; min-height: 48px; border: 0; border-left: 1px solid #eaecf0; background: #fff; color: #667085; font-size: 16px; cursor: pointer; padding: 0; }
+  html.editor-v2 #tab-quote-make .mc2-hide.is-on { background: #f2f4f7; }
   html.editor-v2 #tab-quote-make .mc2-done.is-on { background: #1e7a4a; color: #fff; }
   html.editor-v2 #tab-quote-make .mc2-row { flex-direction: column; align-items: stretch; gap: 2px; min-height: 48px; padding: 6px 12px; border-left: 0; }
   html.editor-v2 #tab-quote-make .mc2-row.is-mute { opacity: .5; }
@@ -331,3 +333,15 @@ html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-valid.is-empty {
 html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-valid[hidden] { display: none !important; }
 /* 行の詳細の「さらに」の中の有効期間は、いつも出す（空の欄を隠す規則・サーチャージ以外は隠す規則より強く） */
 html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row.ca-open .ca-dmore .rd-group .w-valid { display: flex !important; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; }
+
+/* 見積書に出さない［👁］（［✓］の左・いつも見える） */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .ca-hide-btn {
+  width: 30px; height: 30px; border-radius: 6px; border: 1px solid #d0d5dd; background: #fff; color: #667085;
+  font-size: 14px; line-height: 1; cursor: pointer; padding: 0; flex: none;
+}
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .ca-hide-btn:hover { border-color: #98a2b3; background: #f9fafb; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .ca-hide-btn.is-on { background: #f2f4f7; border-color: #667085; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .ca-hide-btn:focus-visible { outline: 2px solid var(--ca-pri, #2f5fb3); outline-offset: 1px; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row.ca-mute > td.handle-cell > :is(.ca-hide-btn, .ca-done-btn, .row-acts-hint) { opacity: 1; }
+@media (pointer: coarse) { html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .ca-hide-btn { width: 36px; height: 36px; } }
+@media print { html.editor-v2 #tab-quote-make.ca-on .ca-hide-btn { display: none !important; } }

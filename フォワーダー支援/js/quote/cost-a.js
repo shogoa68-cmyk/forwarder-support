@@ -89,6 +89,12 @@
       db.textContent = '✓'; db.setAttribute('aria-pressed', 'false');
       if (hint && hint.parentNode === hc) hc.insertBefore(db, hint); else hc.appendChild(db);
     }
+    // ［✓］の左に［👁］＝見積書に出さない（押すと元の .row-hidequote-btn を押す）
+    if (hc && !q('.ca-hide-btn')) {
+      const hb = document.createElement('button'); hb.type = 'button'; hb.className = 'ca-hide-btn'; hb.dataset.caNew = '1'; hb.dataset.ca = 'hide';
+      hb.setAttribute('aria-pressed', 'false');
+      const db = q('.ca-done-btn'); if (db) hc.insertBefore(hb, db); else hc.appendChild(hb);
+    }
     syncRow(tr);
   }
 
@@ -108,6 +114,14 @@
         + (st.length ? `<span class="ca-badge ${st[0][1]}">${esc(st[0][0])}</span>` : '')
         + (st.length > 1 ? `<span class="ca-badge is-more" title="${esc(st.map(x => x[0]).join('・'))}">+${st.length - 1}</span>` : '');
       if (b.__h !== html) { b.innerHTML = html; b.__h = html; }
+    }
+    const hbtn = q('.ca-hide-btn');
+    if (hbtn) {
+      const hid = tr.classList.contains('row-hidden-quote');
+      hbtn.classList.toggle('is-on', hid); hbtn.setAttribute('aria-pressed', hid ? 'true' : 'false');
+      const ic = hid ? '🚫' : '👁'; if (hbtn.textContent !== ic) hbtn.textContent = ic;
+      const t = hid ? '見積書に出していません（押すと見積書に出す）' : '見積書に出す（押すと見積書に出さない）';
+      if (hbtn.title !== t) { hbtn.title = t; hbtn.setAttribute('aria-label', t); }
     }
     const dbtn = q('.ca-done-btn');
     if (dbtn) {
@@ -404,6 +418,7 @@
         const k = ca.dataset.ca;
         if (k === 'dup') tr.querySelector('.row-dup-btn')?.click();
         else if (k === 'done') tr.querySelector('.row-done-btn')?.click();
+        else if (k === 'hide') tr.querySelector('.row-hidequote-btn')?.click();
         else if (k === 'del') tr.querySelector('.row-del-btn')?.click();
         else if (k === 'more') { const m = tr.querySelector('.ca-dmore'); if (m) setMore(tr, m.hidden); }
         else if (k === 'valid') { e.stopPropagation(); openDetail(tr); setMore(tr, true); const f = tr.querySelector('[data-field="vf"]'); if (f) { try { f.focus({ preventScroll: true }); } catch (x) {} f.scrollIntoView({ block: 'nearest' }); } }
