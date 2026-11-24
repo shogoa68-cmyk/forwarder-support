@@ -302,7 +302,7 @@
     let lastItemIdx = -1;   // 直前の行が明細だったとき、その明細の番号
     let curSrc = '';   // いま読んでいる行の文（明細に元の行として持たせる＝確認画面の評価・ルールの「形」に使う）
     const pushItem = o => { if (!o.src) o.src = curSrc; entries.push(o); lastItemIdx = itemCount; itemCount++; };
-    const _AUTO_NOTE_RE = /為替レートにより請求金額が変動|「〜」で幅を示した項目を含むため/;   // 本アプリが自動で付ける注記は、取り込まない
+    const _AUTO_NOTE_RE = /為替レートにより請求金額が変動|外貨建ての項目は記載の通貨でのご請求|外貨建ての原価を基に円で算出|「〜」で幅を示した項目を含むため/;   // 本アプリが自動で付ける注記は、取り込まない
     const pushRemark = (raw, itemIdx) => {
       const text = String(raw || '').replace(/^[・･\-\*●○※\s　]+/, '').trim();
       if (!text || _AUTO_NOTE_RE.test(text)) return;

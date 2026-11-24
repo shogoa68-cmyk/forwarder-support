@@ -171,6 +171,24 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('ダッシュボードで検索しても未保存にならない', !(await p.evaluate(() => window.quoteIsDirty())));
   await p.evaluate(() => { const i = document.getElementById('qpdSearch'); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); });
 
+  // 未保存の確認で「💾 保存して進む」を押すと、保存して先へ進む（以前は保存はされるが元の画面に残り、
+  // さらに「ダッシュボードに戻りますか？」の確認まで割り込んでいた）
+  await p.evaluate(() => window.cloudLoadPreset('c1')); await p.waitForTimeout(600);
+  await p.evaluate(() => window.quoteModeEdit()); await p.waitForTimeout(600);
+  await p.evaluate(() => { const i = document.getElementById('qf-customer'); i.value = '保存して進む会社'; i.dispatchEvent(new Event('input', { bubbles: true })); });
+  ok('（前提）未保存の変更がある', await p.evaluate(() => window.quoteIsDirty()));
+  const dlgs = []; const onDlg = d => { dlgs.push(d.message()); d.dismiss().catch(() => {}); }; p.on('dialog', onDlg);
+  await p.evaluate(() => { window.__leave = 'pending'; window.cloudConfirmLeaveUnsaved('別の案件を開く').then(r => { window.__leave = r; }); });
+  await p.waitForTimeout(200);
+  await p.click('#qpLeaveConfirm .qplc-save');
+  await p.waitForTimeout(1500);
+  ok('「保存して進む」で先へ進む（結果が true）', await p.evaluate(() => window.__leave === true), await p.evaluate(() => window.__leave));
+  ok('入力した内容が保存されている', await p.evaluate(() => window.__db.quote_presets[0].data.fields['qf-customer'] === '保存して進む会社'));
+  ok('「ダッシュボードに戻りますか？」の確認は出ない', !dlgs.some(m => /ダッシュボードに戻りますか/.test(m)), dlgs);
+  await p.evaluate(() => { window.__leave = 'pending'; window.cloudConfirmLeaveUnsaved('x').then(r => { window.__leave = r; }); }); await p.waitForTimeout(150);
+  ok('保存のあとは、確認を出さずに進める', await p.evaluate(() => window.__leave === true && !document.getElementById('qpLeaveConfirm').classList.contains('open')));
+  p.off('dialog', onDlg);
+
   // ===== 7) 他の人の下書きは出さない =====
   await p.evaluate(() => { localStorage.setItem('quoteIdleDrafts_v1', JSON.stringify({ c1: { at: Date.now(), reason: 'idle', by: 'other@x.com', base: null, data: { fields: {}, rows: [] } } })); });
   await p.evaluate(() => window.cloudLoadPreset('c1')); await p.waitForTimeout(600);
