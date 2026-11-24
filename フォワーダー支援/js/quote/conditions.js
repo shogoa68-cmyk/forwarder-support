@@ -116,8 +116,21 @@
   const REVISION_DIFF_FIELDS = ['nm', 'bq', 'un', 'bc', 'bp', 'nt'];
   const REVISION_FIELD_LABELS = { nm: '品名', bq: '数量', un: '単位', bc: '通貨', bp: '単価', nt: '備考' };
 
+  // 客先向け出力（見積書）に出る行の uid の集合。見積書に出さない行（👁 非表示・PROFIT SHARE・適用期間外・
+  // 除外したグループ）は入らない。判定は出力と同じ collectAllRows の _hideQuote に揃える。取れないときは null。
+  function _revClientUids() {
+    if (typeof window.collectAllRows !== 'function') return null;
+    try {
+      const set = new Set();
+      window.collectAllRows().forEach(r => { if (r && r._type === 'data' && !r._hideQuote && r.uid) set.add(r.uid); });
+      return set;
+    } catch (e) { return null; }
+  }
+
   // 現在の明細行（uid を持つ通常データ行のみ）を、差分対象フィールドだけ抜き出してスナップショット。
+  // 見積書に出さない行には h:1 を付ける（差分では「お客様に見えていない行」として扱う）。
   window.buildRevisionSnapshot = function () {
+    const shown = _revClientUids();
     const rows = [];
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
       if (tr.dataset.virtual || tr.dataset.type) return;   // 仮想見出し・小計/リマーク行は対象外
@@ -128,12 +141,14 @@
       REVISION_DIFF_FIELDS.forEach(f => {
         row[f] = document.getElementById(f + '-' + id)?.value ?? '';
       });
+      if (shown && !shown.has(uid)) row.h = 1;
       rows.push(row);
     });
     return {
       ts: new Date().toISOString(),
       total: (document.getElementById('tot-subtotal')?.textContent || '').trim(),
       rows,
+      hv: shown ? 1 : 0,   // 1＝見積書に出さない行に h:1 を記録した（古いスナップショットには無い）
     };
   };
 
@@ -173,8 +188,14 @@
     const baseline = window.getRevisionBaseline();
     if (!baseline || !Array.isArray(baseline.rows) || !baseline.rows.length) return null;
     const current = window.buildRevisionSnapshot();
-    const baseByUid = new Map(baseline.rows.map(r => [r.uid, r]));
-    const curByUid  = new Map(current.rows.map(r => [r.uid, r]));
+    // 見積書に出さない行（h:1）は「お客様に見えていない行」として差分から外す。
+    // 前回は出していて今回出さない行は「削除」、前回出していなくて今回出す行は「追加」に見える。
+    // 古いスナップショット（h を記録していない）は、今回出さない行を「削除」と言わずに黙って外す。
+    const curHidden = new Set(current.rows.filter(r => r.h).map(r => r.uid));
+    const baseRows = baseline.rows.filter(r => !r.h && (baseline.hv || !curHidden.has(r.uid)));
+    const curRows  = current.rows.filter(r => !r.h);
+    const baseByUid = new Map(baseRows.map(r => [r.uid, r]));
+    const curByUid  = new Map(curRows.map(r => [r.uid, r]));
     const isChecked = (id) => document.getElementById(id)?.checked !== false; // 未設定は既定で表示する
     const showAdded   = isChecked('qf-revision-show-added');
     const showRemoved = isChecked('qf-revision-show-removed');
@@ -183,9 +204,9 @@
     const showTotal   = isChecked('qf-revision-show-total');
 
     const added = [], removed = [], changed = [];
-    if (showAdded)   current.rows.forEach(r => { if (!baseByUid.has(r.uid)) added.push(r); });
-    if (showRemoved) baseline.rows.forEach(r => { if (!curByUid.has(r.uid)) removed.push(r); });
-    baseline.rows.forEach(b => {
+    if (showAdded)   curRows.forEach(r => { if (!baseByUid.has(r.uid)) added.push(r); });
+    if (showRemoved) baseRows.forEach(r => { if (!curByUid.has(r.uid)) removed.push(r); });   // 消した行・今回から見積書に出さなくなった行
+    baseRows.forEach(b => {
       const c = curByUid.get(b.uid);
       if (!c) return;
       const fields = [];
@@ -719,6 +740,7 @@
     if (value && typeof window.statsJumpToMaster === 'function') {
       window.statsJumpToMaster(field, value, true);
     } else {
+      if (typeof window.statsMarkMasterReturn === 'function') window.statsMarkMasterReturn();
       const catBtn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
       if (typeof window.switchCategory === 'function' && catBtn) window.switchCategory('master', catBtn);
       if (typeof window.masterSetPane === 'function') window.masterSetPane('master');

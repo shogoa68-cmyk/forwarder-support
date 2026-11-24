@@ -76,6 +76,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
           delete() { st.op = 'delete'; return api; },
           single() { st.one = true; return api; }, maybeSingle() { st.one = true; return api; },
           then(res, rej) {
+            if (st.op === 'select') { window.__sel = window.__sel || {}; window.__sel[t] = (window.__sel[t] || 0) + 1; }
             // 申請テーブルは承認制の試験のときだけ存在する（無いときは未作成のエラー＝従来の動き）
             if ((t === 'master_requests' || t === 'stats_exclusions') && !db[t]) return Promise.resolve({ data: null, error: { message: 'relation "' + t + '" does not exist' } }).then(res, rej);
             const rows = (db[t] = db[t] || []);
@@ -1510,6 +1511,39 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => statsMasterSetQuery('')); await p.waitForTimeout(300);
     await p.evaluate(() => statsMasterSetQuery('新規のお客様')); await p.waitForTimeout(500);
     await p.evaluate(() => statsMasterSetQuery('')); await p.waitForTimeout(200);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== 他の画面から飛んできたとき：読み込みは 1 回・［← 元の画面に戻る］ =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[戻る・読み込み] ';
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'customer', value: '飛び先のお客様', voter_email: 's@example.com' });
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('quote', document.querySelector('.cat-btn[aria-controls="tab-quote-make"]')); }); await p.waitForTimeout(800);
+    await p.evaluate(() => { window.scrollTo(0, 0); window.__sel = {}; window.__rm = 0; });
+    await p.evaluate(async () => { await statsJumpToMaster('customer', '飛び先のお客様', false); });
+    await p.waitForTimeout(800);
+    ok(L + '飛んできたときのマスターの読み込みは 1 回だけ', await p.evaluate(() => (window.__sel.master_votes || 0) === 1), await p.evaluate(() => window.__sel));
+    ok(L + '［← 見積を作るに戻る］が出る', await p.evaluate(() => { const b = document.querySelector('#masterBackBar:not([hidden]) .master-back-btn'); return !!b && /戻る/.test(b.textContent) && /見積/.test(b.textContent); }));
+    ok(L + '右下の「← 見積もりに戻る」とは重ならない（隠れる）', await p.evaluate(() => { const f = document.getElementById('backToQuoteFab'); return !f || f.hidden || getComputedStyle(f).display === 'none'; }));
+    await p.evaluate(() => { window.__sel = {}; });
+    await p.evaluate(async () => { await statsJumpToMaster('customer', '飛び先のお客様', false); });
+    await p.waitForTimeout(500);
+    ok(L + '60 秒以内にもう一度飛んでも読み直さない', await p.evaluate(() => (window.__sel.master_votes || 0) === 0), await p.evaluate(() => window.__sel));
+    await p.click('#masterBackBar .master-back-btn'); await p.waitForTimeout(600);
+    ok(L + '押すと元の画面（見積）に戻る', await p.evaluate(() => document.getElementById('tab-quote-make').classList.contains('active')));
+    await p.evaluate(() => { switchCategory('master', document.querySelector('.cat-btn[aria-controls="tab-master"]')); }); await p.waitForTimeout(600);
+    ok(L + 'ナビから自分で開いたときは戻るボタンを出さない', await p.evaluate(() => { const b = document.getElementById('masterBackBar'); return !b || b.hidden; }));
+    await p.evaluate(async () => { await statsJumpToMaster('customer', '飛び先のお客様', 'news'); }); await p.waitForTimeout(800);
+    ok(L + 'タブを指定して飛ぶと、詳細がそのタブ（ニュース）で開く', await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab.is-on'); const pn = document.querySelector('#mdDetailModal .mt-panel[data-mt="news"]'); return !!t && t.dataset.mt === 'news' && pn && !pn.hidden; }));
+    await p.evaluate(() => statsCloseMasterDetail({ force: true })); await p.waitForTimeout(200);
+    await p.evaluate(async () => { await statsJumpToMaster('customer', '飛び先のお客様', true); }); await p.waitForTimeout(800);
+    ok(L + 'タブの指定なしは従来どおり「担当者」で開く', await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab.is-on'); return !!t && t.dataset.mt === 'people'; }));
+    await p.evaluate(() => statsCloseMasterDetail({ force: true })); await p.waitForTimeout(200);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
