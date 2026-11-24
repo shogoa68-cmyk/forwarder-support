@@ -719,6 +719,7 @@
     if (value && typeof window.statsJumpToMaster === 'function') {
       window.statsJumpToMaster(field, value, true);
     } else {
+      if (typeof window.statsMarkMasterReturn === 'function') window.statsMarkMasterReturn();
       const catBtn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
       if (typeof window.switchCategory === 'function' && catBtn) window.switchCategory('master', catBtn);
       if (typeof window.masterSetPane === 'function') window.masterSetPane('master');

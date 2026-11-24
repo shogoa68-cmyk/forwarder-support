@@ -159,7 +159,7 @@
   const LINKS = `<details class="sf-places"><summary>✏️ 書き込む場所</summary><div class="share-links">
       <button type="button" class="share-link" onclick="switchCategory('news', document.querySelector('.cat-btn[aria-controls=tab-news]'))"><b>📰 ニュースの投稿</b><span>お客様・サブコンの新しい情報を投稿</span></button>
       <button type="button" class="share-link" onclick="switchCategory('quote', document.querySelector('.cat-btn[aria-controls=tab-quote-make]'))"><b>💬 案件の申し送り</b><span>見積の一覧で、案件カードの「申し送り」から</span></button>
-      <button type="button" class="share-link" onclick="switchCategory('master', document.querySelector('.cat-btn[aria-controls=tab-master]'))"><b>🗂 顧客カルテ・📌 取引ルール</b><span>マスター管理の、お客様の詳細から</span></button>
+      <button type="button" class="share-link" onclick="window.statsMarkMasterReturn&&statsMarkMasterReturn();switchCategory('master', document.querySelector('.cat-btn[aria-controls=tab-master]'))"><b>🗂 顧客カルテ・📌 取引ルール</b><span>マスター管理の、お客様の詳細から</span></button>
       <button type="button" class="share-link" onclick="switchCategory('bookmark', document.querySelector('.cat-btn[aria-controls=tab-bookmark]'))"><b>🔖 リンク集</b><span>船会社・サブコンのよく使うリンク</span></button>
       <button type="button" class="share-link" onclick="switchCategory('bugreports')"><b>🐞 不具合報告・💡 アイデア</b><span>アプリへの要望や困りごと</span></button>
     </div></details>`;
