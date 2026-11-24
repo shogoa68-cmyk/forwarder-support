@@ -200,6 +200,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const gd = await p.evaluate(() => window.__db.ops_guides || []);
   ok('手順メモはチーム共有の表に、作業名（往路・復路を除く）の key で保存', gd.length === 1 && gd[0].key === 'si(船積指示)の提出' && /SI 画面/.test(gd[0].body), gd);
   ok('手順メモの URL はリンクになる', await p.evaluate(() => !!document.querySelector('#opmModal .opc-guide a[href="https://example.com/si"][target="_blank"]')));
+  // 手順メモの範囲：お客様ごと・サブコンごと
+  ok('手順メモは「共通／お客様：X社／サブコン」の 3 つの枠', await p.evaluate(() => { const t = [...document.querySelectorAll('#opmModal .opc-gs .opc-gs-h b')].map(e => e.textContent); return t.length === 3 && t[0] === '共通' && t[1] === 'お客様：X社' && /^サブコン/.test(t[2]); }));
+  ok('相手（サブコン）が空のあいだは、サブコンの手順は書けない（案内だけ）', await p.evaluate(() => !document.querySelector('#opmModal .opc-gs-s [data-opm="gedit"]') && /相手（サブコン）/.test(document.querySelector('#opmModal .opc-gs-s').textContent)));
+  await click(p, '#opmModal .opc-gs-c [data-opm="gedit"]'); await p.waitForTimeout(200);
+  await p.evaluate(() => { document.querySelector('#opmModal .opc-gs-c .opc-g-in').value = 'X社は INV に HS コード必須'; document.querySelector('#opmModal .opc-gs-c [data-opm="gsave"]').click(); }); await p.waitForTimeout(600);
+  let gd2 = await p.evaluate(() => window.__db.ops_guides || []);
+  ok('お客様の手順は「作業名|c:お客様」の key で保存（共通の手順は変わらない）', gd2.some(g => g.key === 'si(船積指示)の提出|c:x社' && /HS コード/.test(g.body)) && gd2.some(g => g.key === 'si(船積指示)の提出' && /SI 画面/.test(g.body)), gd2.map(g => g.key));
+  await setv('#opmModal .opc-sv', '山田運送'); await p.waitForTimeout(600);
+  o = await ops(p, 'B1');
+  ok('相手（サブコン）は作業に保存', o.s[SI].sv === '山田運送', o.s[SI]);
+  await click(p, '#opmModal .opc-gs-s [data-opm="gedit"]'); await p.waitForTimeout(200);
+  await p.evaluate(() => { document.querySelector('#opmModal .opc-gs-s .opc-g-in').value = '山田運送は専用フォームで依頼'; document.querySelector('#opmModal .opc-gs-s [data-opm="gsave"]').click(); }); await p.waitForTimeout(600);
+  gd2 = await p.evaluate(() => window.__db.ops_guides || []);
+  ok('サブコンの手順は「作業名|s:サブコン」の key で保存', gd2.some(g => g.key === 'si(船積指示)の提出|s:山田運送' && /専用フォーム/.test(g.body)), gd2.map(g => g.key));
+  ok('3 つの枠それぞれに手順が出る', await p.evaluate(() => ['all', 'c', 's'].every(k => document.querySelector('#opmModal .opc-gs-' + k + ' .opc-guide'))));
   // やりとり
   await p.evaluate(() => { document.querySelector('#opmModal .opc-n-in').value = 'INV の確認を依頼しました'; document.querySelector('#opmModal [data-opm="nadd"]').click(); }); await p.waitForTimeout(600);
   const nt = await p.evaluate(() => window.__db.ops_notes || []);
