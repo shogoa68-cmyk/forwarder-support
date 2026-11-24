@@ -106,6 +106,7 @@
           '<span class="mc2-bot"><span class="mc2-q">' + esc(r.qty || '—') + (r.un ? ' × ' + esc(r.un) : '') + '</span><span class="mc2-dot">・</span>' +
           '<b class="mc2-st">' + esc(r.st || '—') + ' <small>' + esc(r.ccy) + '</small></b></span>' +
           (yen ? '<span class="mc2-yen">' + esc(yen) + '</span>' : '') + '</button>' +
+          '<button type="button" class="mc2-hide' + (r.hidden ? ' is-on' : '') + '" data-hide="' + esc(r.id) + '" aria-pressed="' + (r.hidden ? 'true' : 'false') + '" aria-label="' + (r.hidden ? '見積書に出していません（押すと出す）' : '見積書に出す（押すと出さない）') + '" title="' + (r.hidden ? '見積書に出していません（押すと出す）' : '見積書に出す（押すと出さない）') + '">' + (r.hidden ? '🚫' : '👁') + '</button>' +
           '<button type="button" class="mc2-done' + (r.done ? ' is-on' : '') + '" data-done="' + esc(r.id) + '" aria-pressed="' + (r.done ? 'true' : 'false') + '" aria-label="' + (r.done ? '入力完了（押すと外す）' : '入力完了にする') + '" title="' + (r.done ? '入力完了' + (r.doneText ? '（' + esc(r.doneText) + '）' : '') + '（押すと外す）' : '入力完了にする') + '">✓</button></div>';
       });
       h += '<button type="button" class="mc2-addrow" data-add="' + esc(last.id) + '">＋ 明細を追加</button>';
@@ -128,6 +129,7 @@
   function wire() {
     listEl.querySelectorAll('[data-row]').forEach(b => b.addEventListener('click', () => openRow(b.dataset.row)));
     listEl.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const tr = $(b.dataset.add); const btn = tr && tr.querySelector('.row-add-btn'); if (btn && window.rowAddBelow) { window.rowAddBelow(btn); schedule(); } }));
+    listEl.querySelectorAll('[data-hide]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const tr = $(b.dataset.hide); const btn = tr && tr.querySelector('.row-hidequote-btn'); if (btn) { btn.click(); schedule(); } }));
     listEl.querySelectorAll('[data-done]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const tr = $(b.dataset.done); const btn = tr && tr.querySelector('.row-done-btn'); if (btn) { btn.click(); schedule(); } }));
     listEl.querySelectorAll('[data-gmore]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openGroupMenu(b); }));
     listEl.querySelectorAll('[data-addrow]').forEach(b => b.addEventListener('click', () => { if (window.addRow) { window.addRow(); schedule(); } }));
