@@ -144,6 +144,27 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await click(p, '#opmModal [data-opm="up"][data-i="8"]'); await p.waitForTimeout(600);
   o = await ops(p, 'B1');
   ok('▲で上へ', o.s[7].l === '保険の手配', o.s.map(x => x.l));
+  // ドラッグで並べ替え：8 番目（保険の手配）の ⠿ をつかんで 1 番目の上へ → 先頭へ。そのあと元の位置（8 番目）へ戻す
+  const dragTo = async (from, toIdx, after) => {
+    const g = await p.$('#opmModal .opm-grip[data-i="' + from + '"]');
+    const tgt = (await p.$$('#opmModal .opm-step'))[toIdx];
+    await g.scrollIntoViewIfNeeded();
+    const gb = await g.boundingBox(); await p.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2); await p.mouse.down();
+    await tgt.scrollIntoViewIfNeeded();
+    const tb = await tgt.boundingBox(); const y = after ? tb.y + tb.height - 3 : tb.y + 3;
+    await p.mouse.move(gb.x + 4, y, { steps: 8 });
+    const mark = await p.evaluate(() => !!document.querySelector('#opmModal .opm-step.drop-before, #opmModal .opm-steps.drop-end') && !!document.querySelector('#opmModal .opm-step.is-dragging'));
+    await p.mouse.up(); await p.waitForTimeout(700);
+    return mark;
+  };
+  ok('作業の左端に ⠿（ドラッグのつまみ）', await p.evaluate(() => document.querySelectorAll('#opmModal .opm-grip').length === 9));
+  const mk = await dragTo(7, 0, false);
+  o = await ops(p, 'B1');
+  ok('ドラッグ中は入れる位置に線・つかんだ作業は薄く', mk);
+  ok('ドラッグで先頭へ並べ替え（保存される）', o.s[0].l === '保険の手配' && o.s[1].l === 'ブッキング依頼' && o.s.length === 9, o.s.map(x => x.l));
+  await dragTo(0, 7, true);
+  o = await ops(p, 'B1');
+  ok('ドラッグで下へ戻す', o.s[7].l === '保険の手配' && o.s[0].l === 'ブッキング依頼', o.s.map(x => x.l));
   await click(p, '#opmModal [data-opm="rename"][data-i="7"]');
   await p.fill('#opmModal .opm-rename', '貨物保険の手配'); await p.press('#opmModal .opm-rename', 'Enter'); await p.waitForTimeout(600);
   o = await ops(p, 'B1');
