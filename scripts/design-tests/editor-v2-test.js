@@ -123,9 +123,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(200);
   await p.click('#e2Steps [data-e2s="4"]'); await p.waitForTimeout(500);
   ok('④費用でテーブル', await vis('#section-table') && !(await vis('#section-cond')));
-  ok('④費用の上に［すべて折りたたむ］［すべて展開］［＋ サブコンを追加］［📦 チャージ］', (await p.$$('#e2CostBar button')).length === 4 && await vis('#e2CostBar'));
+  // Design 50（案A）：上の操作は 1 行（［＋ サブコンを追加］［📦 チャージから追加］…［⋯］）。すべて開く／閉じるは［⋯］の中
+  ok('④費用の上の操作の行に［＋ サブコンを追加］［📦 チャージから追加］［⋯］', await vis('#tableWrap .quote-cmdbar [data-f="openAddSubconFrame"]') && await vis('#tableWrap .quote-cmdbar [data-f="lcOpenPicker"]') && await vis('#caMoreBtn'));
   const nBefore = await p.evaluate(() => document.querySelectorAll('#tableBody tr:not([data-virtual])').length);
-  await p.click('#e2CostBar [data-f="openAddSubconFrame"]'); await p.waitForTimeout(200);
+  await p.evaluate(() => document.querySelector('#tableWrap .quote-cmdbar [data-f="openAddSubconFrame"]').click()); await p.waitForTimeout(200);
   await p.fill('#sfPop .sf-pop-in', '枠テスト運輸'); await p.keyboard.press('Enter'); await p.waitForTimeout(400);
   ok('操作バーの重複（チャージ）は隠れ、行パターンのボタンは操作バーから外れた（右レールから開く）', !(await vis('.quote-cmdbar .cmdbar-lc-btn')) && !(await vis('.quote-cmdbar .cmdbar-pattern-btn')));
   if (!mobile) { await p.evaluate(() => { const m = document.querySelector('[data-tb-menu="more"]'); m.classList.add('is-open'); }); await p.waitForTimeout(150);
@@ -135,7 +136,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('［＋ サブコンを追加］で、そのサブコンの枠（行）ができる', await p.evaluate(() => [...document.querySelectorAll('#tableBody tr:not([data-virtual]) [data-field="sv"]')].some(i => i.value === '枠テスト運輸')));
   await p.evaluate(() => document.activeElement && document.activeElement.blur()); await p.mouse.move(5, 5); await p.waitForTimeout(300);
   ok('明細：空のパターン・有効期間は行を触るまで隠れる（サブコンは枠をつくったので入っている）', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual])'); const hid = sel => { const e = tr.querySelector(sel); return !e || getComputedStyle(e).display === 'none'; }; return hid('.w-pattern') && hid('.w-valid'); }));
-  ok('明細：未設定のカテゴリ・課税は隠れる', await p.evaluate(() => { const r = document.querySelector('#tableBody tr:not([data-virtual])'); const c = r.querySelector('select.w-cat'), x = r.querySelector('.tax-cell input'); return getComputedStyle(c).display === 'none' && getComputedStyle(x).visibility === 'hidden'; }));
+  // Design 50（案A）：カテゴリ・課税は「行の詳細」の中（閉じている間は見えない）
+  ok('明細：カテゴリ・課税は行に出さない（行の詳細の中）', await p.evaluate(() => { const r = document.querySelector('#tableBody tr:not([data-virtual])'); const c = r.querySelector('select.w-cat'), x = r.querySelector('input[data-field="tx"]'); return !c.getClientRects().length && !x.getClientRects().length && !!c.closest('.row-detail-panel') && !!x.closest('.row-detail-panel'); }));
   if (mobile) {   // スマホ幅：数量登録で右の引き出しが画面内に開き、中身が出る
     await p.evaluate(() => document.querySelector('#e2Total [data-e2q]').click()); await p.waitForTimeout(500);
     const r = await p.evaluate(() => { const c = document.querySelector('.quote-right-col').getBoundingClientRect(); const sc = document.getElementById('scPanel'); return { l: c.left, w: c.width, vw: innerWidth, sc: !!sc && getComputedStyle(sc).display !== 'none', body: document.body.classList.contains('e2-drawer') }; });

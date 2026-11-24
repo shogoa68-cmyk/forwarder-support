@@ -19,6 +19,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => { try { window.qpNewQuote(); } catch (e) {} }); await p.waitForTimeout(1200);
   if (v2) { await p.evaluate(() => { const b = document.querySelector('[data-e2s="4"]'); b && b.click(); }); await p.waitForTimeout(500); }
   await p.evaluate(() => { window.addRow && window.addRow(); }); await p.waitForTimeout(500);
+  if (v2) {   // Design 50（案A）：新しい画面は吹き出しではなく［⋯］のメニュー（row-acts-hint-test.js で確認）
+    console.log('SKIP 新しい画面は［⋯］のメニューに置き換えた（Design 50）');
+    await b.close(); srv.close(); process.exit(0);
+  }
   const rowSel = '#quoteTable tbody tr:not([data-virtual="1"])';
   const actsVisible = () => p.evaluate(sel => { const tr = document.querySelector(sel); const a = tr && tr.querySelector('.row-acts'); if (!a) return null; const r = a.getBoundingClientRect(), c = getComputedStyle(a); return r.width > 0 && r.height > 0 && c.display !== 'none' && c.visibility !== 'hidden' && +c.opacity > 0.5; }, rowSel);
   const hoverCell = async () => { const h = await p.$(rowSel + ' td.handle-cell .row-acts-hint'); await h.hover(); await p.waitForTimeout(250); };

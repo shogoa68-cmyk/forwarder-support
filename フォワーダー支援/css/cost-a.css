@@ -1,0 +1,310 @@
+/* ==========================================================================
+   Design 50 案A（2026-11）：ステップ④「費用」＝明細 1 行を 1 段（js/quote/cost-a.js）
+   新しい画面（html.editor-v2）で cost-a.js が #tab-quote-make に .ca-on を付けたときだけ効く。
+   明細の <tr> は CSS グリッドで 1 段に並べ、細かい欄は同じ行の中の「行の詳細」（.row-detail-panel）へ。
+   ========================================================================== */
+html.editor-v2 #tab-quote-make.ca-on {
+  --ca-cols: 24px minmax(160px, 1fr) 116px 36px 84px 80px 96px 104px 84px 30px;
+  --ca-pri: #2f5fb3; --ca-pri-50: #f5f8fd; --ca-line: #e4e7ec; --ca-sub: #667085;
+}
+
+/* ---- 表の形：テーブルの各行を同じ列のグリッドに ---- */
+html.editor-v2 #tab-quote-make.ca-on #quoteTable { display: block !important; width: 100% !important; min-width: 0 !important; table-layout: auto !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > thead,
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > tbody { display: block !important; width: 100% !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > tfoot { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableScrollWrap { overflow-x: visible !important; min-width: 0 !important; }
+
+/* 列見出し */
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > thead > tr:first-child {
+  display: grid !important; grid-template-columns: var(--ca-cols); align-items: end; height: auto !important;
+  border-bottom: 1px solid var(--ca-line);
+}
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > thead > tr:first-child > th {
+  display: block !important; width: auto !important; min-width: 0 !important; height: auto !important; padding: 6px 6px !important;
+  font-size: 12px !important; font-weight: 700 !important; color: var(--ca-sub) !important; background: none !important; border: 0 !important; text-align: left !important;
+  position: static !important; line-height: 1.4 !important; white-space: nowrap;
+}
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > thead > tr:first-child > th:nth-child(1) { grid-column: 1; text-align: center !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > thead > tr:first-child > th:nth-child(2) { grid-column: 10; grid-row: 1; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > thead > tr:first-child > th:nth-child(3),
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > thead > tr:first-child > th:nth-child(6),
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > thead > tr:first-child > th:nth-child(8) { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > thead > tr:first-child > th:nth-child(4) { grid-column: 2; grid-row: 1; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > thead > tr:first-child > th:nth-child(5) { grid-column: 3; grid-row: 1; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > thead > tr:first-child > th:nth-child(7) { grid-column: 4 / span 4; grid-row: 1; display: grid !important; grid-template-columns: 120px 80px 96px; padding: 6px 0 !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > thead > tr:first-child > th:nth-child(9) { grid-column: 8; grid-row: 1; text-align: right !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable > thead > tr:first-child > th:nth-child(10) { grid-column: 9; grid-row: 1; text-align: right !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable thead .ca-h { padding: 0 6px; text-align: right; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable thead .ca-h-pp { text-align: left; padding-left: 8px; }
+
+/* 明細以外の行（見出し・小計・リマーク）は全幅のブロック */
+/* 折りたたみは行の style（display:none）で隠すので、行の display には !important を付けない */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr:not(.ca-row) { display: block; width: 100% !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr:is(.subcon-cat-header, .is-pt-solo, .is-cat-solo) { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.subcon-group-subtotal.is-collapsed { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr:not(.ca-row) > td { display: block !important; width: 100% !important; box-sizing: border-box; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr[data-type]:not(.ca-row) { display: flex; align-items: center; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr[data-type]:not(.ca-row) > td { width: auto !important; flex: 0 0 auto; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr[data-type]:not(.ca-row) > td:nth-child(4) { flex: 1 1 auto; }
+
+/* ---- 明細 1 行（高さ 40px） ---- */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row {
+  display: grid; grid-template-columns: var(--ca-cols); align-items: center; column-gap: 0;
+  height: auto !important; min-height: 40px !important; max-height: none !important; position: relative;
+  border-bottom: 1px solid var(--ca-line); background: var(--surface, #fff);
+}
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td {
+  display: block !important; height: auto !important; min-height: 0 !important; padding: 4px 6px !important; border: 0 !important;
+  background: none !important; vertical-align: middle; width: auto !important; min-width: 0 !important; position: static !important;
+  box-shadow: none !important;
+}
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.check-cell { grid-column: 1; grid-row: 1; text-align: center; padding: 4px 0 !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.catsv-cell,
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.tax-cell { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.name-cell { display: contents !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.qty-cell { grid-column: 3; grid-row: 1; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.ccy-cell { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.price-cell,
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.price-cell > .stk-price { display: contents !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.subtotal-cell { grid-column: 8; grid-row: 1; text-align: right !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.profit-cell { grid-column: 9; grid-row: 1; text-align: right !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell { grid-column: 10; grid-row: 1; padding: 0 !important; text-align: center; overflow: visible; }
+
+/* 欄の高さは表の中だけ 28〜32px */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row :is(input[type="text"], input[type="number"], select) {
+  height: 30px !important; min-height: 30px !important; padding: 2px 6px !important; font-size: 13px !important; box-sizing: border-box !important; margin: 0 !important;
+}
+
+/* 項目名の段：項目名＋状態の札＋「· 備考」 */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-name { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 6px; min-width: 0; padding: 4px 6px; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-name > input[data-field="nm"] { flex: 0 1 auto; field-sizing: content; width: auto !important; min-width: 140px !important; max-width: 70% !important; font-weight: 600 !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-badges { display: inline-flex; gap: 4px; flex: 0 0 auto; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-badge.is-warn { background: #fdebd3; color: #9a4a06; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-badge.is-mute { background: #e4e7ec; color: #475467; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-badge.is-more { background: #f2f4f7; color: #475467; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-done { color: #1e7a4a; font-weight: 700; font-size: 14px; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-note { flex: 0 1 auto; min-width: 0; font-size: 12px; color: var(--ca-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row.ca-mute > td:not(.handle-cell):not(.check-cell),
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row.ca-mute > td.name-cell > .ca-name > input { opacity: .5; }
+/* 品名セルの中で、行に出さないもの（行の詳細へ移したもの以外の残り） */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.name-cell > :not(.ca-name):not(.row-detail-panel) { display: none !important; }
+
+/* 数量 × 単位 */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .qty-wrap { display: flex !important; flex-direction: row !important; gap: 4px; align-items: center; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .qty-wrap > input[data-field="pq"] { width: 40px !important; flex: 0 0 40px; text-align: right; padding: 2px 4px !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .qty-wrap > input[data-field="un"] { width: auto !important; flex: 1 1 0; min-width: 0 !important; max-width: none !important; padding: 2px 4px !important; text-overflow: clip !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .bq-mirror { display: none !important; }
+
+/* 仕入（左に通貨）｜＋乗せ幅｜売（自動） */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .stk-price > .stk-cost { grid-column: 4 / span 2; grid-row: 1; display: flex !important; align-items: center; gap: 2px; padding: 4px 4px 4px 6px; min-width: 0; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .stk-price .stk-cost .stk-tag { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .stk-price > .stk-cost > .stk-cost { display: contents !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .stk-price > .stk-cost select[data-field="pc"] {
+  width: 36px !important; flex: 0 0 36px; padding: 0 2px !important; font-size: 12px !important; color: var(--ca-sub) !important; border-color: transparent !important; background: transparent !important;
+  appearance: none !important; -webkit-appearance: none !important; background-image: none !important; text-align: left; cursor: pointer;
+}
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .stk-price > .stk-cost input[data-field="pp"] { flex: 1 1 0; min-width: 0 !important; max-width: none !important; width: auto !important; text-align: right; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .stk-price > .stk-mk { grid-column: 6; grid-row: 1; display: flex !important; align-items: center; padding: 4px; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .stk-price > .stk-mk > .stk-mk-plus { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .stk-price > .stk-mk input { width: 100% !important; text-align: right; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .stk-price > .stk-sell { grid-column: 7; grid-row: 1; display: flex !important; align-items: center; gap: 2px; padding: 4px; min-width: 0; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .stk-price > .stk-sell > .stk-tag,
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .stk-price > .stk-sell > .min-note,
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .stk-price > .stk-sell > .bp-base-hint { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .stk-price > .stk-sell input[data-field="bp"] {
+  flex: 1 1 auto; min-width: 0; width: auto !important; text-align: right; border: 1px dashed #c3cad6 !important; background: #f6f7f9 !important; color: #344054 !important;
+}
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-bccy { font-size: 12px; color: var(--ca-sub); flex: 0 0 auto; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-bccy:empty { display: none; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .actual-cost-badge { grid-column: 4 / span 4; grid-row: 1; justify-self: center; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.price-cell > input[type="hidden"] { display: none !important; }
+
+/* 小計（売）・粗利 */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.subtotal-cell :is(.st-state, .st-doneinfo, .tax-hint, .st-sub:not(:has(.jpy-conv-hint))) { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.subtotal-cell { font-weight: 700; font-size: 13px; line-height: 1.3; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.subtotal-cell .jpy-conv-hint { display: block; font-size: 12px !important; font-weight: 400; color: var(--ca-sub) !important; font-style: normal !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.profit-cell { font-size: 13px; line-height: 1.3; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.profit-cell :is(.pr-sub, .pr-rate) { font-size: 12px !important; color: var(--ca-sub); }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.profit-cell .jpy-conv-hint { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row.ca-zero-margin > td.profit-cell :is(.pr-sub, .pr-rate) { color: #b45309 !important; }
+
+/* ［⋯］（右端・押すと複製・削除・入力完了・行の詳細） */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .drag-handle { position: absolute; left: -14px; top: 50%; transform: translateY(-50%); opacity: 0; font-size: 12px; color: #98a2b3; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row:hover > td.handle-cell > .drag-handle { opacity: 1; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .row-acts { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .row-acts-hint {
+  display: inline-flex !important; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; cursor: pointer;
+  border: 1px solid transparent; color: #475467; font-weight: 700; opacity: 1 !important; visibility: visible !important; position: static !important;
+}
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .row-acts-hint:hover { border-color: #98a2b3; background: #fff; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row.ca-picked, html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row.ca-picked > td { background: var(--ca-pri-50) !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row:hover:not(.ca-open) { background: #fafbfc; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row { cursor: default; }
+
+/* ---- 行の詳細（行の下・全幅・開くのは 1 行だけ） ---- */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .row-detail-panel { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row.ca-open .row-detail-panel {
+  display: block !important; grid-column: 1 / -1; grid-row: 2; position: static !important; width: auto !important; max-width: none !important;
+  margin: 0 !important; padding: 10px 14px 12px 40px !important; background: #fbfcfd !important; border: 0 !important; border-top: 1px solid var(--ca-line) !important;
+  box-shadow: none !important; transform: none !important; z-index: auto !important; max-height: none !important; overflow: visible !important;
+}
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row.ca-open { background: #fff; box-shadow: inset 3px 0 0 var(--ca-pri); }
+html.editor-v2 #tab-quote-make.ca-on .ca-dhead { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+html.editor-v2 #tab-quote-make.ca-on .ca-dtitle { font-size: 14px; font-weight: 700; }
+html.editor-v2 #tab-quote-make.ca-on .ca-sp { flex: 1 1 auto; }
+html.editor-v2 #tab-quote-make.ca-on .ca-dbtn { min-height: 30px; padding: 0 10px; border: 1px solid #98a2b3; border-radius: 6px; background: #fff; font-size: 13px; cursor: pointer; }
+html.editor-v2 #tab-quote-make.ca-on .ca-dbtn.is-danger { color: #b42318; }
+html.editor-v2 #tab-quote-make.ca-on .ca-dfields { display: grid; grid-template-columns: minmax(200px, 2fr) minmax(140px, 1fr) 64px minmax(100px, 1fr); gap: 10px; margin-bottom: 10px; }
+html.editor-v2 #tab-quote-make.ca-on .ca-f { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ca-sub); font-weight: 700; min-width: 0; }
+html.editor-v2 #tab-quote-make.ca-on .ca-f :is(input[type="text"], select) { height: 32px !important; width: 100% !important; font-size: 13px !important; }
+html.editor-v2 #tab-quote-make.ca-on .ca-f .w-note-row { display: flex !important; gap: 4px; align-items: center; }
+html.editor-v2 #tab-quote-make.ca-on .ca-f .w-note-row > input { flex: 1 1 auto; }
+html.editor-v2 #tab-quote-make.ca-on .ca-f .stk-sell { display: flex !important; }
+html.editor-v2 #tab-quote-make.ca-on .ca-f .stk-sell > .stk-tag { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on .ca-f-tax input[type="checkbox"] { width: 18px; height: 18px; margin: 6px 0 0 !important; }
+html.editor-v2 #tab-quote-make.ca-on .ca-quick { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+html.editor-v2 #tab-quote-make.ca-on .ca-qlbl { font-size: 12px; font-weight: 700; color: var(--ca-sub); margin-right: 4px; }
+html.editor-v2 #tab-quote-make.ca-on .ca-chip { min-height: 28px; padding: 0 12px; border: 1px solid #c3cad6; border-radius: 14px; background: #fff; font-size: 13px; cursor: pointer; }
+html.editor-v2 #tab-quote-make.ca-on .ca-chip.is-on { background: var(--ca-pri); border-color: var(--ca-pri); color: #fff; font-weight: 700; }
+html.editor-v2 #tab-quote-make.ca-on .ca-dmore[hidden] { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on .ca-dmore { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; padding-top: 8px; border-top: 1px dashed var(--ca-line); }
+html.editor-v2 #tab-quote-make.ca-on .ca-dmore > .rd-group { display: block !important; min-width: 0; }
+html.editor-v2 #tab-quote-make.ca-on .ca-dmore > .rd-group.wide { grid-column: 1 / -1; }
+/* 行の詳細の中の欄は通常の大きさ */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .row-detail-panel :is(input[type="text"], input[type="number"], select) { height: 32px !important; }
+
+/* ---- 上の操作の行（1 行） ---- */
+html.editor-v2 #tab-quote-make.ca-on #e2CostBar { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableWrap > .section-desc { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #section-table > .section-toggle-head { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on .cmdbar-main > :is(.btn-ins-sub, .cmdbar-lc-btn, .cmdbar-pip-btn, .btn-group-label, #rowInsertPos, #cmdbarMore) { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on .cmdbar-main > [data-f="openAddSubconFrame"] {
+  display: inline-flex !important; align-items: center; min-height: 36px; padding: 0 16px; border-radius: 6px; border: 0; background: var(--ca-pri); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer;
+}
+html.editor-v2 #tab-quote-make.ca-on .cmdbar-main > [data-f="lcOpenPicker"] {
+  display: inline-flex !important; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #98a2b3; background: #fff; font-size: 13px; cursor: pointer;
+}
+html.editor-v2 #tab-quote-make.ca-on .cmdbar-main .cmdbar-gear { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on .cmdbar-main .cmdbar-gear[open] { display: block !important; }
+html.editor-v2 #tab-quote-make.ca-on .ca-more-btn { min-width: 36px; min-height: 32px; border: 1px solid #98a2b3; border-radius: 6px; background: #fff; font-weight: 700; cursor: pointer; }
+/* 空の状態（明細が 1 行も無い間）は、上の操作の行のボタンも隠す（カードの［＋ サブコンを追加］を使う） */
+html.editor-v2 #tab-quote-make.ca-on #tableWrap.sf-empty .cmdbar-main > [data-f="openAddSubconFrame"] { display: none !important; }
+
+/* ---- 見出し・小計 ---- */
+html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-subgroup-header.is-pattern :is(.subcon-subgroup-grip, .pt-cat-inline, .gb-m-c) { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-subgroup-header.is-pattern .ca-ptn { font-size: 13px; color: var(--ca-sub); margin-left: 4px; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-group-subtotal { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-pattern-subtotal:not(.ca-pt-show) { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-pattern-subtotal > td { padding: 0 !important; background: #f6f7f9 !important; border: 0 !important; border-bottom: 1px solid var(--ca-line) !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-pattern-subtotal .subcon-subtotal-inner { min-height: 34px; padding: 4px 12px 4px 40px !important; font-size: 12px !important; display: flex; align-items: center; gap: 14px; background: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-pattern-subtotal .subcon-subtotal-label { flex: 1 1 auto; font-size: 12px !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-pattern-subtotal :is(b, i) { font-size: 12px !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody tr :is(.subcon-subtotal-add-btn) { display: none !important; }
+
+/* ---- 表の最後の合計（薄い 1 行） ---- */
+html.editor-v2 #tab-quote-make.ca-on .ca-total { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 12px; background: #f6f7f9; border: 1px solid var(--ca-line); border-top: 0; font-size: 13px; }
+html.editor-v2 #tab-quote-make.ca-on .ca-total .ca-tl { font-weight: 700; }
+html.editor-v2 #tab-quote-make.ca-on .ca-total .ca-tl small { font-weight: 400; color: var(--ca-sub); font-size: 12px; margin-left: 8px; }
+html.editor-v2 #tab-quote-make.ca-on .ca-total .ca-tv b { font-size: 14px; }
+html.editor-v2 #tab-quote-make:not(.ca-on) .ca-total { display: none; }
+
+/* ---- 選んだ行の帯（表の上に貼り付く） ---- */
+html.editor-v2 #tab-quote-make.ca-on #cmdbarContext { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on .ca-sel[hidden] { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on .quote-cmdbar:has(> .ca-sel:not([hidden])) > :not(.ca-sel) { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on .ca-sel {
+  position: relative; z-index: 2; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 6px 10px; border-radius: 8px; background: #1d2433; color: #fff; margin: 0 0 6px;
+}
+html.editor-v2 #tab-quote-make.ca-on .ca-sel b { font-size: 13px; margin-right: 6px; }
+html.editor-v2 #tab-quote-make.ca-on .ca-sel button { min-height: 30px; padding: 0 10px; border: 1px solid rgba(255,255,255,.35); border-radius: 6px; background: transparent; color: #fff; font-size: 13px; cursor: pointer; }
+html.editor-v2 #tab-quote-make.ca-on .ca-sel button:hover { background: rgba(255,255,255,.12); }
+html.editor-v2 #tab-quote-make.ca-on .ca-sel button.is-danger { color: #ffb4ab; }
+
+/* ---- メニュー（body 直下） ---- */
+.ca-menu { position: fixed; z-index: 10070; min-width: 220px; padding: 4px; display: flex; flex-direction: column; background: var(--surface, #fff); border: 1px solid #d0d5dd; border-radius: 8px; box-shadow: 0 8px 24px rgba(16,24,40,.18); }
+.ca-mi { min-height: 34px; text-align: left; padding: 0 12px; border: 0; background: transparent; font-size: 13px; border-radius: 6px; cursor: pointer; color: var(--text, #1d2433); }
+.ca-mi:hover, .ca-mi:focus { background: #f2f4f7; outline: none; }
+.ca-mi.is-danger { color: #b42318; }
+.ca-mi.is-primary { background: #2f5fb3; color: #fff; font-weight: 700; text-align: center; }
+.ca-sepl { height: 1px; margin: 4px 6px; background: #e4e7ec; }
+.ca-move { padding: 10px; gap: 8px; min-width: 280px; }
+.ca-move b { font-size: 13px; }
+.ca-move-in { height: 34px; padding: 0 8px; border: 1px solid #c3cad6; border-radius: 6px; font-size: 14px; }
+.ca-move-row { display: flex; justify-content: flex-end; gap: 6px; }
+
+/* 小計・粗利の中の段（Industry の 3 段の高さ）を詰める */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td:is(.subtotal-cell, .profit-cell) > * { height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; line-height: 1.3 !important; position: static !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td:is(.subtotal-cell, .profit-cell) { display: flex !important; flex-direction: column; justify-content: center; align-items: flex-end; gap: 0; }
+/* 行の詳細の中では、空のカテゴリ・課税も常に出す（新しい画面の「乗せるまで隠す」を打ち消す） */
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row td .ca-f :is(select.w-cat, select.w-cat[data-e2empty="1"], input[data-field="tx"]) { display: block !important; visibility: visible !important; opacity: 1 !important; }
+/* パターン小計の文字は濃い灰（現行・Quiet の色指定に負けないように） */
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody tr.subcon-pattern-subtotal :is(span, i, b, .subcon-subtotal-label) { color: #475467 !important; opacity: 1 !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody tr.subcon-pattern-subtotal b { color: #1d2433 !important; }
+/* 粗利の % はどのテーマでも金額の下に出す（0.0% は橙） */
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row > td.profit-cell .pr-rate { display: block !important; visibility: visible !important; font-size: 12px !important; color: var(--ca-sub) !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row.ca-zero-margin > td.profit-cell .pr-rate { color: #b45309 !important; }
+
+/* ===== Design 50（案A・7）：スマホ（〜600px）の一覧 #mcList と編集シート ===== */
+@media (max-width: 600px) {
+  html.editor-v2 #tab-quote-make .mc2-sv { flex-wrap: wrap; gap: 6px 8px; }
+  html.editor-v2 #tab-quote-make .mc2-sv .mc-sv-name { flex: 1 1 auto; }
+  html.editor-v2 #tab-quote-make .mc2-n { font-weight: 400; font-size: 12px; opacity: .85; white-space: nowrap; }
+  html.editor-v2 #tab-quote-make .mc2-more { flex: none; width: 44px; height: 36px; border: 1px solid rgba(255,255,255,.6); background: transparent; color: #fff; font-size: 18px; line-height: 1; cursor: pointer; border-radius: 6px; }
+  html.editor-v2 #tab-quote-make .mc2-add { width: auto; padding: 0 10px; font-size: 13px; font-weight: 700; border-radius: 6px; white-space: nowrap; }
+  html.editor-v2 #tab-quote-make .mc2-row { flex-direction: column; align-items: stretch; gap: 2px; min-height: 48px; padding: 6px 12px; border-left: 0; }
+  html.editor-v2 #tab-quote-make .mc2-row.is-mute { opacity: .5; }
+  html.editor-v2 #tab-quote-make .mc2-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  html.editor-v2 #tab-quote-make .mc2-top .mc-nm { flex: 0 1 auto; min-width: 0; }
+  html.editor-v2 #tab-quote-make .mc2-tag { flex: none; font-size: 12px; font-weight: 600; padding: 0 6px; border-radius: 4px; background: #eef0f3; color: #475467; white-space: nowrap; }
+  html.editor-v2 #tab-quote-make .mc2-tag.is-warn { background: #fdebd3; color: #9a4a06; }
+  html.editor-v2 #tab-quote-make .mc2-tag.is-more { background: #e4e7ec; }
+  html.editor-v2 #tab-quote-make .mc2-ok { flex: none; color: #1e7a4a; font-size: 13px; }
+  html.editor-v2 #tab-quote-make .mc2-bot { display: flex; align-items: baseline; gap: 4px; font-size: 13px; color: #475467; }
+  html.editor-v2 #tab-quote-make .mc2-st { color: #1d2433; font-size: 14px; font-variant-numeric: tabular-nums; }
+  html.editor-v2 #tab-quote-make .mc2-st small { font-weight: 400; font-size: 12px; color: #667085; }
+  html.editor-v2 #tab-quote-make .mc2-yen { font-size: 12px; color: #667085; font-variant-numeric: tabular-nums; }
+  /* 編集シートの並び：数量・単位 → 仕入（通貨）→ 乗せ幅 → 売（自動）→ 備考 → カテゴリ → そのほか */
+  html.editor-v2 #mcSheet .mcs-body > :nth-child(2) { order: 1; }
+  html.editor-v2 #mcSheet .mcs-body > :nth-child(n+10) { order: 2; }
+}
+/* スマホでも費用の上の操作の行（［＋ サブコンを追加］［📦 チャージから追加］［⋯］）を出す：
+   旧 #e2CostBar から移したため、editor-v2.css の「スマホは操作バーを出さない」を、この画面だけ打ち消す（固定はしない・横スクロールの 1 行） */
+@media (max-width: 600px) {
+  html.editor-v2 #tab-quote-make.ca-on .quote-cmdbar { display: block !important; position: static !important; top: auto !important; }
+  html.editor-v2 #tab-quote-make.ca-on .quote-cmdbar .cmdbar-main { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  html.editor-v2 #tab-quote-make.ca-on .quote-cmdbar .cmdbar-main > button { flex: none; white-space: nowrap; min-height: 44px; }
+  /* 以前どおりスマホでは出さないもの（為替の帯・要調査の件数）：出すのは 3 つのボタンだけ */
+  html.editor-v2 #tab-quote-make.ca-on .quote-cmdbar .cmdbar-main > :not([data-f="openAddSubconFrame"]):not([data-f="lcOpenPicker"]):not(#caMoreBtn) { display: none !important; }
+  html.editor-v2 #tab-quote-make.ca-on .quote-cmdbar .cmdbar-main { padding: 6px 0; gap: 8px; }
+}
+
+/* ===== Design 50r（50 の報告への返事・2026-11） ===== */
+/* 3-1 項目名の欄は列いっぱい（最小 160px）。状態の札・「· 備考」は欄の右 */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-name > input[data-field="nm"] { flex: 1 1 160px !important; field-sizing: fixed; width: auto !important; min-width: 160px !important; max-width: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-note { flex: 0 1 auto; max-width: 40%; }
+/* 3-6 行の右端の［⋯］：枠つき 30px（いつも出す・色は灰） */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .row-acts-hint { width: 30px !important; height: 30px !important; border: 1px solid #d0d5dd !important; background: #fff; color: #475467; font-size: 16px; line-height: 1; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .row-acts-hint:hover { border-color: #98a2b3 !important; background: #f9fafb; }
+/* ⠿ はキーボードで行・欄に焦点があるときも出す */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row:focus-within > td.handle-cell > .drag-handle,
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row:focus > td.handle-cell > .drag-handle { opacity: 1; }
+/* 3-4 ［↺ 一括解除］は［⋯］の中（「入力完了をすべて外す」）へ */
+html.editor-v2 #tab-quote-make.ca-on #doneResetBtn { display: none !important; }
+/* 3-7 パターン見出しの「パターン」の文字は出さない（🔖 で分かる） */
+html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-subgroup-header .subcon-subgroup-leg::before { content: none !important; display: none !important; }
+/* 3-5 PC：❓ が表の右端（粗利の列）に重ならないよう、❓ が画面右下に浮いている間だけ表の右に 56px あける */
+@media (min-width: 601px) {
+  html.editor-v2 body:not(:has(#qrcRail > #fbQuickFab)) #tab-quote-make.ca-on #tableWrap { padding-right: 56px; }
+}
+/* 3-2 スマホ：見出しは 1 段（［＋ 明細を追加］はグループのいちばん下・幅いっぱい・44px・主色の文字・上に 1px の線） */
+@media (max-width: 600px) {
+  html.editor-v2 #tab-quote-make .mc2-sv { flex-wrap: nowrap; }
+  html.editor-v2 #tab-quote-make .mc2-sv .mc-sv-name { flex: 1 1 auto; min-width: 0; }
+  html.editor-v2 #tab-quote-make .mc2-sv .mc-sv-sum { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+  html.editor-v2 #tab-quote-make .mc2-sv .mc-sv-sum small { font-size: 12px; margin-left: 1px; opacity: .85; }
+  html.editor-v2 #tab-quote-make .mc2-addrow { display: block; width: 100%; height: 44px; margin: 0; padding: 0 12px; border: 0; border-top: 1px solid #e3e6ea; background: #fff; color: var(--ca-pri, #2f5fb3); font: inherit; font-weight: 700; font-size: 14px; text-align: left; cursor: pointer; }
+  html.editor-v2 #tab-quote-make .mc2-addrow:hover, html.editor-v2 #tab-quote-make .mc2-addrow:focus-visible { background: #f5f8fd; }
+}
