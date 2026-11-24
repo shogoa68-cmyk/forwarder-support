@@ -68,8 +68,10 @@ let fail=0;const ok=(n,c,x)=>{if(!c)fail++;console.log((c?'PASS ':'FAIL ')+n+(c?
  ok('種類で絞れる（事務所移転）',await p.evaluate(()=>document.querySelectorAll('.nf-item').length===1&&/倉庫を移転/.test(document.querySelector('.nf-item').textContent)),null);
  await p.selectOption('.nf-kind','all');await p.waitForTimeout(100);
  // 会社名を押すとマスター詳細へ
- await p.click('.nf-item .nf-target');await p.waitForTimeout(100);
- ok('会社名を押すとマスター詳細を開く',await p.evaluate(()=>JSON.stringify(window.__jump)===JSON.stringify(['customer','山田商事',true])),null);
+ await p.click('.nf-item .nf-target');await p.waitForTimeout(150);
+ ok('会社名を押すと、その場でその会社のニュースを簡易表示',await p.evaluate(()=>{const e=document.querySelector('.mpk-pop');return !!e&&e.querySelector('.mpk-name').textContent==='山田商事'&&e.querySelectorAll('.mpk-item').length>=1&&window.__jump===null;}),null);
+ await p.click('.mpk-go');await p.waitForTimeout(100);
+ ok('［マスターの詳細で見る］でニュースのタブを指定して開く',await p.evaluate(()=>JSON.stringify(window.__jump)===JSON.stringify(['customer','山田商事','news'])),null);
  // 編集
  await p.click('.nf-item [data-nf="edit"]');await p.waitForTimeout(150);
  ok('編集では名前・種別は固定、見出しに今の値',await p.evaluate(()=>document.querySelector('.nf-f-name').disabled&&document.querySelector('.nf-f-title').value==='担当が佐藤さんに変更'),null);

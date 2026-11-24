@@ -52,7 +52,7 @@
       <div class="nf-card">
         <div class="nf-head"><span class="nf-date">${_esc(String(n.news_date || '').replace(/-/g, '/'))}</span>
           <span class="mn-badge mn-badge-${_esc(n.kind)}">${k.icon} ${_esc(k.label)}</span>
-          <button type="button" class="nf-target" data-nf="open" data-f="${_esc(n.field)}" data-name="${_esc(n.name)}" title="マスター詳細を開く">${F.icon} ${_esc(n.name)}</button></div>
+          <button type="button" class="nf-target" data-nf="open" data-f="${_esc(n.field)}" data-name="${_esc(n.name)}" title="この会社のニュースを見る">${F.icon} ${_esc(n.name)}</button></div>
         <div class="nf-title">${_esc(n.title)}</div>
         ${n.body ? `<div class="nf-body">${_esc(n.body)}</div>` : ''}
         ${url ? `<div class="nf-link"><a href="${_esc(url)}" target="_blank" rel="noopener noreferrer">🔗 ${_esc(url.length > 60 ? url.slice(0, 60) + '…' : url)}</a></div>` : ''}
@@ -147,7 +147,10 @@
       if (typeof window.uiConfirm === 'function') window.uiConfirm({ title: 'このニュースを削除しますか？', lines: ['「' + (n ? n.title.slice(0, 40) : '') + '」を削除します。マスター詳細からも消えます。元に戻せません。'], okLabel: '削除する', danger: true }).then(ok => { if (ok) go(); });
       else if (confirm('このニュースを削除しますか？')) go();
     }
-    else if (a === 'open') { if (typeof window.statsJumpToMaster === 'function') window.statsJumpToMaster(b.dataset.f, b.dataset.name, true); }
+    else if (a === 'open') {   // その場で簡易表示 → もっと見るならマスター詳細のニュースタブへ（js/master-peek.js）
+      if (typeof window.masterPeek === 'function') window.masterPeek('news', b.dataset.f, b.dataset.name, b);
+      else if (typeof window.statsJumpToMaster === 'function') window.statsJumpToMaster(b.dataset.f, b.dataset.name, 'news');
+    }
     else if (a === 'reg') { const v = root.querySelector('.nf-f-name').value.trim(); if (typeof window.statsOpenRegister === 'function') window.statsOpenRegister(st.formField, v); }
   }
   function onInput(e) {

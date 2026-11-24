@@ -1538,6 +1538,12 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '押すと元の画面（見積）に戻る', await p.evaluate(() => document.getElementById('tab-quote-make').classList.contains('active')));
     await p.evaluate(() => { switchCategory('master', document.querySelector('.cat-btn[aria-controls="tab-master"]')); }); await p.waitForTimeout(600);
     ok(L + 'ナビから自分で開いたときは戻るボタンを出さない', await p.evaluate(() => { const b = document.getElementById('masterBackBar'); return !b || b.hidden; }));
+    await p.evaluate(async () => { await statsJumpToMaster('customer', '飛び先のお客様', 'news'); }); await p.waitForTimeout(800);
+    ok(L + 'タブを指定して飛ぶと、詳細がそのタブ（ニュース）で開く', await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab.is-on'); const pn = document.querySelector('#mdDetailModal .mt-panel[data-mt="news"]'); return !!t && t.dataset.mt === 'news' && pn && !pn.hidden; }));
+    await p.evaluate(() => statsCloseMasterDetail({ force: true })); await p.waitForTimeout(200);
+    await p.evaluate(async () => { await statsJumpToMaster('customer', '飛び先のお客様', true); }); await p.waitForTimeout(800);
+    ok(L + 'タブの指定なしは従来どおり「担当者」で開く', await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab.is-on'); return !!t && t.dataset.mt === 'people'; }));
+    await p.evaluate(() => statsCloseMasterDetail({ force: true })); await p.waitForTimeout(200);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
