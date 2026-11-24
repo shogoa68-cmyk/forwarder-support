@@ -541,3 +541,14 @@ body.opm-dragging, body.opm-dragging * { cursor: grabbing !important; user-selec
 .opc-day.is-warn .opc-day-h::after { content: '⚠ 休みと重なる'; margin-left: auto; font-size: 11px; color: #b7791f; font-weight: 700; }
 @media (pointer: coarse) { .opc-holchip { min-height: 40px; } }
 @media (max-width: 760px) { .is-month .opc-hol { font-size: 10px; } .is-month .opc-day.is-warn .opc-day-h::after { content: '⚠'; } }
+
+/* 手順メモの範囲（共通／お客様／サブコン） */
+.opc-gs { margin: 6px 0 0; padding: 8px 10px; border: 1px solid var(--border, #e4e7ec); border-left-width: 3px; border-radius: 6px; }
+.opc-gs-all { border-left-color: #98a2b3; }
+.opc-gs-c { border-left-color: #2f5fb3; }
+.opc-gs-s { border-left-color: #d9822b; }
+.opc-gs-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 0 0 4px; font-size: var(--text-sm, 13px); }
+.opc-gs-h small { color: var(--text-muted, #667085); font-size: var(--text-xs, 12px); }
+.opc-gs .opc-empty { margin: 0; }
+.opc-gs .opc-g-in { width: 100%; box-sizing: border-box; }
+.opc-sv { flex: 1 1 220px; min-width: 0; }

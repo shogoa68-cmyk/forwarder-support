@@ -280,9 +280,9 @@
       else if (act === 'card') toggleCard(b.dataset.id);
       else if (act === 'wstate') setWState(i, b.dataset.v);
       else if (act === 'whome') setWho(i, me());
-      else if (act === 'gedit') { _cur.gedit = b.dataset.id; render(); const ta = $('opmBody').querySelector('.opc-g-in'); if (ta) ta.focus(); }
+      else if (act === 'gedit') { _cur.gedit = b.dataset.id + '|' + (b.dataset.s || 'all'); render(); const ta = $('opmBody').querySelector('.opc-g-in'); if (ta) ta.focus(); }
       else if (act === 'gcancel') { _cur.gedit = ''; render(); }
-      else if (act === 'gsave') saveGuide(i);
+      else if (act === 'gsave') saveGuide(i, b.dataset.s || 'all');
       else if (act === 'nadd') addNote(i);
       else if (act === 'ndel') delNote(b.dataset.id);
       else if (act === 'fopen') openFile(b.dataset.id, false);
@@ -297,6 +297,7 @@
       const t = e.target;
       if (t.matches('.opm-due')) setDue(+t.dataset.i, t.value);
       else if (t.matches('.opc-who')) setWho(+t.dataset.i, t.value);
+      else if (t.matches('.opc-sv')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (!x) return; const v = t.value.trim().slice(0, 80); if ((x.sv || '') === v) return; if (v) x.sv = v; else delete x.sv; _cur.gedit = ''; commit(); }
       else if (t.matches('.opc-f-in')) { const fl = Array.from(t.files || []); t.value = ''; uploadFiles(+t.dataset.i, fl); }
       else if (t.matches('.opc-wn')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (x) { x.wn = t.value.trim().slice(0, 80); commit(); } }
       else if (t.matches('.opc-dk')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (x) { x.dk = t.value; const dl = dlOf(_cur.st).find(d => d.id === x.dk); if (dl && dl.d && !x.d && !x.due) x.due = dl.d; commit(); } }
@@ -488,6 +489,32 @@
   const isMissingRel = e => !!e && (e.code === '42P01' || e.code === 'PGRST205' || /(does not exist|Could not find the table)/i.test(e.message || ''));
   const guideKey = l => stripLeg(l).normalize('NFKC').replace(/\s+/g, '').toLowerCase().slice(0, 120);
   const GUIDE = { map: new Map(), loaded: false, loading: false, missing: false };
+  // 手順メモの「範囲」：共通（作業の名前だけで判定）／お客様ごと（この進行のお客様）／サブコンごと（作業カードの「相手（サブコン）」）
+  // key＝共通は作業の名前、範囲つきは「作業の名前（70 字まで）|c:お客様」「…|s:サブコン」（名前は代表名にそろえ、空白・大小・全角半角を無視）
+  const GSCOPES = [['all', '共通'], ['c', 'お客様'], ['s', 'サブコン']];
+  const normName = v => String(v || '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
+  const canonName = (f, v) => { v = String(v || '').trim(); if (!v) return ''; try { return (typeof window.nameCanon === 'function' && window.nameCanon(f, v)) || v; } catch (e) { return v; } };
+  function curCustomer() {
+    if (!_cur) return '';
+    if (_cur.kind === 'job') { const j = jobById(_cur.jobId); return j ? (j.customer || '') : ''; }
+    const r = rowById(_cur.id); return r ? (r.customer || '') : '';
+  }
+  function guideScopeName(x, scope) { return scope === 'c' ? canonName('customer', curCustomer()) : scope === 's' ? canonName('sv', x.sv) : ''; }
+  function guideKeyFor(x, scope) {
+    const b = guideKey(x.l); if (!b) return '';
+    if (scope === 'all') return b;
+    const n = normName(guideScopeName(x, scope)); if (!n) return '';
+    return b.slice(0, 70) + '|' + scope + ':' + n.slice(0, 40);
+  }
+  const hasGuide = x => GSCOPES.some(sc => { const k = guideKeyFor(x, sc[0]), g = k && GUIDE.map.get(k); return !!(g && g.body); });
+  // 作業カードの「相手（サブコン）」の候補：この案件の明細のサブコン＋サブコンのマスター
+  function svCandidates() {
+    const out = [], seen = new Set(), add = v => { v = String(v || '').trim(); if (v && !seen.has(normName(v))) { seen.add(normName(v)); out.push(v); } };
+    const r = _cur && _cur.kind !== 'job' ? rowById(_cur.id) : null;
+    if (r && typeof window.quoteExtractSubcons === 'function') { try { window.quoteExtractSubcons(r.data).forEach(o => add(canonName('sv', o.name))); } catch (e) {} }
+    try { (typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : []).filter(m => m.field === 'sv').forEach(m => add(m.value)); } catch (e) {}
+    return out;
+  }
   async function loadGuides(force) {
     const c = client(); if (!c || GUIDE.loading || (GUIDE.loaded && !force)) return;
     GUIDE.loading = true;
@@ -591,7 +618,7 @@
     if (dl) b.push('<span class="opm-b opm-b-dl is-' + dlState(st, dl) + '" title="つないだ締め切り">📅 ' + esc(stripLeg(dlLabel(st, dl))) + (dl.d ? ' ' + md(dl.d) : '') + '</span>');
     const n = notesOf(x).length; if (n) b.push('<span class="opm-b" title="やりとり・記録">💬 ' + n + '</span>');
     const nf = filesOf(x).length; if (nf) b.push('<span class="opm-b" title="添付ファイル">📎 ' + nf + '</span>');
-    if (GUIDE.map.get(guideKey(x.l)) && GUIDE.map.get(guideKey(x.l)).body) b.push('<span class="opm-b" title="手順メモがあります">📖</span>');
+    if (hasGuide(x)) b.push('<span class="opm-b" title="手順メモがあります">📖</span>');
     return b.length ? '<span class="opm-badges">' + b.join('') + '</span>' : '';
   }
   function cardHtml(x, i, st, ro) {
@@ -611,14 +638,25 @@
     h += '<div class="opc-row"><span class="opc-l">締め切り</span><select class="opc-dk" data-i="' + i + '"' + dis + '><option value="">（つながない）</option>' +
       dls.map(d => '<option value="' + esc(d.id) + '"' + (x.dk === d.id ? ' selected' : '') + '>' + esc(dlLabel(st, d)) + (d.d ? '（' + md(d.d) + '）' : '') + '</option>').join('') + '</select>' +
       '<small class="opc-hint">締め切りの日付を入れると、この作業の期限にも入ります</small></div>';
-    // 手順メモ
-    const g = GUIDE.map.get(guideKey(x.l)), editing = _cur.gedit === x.id;
-    h += '<div class="opc-sec"><h5>📖 この作業の手順<small>同じ名前の作業すべてに出ます（チームで共有）</small></h5>';
+    h += '<div class="opc-row"><span class="opc-l">相手（サブコン）</span><input type="text" class="opc-sv" data-i="' + i + '" maxlength="80" list="opcSvList" value="' + esc(x.sv || '') + '" placeholder="例）○○運送（この作業でやりとりする会社）"' + dis + '>' +
+      '<datalist id="opcSvList">' + svCandidates().map(v => '<option value="' + esc(v) + '"></option>').join('') + '</datalist>' +
+      '<small class="opc-hint">入れると、そのサブコン向けの手順を書けます</small></div>';
+    // 手順メモ（共通／お客様ごと／サブコンごと）
+    h += '<div class="opc-sec"><h5>📖 この作業の手順<small>チームで共有。共通の手順に加えて、お客様ごと・サブコンごとの手順も書けます</small></h5>';
     if (GUIDE.missing) h += '<p class="opc-miss">手順メモを使うには、管理者が Supabase で <code>docs/sql/ops-cards.sql</code> を実行してください。</p>';
-    else if (editing) h += '<textarea class="opc-g-in" rows="6" maxlength="4000" placeholder="例）&#10;1. 船会社の SI 提出画面で入力（https://…）&#10;2. 荷主に B/L ドラフトを送って確認&#10;注意：○○社は HS コードを必ず記載">' + esc(g ? g.body : '') + '</textarea>' +
-      '<div class="opc-acts"><button type="button" class="opm-link" data-opm="gcancel">やめる</button><button type="button" class="opm-btn opm-btn-pri" data-opm="gsave" data-i="' + i + '">保存</button></div>';
-    else h += (g && g.body ? '<div class="opc-guide">' + linkify(g.body) + '</div><small class="opc-meta">最後に直した人：' + esc(nameOf(g.updated_by)) + (g.updated_at ? '（' + esc(whenText(g.updated_at)) + '）' : '') + '</small>' : '<p class="opc-empty">まだ手順がありません。やり方・使うページ・注意点を書いておくと、ほかの人も同じように進められます。</p>') +
-      (logged ? '<div class="opc-acts"><button type="button" class="opm-link" data-opm="gedit" data-id="' + esc(x.id) + '">✎ 手順を' + (g && g.body ? '直す' : '書く') + '</button></div>' : '');
+    else GSCOPES.forEach(sc => {
+      const scope = sc[0], key = guideKeyFor(x, scope), nm = guideScopeName(x, scope);
+      const g = key ? GUIDE.map.get(key) : null, editing = _cur.gedit === x.id + '|' + scope;
+      const title = scope === 'all' ? '共通' : scope === 'c' ? 'お客様：' + (nm || '—') : 'サブコン：' + (nm || '—');
+      const sub = scope === 'all' ? '同じ名前の作業すべてに出ます' : scope === 'c' ? 'このお客様の、同じ名前の作業だけに出ます' : 'このサブコンが相手の、同じ名前の作業だけに出ます';
+      h += '<div class="opc-gs opc-gs-' + scope + (g && g.body ? ' has-body' : '') + '" data-scope="' + scope + '"><div class="opc-gs-h"><b>' + esc(title) + '</b><small>' + sub + '</small></div>';
+      if (!key) { h += '<p class="opc-empty">' + (scope === 'c' ? 'この進行にはお客様が入っていないため、お客様ごとの手順は書けません。' : '上の「相手（サブコン）」を入れると、そのサブコン向けの手順を書けます。') + '</p></div>'; return; }
+      if (editing) h += '<textarea class="opc-g-in" rows="5" maxlength="4000" placeholder="' + (scope === 'all' ? '例）&#10;1. 船会社の SI 提出画面で入力（https://…）&#10;2. 荷主に B/L ドラフトを送って確認' : scope === 'c' ? '例）このお客様は INV に HS コードを必ず記載・B/L ドラフトは担当の○○さんへ' : '例）このサブコンへの依頼はメールではなく専用フォームから（https://…）') + '">' + esc(g ? g.body : '') + '</textarea>' +
+        '<div class="opc-acts"><button type="button" class="opm-link" data-opm="gcancel">やめる</button><button type="button" class="opm-btn opm-btn-pri" data-opm="gsave" data-i="' + i + '" data-s="' + scope + '">保存</button></div>';
+      else h += (g && g.body ? '<div class="opc-guide">' + linkify(g.body) + '</div><small class="opc-meta">最後に直した人：' + esc(nameOf(g.updated_by)) + (g.updated_at ? '（' + esc(whenText(g.updated_at)) + '）' : '') + '</small>' : '<p class="opc-empty">' + (scope === 'all' ? 'まだ手順がありません。やり方・使うページ・注意点を書いておくと、ほかの人も同じように進められます。' : 'まだありません。') + '</p>') +
+        (logged ? '<div class="opc-acts"><button type="button" class="opm-link" data-opm="gedit" data-id="' + esc(x.id) + '" data-s="' + scope + '">✎ ' + (scope === 'all' ? '共通の手順' : scope === 'c' ? 'お客様の手順' : 'サブコンの手順') + 'を' + (g && g.body ? '直す' : '書く') + '</button></div>' : '');
+      h += '</div>';
+    });
     h += '</div>';
     // 添付ファイル
     h += '<div class="opc-sec opc-files" data-i="' + i + '"><h5>📎 添付ファイル<small>B/L のドラフト・INV・写真など（チームで共有・1 ファイル 10MB まで）</small></h5>';
@@ -666,15 +704,18 @@
     if (email) x.who = email; else delete x.who;
     commit(email ? '👤 業務：「' + x.l + '」の担当を ' + nameOf(email) + ' に' : '');
   }
-  async function saveGuide(i) {
+  async function saveGuide(i, scope) {
     const x = _cur && _cur.st.s[i], c = client(); if (!x || !c) return;
+    scope = scope || 'all';
     const ta = $('opmBody').querySelector('.opc-g-in'); const body = (ta ? ta.value : '').replace(/\s+$/, '');
-    const key = guideKey(x.l); if (!key) return;
-    const { data, error } = await c.from('ops_guides').upsert({ key, label: stripLeg(x.l), body }, { onConflict: 'key' }).select('key,label,body,updated_by,updated_at');
+    const key = guideKeyFor(x, scope); if (!key) return;
+    const nm = guideScopeName(x, scope);
+    const label = (stripLeg(x.l) + (scope === 'all' ? '' : '（' + (scope === 'c' ? 'お客様' : 'サブコン') + '：' + nm + '）')).slice(0, 120);
+    const { data, error } = await c.from('ops_guides').upsert({ key, label, body }, { onConflict: 'key' }).select('key,label,body,updated_by,updated_at');
     if (error) { if (isMissingRel(error)) GUIDE.missing = true; toast('⚠️ 手順を保存できませんでした：' + (error.message || error.code), 'warn', 5000); render(); return; }
-    const row = (data && data[0]) || { key, label: stripLeg(x.l), body, updated_by: me(), updated_at: new Date().toISOString() };
+    const row = (data && data[0]) || { key, label, body, updated_by: me(), updated_at: new Date().toISOString() };
     GUIDE.map.set(key, row); if (_cur) _cur.gedit = '';
-    toast('📖 手順を保存しました（同じ名前の作業すべてに出ます）', 'success', 3000); render();
+    toast('📖 手順を保存しました（' + (scope === 'all' ? '同じ名前の作業すべてに出ます' : scope === 'c' ? 'このお客様の同じ名前の作業に出ます' : 'このサブコンが相手の同じ名前の作業に出ます') + '）', 'success', 3000); render();
   }
   async function addNote(i) {
     const x = _cur && _cur.st.s[i], c = client(); if (!x || !c) return;
