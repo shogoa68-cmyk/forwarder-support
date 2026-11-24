@@ -82,6 +82,13 @@
     put(q('input[data-field="tx"]'), slot('tax'));
     put(q('td.ccy-cell .stk-sell'), slot('bc'));
     MORE.forEach(([sel, s]) => { const el = q(sel), sl = panel.querySelector(`[data-rd-slot="${s}"]`); if (el && sl && !sl.contains(el)) put(el, sl); });
+    // 右端の［✓］＝入力完了（いつも見える・押すと元の .row-done-btn を押す）
+    const hc = q('td.handle-cell'), hint = q('.row-acts-hint');
+    if (hc && !q('.ca-done-btn')) {
+      const db = document.createElement('button'); db.type = 'button'; db.className = 'ca-done-btn'; db.dataset.caNew = '1'; db.dataset.ca = 'done';
+      db.textContent = '✓'; db.setAttribute('aria-pressed', 'false');
+      if (hint && hint.parentNode === hc) hc.insertBefore(db, hint); else hc.appendChild(db);
+    }
     syncRow(tr);
   }
 
@@ -101,6 +108,14 @@
         + (st.length ? `<span class="ca-badge ${st[0][1]}">${esc(st[0][0])}</span>` : '')
         + (st.length > 1 ? `<span class="ca-badge is-more" title="${esc(st.map(x => x[0]).join('・'))}">+${st.length - 1}</span>` : '');
       if (b.__h !== html) { b.innerHTML = html; b.__h = html; }
+    }
+    const dbtn = q('.ca-done-btn');
+    if (dbtn) {
+      dbtn.classList.toggle('is-on', done); dbtn.setAttribute('aria-pressed', done ? 'true' : 'false');
+      let t = done ? '入力完了' : '入力完了にする';
+      if (done && window.rowDoneInfo) { const di = window.rowDoneInfo(tr); if (di && di.text) t = '入力完了（' + di.text + '）'; }
+      t += done ? '（押すと外す）' : '';
+      if (dbtn.title !== t) { dbtn.title = t; dbtn.setAttribute('aria-label', t); }
     }
     tr.classList.toggle('ca-mute', st.some(x => x[1] === 'is-mute'));
     const nt = q('input[data-field="nt"]'), n = q('.ca-note');
