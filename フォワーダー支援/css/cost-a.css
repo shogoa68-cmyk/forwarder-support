@@ -324,3 +324,10 @@ html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .
 html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .ca-done-btn:focus-visible { outline: 2px solid var(--ca-pri, #2f5fb3); outline-offset: 1px; }
 @media (pointer: coarse) { html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .ca-done-btn { width: 36px; height: 36px; } }
 @media print { html.editor-v2 #tab-quote-make.ca-on .ca-done-btn { display: none !important; } }
+
+/* 有効期間の札（サーチャージ・期間のある行）：押すと行の詳細の期間の欄へ */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-valid { flex: none; border: 1px solid #b9cbe8; background: #eef3fb; color: #2f5fb3; border-radius: 999px; font-size: 12px; line-height: 20px; padding: 0 8px; cursor: pointer; white-space: nowrap; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-valid.is-empty { border-style: dashed; background: #fff; color: #b45309; border-color: #f0c48a; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-valid[hidden] { display: none !important; }
+/* 行の詳細の「さらに」の中の有効期間は、いつも出す（空の欄を隠す規則・サーチャージ以外は隠す規則より強く） */
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row.ca-open .ca-dmore .rd-group .w-valid { display: flex !important; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; }

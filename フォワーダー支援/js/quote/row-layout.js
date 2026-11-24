@@ -24,6 +24,8 @@
   // 有効期間（.w-valid）：期間が入っている行・サーチャージの行は、「その他 ▾」を開かなくても見て直せるよう、行の中（品名セルの 3 段目の上）に出す。
   // それ以外の行は、従来どおりパネルの中。classic は常に元の場所（syncPlacement が戻す）
   function validInline(tr, id) {
+    // 新しい画面の ④ 費用（cost-a.js）は品名の欄が 1 段で、ここに出すと隠れてしまうため、行の詳細（さらに）の中に置く
+    if (document.querySelector('#tab-quote-make.ca-on')) return false;
     return !!(fv(id, 'vf') || fv(id, 'vt') || fv(id, 'cat') === 'surcharge');
   }
   function placeValid(tr, id) {

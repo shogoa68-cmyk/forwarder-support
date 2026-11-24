@@ -47,7 +47,7 @@
     let nm = q('.ca-name');
     if (!nm) {
       nm = document.createElement('div'); nm.className = 'ca-name'; nm.dataset.caNew = '1';
-      nm.innerHTML = '<span class="ca-badges"></span><span class="ca-note"></span>';
+      nm.innerHTML = '<span class="ca-badges"></span><span class="ca-note"></span><button type="button" class="ca-valid" data-ca="valid" hidden></button>';
       nameCell.insertBefore(nm, nameCell.firstChild);
     }
     put(q('input[data-field="nm"]'), nm, nm.firstChild);
@@ -118,6 +118,17 @@
       if (dbtn.title !== t) { dbtn.title = t; dbtn.setAttribute('aria-label', t); }
     }
     tr.classList.toggle('ca-mute', st.some(x => x[1] === 'is-mute'));
+    // 有効期間：期間が入っている行・サーチャージの行は、項目名の後ろに「📅 期間」（押すと行の詳細の期間の欄へ）
+    const vc = q('.ca-valid');
+    if (vc) {
+      const vf = (q('[data-field="vf"]') || {}).value || '', vt = (q('[data-field="vt"]') || {}).value || '';
+      const sur = (q('select[data-field="cat"]') || {}).value === 'surcharge';
+      const md = d => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d); return m ? (+m[2]) + '/' + (+m[3]) : d; };
+      const show = !!(vf || vt || sur);
+      const t = vf || vt ? '📅 ' + (vf ? md(vf) : '') + '〜' + (vt ? md(vt) : '') : '📅 期間を設定';
+      if (vc.hidden === show) vc.hidden = !show;
+      if (vc.textContent !== t) { vc.textContent = t; vc.title = (vf || vt ? '有効期間 ' + (vf || '') + '〜' + (vt || '') : '有効期間が未設定です') + '（押すと期間の欄を開く）'; vc.classList.toggle('is-empty', !(vf || vt)); }
+    }
     const nt = q('input[data-field="nt"]'), n = q('.ca-note');
     if (n) { const t = nt && nt.value.trim() ? '· ' + nt.value.trim() : ''; if (n.textContent !== t) { n.textContent = t; n.title = t ? nt.value.trim() : ''; } }
     const pc = q('select[data-field="pc"]'), bc = q('select[data-field="bc"]');
@@ -146,9 +157,18 @@
     document.querySelectorAll('#tableBody tr.ca-open').forEach(x => { if (x !== tr) closeDetail(x); });
     syncRow(tr);
     tr.classList.add('ca-open');
+    if (needsValid(tr)) setMore(tr, true);
     if (focus) { const f = tr.querySelector('.row-detail-panel input:not([type=hidden]), .row-detail-panel select'); if (f) try { f.focus({ preventScroll: true }); } catch (e) {} }
   }
   function closeDetail(tr) { if (tr) tr.classList.remove('ca-open'); }
+  function needsValid(tr) {
+    const v = n => (tr.querySelector(`[data-field="${n}"]`) || {}).value || '';
+    return !!(v('vf') || v('vt') || v('cat') === 'surcharge');
+  }
+  function setMore(tr, open) {
+    const m = tr.querySelector('.ca-dmore'), b = tr.querySelector('[data-ca="more"]'); if (!m) return;
+    m.hidden = !open; if (b) { b.setAttribute('aria-expanded', open ? 'true' : 'false'); b.textContent = open ? 'さらに ▴' : 'さらに ▾'; }
+  }
   window.caToggleDetail = function (tr, force) {
     if (typeof tr === 'string') tr = document.getElementById(tr);
     const open = force === undefined ? !tr.classList.contains('ca-open') : !!force;
@@ -385,7 +405,8 @@
         if (k === 'dup') tr.querySelector('.row-dup-btn')?.click();
         else if (k === 'done') tr.querySelector('.row-done-btn')?.click();
         else if (k === 'del') tr.querySelector('.row-del-btn')?.click();
-        else if (k === 'more') { const m = tr.querySelector('.ca-dmore'); if (m) { m.hidden = !m.hidden; ca.setAttribute('aria-expanded', m.hidden ? 'false' : 'true'); ca.textContent = m.hidden ? 'さらに ▾' : 'さらに ▴'; } }
+        else if (k === 'more') { const m = tr.querySelector('.ca-dmore'); if (m) setMore(tr, m.hidden); }
+        else if (k === 'valid') { e.stopPropagation(); openDetail(tr); setMore(tr, true); const f = tr.querySelector('[data-field="vf"]'); if (f) { try { f.focus({ preventScroll: true }); } catch (x) {} f.scrollIntoView({ block: 'nearest' }); } }
         return;
       }
       const qk = e.target.closest('[data-ca-q]');
