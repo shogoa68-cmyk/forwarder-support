@@ -4393,8 +4393,17 @@
     bar.querySelector('.master-back-btn').textContent = '← ' + _ret.label + 'に戻る';
     bar.hidden = false;
   }
+  window.statsMasterReturnLabel = () => (_ret ? _ret.label : '');
   window.statsMasterGoBack = function () {
     const r = _ret; if (!r) return;
+    // 詳細を未保存のまま戻ろうとしたら確かめる（破棄して戻る／やめる）
+    const m = document.getElementById('mdDetailModal');
+    if (m && m.dataset.mtDirty && typeof window.uiConfirm === 'function') {
+      window.uiConfirm({ title: '保存していない変更があります', lines: ['このまま戻ると、入力した内容は失われます。', '変更：' + m.dataset.mtDirty], okLabel: '破棄して戻る', danger: true }).then(ok => {
+        if (!ok) return; delete m.dataset.mtDirty; window.statsMasterGoBack();
+      });
+      return;
+    }
     _ret = null;
     const bar = document.getElementById('masterBackBar'); if (bar) bar.hidden = true;
     if (typeof window.statsCloseMasterDetail === 'function' && document.getElementById('mdDetailModal')) window.statsCloseMasterDetail();
