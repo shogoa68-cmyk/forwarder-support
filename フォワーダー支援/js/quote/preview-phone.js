@@ -67,7 +67,7 @@
     const vd = valid ? valid.replace(/^\d{4}-0?(\d+)-0?(\d+)$/, '$1/$2') : '';
     const parts = [v('qf-ref'), v('qf-customer'), vd ? '有効 ' + vd : ''].filter(Boolean);
     sum.innerHTML = '';
-    const b = document.createElement('b'); b.textContent = 'プレビュー'; sum.appendChild(b);
+    const b = document.createElement('b'); b.textContent = '社内チェック表'; sum.appendChild(b);
     if (parts.length) sum.appendChild(document.createTextNode(' · ' + parts.join(' · ')));
     sum.hidden = false;
   }
