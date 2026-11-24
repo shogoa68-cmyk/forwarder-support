@@ -70,7 +70,9 @@
         + '<button type="button" class="ca-dbtn" data-ca="done">✓ 入力完了</button>'
         + '<button type="button" class="ca-dbtn is-danger" data-ca="del">削除</button>';
       const f = document.createElement('div'); f.className = 'ca-dfields'; f.dataset.caNew = '1';
-      f.innerHTML = '<label class="ca-f" data-ca-slot="note"><span>備考（社内用）</span></label>'
+      f.innerHTML = '<label class="ca-f" data-ca-slot="sv"><span>サブコン</span></label>'
+        + '<label class="ca-f" data-ca-slot="pt"><span>パターン（任意）</span></label>'
+        + '<label class="ca-f" data-ca-slot="note"><span>備考（社内用）</span></label>'
         + '<label class="ca-f" data-ca-slot="cat"><span>カテゴリ</span></label>'
         + '<label class="ca-f ca-f-tax" data-ca-slot="tax"><span>課税</span></label>'
         + '<label class="ca-f" data-ca-slot="bc"><span>売の通貨</span></label>';
@@ -84,6 +86,10 @@
       [...panel.querySelectorAll(':scope > .rd-group')].forEach(g => put(g, more));
     }
     const slot = n => panel.querySelector(`[data-ca-slot="${n}"]`);
+    // サブコン・パターンは行に出さず詳細の中で直す（変えると、その行は別の枠へ移る）
+    put(q('input[data-field="sv"]'), slot('sv'));
+    const ptIn = q('input[data-field="pt"]');
+    if (ptIn) { if (!ptIn.getAttribute('list')) { ptIn.setAttribute('list', 'ptSuggestions'); ptIn.dataset.caList = '1'; } put(ptIn, slot('pt')); }
     put(q('.w-note-row'), slot('note'));
     put(q('select.w-cat'), slot('cat'));
     put(q('input[data-field="tx"]'), slot('tax'));
@@ -263,6 +269,7 @@
       s.innerHTML = '<b class="ca-sel-n"></b>'
         + '<button type="button" data-cs="dup">⧉ 複製</button>'
         + '<button type="button" data-cs="move">⇄ 別のサブコンへ移す</button>'
+        + '<button type="button" data-cs="pat">🔖 パターンを付ける</button>'
         + '<button type="button" data-cs="hide">見積書に出さない</button>'
         + '<button type="button" data-cs="qty">数量をまとめて変更</button>'
         + '<button type="button" data-cs="del" class="is-danger">削除</button>'
@@ -334,26 +341,50 @@
       rows.forEach(tr => { const e = tr.querySelector('input[data-field="pq"]'); if (e) { e.value = v.trim(); e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); } });
       if (typeof window.quoteShowToast === 'function') window.quoteShowToast(rows.length + ' 行の数量を ' + v.trim() + ' にしました', 'success', 2200);
     } else if (k === 'move') openMove(btn);
+    else if (k === 'pat') openPat(btn, rows);
     setTimeout(syncSel, 50);
   }
-  // 別のサブコンへ移す＝サブコン欄の書き換え（既存の一括設定 applyBulkSubcon と同じ処理）。パターン名はそのまま
-  function openMove(anchor) {
+  // 小さな入力の吹き出し（文字を 1 つ聞く）。Enter／［OK］で cb(値)・Esc／［キャンセル］で閉じる
+  function askText(anchor, o, cb) {
     closeMenu();
     menu = document.createElement('div'); menu.className = 'ca-menu ca-move'; menu.setAttribute('role', 'dialog');
-    menu.innerHTML = '<b>移す先のサブコン</b><input type="text" class="ca-move-in" list="svSuggestions" placeholder="サブコン名（候補から選べます）"><div class="ca-move-row"><button type="button" class="ca-mi" data-x>キャンセル</button><button type="button" class="ca-mi is-primary" data-go>移す</button></div>';
+    menu.innerHTML = '<b></b><input type="text" class="ca-move-in" autocomplete="off" maxlength="40"><small class="ca-ask-note"></small><div class="ca-move-row"><button type="button" class="ca-mi" data-x>キャンセル</button><button type="button" class="ca-mi is-primary" data-go></button></div>';
+    menu.querySelector('b').textContent = o.title || '';
+    const inp = menu.querySelector('input');
+    if (o.list) inp.setAttribute('list', o.list);
+    inp.placeholder = o.placeholder || ''; inp.value = o.value || '';
+    const note = menu.querySelector('.ca-ask-note'); if (o.note) note.textContent = o.note; else note.remove();
+    menu.querySelector('[data-go]').textContent = o.ok || 'OK';
     document.body.appendChild(menu);
-    const r = anchor.getBoundingClientRect();
-    menu.style.top = (r.bottom + 4) + 'px'; menu.style.left = Math.max(8, Math.min(r.left, innerWidth - menu.offsetWidth - 8)) + 'px';
-    const inp = menu.querySelector('input'); inp.focus();
+    const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { bottom: 120, left: 120 };
+    menu.style.top = Math.min(r.bottom + 4, innerHeight - menu.offsetHeight - 8) + 'px'; menu.style.left = Math.max(8, Math.min(r.left, innerWidth - menu.offsetWidth - 8)) + 'px';
+    inp.focus(); inp.select();
     const go = () => {
-      const v = inp.value.trim(); const b = $('bulkSubconSet');
-      closeMenu();
-      if (!b || typeof window.applyBulkSubcon !== 'function') return;
-      b.value = v; window.applyBulkSubcon(); setTimeout(syncSel, 80);
+      const v = inp.value.trim();
+      if (o.required && !v) { inp.focus(); inp.classList.add('is-err'); return; }
+      closeMenu(); cb(v);
     };
     menu.querySelector('[data-go]').addEventListener('click', go);
     menu.querySelector('[data-x]').addEventListener('click', closeMenu);
-    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); go(); } });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); go(); } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeMenu(); } });
+  }
+  window.caAskText = askText;
+  // 別のサブコンへ移す＝サブコン欄の書き換え（既存の一括設定 applyBulkSubcon と同じ処理）。パターン名はそのまま
+  function openMove(anchor) {
+    askText(anchor, { title: '移す先のサブコン', list: 'svSuggestions', placeholder: 'サブコン名（候補から選べます）', ok: '移す' }, v => {
+      const b = $('bulkSubconSet');
+      if (!b || typeof window.applyBulkSubcon !== 'function') return;
+      b.value = v; window.applyBulkSubcon(); setTimeout(syncSel, 80);
+    });
+  }
+  // 選んだ行にパターンを付ける（既存の一括設定 applyBulkPattern と同じ処理・空にするとパターンなし）
+  function openPat(anchor, rows) {
+    const cur = [...new Set(rows.map(tr => (tr.querySelector('input[data-field="pt"]')?.value || '').trim()))];
+    askText(anchor, { title: '選んだ ' + rows.length + ' 行のパターン', list: 'ptSuggestions', placeholder: '例）FCL案', value: cur.length === 1 ? cur[0] : '', note: '空にすると「パターンなし」に戻します', ok: '付ける' }, v => {
+      const b = $('bulkPatternSet');
+      if (!b || typeof window.applyBulkPattern !== 'function') return;
+      b.value = v; window.applyBulkPattern(); setTimeout(syncSel, 80);
+    });
   }
 
   // ---- 見出し・小計・合計 ----
@@ -410,6 +441,7 @@
     document.querySelectorAll('#tableBody tr.ca-row').forEach(tr => { tr.classList.remove('ca-row', 'ca-open', 'ca-mute', 'ca-picked', 'ca-ccy-diff', 'ca-zero-margin'); tr.__caDone = false; });
     closeMenu(); restoreAll(); restoreTexts();
     document.querySelectorAll('[data-ca-new]').forEach(e => e.remove());
+    document.querySelectorAll('#tableBody input[data-ca-list]').forEach(e => { e.removeAttribute('list'); delete e.dataset.caList; });
     document.querySelectorAll('#tableBody select.w-cat option[data-ca-orig]').forEach(o => { o.textContent = o.dataset.caOrig; delete o.dataset.caOrig; });
   }
   function sync() { if (isOn()) enable(); else disable(); }
@@ -453,7 +485,7 @@
       }
       if (e.key === 'Enter' && e.target && e.target.tagName === 'TR' && isDataRow(e.target)) { e.preventDefault(); window.caToggleDetail(e.target); }
     });
-    document.addEventListener('pointerdown', e => { if (menu && !menu.contains(e.target) && !e.target.closest('.row-acts-hint, #caMoreBtn, [data-cs="move"]')) closeMenu(); }, true);
+    document.addEventListener('pointerdown', e => { if (menu && !menu.contains(e.target) && !e.target.closest('.row-acts-hint, #caMoreBtn, [data-cs="move"], [data-cs="pat"], .gb-more, #gbMenu')) closeMenu(); }, true);
     // ドラッグで並べ替える前に、開いている詳細は閉じる
     tb.addEventListener('pointerdown', e => { if (on && e.target.closest('.drag-handle')) document.querySelectorAll('#tableBody tr.ca-open').forEach(closeDetail); }, true);
     sync();
