@@ -426,6 +426,7 @@ IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案�
 - **注意：この機能を持たない古い版を開いたままの人には届かない**（一度再読み込みするまで）。最初の 1 回は 📢 お知らせで「再読み込みしてください」と案内する。
 - 次段階の案（B）：管理者が「この版は必ず更新」と指定したときだけ強く表示する（管理画面が必要）。
 - 🐞 不具合報告の `context.ver` も同じ印（`?v=` の 12 桁まで）を記録している。
+- **デプロイの自動やり直し（2026-11・`.github/workflows/deploy.yml`）**：アップロード直後に `deploy-pages` が「No artifacts named "github-pages" were found」で落ちることが続いた（GitHub 側で、預けた直後の成果物がまだ一覧に出ていない一時的な不具合）。1 回目の前に 15 秒待ち、失敗したら 45 秒・90 秒あけて同じ run の中で最大 3 回まで試す（`continue-on-error`＋`if: steps.*.outcome == 'failure'`・公開 URL は成功した回の出力）。Pages 側の 10 分タイムアウトの失敗はやり直しても通らないため、従来どおり赤になる（Settings → Environments → github-pages で取り消してから Re-run）。
 
 ## 🏢 組織とチーム（2026-11・`js/org-teams.js`・`css/org-teams.css`）
 
