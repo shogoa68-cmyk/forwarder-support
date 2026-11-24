@@ -68,9 +68,12 @@
     ['input', 'change', 'click'].forEach(t => modal.addEventListener(t, () => setTimeout(refresh, 0)));
     ['#mdAttachList', '#crPanel', '#mnPanel', '#ccPanel', '#irPanel'].forEach(s => { const e = modal.querySelector(s); if (e) new MutationObserver(refresh).observe(e, { childList: true, subtree: true }); });
     const strictInit = () => modal.querySelector('#crPanel .cr-item.cr-lv-strict:not(.is-retired)');
-    show('people'); refresh();
-    // 厳守の取引ルールがあるときは「取引ルール」タブを開いて見せる（取りこぼし防止）
-    setTimeout(() => { if (strictInit()) show('rules'); refresh(); }, 600);
+    // 他の画面から「このタブで開く」と頼まれたとき（statsJumpToMaster(field, name, 'news') など）はそのタブ
+    const want = window.__mtWantTab; window.__mtWantTab = '';
+    show(want && panels[want] ? want : 'people'); refresh();
+    if (want && panels[want]) bar.querySelector('.mt-tab[data-mt="' + want + '"]').scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    // 厳守の取引ルールがあるときは「取引ルール」タブを開いて見せる（取りこぼし防止・タブの指定があるときは除く）
+    setTimeout(() => { if (!(want && panels[want]) && strictInit()) show('rules'); refresh(); }, 600);
   }
 
   // ---- 詳細ドロワー（Design 29・④）：「● 編集中（未保存）」の印と、未保存で閉じるときの確認・背景クリックで閉じる ----
@@ -118,6 +121,7 @@
       const r = orig.apply(this, arguments);
       dirtyHook(); setupDrawer(document.getElementById('mdDetailModal'));
       if (field === 'customer' || field === 'sv') { const m = document.getElementById('mdDetailModal'); if (m) { m.dataset.mtField = field; organize(m); } }
+      window.__mtWantTab = '';
       return r;
     };
     w.__mt = true; window.statsToggleMasterDetail = w; return true;

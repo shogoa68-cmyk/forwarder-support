@@ -1128,6 +1128,8 @@
     // クラウドを読み込んで描画」が二重に走り、さらに種別の絞り込みでもう一度描き直していた。
     // いまは絞り込みを先に決めてから開き（描画は 1 回）、読み込みは共通の 1 本（_ensureMasterData）だけにする。
     _markReturn();
+    // openDetail にタブ名（'news'／'cases'／'rules' など）を渡すと、詳細をそのタブで開く（master-tabs.js が読む）
+    window.__mtWantTab = typeof openDetail === 'string' ? openDetail : '';
     _masterFieldFilter = field || 'all';
     _masterDeal = ''; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = ''; _masterSort = 'name';
     _jumpPending = true;
