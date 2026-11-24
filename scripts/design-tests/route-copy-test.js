@@ -133,7 +133,11 @@ const http = require('http'), fs = require('fs'), path = require('path');
   }
 
   // 7) 編集中の自分自身のプレビューでは出さない
-  await p.evaluate(() => window.cloudLoadPreset('CUR')); await p.waitForTimeout(1200);
+  // 航路を足した（未保存）あとに開き直すと、未保存の確認が出る（2026-11〜）。ここでは「保存せずに進む」
+  await p.evaluate(() => { window.cloudLoadPreset('CUR'); }); await p.waitForTimeout(500);
+  ok('航路を追加したあとは未保存として扱い、開き直す前に確認が出る', await p.evaluate(() => document.getElementById('qpLeaveConfirm')?.classList.contains('open')), null);
+  if (await p.evaluate(() => document.getElementById('qpLeaveConfirm')?.classList.contains('open'))) await p.click('#qpLeaveConfirm .qplc-discard');
+  await p.waitForTimeout(1200);
   await p.evaluate(() => window.cloudPreviewPreset('CUR')); await p.waitForTimeout(800);
   ok('編集中の案件自身のプレビューには航路のチェック・ボタンを出さない', await p.evaluate(() => !document.querySelector('#cpCondInfo .cp-route-chk') && !document.getElementById('cpRouteCopyBtn')), null);
   ok('それでも航路の表示は従来どおり', await p.evaluate(() => /INTERASIA/.test(document.getElementById('cpCondInfo').textContent)), null);

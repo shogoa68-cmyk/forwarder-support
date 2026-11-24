@@ -2837,7 +2837,9 @@
     if (ctrl && !e.shiftKey && !e.altKey && e.key === 's') {
       e.preventDefault();
       if (quoteTab.classList.contains('qp-dash')) return;
-      if (typeof cloudSaveCurrent === 'function') cloudSaveCurrent();
+      // 画面の［保存］ボタンと同じ入口（閲覧中は「閲覧中です」で止める＝ロックを取らずに上書きしない）
+      if (typeof quoteModeSaveDone === 'function') quoteModeSaveDone();
+      else if (typeof cloudSaveCurrent === 'function') cloudSaveCurrent();
       return;
     }
     // Ctrl+P → プレビュー
