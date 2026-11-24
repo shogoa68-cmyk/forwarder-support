@@ -51,6 +51,13 @@
       nameCell.insertBefore(nm, nameCell.firstChild);
     }
     put(q('input[data-field="nm"]'), nm, nm.firstChild);
+    // 行の詳細の開閉ボタン（項目名の左・いつも見える）
+    if (!nm.querySelector('.ca-tog')) {
+      const tg = document.createElement('button'); tg.type = 'button'; tg.className = 'ca-tog'; tg.dataset.caNew = '1'; tg.dataset.ca = 'tog';
+      tg.setAttribute('aria-expanded', 'false'); tg.title = '行の詳細を開く（備考・カテゴリ・課税・単価の扱いなど）';
+      tg.innerHTML = '<span class="ca-tog-ic" aria-hidden="true">▸</span><span class="ca-tog-tx">詳細</span>';
+      nm.insertBefore(tg, nm.firstChild);
+    }
     // 仕入の通貨は仕入の欄の左へ
     const pcWrap = q('td.ccy-cell .stk-cost'), ppWrap = q('td.price-cell .stk-price > .stk-cost');
     if (pcWrap && ppWrap) put(pcWrap, ppWrap, ppWrap.firstChild);
@@ -170,11 +177,19 @@
     if (!isDataRow(tr)) return;
     document.querySelectorAll('#tableBody tr.ca-open').forEach(x => { if (x !== tr) closeDetail(x); });
     syncRow(tr);
-    tr.classList.add('ca-open');
+    tr.classList.add('ca-open'); syncTog(tr);
     if (needsValid(tr)) setMore(tr, true);
     if (focus) { const f = tr.querySelector('.row-detail-panel input:not([type=hidden]), .row-detail-panel select'); if (f) try { f.focus({ preventScroll: true }); } catch (e) {} }
   }
-  function closeDetail(tr) { if (tr) tr.classList.remove('ca-open'); }
+  function closeDetail(tr) { if (tr) { tr.classList.remove('ca-open'); syncTog(tr); } }
+  function syncTog(tr) {
+    const b = tr && tr.querySelector('.ca-tog'); if (!b) return;
+    const o = tr.classList.contains('ca-open');
+    b.setAttribute('aria-expanded', o ? 'true' : 'false');
+    b.title = o ? '行の詳細を閉じる' : '行の詳細を開く（備考・カテゴリ・課税・単価の扱いなど）';
+    const ic = b.querySelector('.ca-tog-ic'), tx = b.querySelector('.ca-tog-tx');
+    if (ic) ic.textContent = o ? '▾' : '▸'; if (tx) tx.textContent = o ? '閉じる' : '詳細';
+  }
   function needsValid(tr) {
     const v = n => (tr.querySelector(`[data-field="${n}"]`) || {}).value || '';
     return !!(v('vf') || v('vt') || v('cat') === 'surcharge');
@@ -419,6 +434,7 @@
         if (k === 'dup') tr.querySelector('.row-dup-btn')?.click();
         else if (k === 'done') tr.querySelector('.row-done-btn')?.click();
         else if (k === 'hide') tr.querySelector('.row-hidequote-btn')?.click();
+        else if (k === 'tog') { e.stopPropagation(); window.caToggleDetail(tr); }
         else if (k === 'del') tr.querySelector('.row-del-btn')?.click();
         else if (k === 'more') { const m = tr.querySelector('.ca-dmore'); if (m) setMore(tr, m.hidden); }
         else if (k === 'valid') { e.stopPropagation(); openDetail(tr); setMore(tr, true); const f = tr.querySelector('[data-field="vf"]'); if (f) { try { f.focus({ preventScroll: true }); } catch (x) {} f.scrollIntoView({ block: 'nearest' }); } }

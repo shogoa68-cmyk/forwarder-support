@@ -345,3 +345,15 @@ html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .
 html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row.ca-mute > td.handle-cell > :is(.ca-hide-btn, .ca-done-btn, .row-acts-hint) { opacity: 1; }
 @media (pointer: coarse) { html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row > td.handle-cell > .ca-hide-btn { width: 36px; height: 36px; } }
 @media print { html.editor-v2 #tab-quote-make.ca-on .ca-hide-btn { display: none !important; } }
+
+/* 行の詳細の開閉ボタン（項目名の左・いつも見える）：閉じている＝［▸ 詳細］・開いている＝主色の［▾ 閉じる］ */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-name > .ca-tog {
+  order: -1; flex: none; display: inline-flex; align-items: center; gap: 3px; height: 30px; padding: 0 8px; border-radius: 6px;
+  border: 1px solid #d0d5dd; background: #fff; color: #344054; font-size: 12px; font-weight: 600; line-height: 1; cursor: pointer; white-space: nowrap;
+}
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-name > .ca-tog:hover { border-color: var(--ca-pri, #2f5fb3); color: var(--ca-pri, #2f5fb3); background: #f5f8fd; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-name > .ca-tog .ca-tog-ic { font-size: 12px; width: 10px; text-align: center; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row.ca-open .ca-name > .ca-tog { background: var(--ca-pri, #2f5fb3); border-color: var(--ca-pri, #2f5fb3); color: #fff; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-name > .ca-tog:focus-visible { outline: 2px solid var(--ca-pri, #2f5fb3); outline-offset: 1px; }
+@media (pointer: coarse) { html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-name > .ca-tog { height: 36px; } }
+@media print { html.editor-v2 #tab-quote-make.ca-on .ca-tog { display: none !important; } }

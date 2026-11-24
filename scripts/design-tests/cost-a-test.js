@@ -118,6 +118,15 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('［✓］：押すと入力完了（緑・記録あり）・行の詳細は開かない', await p.evaluate(() => { const tr = document.querySelectorAll('#tableBody tr.ca-row')[0]; const b = tr.querySelector('.ca-done-btn'); return tr.dataset.done === '1' && !!tr.dataset.doneAt && b.classList.contains('is-on') && b.getAttribute('aria-pressed') === 'true' && /押すと外す/.test(b.title) && !tr.classList.contains('ca-open'); }));
   await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[0].querySelector('.ca-done-btn').click()); await p.waitForTimeout(200);
   ok('［✓］：もう一度押すと外れる', await p.evaluate(() => { const tr = document.querySelectorAll('#tableBody tr.ca-row')[0]; return tr.dataset.done !== '1' && !tr.querySelector('.ca-done-btn').classList.contains('is-on'); }));
+  // 行の詳細の開閉ボタン（項目名の左）
+  ok('［▸ 詳細］：全ての明細行で項目名の左にいつも見える', await p.evaluate(() => [...document.querySelectorAll('#tableBody tr.ca-row')].every(tr => { const b = tr.querySelector('.ca-name > .ca-tog'), n = tr.querySelector('[data-field="nm"]'); return b && b.getClientRects().length && b.getBoundingClientRect().right <= n.getBoundingClientRect().left + 1 && /詳細/.test(b.textContent) && b.getAttribute('aria-expanded') === 'false'; })));
+  await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[1].querySelector('.ca-tog').click()); await p.waitForTimeout(200);
+  ok('［▸ 詳細］：押すと行の詳細が開き、［▾ 閉じる］になる', await p.evaluate(() => { const tr = document.querySelectorAll('#tableBody tr.ca-row')[1]; const b = tr.querySelector('.ca-tog'); return tr.classList.contains('ca-open') && /閉じる/.test(b.textContent) && b.getAttribute('aria-expanded') === 'true' && !!tr.querySelector('.row-detail-panel').getClientRects().length; }));
+  await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[1].querySelector('.ca-tog').click()); await p.waitForTimeout(200);
+  ok('［▾ 閉じる］：もう一度押すと閉じて［▸ 詳細］に戻る', await p.evaluate(() => { const tr = document.querySelectorAll('#tableBody tr.ca-row')[1]; return !tr.classList.contains('ca-open') && /詳細/.test(tr.querySelector('.ca-tog').textContent); }));
+  await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[1].querySelector('.ca-tog').click()); await p.waitForTimeout(150);
+  await p.keyboard.press('Escape'); await p.waitForTimeout(150);
+  ok('Esc で閉じても［▸ 詳細］に戻る', await p.evaluate(() => { const tr = document.querySelectorAll('#tableBody tr.ca-row')[1]; return !tr.classList.contains('ca-open') && /詳細/.test(tr.querySelector('.ca-tog').textContent); }));
   // ［👁］（見積書に出さない・［✓］の左）
   ok('［👁］：全ての明細行で［✓］の左にいつも見える', await p.evaluate(() => [...document.querySelectorAll('#tableBody tr.ca-row')].every(tr => { const h = tr.querySelector('td.handle-cell > .ca-hide-btn'), d = tr.querySelector('.ca-done-btn'); if (!h || !h.getClientRects().length) return false; const a = h.getBoundingClientRect(), b = d.getBoundingClientRect(); return a.right <= b.left + 1 && Math.abs(a.top - b.top) < 6; })));
   await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[0].querySelector('.ca-hide-btn').click()); await p.waitForTimeout(200);
