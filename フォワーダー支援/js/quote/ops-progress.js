@@ -74,6 +74,7 @@
   const legOf = l => /^【復路】/.test(l || '') ? 1 : 0;
   const stripLeg = l => String(l || '').replace(/^【(往路|復路)】/, '');
   function dlLabel(st, x) {
+    if (x.virt) return x.l;
     let l = x.k === 'free' ? (x.l || '（名前なし）') : (DL_TYPES[x.k] || [x.k])[0];
     const keys = String(st.tpl || '').split('+'), tk = keys[x.g || 0] || '';
     if (/-air$/.test(tk)) l = l.replace('出港予定日', '出発予定日').replace('入港予定日', '到着予定日');
@@ -93,11 +94,18 @@
     return st;
   }
   const dlOf = st => (st && Array.isArray(st.dl)) ? st.dl : [];
+  // 期限を入れた作業は、締め切りの一覧にも「作業の期限」として出す（締め切りとつないだ作業は、その締め切りで出ているので除く）。保存はしない＝作業の期限そのもの
+  function stepDls(st) {
+    const ids = new Set(dlOf(st).map(d => d.id));
+    return (st && st.s || []).filter(x => x.due && !(x.dk && ids.has(x.dk)))
+      .map(x => ({ id: 's:' + x.id, sid: x.id, virt: true, k: 'step', l: x.l, d: x.due, g: legOf(x.l) }));
+  }
+  const allDls = st => dlOf(st).concat(stepDls(st));
   function addDays(ymd, n) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd); if (!m) return ''; const t = new Date(+m[1], +m[2] - 1, +m[3] + n); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); }
   function daysBetween(a, b) { const p = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN; }; return Math.round((p(b) - p(a)) / 86400000); }
   // 締め切りの状態：met（間に合った）／over（過ぎた）／soon（48 時間以内＝今日・明日）／later／past（予定日が過ぎた・知らせない）／none（日付なし）
   function dlState(st, x, today) {
-    const linked = (st.s || []).filter(s => s.dk === x.id);
+    const linked = x.virt ? (st.s || []).filter(s => s.id === x.sid) : (st.s || []).filter(s => s.dk === x.id);
     if (x.ok || (linked.length && linked.every(s => s.d))) return 'met';
     if (!x.d) return 'none';
     today = today || todayStr();
@@ -228,7 +236,7 @@
 
   // いちばん近い、まだ済んでいない締め切り（過ぎたものが先）
   function nearestDl(st, today) {
-    const xs = dlOf(st).map(x => ({ x, state: dlState(st, x, today) })).filter(o => o.state === 'over' || o.state === 'soon' || o.state === 'later');
+    const xs = allDls(st).map(x => ({ x, state: dlState(st, x, today) })).filter(o => o.state === 'over' || o.state === 'soon' || o.state === 'later');
     xs.sort((a, b) => (a.state === 'over' ? 0 : 1) - (b.state === 'over' ? 0 : 1) || a.x.d.localeCompare(b.x.d));
     return xs[0] || null;
   }
@@ -397,11 +405,15 @@
     const [x] = s.splice(from, 1); s.splice(to, 0, x); commit();
   }
   let _drag = null;
+  // kind='step'＝作業（ol.opm-steps > li.opm-step・番号＝並びの位置）／'dl'＝締め切り（.opm-dl-list > .opm-dl-row・番号＝表示の位置）
+  const DRAG_ITEM = { step: '.opm-step', dl: '.opm-dl-row' };
   function dragStart(e, grip) {
     if (readOnly() || e.button > 0) return;
-    const li = grip.closest('.opm-step'), ol = li && li.parentElement; if (!li) return;
+    const kind = grip.dataset.kind === 'dl' ? 'dl' : 'step', sel = DRAG_ITEM[kind];
+    const li = grip.closest(sel), ol = li && li.parentElement; if (!li) return;
     e.preventDefault();
-    _drag = { from: +grip.dataset.i, to: +grip.dataset.i, li, ol, id: e.pointerId };
+    const lis = Array.from(ol.querySelectorAll(':scope > ' + sel)), from = lis.indexOf(li);
+    _drag = { kind, sel, from, to: from, li, ol, id: e.pointerId };
     li.classList.add('is-dragging'); document.body.classList.add('opm-dragging');
     try { grip.setPointerCapture(e.pointerId); } catch (_) {}
     const mv = ev => dragMove(ev), up = ev => { grip.removeEventListener('pointermove', mv); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up); dragEnd(ev.type === 'pointercancel'); };
@@ -409,7 +421,7 @@
   }
   function dragMove(e) {
     if (!_drag) return;
-    const lis = Array.from(_drag.ol.querySelectorAll(':scope > .opm-step'));
+    const lis = Array.from(_drag.ol.querySelectorAll(':scope > ' + _drag.sel));
     let to = lis.length;
     for (let k = 0; k < lis.length; k++) { const r = lis[k].getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { to = k; break; } }
     _drag.to = to;
@@ -423,7 +435,8 @@
     document.body.classList.remove('opm-dragging');
     d.li.classList.remove('is-dragging'); d.ol.classList.remove('drop-end');
     d.ol.querySelectorAll('.drop-before').forEach(l => l.classList.remove('drop-before'));
-    if (!cancel) moveTo(d.from, d.to);
+    if (cancel) return;
+    if (d.kind === 'dl') dlMoveTo(d.from, d.to); else moveTo(d.from, d.to);
   }
   async function del(i) {
     if (readOnly()) return;
@@ -683,13 +696,36 @@
     NOTES.list = NOTES.list.filter(n => n.id !== id); render();
   }
   // ---- 📅 日程・締め切りの欄 ----
+  // 締め切りの並び（表示だけ）：まだの締め切りのうち日付のあるもの（日付の早い順）→ 日付のないもの（手で並べた順）→ 済みのもの（同じ規則）
+  function dlOrder(st, today, dls) {
+    dls = dls || dlOf(st); const idx = dls.map((x, i) => i);
+    const grp = i => (dlState(st, dls[i], today) === 'met' ? 2 : 0) + (dls[i].d ? 0 : 1);
+    return idx.sort((a, b) => grp(a) - grp(b) || (dls[a].d && dls[b].d && dls[a].d !== dls[b].d ? (dls[a].d < dls[b].d ? -1 : 1) : a - b));
+  }
+  // ドラッグで並べ替え（日付のない締め切りだけ・日付のあるものは日付順に自動で並ぶ）。from／to＝表示の位置
+  function dlMoveTo(from, to) {
+    if (readOnly()) return;
+    const st = _cur.st, all = allDls(st), ord = dlOrder(st, todayStr(), all);
+    if (from < 0 || from >= ord.length) return;
+    const moved = ord[from]; if (all[moved].d) return;
+    const disp = ord.slice(); disp.splice(from, 1); disp.splice(to > from ? to - 1 : to, 0, moved);
+    const manual = disp.filter(i => !all[i].d), before = ord.filter(i => !all[i].d);
+    if (manual.join() === before.join()) return;
+    st.dl = dlOf(st).filter(x => x.d).concat(manual.map(i => all[i]));
+    commit();
+  }
   function dlSecHtml(st, ro, today) {
     const dls = dlOf(st), two = String(st.tpl || '').split('+').length > 1, dis = ro ? ' disabled' : '';
     const ctx = _cur.kind === 'job' ? ctxTargets('job', _cur.jobId, _cur.shipId) : ctxTargets('case', _cur.id);
-    let h = '<section class="opm-dl"><h4 class="opm-sec-h">📅 日程・締め切り<small>赤＝過ぎた・黄＝48 時間以内。作業とつないだ締め切りは、その作業が済むと「済み」になります</small></h4>';
-    h += dls.length ? '<div class="opm-dl-list">' + dls.map((x, i) => {
-      const state = dlState(st, x, today), linked = (st.s || []).filter(s => s.dk === x.id);
-      return '<div class="opm-dl-row is-' + state + '"><span class="opm-dl-l">' + esc(dlLabel(st, x)) + '</span>' +
+    let h = '<section class="opm-dl"><h4 class="opm-sec-h">📅 日程・締め切り<small>日付の早い順に自動で並びます（日付のないものは ⠿ で並べ替え）。赤＝過ぎた・黄＝48 時間以内。作業とつないだ締め切りは、その作業が済むと「済み」になります</small></h4>';
+    const manualN = dls.filter(x => !x.d).length, all = allDls(st);
+    h += all.length ? '<div class="opm-dl-list">' + dlOrder(st, today, all).map(i => {
+      const x = all[i], state = dlState(st, x, today);
+      if (x.virt) return dlStepRowHtml(st, x, state, ro, today);
+      const linked = (st.s || []).filter(s => s.dk === x.id);
+      const grip = ro ? '' : (x.d ? '<span class="opm-grip is-auto" title="日付のある締め切りは、日付の早い順に自動で並びます" aria-hidden="true">📅</span>'
+        : (manualN > 1 ? '<span class="opm-grip" data-kind="dl" title="ドラッグで並べ替え（日付のない締め切り）" aria-hidden="true">⠿</span>' : '<span class="opm-grip is-auto" aria-hidden="true"></span>'));
+      return '<div class="opm-dl-row is-' + state + '" data-dl="' + esc(x.id) + '">' + grip + '<span class="opm-dl-l">' + esc(dlLabel(st, x)) + '</span>' +
         '<input type="date" class="opm-dl-d" data-i="' + i + '" value="' + esc(x.d || '') + '" aria-label="' + esc(dlLabel(st, x)) + 'の日付"' + dis + '>' +
         '<span class="opm-dl-st">' + dlRemain(x, state, today) + '</span>' +
         (linked.length ? '<span class="opm-dl-link" title="つないだ作業">→ ' + linked.map(s => esc(stripLeg(s.l)) + (s.d ? ' ✓' : '')).join('、') + '</span>'
@@ -706,6 +742,17 @@
       (two ? '<select id="opmDlLeg" aria-label="往路・復路"><option value="0">往路</option><option value="1">復路</option></select>' : '') +
       '<input type="text" id="opmDlFree" maxlength="40" placeholder="名前（例：通関書類の提出）" hidden><button type="button" class="opm-btn" data-opm="dladd">＋ 締め切りを追加</button></div>';
     return h + '</section>';
+  }
+  // 作業の期限の行：日付は作業の期限そのもの（直すと作業の期限が変わる）・消す／メモ／済みのチェックは作業の側で
+  function dlStepRowHtml(st, x, state, ro, today) {
+    const si = (st.s || []).findIndex(s => s.id === x.sid), step = st.s[si] || {};
+    return '<div class="opm-dl-row is-step is-' + state + '" data-dl="' + esc(x.id) + '">' +
+      (ro ? '' : '<span class="opm-grip is-auto" title="日付のある締め切りは、日付の早い順に自動で並びます" aria-hidden="true">📅</span>') +
+      '<span class="opm-dl-l">' + esc(x.l) + '<small class="opm-dl-kind">作業の期限</small></span>' +
+      '<input type="date" class="opm-due opm-dl-sd" data-i="' + si + '" value="' + esc(x.d) + '" aria-label="' + esc(x.l) + 'の期限"' + (ro || step.d ? ' disabled' : '') + '>' +
+      '<span class="opm-dl-st">' + dlRemain(x, state, today) + '</span>' +
+      '<span class="opm-dl-link">→ 作業「' + esc(stripLeg(x.l)) + '」' + (step.d ? ' ✓' : '') + '（チェックリストの期限から自動で表示）</span>' +
+      '<span class="opm-dl-note is-step"></span></div>';
   }
   function dlSetDate(i, v, via) {
     if (readOnly()) return; const x = dlOf(_cur.st)[i]; if (!x) return;
@@ -897,7 +944,7 @@
   // 全進行の締め切り（済み・日付なし・予定日が過ぎたものは除く）
   function collectDl(all) {
     const today = todayStr(), out = [];
-    (all || collect()).filter(x => !x.sm.all).forEach(x => stsOf(x).forEach(o => dlOf(o.st).forEach(d => {
+    (all || collect()).filter(x => !x.sm.all).forEach(x => stsOf(x).forEach(o => allDls(o.st).forEach(d => {
       const state = dlState(o.st, d, today);
       if (state === 'over' || state === 'soon' || state === 'later') out.push({ x, ship: o.ship, st: o.st, d, state });
     })));
@@ -1046,9 +1093,9 @@
     return ch + secs.map(sv => {
       const rows = xs.filter(sv[2]); if (!rows.length) return '';
       return '<h3 class="opt-dl-h is-' + sv[0] + '">' + sv[1] + ' <b>' + rows.length + '</b></h3><ul class="opt-dl">' + rows.map(o => {
-        const linked = (o.st.s || []).filter(s => s.dk === o.d.id);
+        const linked = (o.st.s || []).filter(s => o.d.virt ? s.id === o.d.sid : s.dk === o.d.id);
         return '<li class="opt-dl-row is-' + o.state + '"><span class="opt-dl-date">' + md(o.d.d) + '<small>' + dlRemain(o.d, o.state, today) + '</small></span>' +
-          '<span class="opt-dl-k">' + esc(dlLabel(o.st, o.d)) + (o.d.note ? '<small>' + esc(o.d.note) + '</small>' : '') + '</span>' +
+          '<span class="opt-dl-k">' + esc(dlLabel(o.st, o.d)) + (o.d.virt ? '<small>作業の期限</small>' : '') + (o.d.note ? '<small>' + esc(o.d.note) + '</small>' : '') + '</span>' +
           '<span class="opt-dl-case"><span class="opt-kind opt-kind-' + o.x.src + '">' + KIND_LBL[o.x.src] + '</span><b>' + esc(o.x.title || '（名前なし）') + '</b>' + (o.ship ? '<small>' + esc(o.ship.label || '') + '</small>' : '') + (o.x.customer ? '<small>' + esc(o.x.customer) + '</small>' : '') + '</span>' +
           '<span class="opt-dl-step">' + (linked.length ? linked.map(s => '作業：' + esc(stripLeg(s.l)) + (s.who ? '（👤 ' + esc(nameOf(s.who)) + '）' : '') + (s.w === 'wait' ? ' ⏳' : '')).join('<br>') : '') + '</span>' +
           '<button type="button" class="opt-btn" data-opt="dlopen" data-src="' + o.x.src + '" data-id="' + esc(encodeURIComponent(o.x.id)) + '" data-ship="' + esc(o.ship ? o.ship.id : '') + '">☑ 開く</button></li>';

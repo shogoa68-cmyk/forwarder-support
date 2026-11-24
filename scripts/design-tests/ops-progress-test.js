@@ -157,7 +157,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.mouse.up(); await p.waitForTimeout(700);
     return mark;
   };
-  ok('作業の左端に ⠿（ドラッグのつまみ）', await p.evaluate(() => document.querySelectorAll('#opmModal .opm-grip').length === 9));
+  ok('作業の左端に ⠿（ドラッグのつまみ）', await p.evaluate(() => document.querySelectorAll('#opmModal .opm-step .opm-grip').length === 9));
   const mk = await dragTo(7, 0, false);
   o = await ops(p, 'B1');
   ok('ドラッグ中は入れる位置に線・つかんだ作業は薄く', mk);
