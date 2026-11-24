@@ -520,3 +520,24 @@ body.opm-dragging, body.opm-dragging * { cursor: grabbing !important; user-selec
 }
 @media print { .opt-view, .opc-cal-nav .opt-btn, .opc-cal-mode { display: none !important; } }
 @media (min-width: 761px) { .is-week .opc-day-w { display: none; } }
+/* 祝日・協力会社の休業日の重ね表示 */
+.opc-holbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; font-size: var(--text-xs, 12px); }
+.opc-holbar-l { color: var(--text-md, #475467); }
+.opc-holbar-n { color: var(--text-md, #475467); }
+.opc-holchip { min-height: 28px; padding: 0 10px; border: 1px solid var(--border-md, #c8cfd9); border-radius: 14px; background: var(--surface, #fff); color: var(--text-md, #475467); font: inherit; cursor: pointer; }
+.opc-holchip.is-on { color: #1d2939; font-weight: 700; }
+.opc-holchip.is-jp.is-on { background: #fdecea; border-color: #e3a8a1; }
+.opc-holchip.is-partner.is-on { background: #f1ecf8; border-color: #c3b3dd; }
+.opc-holchip.is-overseas.is-on { background: #e8f4f1; border-color: #9fcbbf; }
+.opc-hols { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.opc-hol { font-size: 11px; line-height: 1.35; padding: 0 4px; border-radius: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opc-hol.is-jp { color: #b42318; background: #fdecea; }
+.opc-hol.is-partner { color: #5b3f8c; background: #f1ecf8; }
+.opc-hol.is-overseas { color: #1f6f5f; background: #e8f4f1; }
+.opc-hol.is-more { color: var(--text-md, #475467); }
+.opc-day.is-hol { background: #fff8f7; }
+.opc-day.is-hol .opc-day-n { color: #c0392b; }
+.opc-day.is-ptoff { background-image: repeating-linear-gradient(135deg, transparent 0 8px, rgba(91,63,140,.05) 8px 16px); }
+.opc-day.is-warn .opc-day-h::after { content: '⚠ 休みと重なる'; margin-left: auto; font-size: 11px; color: #b7791f; font-weight: 700; }
+@media (pointer: coarse) { .opc-holchip { min-height: 40px; } }
+@media (max-width: 760px) { .is-month .opc-hol { font-size: 10px; } .is-month .opc-day.is-warn .opc-day-h::after { content: '⚠'; } }

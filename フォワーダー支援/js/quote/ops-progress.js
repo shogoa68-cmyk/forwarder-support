@@ -1014,6 +1014,7 @@
       else if (a === 'calnav') { calNav(+b.dataset.d); renderTab(); }
       else if (a === 'caltoday') { TAB.cur = todayStr(); renderTab(); }
       else if (a === 'calday') { TAB.cur = b.dataset.d; TAB.cal = 'week'; renderTab(); }
+      else if (a === 'calhol') { HOL.on[b.dataset.k] = !HOL.on[b.dataset.k]; holSave(); renderTab(); }
     });
     root.addEventListener('input', e => { if (e.target.id === 'optQ' && !e.isComposing) { TAB.q = e.target.value; renderTab(true); } });
     root.addEventListener('compositionend', e => { if (e.target.id === 'optQ') { TAB.q = e.target.value; renderTab(true); } });
@@ -1078,6 +1079,46 @@
     root.innerHTML = h;
     if (hadFocus || keepSearch) { const qi = $('optQ'); if (qi && hadFocus) { qi.focus(); try { qi.setSelectionRange(pos, pos); } catch (e) {} } }
   }
+  // ---- 祝日・協力会社の休業日（📂 その他 → 📅 カレンダーの calendar_holidays）を薄く重ねる。読むだけ ----
+  const HOL_KEY = 'opsCalHol_v1';
+  const HOL_TYPES = [['jp', '🇯🇵 日本の祝日'], ['partner', '🤝 協力会社の休業日'], ['overseas', '🌍 海外の祝日']];
+  const HOL = { rows: [], loaded: false, loading: false, missing: false, err: '', on: { jp: true, partner: true, overseas: false } };
+  try { const v = JSON.parse(localStorage.getItem(HOL_KEY) || 'null'); if (v && typeof v === 'object') HOL_TYPES.forEach(t => { if (typeof v[t[0]] === 'boolean') HOL.on[t[0]] = v[t[0]]; }); } catch (e) {}
+  function holSave() { try { localStorage.setItem(HOL_KEY, JSON.stringify(HOL.on)); } catch (e) {} }
+  async function loadHolidays() {
+    if (HOL.loading || HOL.loaded) return;
+    const c = client(); if (!c) return;
+    HOL.loading = true;
+    try {
+      const { data, error } = await c.from('calendar_holidays').select('*').order('event_date');
+      if (error) { if (isMissingTable(error)) HOL.missing = true; else HOL.err = error.message || String(error); }
+      else HOL.rows = data || [];
+    } catch (e) { HOL.err = String(e && e.message || e); }
+    HOL.loading = false; HOL.loaded = true;
+    if (TAB.view === 'cal') renderTab();
+  }
+  // 表示する日付ごとの祝日・休業日（期間のあるものは毎日に）
+  function holByDay(days) {
+    const set = new Set(days), out = {};
+    HOL.rows.forEach(h => {
+      const k = h.source_type === 'overseas' ? 'overseas' : h.source_type === 'partner' ? 'partner' : 'jp';
+      if (!HOL.on[k]) return;
+      const from = String(h.event_date || '').slice(0, 10); if (!from) return;
+      const to = String(h.end_date || '').slice(0, 10) || from;
+      for (let d = from, i = 0; d && d <= to && i < 400; d = addDays(d, 1), i++) {
+        if (!set.has(d)) continue;
+        (out[d] = out[d] || []).push({ k, name: h.name || '', sub: k === 'partner' ? (h.company_name || '') : k === 'overseas' ? (h.country_code || '') : '', note: h.note || '' });
+      }
+    });
+    return out;
+  }
+  function holHtml(list, week) {
+    if (!list || !list.length) return '';
+    const shown = week ? list : list.slice(0, 2);
+    return '<div class="opc-hols">' + shown.map(o => '<span class="opc-hol is-' + o.k + '" title="' + esc([HOL_TYPES.find(t => t[0] === o.k)[1], o.sub, o.name, o.note].filter(Boolean).join('　')) + '">' +
+      (o.k === 'partner' ? '🤝 ' + esc(o.sub ? o.sub + ' 休' : '休業') : o.k === 'overseas' ? '🌍 ' + esc((o.sub ? o.sub + ' ' : '') + o.name) : '🎌 ' + esc(o.name)) + '</span>').join('') +
+      (list.length > shown.length ? '<span class="opc-hol is-more">他 ' + (list.length - shown.length) + '</span>' : '') + '</div>';
+  }
   // ---------- 📅 カレンダー表示（月・週）。締め切りと作業の期限を日付のマスに並べる（済み・予定日が過ぎたものは灰色） ----------
   function collectCal(all, q) {
     const today = todayStr(), out = [];
@@ -1112,6 +1153,7 @@
   }
   function calHtml(all, q, today) {
     if (!TAB.cur) TAB.cur = today;
+    if (!HOL.loaded && !HOL.loading) loadHolidays();
     const evs = collectCal(all, q), by = {};
     evs.forEach(e => { (by[e.d.d] = by[e.d.d] || []).push(e); });
     const cur = dateOf(TAB.cur), week = TAB.cal === 'week';
@@ -1127,6 +1169,7 @@
       label = cur.getFullYear() + '年 ' + (cur.getMonth() + 1) + '月';
     }
     const inRange = evs.filter(e => days.includes(e.d.d)), open = inRange.filter(e => !e.gray).length;
+    const hol = holByDay(days);
     let h = '<div class="opc-cal' + (week ? ' is-week' : ' is-month') + '">' +
       '<div class="opc-cal-bar"><div class="opc-cal-nav"><button type="button" class="opt-btn" data-opt="calnav" data-d="-1" aria-label="前へ">‹</button>' +
       '<button type="button" class="opt-btn" data-opt="caltoday">今日</button><button type="button" class="opt-btn" data-opt="calnav" data-d="1" aria-label="次へ">›</button>' +
@@ -1134,16 +1177,21 @@
       '<div class="opc-cal-sum">この' + (week ? '週' : '月') + '：まだ <b>' + open + '</b> 件・済み ' + (inRange.length - open) + ' 件</div>' +
       '<div class="opt-view opc-cal-mode" role="group" aria-label="表示の単位"><button type="button" class="opt-view-b' + (!week ? ' is-on' : '') + '" data-opt="calmode" data-v="month" aria-pressed="' + !week + '">月</button>' +
       '<button type="button" class="opt-view-b' + (week ? ' is-on' : '') + '" data-opt="calmode" data-v="week" aria-pressed="' + week + '">週</button></div></div>' +
+      '<div class="opc-holbar" role="group" aria-label="重ねて表示"><span class="opc-holbar-l">重ねて表示：</span>' + HOL_TYPES.map(t =>
+        '<button type="button" class="opc-holchip is-' + t[0] + (HOL.on[t[0]] ? ' is-on' : '') + '" data-opt="calhol" data-k="' + t[0] + '" aria-pressed="' + !!HOL.on[t[0]] + '">' + (HOL.on[t[0]] ? '✓ ' : '') + t[1] + '</button>').join('') +
+        (HOL.missing ? '<small class="opc-holbar-n">祝日・休業日の表がまだありません（📂 その他 → 📅 カレンダーで準備）</small>' : HOL.err ? '<small class="opc-holbar-n">祝日・休業日を読めませんでした：' + esc(HOL.err) + '</small>' : HOL.loaded && !HOL.rows.length ? '<small class="opc-holbar-n">祝日・休業日はまだ登録されていません（📂 その他 → 📅 カレンダーで登録）</small>' : '') + '</div>' +
       '<div class="opc-cal-legend"><span class="opc-lg is-over">過ぎた</span><span class="opc-lg is-soon">今日・明日</span><span class="opc-lg is-later">これから</span><span class="opc-lg is-gray">済み・予定日が過ぎた</span><span class="opc-lg-note">押すとチェックリストが開きます</span></div>' +
       '<div class="opc-grid" role="grid">' + WD.map((w, i) => '<div class="opc-wd' + (i === 0 ? ' is-sun' : i === 6 ? ' is-sat' : '') + '" role="columnheader">' + w + '</div>').join('');
     const MAX = 3;
     h += days.map(d => {
-      const dt = dateOf(d), list = by[d] || [], other = !week && dt.getMonth() !== cur.getMonth();
-      const cls = 'opc-day' + (d === today ? ' is-today' : '') + (other ? ' is-other' : '') + (dt.getDay() === 0 ? ' is-sun' : dt.getDay() === 6 ? ' is-sat' : '');
+      const dt = dateOf(d), list = by[d] || [], other = !week && dt.getMonth() !== cur.getMonth(), hl = hol[d] || [];
+      const offDay = hl.some(o => o.k === 'jp'), ptOff = hl.some(o => o.k === 'partner');
+      const cls = 'opc-day' + (d === today ? ' is-today' : '') + (other ? ' is-other' : '') + (dt.getDay() === 0 ? ' is-sun' : dt.getDay() === 6 ? ' is-sat' : '') + (offDay ? ' is-hol' : '') + (ptOff ? ' is-ptoff' : '') +
+        (list.some(e => !e.gray) && (offDay || ptOff || dt.getDay() === 0 || dt.getDay() === 6) ? ' is-warn' : '');
       const shown = week ? list : list.slice(0, MAX);
       return '<div class="' + cls + '" role="gridcell" data-day="' + d + '"><div class="opc-day-h">' + (week ? '<span class="opc-day-w">' + WD[dt.getDay()] + '</span>' : '') +
         '<button type="button" class="opc-day-n" data-opt="calday" data-d="' + d + '" title="この週を見る">' + (week || dt.getDate() === 1 ? (dt.getMonth() + 1) + '/' : '') + dt.getDate() + '</button>' +
-        (d === today ? '<em class="opc-today-tag">今日</em>' : '') + '</div>' +
+        (d === today ? '<em class="opc-today-tag">今日</em>' : '') + '</div>' + holHtml(hl, week) +
         '<div class="opc-day-b">' + shown.map(e => calChip(e, week)).join('') +
         (list.length > shown.length ? '<button type="button" class="opc-more" data-opt="calday" data-d="' + d + '">他 ' + (list.length - shown.length) + ' 件</button>' : '') +
         (week && !list.length ? '<span class="opc-none">予定なし</span>' : '') + '</div></div>';
