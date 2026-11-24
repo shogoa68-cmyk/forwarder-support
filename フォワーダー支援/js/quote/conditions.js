@@ -52,7 +52,8 @@
 
   function getConditions() {
     const g = id => document.getElementById(id)?.value.trim() || '';
-    const _isFcl = _currentTransport !== 'air' && _currentSeaSub === 'fcl';
+    // 「国内手配のみ」に切り替えても、前の海上の種別（fcl）が残るため、国内・航空はどちらも FCL ではない
+    const _isFcl = _currentTransport !== 'air' && _currentTransport !== 'domestic' && _currentSeaSub === 'fcl';
     // コンテナ：複数エントリ対応（未登録なら単体エディタ値にフォールバック）
     let container = '';
     if (_isFcl) {
@@ -2925,6 +2926,11 @@
   let _lastCargoMetrics = { cbm: 0, kg: 0, rt: 0, cw: 0, qty: 0 };
 
   // 行の「表示条件」が参照できるよう、コンテナの種別・本数を公開（[{type, count}]）
+  // いまの輸送モードが FCL か（コンテナの本数が意味を持つか）。モードが未設定なら null（分からない）
+  window.quoteIsFcl = function () {
+    if (!_currentTransport) return null;
+    return _currentTransport === 'sea' && _currentSeaSub === 'fcl';
+  };
   window.getContainerEntries = function () {
     return (_containerEntries || []).filter(e => e && e.type).map(e => ({ type: e.type, count: parseFloat(e.count) || 0 }));
   };

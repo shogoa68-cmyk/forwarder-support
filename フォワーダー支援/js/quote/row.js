@@ -244,9 +244,13 @@
   // 条件に使う「いまの値」。null＝まだ分からない（判定できない）
   function _cnCurrent(k, id) {
     const m = (typeof window.getCargoMetrics === 'function') ? window.getCargoMetrics() : {};
+    // LCL・航空・国内に切り替えたあとは、前に入れたコンテナの本数を「0 本」として判定する（FCL 用の行が残らないように）
+    const notFcl = (typeof window.quoteIsFcl === 'function') && window.quoteIsFcl() === false;
+    if (notFcl && (k === 'cnt' || k.startsWith('cnt:'))) return 0;
     const entries = (typeof window.getContainerEntries === 'function') ? window.getContainerEntries() : [];
     const num = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
-    if (k === 'qty') { const p = document.getElementById(`pq-${id}`)?.value, b = document.getElementById(`bq-${id}`)?.value; return num(p !== '' && p != null ? p : b); }   // 画面の数量欄（pq）。bq は連動する読み取り用
+    // 数量の欄が空なら「まだ分からない」（以前は数量の写し bq の 0 を読み、条件外として合計から黙って外していた）
+    if (k === 'qty') { const p = document.getElementById(`pq-${id}`)?.value; return (p === '' || p == null) ? null : num(p); }
     if (k === 'pcs') return (m.qty > 0) ? m.qty : null;
     if (k === 'cnt') return entries.length ? entries.reduce((a, e) => a + e.count, 0) : null;
     if (k.startsWith('cnt:')) { if (!entries.length) return null; const e = entries.find(x => x.type === k.slice(4)); return e ? e.count : 0; }
