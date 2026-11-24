@@ -4396,6 +4396,17 @@
     delete newData.fields['qf-first-presented'];   // 初回の提示日時（回答スピード）もコピー元のもの
     delete newData.fields['qf-recv-time'];   // 受信時刻も元の依頼に固有
     delete newData.fields['qf-versions'];   // 提示履歴（版）はコピー元の案件のものなので引き継がない
+    // 発行日・有効期限・提出期限はコピー元の古い日付のまま出力されないよう、新しい案件と同じ初期値にする
+    // （発行日＝今日・有効期限＝今月末。有効期限が日付でない文字（スポットの「本船〇〇まで」等）はそのまま）
+    {
+      const _d = new Date(), _p = n => String(n).padStart(2, '0');
+      const _today = _d.getFullYear() + '-' + _p(_d.getMonth() + 1) + '-' + _p(_d.getDate());
+      const _eom = new Date(_d.getFullYear(), _d.getMonth() + 1, 0);
+      newData.fields['qf-date'] = _today;
+      const _vu = String(newData.fields['qf-valid-until'] || '');
+      if (!_vu || /^\d{4}-\d{2}-\d{2}$/.test(_vu)) newData.fields['qf-valid-until'] = _eom.getFullYear() + '-' + _p(_eom.getMonth() + 1) + '-' + _p(_eom.getDate());
+      delete newData.fields['qf-due'];
+    }
     if (_followOn()) newData.fields['qf-follower'] = (_cloudUser && _cloudUser.email) || ''; else delete newData.fields['qf-follower'];   // フォロー担当はコピーした人から（引き継ぎ履歴はコピー元のものなので消す）
     delete newData.fields['qf-follow-log'];
     delete newData.fields['qf-ops'];   // 受注後の業務の進捗はコピー元の案件のもの
