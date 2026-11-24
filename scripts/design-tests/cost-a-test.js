@@ -74,6 +74,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('小計の行の［＋ 行追加］は出さない', !g.add, g);
   ok('合計は薄い 1 行「合計（JPY 換算）… 売 ¥… · 仕入 ¥… · 粗利 …%」（濃い帯は出さない）', /合計（JPY 換算）/.test(g.total) && /売 ¥512,500/.test(g.total) && /粗利 \d+\.\d%/.test(g.total) && !g.tfoot, g);
   if (OUT) await p.screenshot({ path: path.join(OUT, 'cost-a-pc' + (th ? '-' + th : '') + '.png') });
+  // パターン見出しの［⠿］でパターンごと並べ替え（同じサブコン内）
+  const ptDrag = async (fromName, toName) => {
+    const g = await p.evaluate(({ fromName, toName }) => { const hs = [...document.querySelectorAll('#tableBody tr.subcon-subgroup-header.is-pattern')];
+      const a = hs.find(h => h.textContent.includes(fromName)), t = hs.find(h => h.textContent.includes(toName)); if (!a || !t) return null;
+      a.scrollIntoView({ block: 'center' }); const gr = a.querySelector('.subcon-subgroup-grip').getBoundingClientRect(), tr = t.getBoundingClientRect();
+      return { ax: gr.x + gr.width / 2, ay: gr.y + gr.height / 2, tx: tr.x + 60, ty: tr.y + 3, vis: gr.width > 0, hit: document.elementFromPoint(gr.x + gr.width / 2, gr.y + gr.height / 2)?.classList.contains('subcon-subgroup-grip') }; }, { fromName, toName });
+    if (!g) return null;
+    await p.mouse.move(g.ax, g.ay); await p.mouse.down(); await p.mouse.move(g.ax, g.ay + 6, { steps: 3 }); await p.mouse.move(g.tx, g.ty, { steps: 10 }); await p.mouse.up(); await p.waitForTimeout(500);
+    return g; };
+  const ptOrder = () => p.evaluate(() => [...document.querySelectorAll('#tableBody tr.ca-row')].filter(tr => tr.querySelector('[data-field="sv"]').value === 'ONE').map(tr => tr.querySelector('[data-field="pt"]').value).join(','));
+  const pg = await ptDrag('LCL案', 'FCL案'); const po = await ptOrder();
+  ok('パターン見出しに［⠿］が見えて押せる', !!pg && pg.vis && pg.hit, pg);
+  ok('［⠿］をドラッグすると、パターンごと並べ替わる（LCL案 → FCL案の前）', po === 'LCL案,FCL案,FCL案', po);
+  await ptDrag('FCL案', 'LCL案');
+  ok('もう一度ドラッグで元の並びに戻せる', (await ptOrder()) === 'FCL案,FCL案,LCL案', await ptOrder());
   // 選んだ行の帯
   await p.evaluate(() => [...document.querySelectorAll('#tableBody tr.ca-row .row-select-chk')].slice(0, 2).forEach(c => { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); })); await p.waitForTimeout(200);
   const sel = await p.evaluate(() => { const s = document.getElementById('caSel'); return { vis: !s.hidden && !!s.getClientRects().length, n: s.querySelector('.ca-sel-n').textContent, btns: [...s.querySelectorAll('button')].map(x => x.textContent), cm: !!document.querySelector('#tableWrap .quote-cmdbar .cmdbar-main').getClientRects().length }; });

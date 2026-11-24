@@ -193,7 +193,9 @@ html.editor-v2 #tab-quote-make.ca-on .ca-more-btn { min-width: 36px; min-height:
 html.editor-v2 #tab-quote-make.ca-on #tableWrap.sf-empty .cmdbar-main > [data-f="openAddSubconFrame"] { display: none !important; }
 
 /* ---- 見出し・小計 ---- */
-html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-subgroup-header.is-pattern :is(.subcon-subgroup-grip, .pt-cat-inline, .gb-m-c) { display: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-subgroup-header.is-pattern :is(.pt-cat-inline, .gb-m-c) { display: none !important; }
+/* パターン見出しの［⠿］（同じサブコン内でパターンごとドラッグで並べ替え）は残す */
+html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-subgroup-header.is-pattern .subcon-subgroup-grip { display: inline-flex !important; align-items: center; justify-content: center; min-width: 20px; min-height: 28px; cursor: grab; touch-action: none; }
 html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-subgroup-header.is-pattern .ca-ptn { font-size: 13px; color: var(--ca-sub); margin-left: 4px; }
 html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-group-subtotal { display: none !important; }
 html.editor-v2 #tab-quote-make.ca-on #tableBody tr.subcon-pattern-subtotal:not(.ca-pt-show) { display: none !important; }
