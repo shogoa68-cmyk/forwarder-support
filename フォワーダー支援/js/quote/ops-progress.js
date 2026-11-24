@@ -975,7 +975,7 @@
   }
 
   // ---------- ④「📦 進行管理」タブ（#tab-ops・独立した画面） ----------
-  const TAB = { f: 'active', src: '', q: '', sort: 'due', loading: false, asked: false };
+  const TAB = { f: 'active', src: '', q: '', sort: 'due', loading: false, asked: false, view: 'list', cal: 'month', cur: '' };
   const FILTERS = [['active', '進行中'], ['over', '⚠ 期限切れ'], ['today', '今日まで'], ['week', '7日以内'], ['dl', '📅 締め切り'], ['mine', '👤 自分の担当'], ['nodue', '期限なし'], ['done', '完了'], ['all', 'すべて']];
   const SRCS = [['', 'すべての種類'], ['quote', KIND_LBL.quote], ['spot', KIND_LBL.spot], ['regular', KIND_LBL.regular]];
   const SORTS = [['due', '期限の近い順'], ['progress', '進み具合の少ない順'], ['updated', '更新が新しい順'], ['name', '案件名順']];
@@ -997,7 +997,7 @@
     root.addEventListener('click', e => {
       const b = e.target.closest('[data-opt]'); if (!b) return;
       const a = b.dataset.opt, id = b.dataset.id;
-      if (a === 'f') { TAB.f = b.dataset.f; renderTab(); }
+      if (a === 'f') { TAB.f = b.dataset.f; TAB.view = 'list'; renderTab(); }
       else if (a === 'src') { TAB.src = b.dataset.src; renderTab(); }
       else if (a === 'list') opsOpen(id);
       else if (a === 'quote') openQuote(id);
@@ -1009,6 +1009,11 @@
       else if (a === 'dash') goDash();
       else if (a === 'reload') reload();
       else if (a === 'dlopen') { if (b.dataset.src === 'quote') opsOpen(id); else openJobSteps(decodeURIComponent(id), b.dataset.ship || ''); }
+      else if (a === 'view') { TAB.view = b.dataset.v; renderTab(); }
+      else if (a === 'calmode') { TAB.cal = b.dataset.v; renderTab(); }
+      else if (a === 'calnav') { calNav(+b.dataset.d); renderTab(); }
+      else if (a === 'caltoday') { TAB.cur = todayStr(); renderTab(); }
+      else if (a === 'calday') { TAB.cur = b.dataset.d; TAB.cal = 'week'; renderTab(); }
     });
     root.addEventListener('input', e => { if (e.target.id === 'optQ' && !e.isComposing) { TAB.q = e.target.value; renderTab(true); } });
     root.addEventListener('compositionend', e => { if (e.target.id === 'optQ') { TAB.q = e.target.value; renderTab(true); } });
@@ -1049,17 +1054,22 @@
       tile('today', '今日まで', g.today.length, g.today.length ? 'is-today' : '') + tile('week', '7日以内', g.week.length) +
       (() => { const n = dlAll.filter(o => o.state !== 'later').length, nc = collectCand(all).length; return tile('dl', '📅 締め切り 48h' + (nc ? ' <em class="opt-cand-n" title="COLINS に新しい日付がある締め切り">🛰 ' + nc + '</em>' : ''), n, dlAll.some(o => o.state === 'over') ? 'is-over' : n ? 'is-today' : ''); })() +
       tile('done', '完了', g.done.length, 'is-done') + '</div>';
-    h += '<div class="opt-bar"><div class="opt-chips" role="group" aria-label="種類">' + SRCS.map(sv => {
+    h += '<div class="opt-view" role="group" aria-label="表示">' +
+      '<button type="button" class="opt-view-b' + (TAB.view === 'list' ? ' is-on' : '') + '" data-opt="view" data-v="list" aria-pressed="' + (TAB.view === 'list') + '">☰ 一覧</button>' +
+      '<button type="button" class="opt-view-b' + (TAB.view === 'cal' ? ' is-on' : '') + '" data-opt="view" data-v="cal" aria-pressed="' + (TAB.view === 'cal') + '">📅 カレンダー</button></div>';
+    const isCal = TAB.view === 'cal';
+    h += '<div class="opt-bar' + (isCal ? ' is-cal' : '') + '"><div class="opt-chips" role="group" aria-label="種類">' + SRCS.map(sv => {
         const n = sv[0] ? all0.filter(x => x.src === sv[0]).length : all0.length;
         return '<button type="button" class="opt-chip opt-chip-src' + (TAB.src === sv[0] ? ' is-on' : '') + '" data-opt="src" data-src="' + sv[0] + '" aria-pressed="' + (TAB.src === sv[0]) + '">' + sv[1] + ' <b>' + n + '</b></button>';
       }).join('') + '</div>' +
-      '<div class="opt-chips">' + FILTERS.filter(f => !['active', 'over', 'today', 'week', 'done', 'dl'].includes(f[0])).map(f =>
-        '<button type="button" class="opt-chip' + (TAB.f === f[0] ? ' is-on' : '') + '" data-opt="f" data-f="' + f[0] + '" aria-pressed="' + (TAB.f === f[0]) + '">' + f[1] + ' <b>' + g[f[0]].length + '</b></button>').join('') + '</div>' +
+      (isCal ? '' : '<div class="opt-chips">' + FILTERS.filter(f => !['active', 'over', 'today', 'week', 'done', 'dl'].includes(f[0])).map(f =>
+        '<button type="button" class="opt-chip' + (TAB.f === f[0] ? ' is-on' : '') + '" data-opt="f" data-f="' + f[0] + '" aria-pressed="' + (TAB.f === f[0]) + '">' + f[1] + ' <b>' + g[f[0]].length + '</b></button>').join('') + '</div>') +
       '<input type="search" id="optQ" class="opt-q" placeholder="🔍 案件名・お客様・基幹 ID・作業名で探す" value="' + esc(TAB.q) + '" aria-label="検索">' +
-      '<label class="opt-sort"><span>並び順</span><select id="optSort">' + SORTS.map(s => '<option value="' + s[0] + '"' + (TAB.sort === s[0] ? ' selected' : '') + '>' + s[1] + '</option>').join('') + '</select></label></div>';
+      (isCal ? '' : '<label class="opt-sort"><span>並び順</span><select id="optSort">' + SORTS.map(s => '<option value="' + s[0] + '"' + (TAB.sort === s[0] ? ' selected' : '') + '>' + s[1] + '</option>').join('') + '</select></label>') + '</div>';
     if ((TAB.loading || JOBS.loading) && !all0.length) h += '<div class="opt-empty">読み込み中…</div>';
     else if (!all0.length) h += '<div class="opt-empty">まだ進行はありません。<br><small>見積ダッシュボードで案件のステータスを「受注」にするか、［＋ 進行を作る］でスポット・レギュラーの進行を作ってください。</small><br>' +
       (canNew ? '<button type="button" class="opt-btn opt-btn-pri" data-opt="new">＋ 進行を作る</button> ' : '') + '<button type="button" class="opt-btn opt-btn-pri" data-opt="dash">💼 見積ダッシュボードへ</button></div>';
+    else if (isCal) h += calHtml(all, q, today);
     else if (TAB.f === 'dl') h += dlListHtml(dlAll, q, today, collectCand(all));
     else if (!list.length) h += '<div class="opt-empty">当てはまる進行はありません。</div>';
     else h += '<ul class="opt-list">' + list.map(x => rowHtml(x, today)).join('') + '</ul>';
@@ -1067,6 +1077,79 @@
     const pos = hadFocus ? document.activeElement.selectionStart : 0;
     root.innerHTML = h;
     if (hadFocus || keepSearch) { const qi = $('optQ'); if (qi && hadFocus) { qi.focus(); try { qi.setSelectionRange(pos, pos); } catch (e) {} } }
+  }
+  // ---------- 📅 カレンダー表示（月・週）。締め切りと作業の期限を日付のマスに並べる（済み・予定日が過ぎたものは灰色） ----------
+  function collectCal(all, q) {
+    const today = todayStr(), out = [];
+    (all || collect()).forEach(x => {
+      const sts = x.src === 'regular' ? (x.job.data.ships || []).map(sh => ({ st: sh.st, ship: sh })) : [{ st: x.st, ship: null }];
+      sts.forEach(o => { if (!o.st) return; allDls(o.st).forEach(d => {
+        if (!d.d) return;
+        const state = dlState(o.st, d, today), lbl = dlLabel(o.st, d);
+        if (q && !norm(x.title + ' ' + x.customer + ' ' + idsOf(x).join(' ') + ' ' + lbl + ' ' + (o.ship ? o.ship.label : '')).includes(q)) return;
+        out.push({ x, ship: o.ship, st: o.st, d, state, lbl, gray: state === 'met' || state === 'past' || !!x.sm.all });
+      }); });
+    });
+    out.sort((a, b) => (a.gray ? 1 : 0) - (b.gray ? 1 : 0) || ({ over: 0, soon: 1, later: 2 }[a.state] || 3) - ({ over: 0, soon: 1, later: 2 }[b.state] || 3) || String(a.x.title).localeCompare(String(b.x.title), 'ja'));
+    return out;
+  }
+  const ymdOf = dt => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+  const dateOf = ymd => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(); };
+  const WD = ['日', '月', '火', '水', '木', '金', '土'];
+  function calNav(dir) {
+    const c = dateOf(TAB.cur || todayStr());
+    if (TAB.cal === 'week') TAB.cur = addDays(ymdOf(c), 7 * dir);
+    else TAB.cur = ymdOf(new Date(c.getFullYear(), c.getMonth() + dir, 1));
+  }
+  function calChip(e, wide) {
+    const cls = 'opc-ev is-' + e.state + (e.gray ? ' is-gray' : '') + (e.d.virt ? ' is-step' : '');
+    const name = e.x.title || '（名前なし）', who = e.d.virt ? (e.st.s || []).find(s => s.id === e.d.sid) : null;
+    const tip = e.lbl + '　' + name + (e.ship ? '　' + (e.ship.label || '') : '') + (e.x.customer ? '　' + e.x.customer : '') + '　' + dlRemain(e.d, e.state, todayStr());
+    return '<button type="button" class="' + cls + '" data-opt="dlopen" data-src="' + e.x.src + '" data-id="' + esc(encodeURIComponent(e.x.id)) + '" data-ship="' + esc(e.ship ? e.ship.id : '') + '" title="' + esc(tip) + '">' +
+      '<span class="opc-ev-k">' + (e.gray ? '✓ ' : e.state === 'over' ? '⚠ ' : '') + esc(e.lbl) + '</span>' +
+      '<span class="opc-ev-c">' + esc(name) + (wide && e.ship ? '　' + esc(e.ship.label || '') : '') + '</span>' +
+      (wide && e.x.customer ? '<span class="opc-ev-s">' + esc(e.x.customer) + (who && who.who ? '　👤 ' + esc(nameOf(who.who)) : '') + '</span>' : '') + '</button>';
+  }
+  function calHtml(all, q, today) {
+    if (!TAB.cur) TAB.cur = today;
+    const evs = collectCal(all, q), by = {};
+    evs.forEach(e => { (by[e.d.d] = by[e.d.d] || []).push(e); });
+    const cur = dateOf(TAB.cur), week = TAB.cal === 'week';
+    let days, label;
+    if (week) {
+      const s0 = addDays(TAB.cur, -cur.getDay());
+      days = Array.from({ length: 7 }, (_, i) => addDays(s0, i));
+      label = md(days[0]) + '（' + WD[0] + '）〜 ' + md(days[6]) + '（' + WD[6] + '）　' + cur.getFullYear() + '年';
+    } else {
+      const first = new Date(cur.getFullYear(), cur.getMonth(), 1), s0 = addDays(ymdOf(first), -first.getDay());
+      const last = new Date(cur.getFullYear(), cur.getMonth() + 1, 0), cells = Math.ceil((first.getDay() + last.getDate()) / 7) * 7;
+      days = Array.from({ length: cells }, (_, i) => addDays(s0, i));
+      label = cur.getFullYear() + '年 ' + (cur.getMonth() + 1) + '月';
+    }
+    const inRange = evs.filter(e => days.includes(e.d.d)), open = inRange.filter(e => !e.gray).length;
+    let h = '<div class="opc-cal' + (week ? ' is-week' : ' is-month') + '">' +
+      '<div class="opc-cal-bar"><div class="opc-cal-nav"><button type="button" class="opt-btn" data-opt="calnav" data-d="-1" aria-label="前へ">‹</button>' +
+      '<button type="button" class="opt-btn" data-opt="caltoday">今日</button><button type="button" class="opt-btn" data-opt="calnav" data-d="1" aria-label="次へ">›</button>' +
+      '<b class="opc-cal-t" id="opcCalTitle">' + label + '</b></div>' +
+      '<div class="opc-cal-sum">この' + (week ? '週' : '月') + '：まだ <b>' + open + '</b> 件・済み ' + (inRange.length - open) + ' 件</div>' +
+      '<div class="opt-view opc-cal-mode" role="group" aria-label="表示の単位"><button type="button" class="opt-view-b' + (!week ? ' is-on' : '') + '" data-opt="calmode" data-v="month" aria-pressed="' + !week + '">月</button>' +
+      '<button type="button" class="opt-view-b' + (week ? ' is-on' : '') + '" data-opt="calmode" data-v="week" aria-pressed="' + week + '">週</button></div></div>' +
+      '<div class="opc-cal-legend"><span class="opc-lg is-over">過ぎた</span><span class="opc-lg is-soon">今日・明日</span><span class="opc-lg is-later">これから</span><span class="opc-lg is-gray">済み・予定日が過ぎた</span><span class="opc-lg-note">押すとチェックリストが開きます</span></div>' +
+      '<div class="opc-grid" role="grid">' + WD.map((w, i) => '<div class="opc-wd' + (i === 0 ? ' is-sun' : i === 6 ? ' is-sat' : '') + '" role="columnheader">' + w + '</div>').join('');
+    const MAX = 3;
+    h += days.map(d => {
+      const dt = dateOf(d), list = by[d] || [], other = !week && dt.getMonth() !== cur.getMonth();
+      const cls = 'opc-day' + (d === today ? ' is-today' : '') + (other ? ' is-other' : '') + (dt.getDay() === 0 ? ' is-sun' : dt.getDay() === 6 ? ' is-sat' : '');
+      const shown = week ? list : list.slice(0, MAX);
+      return '<div class="' + cls + '" role="gridcell" data-day="' + d + '"><div class="opc-day-h">' + (week ? '<span class="opc-day-w">' + WD[dt.getDay()] + '</span>' : '') +
+        '<button type="button" class="opc-day-n" data-opt="calday" data-d="' + d + '" title="この週を見る">' + (week || dt.getDate() === 1 ? (dt.getMonth() + 1) + '/' : '') + dt.getDate() + '</button>' +
+        (d === today ? '<em class="opc-today-tag">今日</em>' : '') + '</div>' +
+        '<div class="opc-day-b">' + shown.map(e => calChip(e, week)).join('') +
+        (list.length > shown.length ? '<button type="button" class="opc-more" data-opt="calday" data-d="' + d + '">他 ' + (list.length - shown.length) + ' 件</button>' : '') +
+        (week && !list.length ? '<span class="opc-none">予定なし</span>' : '') + '</div></div>';
+    }).join('') + '</div>';
+    if (!evs.length) h += '<p class="opc-cal-empty">日付の入った締め切り・作業の期限はまだありません。チェックリストの「📅 日程・締め切り」や作業の「期限」に日付を入れると、ここに並びます。</p>';
+    return h + '</div>';
   }
   // 「📅 締め切り」の表示：過ぎた／今日・明日／7 日以内／それ以降 に分けて、日付の順に
   // COLINS の日付が、入っている日付と違う（または空の）締め切り
