@@ -146,6 +146,49 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('サーチャージの行：有効期間は行の詳細の「さらに」の中（品名の欄に戻して隠さない）', vp.inMore && vp.inMore2, vp);
   ok('サーチャージの行：項目名の後ろに「📅 期間を設定」・押すと詳細が開き期間の欄が見える', vp.chip === '📅 期間を設定' && vp.open && vp.vf, vp);
   ok('期間を入れると札が「📅 12/1〜…」になる', /^📅 12\/1〜/.test(vp.chip2), vp);
+  // パターンの入力（行の詳細のサブコン・パターン欄／見出しの［⋯］→ パターンを追加／選んだ行にパターンを付ける）
+  const yr = () => p.evaluate(() => [...document.querySelectorAll('#tableBody tr.ca-row')].find(tr => tr.querySelector('[data-field="sv"]').value === '山田運送').id);
+  const yid = await yr();
+  const pd = await p.evaluate(async id => {
+    const tr = document.getElementById(id); window.caToggleDetail(tr, true); await new Promise(r => setTimeout(r, 250));
+    const vis = e => !!e && !!e.getClientRects().length && e.getBoundingClientRect().width > 60;
+    const sv = tr.querySelector('.ca-f[data-ca-slot="sv"] input[data-field="sv"]'), pt = tr.querySelector('.ca-f[data-ca-slot="pt"] input[data-field="pt"]');
+    const r = { sv: vis(sv) && sv.value, pt: vis(pt), list: pt && pt.getAttribute('list') };
+    pt.value = '国内案'; pt.dispatchEvent(new Event('input', { bubbles: true })); pt.dispatchEvent(new Event('change', { bubbles: true })); await new Promise(r => setTimeout(r, 500));
+    r.hdr = [...document.querySelectorAll('#tableBody tr.subcon-subgroup-header.is-pattern')].some(h => /国内案/.test(h.textContent));
+    const t2 = document.getElementById(id); window.caToggleDetail(t2, false); return r; }, yid);
+  ok('行の詳細に「サブコン」「パターン」の欄（パターンは候補つき）', pd.sv === '山田運送' && pd.pt && pd.list === 'ptSuggestions', pd);
+  ok('行の詳細でパターンを入れると、そのパターンの見出しができる', pd.hdr, pd);
+  // サブコン見出しの［⋯］→「パターンを追加」
+  const ap = await p.evaluate(async () => {
+    const h = [...document.querySelectorAll('#tableBody tr.subcon-group-header')].find(x => /山田運送/.test(x.textContent));
+    const before = document.querySelectorAll('#tableBody tr.ca-row').length;
+    h.querySelector('.gb-more').click(); await new Promise(r => setTimeout(r, 200));
+    const it = [...document.querySelectorAll('#gbMenu button, #gbMenu [role="menuitem"]')].find(b => /パターンを追加/.test(b.textContent));
+    if (!it) return { item: false };
+    it.click(); await new Promise(r => setTimeout(r, 200));
+    const inp = document.querySelector('.ca-move-in'); const note = (document.querySelector('.ca-ask-note') || {}).textContent;
+    const go = document.querySelector('.ca-move [data-go]'); go.click(); await new Promise(r => setTimeout(r, 150));
+    const stillOpen = !!document.querySelector('.ca-move-in');
+    inp.value = 'チャーター案'; go.click(); await new Promise(r => setTimeout(r, 500));
+    const nr = [...document.querySelectorAll('#tableBody tr.ca-row')].filter(tr => tr.querySelector('[data-field="pt"]').value === 'チャーター案');
+    return { item: true, note, stillOpen, added: document.querySelectorAll('#tableBody tr.ca-row').length - before, sv: nr.map(tr => tr.querySelector('[data-field="sv"]').value),
+      hdr: [...document.querySelectorAll('#tableBody tr.subcon-subgroup-header.is-pattern')].some(x => /チャーター案/.test(x.textContent)) }; });
+  ok('サブコン見出しの［⋯］に「パターンを追加」・使っているパターンを案内', ap.item && /国内案/.test(ap.note || ''), ap);
+  ok('パターンを追加：名前が空なら追加しない（吹き出しは残る）', ap.stillOpen, ap);
+  ok('パターンを追加：そのサブコンにそのパターンの行が 1 行でき、見出しも出る', ap.added === 1 && ap.sv.length === 1 && ap.sv[0] === '山田運送' && ap.hdr, ap);
+  // 選んだ行の帯の［🔖 パターンを付ける］
+  const bp = await p.evaluate(async () => {
+    const trs = [...document.querySelectorAll('#tableBody tr.ca-row')].filter(tr => tr.querySelector('[data-field="sv"]').value === '山田運送');
+    trs.forEach(tr => { const c = tr.querySelector('.row-select-chk'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }); await new Promise(r => setTimeout(r, 200));
+    const btn = document.querySelector('#caSel [data-cs="pat"]'); const vis = !!btn && !!btn.getClientRects().length;
+    btn.click(); await new Promise(r => setTimeout(r, 200));
+    document.querySelector('.ca-move-in').value = 'まとめ案'; document.querySelector('.ca-move [data-go]').click(); await new Promise(r => setTimeout(r, 500));
+    const ids = trs.map(t => t.id);
+    const r = { vis, n: ids.length, all: ids.every(id => document.getElementById(id).querySelector('[data-field="pt"]').value === 'まとめ案') };
+    if (window.clearRowSelection) window.clearRowSelection(); else document.querySelector('#caSel [data-cs="clear"]').click();
+    return r; });
+  ok('選んだ行の帯に［🔖 パターンを付ける］・選んだ行すべてに付く', bp.vis && bp.n >= 2 && bp.all, bp);
   // 7. スマホ（〜600px）：見出し＝名前・行数・売・［⋯］・［＋ 明細を追加］／1 行＝2 段のカード
   await p.setViewportSize({ width: 390, height: 844 }); await p.waitForTimeout(600);
   const mc = await p.evaluate(() => {

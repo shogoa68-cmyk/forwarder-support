@@ -357,3 +357,13 @@ html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row.ca-open .ca-name > .
 html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-name > .ca-tog:focus-visible { outline: 2px solid var(--ca-pri, #2f5fb3); outline-offset: 1px; }
 @media (pointer: coarse) { html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-name > .ca-tog { height: 36px; } }
 @media print { html.editor-v2 #tab-quote-make.ca-on .ca-tog { display: none !important; } }
+
+/* 入力の吹き出し（パターンを付ける・パターンを追加）の補足と空欄の印 */
+.ca-move .ca-ask-note { font-size: 12px; color: #5a6475; line-height: 1.5; }
+.ca-move .ca-move-in.is-err { border-color: #c2410c; box-shadow: 0 0 0 2px rgba(194,65,12,.15); }
+/* 行の詳細のサブコン・パターン欄（表の中では隠していた欄を詳細の中で見せる） */
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row.ca-open td .ca-f[data-ca-slot] :is(input.w-subcon, input.w-pattern, input[data-e2empty="1"]) { display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; max-width: none !important; }
+/* 1 段目＝サブコン・パターン、2 段目＝備考・カテゴリ・課税・売の通貨 */
+html.editor-v2 #tab-quote-make.ca-on .ca-f[data-ca-slot="sv"] { grid-row: 1; grid-column: 1; }
+html.editor-v2 #tab-quote-make.ca-on .ca-f[data-ca-slot="pt"] { grid-row: 1; grid-column: 2 / span 2; }
+html.editor-v2 #tab-quote-make.ca-on .ca-f[data-ca-slot="note"] { grid-row: 2; grid-column: 1; }
