@@ -241,16 +241,28 @@
   // 出力物（PDF/Excel/TSV）のフッターに刻む「為替の出典 / 取得日時」「作成日」メタ情報
   function getFxAuditMeta() {
     const last = localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED);
+    const fmt = t => new Date(t).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const tail = '／参考値であり、実際の決済レート（TTS等）とは異なります。';
+    // 手入力したレート（見積で使っている外貨のうち）。使っている外貨が分からないときは記録のある通貨すべて
+    const manual = (typeof getFxManual === 'function') ? getFxManual() : {};
+    let used = null;
+    try { used = [...new Set(collectData().flatMap(d => [d.pc, d.bc]).filter(c => c && c !== 'JPY'))]; } catch (e) {}
+    const manCurs = Object.keys(manual).filter(c => !used || used.includes(c)).sort();
+    const manTxt = manCurs.length
+      ? manCurs.join('・') + ' は手入力の値（' + fmt(manCurs.map(c => manual[c]).sort().pop()) + ' 入力）' : '';
+    const allManual = manCurs.length && used && used.length && used.every(c => manCurs.includes(c));
     let fxLine;
-    if (last) {
-      fxLine = `為替：open.er-api.com 中値（${new Date(last).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})} 取得）／参考値であり、実際の決済レート（TTS等）とは異なります。`;
+    if (allManual) {
+      fxLine = `為替：${manTxt}${tail}`;
+    } else if (last) {
+      fxLine = `為替：${manTxt ? manTxt + '、その他は ' : ''}open.er-api.com 中値（${fmt(last)} 取得）${tail}`;
     } else {
       // フォールバック（自動取得未実行）。デフォルト値の確認日を必ず明記し、根拠を追えるようにする（台帳 D）
       const asof = (typeof QuoteApp !== 'undefined' && QuoteApp.fx && QuoteApp.fx.DEFAULT_RATES_ASOF) || '';
-      fxLine = `為替：手動設定値（自動取得未実行${asof ? `・基準レート確認日 ${asof}` : ''}）／参考値であり、実際の決済レート（TTS等）とは異なります。`;
+      fxLine = `為替：${manTxt ? manTxt + '、その他は ' : ''}手動設定値（自動取得未実行${asof ? `・基準レート確認日 ${asof}` : ''}）${tail}`;
     }
-    const created = `作成日：${new Date().toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
-    return { fxLine, created, hasFresh: !!last };
+    const created = `作成日：${fmt(Date.now())}`;
+    return { fxLine, created, hasFresh: !!last, manual: manCurs };
   }
 
   // 為替キャッシュが 24h 超過しているか

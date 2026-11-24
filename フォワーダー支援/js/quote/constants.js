@@ -364,6 +364,20 @@ function saveFxRates() {
   SharedStorage.setJSON(SharedStorage.KEYS.FX_RATES, _fxRates);
 }
 
+// 手入力した為替レートの記録 {通貨: 入力した日時（ISO）}。自動取得に成功すると消える。
+// 御見積書の為替注記で「open.er-api.com から取得」と書かず「手入力の値」と書くために使う。
+const FX_MANUAL_KEY = 'fxManual_v1';
+function getFxManual() {
+  try { const o = JSON.parse(localStorage.getItem(FX_MANUAL_KEY) || '{}'); return (o && typeof o === 'object') ? o : {}; } catch (e) { return {}; }
+}
+function setFxManual(obj) {
+  try {
+    if (obj && Object.keys(obj).length) localStorage.setItem(FX_MANUAL_KEY, JSON.stringify(obj));
+    else localStorage.removeItem(FX_MANUAL_KEY);
+  } catch (e) {}
+}
+function markFxManual(cur) { const o = getFxManual(); o[cur] = new Date().toISOString(); setFxManual(o); }
+
 function setFxAutoMode(on) {
   _fxAutoMode = !!on;
   SharedStorage.set(SharedStorage.KEYS.FX_AUTO_MODE, on ? '1' : '0');
@@ -385,6 +399,7 @@ async function fetchAutoFxRates() {
     });
     saveFxRates();
     localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, new Date().toISOString());
+    setFxManual({});   // 取得した値で置き換わったので、手入力の記録は消す
     return true;
   } catch(e) {
     console.warn('為替レート取得失敗:', e);

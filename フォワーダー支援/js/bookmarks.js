@@ -882,6 +882,7 @@ async function saveBm() {
   const note    = document.getElementById('bmFormNote')?.value.trim()   || null;
 
   if (!label) { quoteShowToast('⚠️ ラベルを入力してください', 'warn'); return; }
+  if (url && typeof window.isUnsafeUrl === 'function' && window.isUnsafeUrl(url)) { quoteShowToast('⚠️ この URL は安全でない書き方のため保存できません（http:// か https:// で始まる URL にしてください）', 'warn'); return; }
   // 機能カテゴリは任意。未選択は「未分類」で登録し、後から整理できるようにする。
   const fnVal = fn || '未分類';
 

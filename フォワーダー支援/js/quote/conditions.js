@@ -867,6 +867,7 @@
       _fxRates = { ...DEFAULT_FX_RATES, ...data.fxSnapshot.rates };
       saveFxRates();
       if (data.fxSnapshot.ts) localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, data.fxSnapshot.ts);
+      if (typeof setFxManual === 'function') setFxManual(data.fxSnapshot.manual || {});   // 保存時に手入力だった通貨（旧データは無し＝取得した値）
     }
     _rebuildTable(data);
     _restoreUiState(data.fields);
@@ -1334,7 +1335,7 @@
              subconRemarks: (typeof getSubconRemarks === 'function' ? getSubconRemarks() : {}),
              groupNotes: (typeof getSubconGroupNotes === 'function' ? getSubconGroupNotes() : {}),
              groupDisplayState: (typeof getGroupDisplayState === 'function' ? getGroupDisplayState() : {}),
-             fxSnapshot: { rates: { ..._fxRates }, ts: localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED) || null },
+             fxSnapshot: { rates: { ..._fxRates }, ts: localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED) || null, manual: (typeof getFxManual === 'function' ? getFxManual() : {}) },
              ...(_loadedCopiedFrom ? { copiedFrom: _loadedCopiedFrom } : {}) };
   }
 

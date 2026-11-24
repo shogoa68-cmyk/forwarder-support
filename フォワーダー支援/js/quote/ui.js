@@ -919,6 +919,7 @@
   function updateFxRate(cur, val) {
     const v = parseFloat(val);
     if (v > 0) {
+      if (_fxRates[cur] !== v && typeof markFxManual === 'function') markFxManual(cur);   // 手入力した通貨を記録（為替注記で「手入力」と書く）
       _fxRates[cur] = v;
       saveFxRates();
       if (typeof window.recalcPctRows === 'function') window.recalcPctRows();   // 他の行を基準にした % 行（通貨が違うもの）も換算し直す
