@@ -16,9 +16,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const on = await p.evaluate(() => document.documentElement.classList.contains('editor-v2')); await ctx.close(); return on;
   }
   ok('選択を保存していない人（ふつうのブラウザ）は新画面', (await cls({ webdriver: false, store: null })) === true);
-  ok('旧画面を選んだ人（保存値 0）は旧画面のまま', (await cls({ webdriver: false, store: '0' })) === false);
+  ok('旧画面を選んでいた人（保存値 0）も新画面（一本化）', (await cls({ webdriver: false, store: '0' })) === true);
   ok('新画面を選んだ人（保存値 1）は新画面', (await cls({ webdriver: false, store: '1' })) === true);
-  ok('?editor=v1 で旧画面へ戻せる', (await cls({ webdriver: false, store: null, query: '?editor=v1' })) === false);
+  ok('?editor=v1 でも新画面（一本化・実際の利用では旧画面へ戻せない）', (await cls({ webdriver: false, store: null, query: '?editor=v1' })) === true);
   ok('?editor=v2 で新画面', (await cls({ webdriver: false, store: '0', query: '?editor=v2' })) === true);
   ok('自動テスト（webdriver）は従来どおり旧画面が既定', (await cls({ webdriver: true, store: null })) === false);
   await b.close(); srv.close(); console.log(fails ? `\nFAIL=${fails}` : '\nALL PASS'); process.exit(fails ? 1 : 0);

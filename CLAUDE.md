@@ -49,6 +49,10 @@ github/202605_コード改修/
     └── *.bak ...              手動バックアップ群（運用上残置）
 ```
 
+## 🎯 Industry・新画面への一本化（2026-11）
+
+**デザインは Industry、見積入力は新画面（editor-v2）に一本化した**。実際の利用では保存値・`?theme=`・`?editor=` を読まず、常に `theme-industry`＋`theme-industry-doc`＋`editor-v2`（`index.html` 先頭の早期スクリプト・`js/tweaks.js loadTheme`）。①**Quiet テーマは削除**（`js/theme-quiet.js`・`css/theme-quiet.css`・`css/design-tokens-quiet.css`）②ヘッダー「🎨 デザイン」（Tweaks）から画面／御見積書／Quiet の切替を外した（残るのは情報密度）③☰ の「画面の切替」（旧い画面／新しい画面）を外した（`editor-v2.js` の `addMenuBtn` は未使用で残置）。**例外：自動テスト（`navigator.webdriver`）だけ従来の切替（`THEME=classic`・`?editor=v2`・既定は旧画面）を読む**＝旧画面・現行デザイン前提の既存試験（約 100 本）を動かし続けるため。Quiet の試験（`THEME=quiet`）は対象が無くなった。**クラシックの CSS・旧画面の分岐（`html:not(.editor-v2)`・`.theme-industry` 条件）は削除していない**（Industry は現行 CSS の差分として作られており、土台を消せないため）。以下の各節の「現行／Quiet に戻せる」「旧画面で試験」の記述は、この一本化の前の説明。`docs/ui-contract.json` は `theme-quiet` の分だけ基準とずれる（他のずれは以前から）。
+
 ## 🎨 Industry テーマ（Claude Design 案・既定オン・元に戻せる）
 
 Design 製の Industry 版デザイン（鋼青のブループリント調）を、**現行 CSS を書き換えず**に切替式で載せている。**既定は Industry（2026-11・保存済みの選択があればそれを優先。「現行」は `?theme=classic` かヘッダー「🎨 デザイン」で選べる）**。入口はヘッダー「🎨 デザイン」（画面／御見積書を別々に切替）、`?theme=industry|classic` でも切替可。`<html class="theme-industry|theme-industry-doc">` のときだけ `css/theme-industry*.css`（`node scripts/build-industry-theme.js` が `docs/design-handoff/industry/css/` と現行の差分から生成。**手編集禁止**）が効く。Industry 時のみ `row.js _insertCatHeaders()` がカテゴリ見出し行（`tr.subcon-cat-header`・表示専用の仮想行）を挟む。詳細・戻し方は [docs/デザイン変更の安全手順.md](docs/デザイン変更の安全手順.md)。**現行 CSS（style/quote/quote-pdf/tokens）を変えたら `build-industry-theme.js` を再実行**（差分が変わるため）。

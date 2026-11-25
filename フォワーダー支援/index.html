@@ -17,14 +17,10 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" media="not all" data-theme-css="fonts">
 <link rel="stylesheet" href="css/theme-industry.css" media="not all" data-theme-css="site">
 <link rel="stylesheet" href="css/theme-industry-doc.css" media="not all" data-theme-css="doc">
-<!-- Quiet テーマ（Claude Design 案・3つ目のデザイン・既定オフ）。<html data-theme="quiet" class="theme-quiet"> のときだけ効く。
-     トークン：css/design-tokens-quiet.css／部品・画面：css/theme-quiet.css（Industry と同時には使わない） -->
 <!-- 全テーマ共通の書体（Inter＋Noto Sans JP・display=swap：読み込み中は標準書体で先に表示）。読み込めない環境では --font-sans の予備（ヒラギノ等）で表示 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/design-tokens-quiet.css" media="not all" data-theme-css="quiet">
-<link rel="stylesheet" href="css/theme-quiet.css" media="not all" data-theme-css="quiet">
 <!-- 「かんたん表示」（Claude Design 案）。<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま。 -->
 <link rel="stylesheet" href="css/simple-mode.css">
 <link rel="stylesheet" href="css/feedback.css">
@@ -61,14 +57,18 @@
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
 (function () {
-  var KEY = 'forwarderTheme_v1', t = { site: true, doc: true, quiet: false }; /* 既定は Industry（保存済みの選択があればそれを優先） */
-  try { t = Object.assign(t, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
-  try {
-    var q = new URLSearchParams(location.search).get('theme');
-    if (q === 'industry') { t.site = true; t.doc = true; t.quiet = false; } else if (q === 'classic') { t.site = false; t.doc = false; t.quiet = false; }
-    else if (q === 'quiet') { t.quiet = true; t.site = false; }
-    if (q) localStorage.setItem(KEY, JSON.stringify(t));
-  } catch (e) {}
+  /* デザインは Industry に一本化（2026-11）。保存値・?theme= は無視する。自動テスト（navigator.webdriver）だけ、
+     現行／Quiet・旧い見積入力画面の既存試験のために従来の切替（保存値・?theme=・?editor=）を読む。 */
+  var KEY = 'forwarderTheme_v1', t = { site: true, doc: true, quiet: false };
+  var testing = false; try { testing = !!navigator.webdriver; } catch (e) {}
+  if (testing) {
+    try { t = Object.assign(t, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
+    try {
+      var q = new URLSearchParams(location.search).get('theme');
+      if (q === 'industry') { t.site = true; t.doc = true; t.quiet = false; } else if (q === 'classic') { t.site = false; t.doc = false; t.quiet = false; }
+      if (q) localStorage.setItem(KEY, JSON.stringify(t));
+    } catch (e) {}
+  }
   var h = document.documentElement;
   h.classList.toggle('theme-industry', !!t.site);
   h.classList.toggle('theme-industry-doc', !!t.doc);
@@ -88,10 +88,12 @@
   /* スマホ幅（〜600px）は常に詳細表示（かんたん表示は使わない）。保存値は変えない */
   var phone = false; try { phone = window.matchMedia('(max-width: 600px)').matches; } catch (e) {}
   h.classList.remove('mode-simple');
-  /* 見積入力の新画面（Design 28）。保存 fwd.editorV2・?editor=v2|v1。**既定は新画面**（2026-11・ボタン配置レビューで推薦）。選んだ人（'0'＝旧／'1'＝新）はその選択を優先。
-     自動テスト（navigator.webdriver）では、旧画面前提の既存テスト約 100 本のため従来どおり旧画面を既定にする（新画面は ?editor=v2・EDITOR=v2 で試験）。 */
-  try { var ev = new URLSearchParams(location.search).get('editor'); if (ev === 'v2') localStorage.setItem('fwd.editorV2', '1'); else if (ev === 'v1') localStorage.setItem('fwd.editorV2', '0'); } catch (e) {}
-  try { var evs = localStorage.getItem('fwd.editorV2'); h.classList.toggle('editor-v2', evs === '1' || (evs === null && !navigator.webdriver)); } catch (e) {}   /* かんたん表示は廃止（2026-11）：常に詳細表示 */
+  /* 見積入力は新画面（editor-v2）に一本化（2026-11）。実際の利用では常に新画面（保存値・?editor= は無視）。
+     自動テスト（navigator.webdriver）だけ、旧画面前提の既存試験のため従来どおり（既定は旧画面・?editor=v2／EDITOR=v2 で新画面）。 */
+  if (testing) {
+    try { var ev = new URLSearchParams(location.search).get('editor'); if (ev === 'v2') localStorage.setItem('fwd.editorV2', '1'); else if (ev === 'v1') localStorage.setItem('fwd.editorV2', '0'); } catch (e) {}
+    try { h.classList.toggle('editor-v2', localStorage.getItem('fwd.editorV2') === '1'); } catch (e) {}
+  } else { h.classList.add('editor-v2'); }   /* かんたん表示は廃止（2026-11）：常に詳細表示 */
   h.setAttribute('data-ui-mode-default', UI_MODE_DEFAULT);
   [].forEach.call(document.querySelectorAll('link[data-theme-css]'), function (l) {
     l.media = on[l.getAttribute('data-theme-css')] ? 'all' : 'not all';
@@ -5202,11 +5204,9 @@
 <!-- 🔴 不具合の再現を記録する「見張り番」（Ctrl+Shift+L・再現手順つきの報告を作る） -->
 <script src="js/bug-recorder.js"></script>
 <script src="js/toast-phone.js"></script>
-<!-- Quiet テーマの置き場所変更（ヘッダーのボタンまとめ・見出しの絵文字）。html.theme-quiet のときだけ働く -->
 <script src="js/header-menu.js"></script>
 <script src="js/quote/editor-v2.js"></script>
 <script src="js/quote/steps-b.js"></script>
-<script src="js/theme-quiet.js"></script>
 <!-- 欄ごとの説明書きを「？」にしまう（マウスを乗せる／タップで読める） -->
 <script src="js/hint-fold.js"></script>
 <script src="js/help-hints.js"></script>

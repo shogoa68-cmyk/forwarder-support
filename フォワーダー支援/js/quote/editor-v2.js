@@ -441,7 +441,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    let tries = 0; const t = setInterval(() => { if (addMenuBtn() || ++tries > 20) clearInterval(t); }, 300);
+    // 旧い画面への切替の入口（☰ メニュー）は廃止（2026-11・新画面に一本化）。addMenuBtn は残置（未使用）
     if (isOn()) { build(); buildOut(); moveDock(true); moveRemark(true); placeOut(); watchMode(); syncMode(); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(1, true); syncRailWidth(); }
     // 入力のたびに要約・合計を更新（軽く間引く）
     let raf = 0; const kick = () => { if (!isOn()) return; cancelAnimationFrame(raf); raf = requestAnimationFrame(refresh); };

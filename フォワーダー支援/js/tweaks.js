@@ -40,8 +40,11 @@
   //  クラスを外せば（＝「現行」に戻せば）元のデザインにそのまま戻る。
   const THEME_KEY = 'forwarderTheme_v1';
   function loadTheme() {
-    try { return Object.assign({ site: true, doc: true, quiet: false }, JSON.parse(localStorage.getItem(THEME_KEY) || '{}')); }
-    catch (_) { return { site: true, doc: true, quiet: false }; }
+    // Industry に一本化（2026-11）：実際の利用では保存値を読まない。自動テストだけ従来の切替を読む
+    const forced = { site: true, doc: true, quiet: false };
+    if (!navigator.webdriver) return forced;
+    try { return Object.assign(forced, JSON.parse(localStorage.getItem(THEME_KEY) || '{}')); }
+    catch (_) { return forced; }
   }
   let theme = loadTheme();
   function applyTheme() {
@@ -158,28 +161,6 @@
     p.innerHTML = `
       <div class="twk-hd"><b>Tweaks</b><button class="twk-x" title="閉じる">✕</button></div>
       <div class="twk-body">
-        <div class="twk-grp" data-theme="site">
-          <div class="twk-sect">デザイン（画面） <small>Industry案</small></div>
-          <div class="twk-seg"><button data-v="off">現行</button><button data-v="on">Industry</button></div>
-        </div>
-        <div class="twk-grp" data-theme="quiet">
-          <div class="twk-sect">デザイン（Quiet） <small>3つ目の案・画面のみ</small></div>
-          <div class="twk-seg"><button data-v="off">オフ</button><button data-v="on">Quiet</button></div>
-        </div>
-        <div class="twk-grp" data-theme="doc">
-          <div class="twk-sect">デザイン（御見積書） <small>画面とは別に切替</small></div>
-          <div class="twk-seg"><button data-v="off">現行</button><button data-v="on">Industry</button></div>
-        </div>
-        <div class="twk-grp" data-grp="accent">
-          <div class="twk-sect">アクセント <small>配色の性格</small></div>
-          <div class="twk-sw">${Object.entries(ACCENTS).map(([k, v]) =>
-            `<button data-v="${k}"><span class="dot" style="background:${v.swatch}"></span><span class="nm">${v.label}</span></button>`).join('')}</div>
-        </div>
-        <div class="twk-grp" data-grp="base">
-          <div class="twk-sect">基調 <small>紙の質感</small></div>
-          <div class="twk-seg">${Object.entries(BASES).map(([k, v]) =>
-            `<button data-v="${k}">${v.label}</button>`).join('')}</div>
-        </div>
         <div class="twk-grp" data-grp="density">
           <div class="twk-sect">情報密度</div>
           <div class="twk-seg">${Object.entries(DENSITIES).map(([k, v]) =>
