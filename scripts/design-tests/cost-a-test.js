@@ -41,8 +41,12 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.keyboard.press('Escape');
   // 行の詳細
   await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[1].querySelector('td.qty-cell').click()); await p.waitForTimeout(200);
+  ok('行の詳細：行の何もない所を押しても開かない', await p.evaluate(() => !document.querySelectorAll('#tableBody tr.ca-row')[1].classList.contains('ca-open')));
+  await p.evaluate(() => { const tr = document.querySelectorAll('#tableBody tr.ca-row')[1]; tr.focus(); tr.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }); await p.waitForTimeout(150);
+  ok('行の詳細：行で Enter を押しても開かない', await p.evaluate(() => !document.querySelectorAll('#tableBody tr.ca-row')[1].classList.contains('ca-open')));
+  await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[1].querySelector('[data-ca="tog"]').click()); await p.waitForTimeout(200);
   const d = await p.evaluate(() => { const tr = document.querySelectorAll('#tableBody tr.ca-row')[1]; const pn = tr.querySelector('.row-detail-panel'); const v = s => { const e = pn.querySelector(s); return !!e && !!e.getClientRects().length; }; return { open: tr.classList.contains('ca-open'), w: Math.round(pn.getBoundingClientRect().width), tw: Math.round(document.getElementById('tableBody').getBoundingClientRect().width), title: pn.querySelector('.ca-dtitle').textContent, note: v('[data-field="nt"]'), cat: v('select.w-cat'), tax: v('[data-field="tx"]'), bc: v('select[data-field="bc"]'), chips: [...pn.querySelectorAll('.ca-chip[data-ca-q]')].map(x => x.textContent), more: pn.querySelector('.ca-dmore').hidden }; });
-  ok('行の詳細：行の何もない所を押すと、行の下に全幅で開く', d.open && d.w >= d.tw - 4, d);
+  ok('行の詳細：［▸ 詳細］を押すと、行の下に全幅で開く', d.open && d.w >= d.tw - 4, d);
   ok('行の詳細：見出し「THC の詳細」・備考／カテゴリ／課税／売の通貨', d.title === 'THC の詳細' && d.note && d.cat && d.tax && d.bc, d);
   ok('行の詳細：単価の扱い［0円で載せる］［MIN］［幅］［%］＋［さらに ▾］（閉じている）', JSON.stringify(d.chips) === JSON.stringify(['0円で載せる', 'MIN', '幅', '%']) && d.more, d.chips);
   await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[1].querySelector('[data-ca="more"]').click()); await p.waitForTimeout(100);
