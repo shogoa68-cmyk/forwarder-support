@@ -218,6 +218,8 @@
     const items = [
       { k: 'qty', label: 'この行の数量', kind: 'num', unit: '' },
       { k: 'pcs', label: '総個数', kind: 'num', unit: '個' },
+      { k: 'kg', label: '総重量（出荷全体）', kind: 'num', unit: 'KGS' },
+      { k: 'cbm', label: '総容積（出荷全体）', kind: 'num', unit: 'M3' },
       { k: 'cnt', label: 'コンテナ本数（合計）', kind: 'num', unit: '本' },
     ];
     const seen = new Set();
@@ -252,6 +254,9 @@
     // 数量の欄が空なら「まだ分からない」（以前は数量の写し bq の 0 を読み、条件外として合計から黙って外していた）
     if (k === 'qty') { const p = document.getElementById(`pq-${id}`)?.value; return (p === '' || p == null) ? null : num(p); }
     if (k === 'pcs') return (m.qty > 0) ? m.qty : null;
+    // 総重量・総容積：物量情報（荷姿・貨物明細の合計）。未入力（0）は判定できない。小数の誤差を丸める（KGS は 2 桁・M3 は 3 桁）
+    if (k === 'kg') return (m.kg > 0) ? Math.round(m.kg * 100) / 100 : null;
+    if (k === 'cbm') return (m.cbm > 0) ? Math.round(m.cbm * 1000) / 1000 : null;
     if (k === 'cnt') return entries.length ? entries.reduce((a, e) => a + e.count, 0) : null;
     if (k.startsWith('cnt:')) { if (!entries.length) return null; const e = entries.find(x => x.type === k.slice(4)); return e ? e.count : 0; }
     if (k === 'mode') { const v = (document.getElementById('cond-mode')?.value || '').trim(); return v || null; }
