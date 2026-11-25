@@ -6,20 +6,24 @@ const OUT=process.env.OUT||require('os').tmpdir()+'/design-tests-out';fs.mkdirSy
 const run=async(p,OUT)=>{
  const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify(x)));
  const rows='#tableBody tr:not([data-virtual]):not([data-type])';const row=i=>p.locator(rows).nth(i);
+ // 新画面（cost-a）では「その他 ▾」の代わりに行の詳細（［▸ 詳細］＋「さらに ▾」）がパネルになる。openPanel で新旧を吸収する。
+ const V2=await p.evaluate(()=>document.documentElement.classList.contains('editor-v2'));
+ const openPanel=async i=>{if(!V2){await row(i).locator('.row-detail-btn').click();return;}
+  await p.evaluate(i=>{const tr=document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')[i];window.caToggleDetail(tr,true);const mb=tr.querySelector('[data-ca="more"]');if(mb&&mb.getAttribute('aria-expanded')!=='true')mb.click();},i);};
  await p.evaluate(()=>document.getElementById('section-table').scrollIntoView());
  // 行1（BAF）を期間外に（有効期間を過去に）
- await row(1).locator('.row-detail-btn').click();await p.waitForTimeout(200);
+ await openPanel(1);await p.waitForTimeout(200);
  await row(1).locator('[data-field="vf"]').fill('2020-01-01');await row(1).locator('[data-field="vt"]').fill('2020-01-31');
  await row(1).locator('[data-field="vt"]').dispatchEvent('change');await p.waitForTimeout(500);
  const st=await p.evaluate(()=>{const tr=document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')[1];return {oor:tr.classList.contains('row-out-of-range'),open:tr.classList.contains('is-detail-open')}});
  console.log('state',JSON.stringify(st));
  await p.keyboard.press('Escape');await p.mouse.click(5,5);await p.waitForTimeout(200);
  // 開く→パネルの上でクリックできるか
- await row(1).locator('.row-detail-btn').click();await p.waitForTimeout(300);
+ await openPanel(1);await p.waitForTimeout(300);
  const info=await p.evaluate(()=>{
   const tr=document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')[1];
-  const pn=tr.querySelector('.row-detail-panel');const r=pn.getBoundingClientRect();
-  const pts=[[r.left+r.width*0.3,r.top+r.height*0.5],[r.left+r.width*0.6,r.top+r.height*0.3],[r.left+200,r.bottom-12]];
+  const pn=tr.querySelector('.row-detail-panel');pn.scrollIntoView({block:'start'});const r=pn.getBoundingClientRect();const cy=y=>Math.max(r.top+4,Math.min(y,innerHeight-8));   // 新画面の詳細は縦に長いので画面内に収まる点で確認
+  const pts=[[r.left+r.width*0.3,cy(r.top+r.height*0.5)],[r.left+r.width*0.6,cy(r.top+r.height*0.3)],[r.left+200,cy(r.bottom-12)]];
   return {vis:r.height>0&&getComputedStyle(pn).display!=='none',h:r.height,hits:pts.map(([x,y])=>{const e=document.elementFromPoint(x,y);return !!(e&&pn.contains(e))})};
  });
  ok('期間外の行：パネルが開く',info.vis,info);
@@ -30,8 +34,8 @@ const run=async(p,OUT)=>{
  ok('期間をクリアすると期間外が解除される',await p.evaluate(()=>!document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')[1].classList.contains('row-out-of-range')));
  // 「見積書に出さない」行
  await p.keyboard.press('Escape');await p.mouse.click(5,5);
- await row(3).locator('td.handle-cell .drag-handle').hover();await row(3).locator('.row-hidequote-btn').click();await p.waitForTimeout(300);await p.mouse.click(5,5);
- await row(3).locator('.row-detail-btn').click();await p.waitForTimeout(300);
+ if(V2){await p.evaluate(()=>document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')[3].querySelector('.row-hidequote-btn').click());}else{await row(3).locator('td.handle-cell .drag-handle').hover();await row(3).locator('.row-hidequote-btn').click();}await p.waitForTimeout(300);await p.mouse.click(5,5);
+ await openPanel(3);await p.waitForTimeout(300);
  const info2=await p.evaluate(()=>{const tr=document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')[3];const pn=tr.querySelector('.row-detail-panel');pn.scrollIntoView({block:'center'});const r=pn.getBoundingClientRect();const e=document.elementFromPoint(r.left+r.width*0.3,r.top+r.height*0.5);return {hidden:tr.classList.contains('row-hidden-quote'),hit:!!(e&&pn.contains(e)),open:tr.classList.contains('is-detail-open'),rect:[r.left,r.top,r.width,r.height],cover:e&&(e.tagName+'.'+e.className)}});
  ok('「見積書に出さない」行でもパネルが操作できる',info2.hidden&&info2.hit,info2);
 };
@@ -50,17 +54,17 @@ const run=async(p,OUT)=>{
  await p.addStyleTag({content:'*{caret-color:transparent!important;} *,*::before,*::after{animation:none!important;transition:none!important;}'});
  await p.evaluate(()=>{const t=document.querySelector('[onclick*="quote-make"]');t&&t.click();});await p.waitForTimeout(1000);
  await p.evaluate(()=>window.qpShowEditor&&window.qpShowEditor());await p.waitForTimeout(500);
+ await p.evaluate(()=>window.editorV2Go&&window.editorV2Go(4));await p.waitForTimeout(300);   // 新画面は ④費用 を開く
  await p.evaluate(()=>{setTransport('fcl')});
  // 明細（架空）：サブコン3社・7行。通貨違い・単位違いを含む
  const rows=[['海上運賃','A海運','ocean',"40'GP/HQ",2,1200,300,'USD'],['BAF','A海運','surcharge','CNTR',2,80,20,'USD'],['THC','Bローカル','export-local',"20'GP",1,32000,5000,'JPY'],['ドキュメント費','Bローカル','export-local','B/L',1,8000,2000,'JPY'],['通関料','C通関','customs-export','shipment',1,12000,3000,'JPY'],['輸出者検査','C通関','customs-export','CBM',3.5,2500,500,'JPY'],['配送費','D運輸','domestic',"40'GP",1,45000,8000,'JPY']];
  for(let i=0;i<rows.length;i++){
   if(i>0){await p.evaluate(()=>window.addRow());await p.waitForTimeout(80);}
-  const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).nth(i);
   const r=rows[i];
-  await f('nm').fill(r[0]);await f('sv').fill(r[1]);await f('cat').selectOption(r[2],{force:true}).catch(()=>{});
-  await f('un').fill(r[3]);await f('pq').fill(String(r[4]));
-  await f('pc').selectOption(r[7],{force:true}).catch(()=>{});await f('bc').selectOption(r[7],{force:true}).catch(()=>{});
-  await f('pp').fill(String(r[5]));await f('mk').fill(String(r[6]));await f('mk').blur();
+  // 新画面（cost-a）は 1 段の行で、サブコン・カテゴリ・売通貨などが行の詳細の中へ移るため DOM 経由で値を入れる（欄は DOM に残る）
+  await p.evaluate(([i,r])=>{const tr=[...document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')][i];
+   const set=(n,v)=>{const e=tr.querySelector('[data-field="'+n+'"]');if(!e)return;e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));};
+   set('nm',r[0]);set('sv',r[1]);set('cat',r[2]);set('un',r[3]);set('pq',String(r[4]));set('pc',r[7]);set('bc',r[7]);set('pp',String(r[5]));set('mk',String(r[6]));},[i,r]);
  }
  await p.waitForTimeout(1500);
  await p.evaluate(()=>document.getElementById('section-table').scrollIntoView());await p.waitForTimeout(300);

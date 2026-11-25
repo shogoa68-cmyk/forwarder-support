@@ -28,12 +28,14 @@ const http = require('http'), fs = require('fs'), path = require('path');
   }, [i, o]);
   // PC 幅：一覧は出ない
   { const { ctx, p, errs } = await open(1400);
+    await p.evaluate(() => window.editorV2Go && window.editorV2Go(4)); await p.waitForTimeout(300);   // 新画面は ④費用 のステップを開く
     ok('[PC] スマホ用の一覧は出ない・表がそのまま', !(await vis(p, '#mcList')) && await vis(p, '#quoteTable'));
     ok('[PC] JS エラーなし', errs.length === 0, errs); await ctx.close(); }
   // スマホ幅
   { const { ctx, p, errs } = await open(390);
     const V2 = await p.evaluate(() => document.documentElement.classList.contains('editor-v2'));   // 新画面（editor-v2）のスマホ一覧は mc2-* の 2 段カード
     await p.evaluate(() => { const s = document.getElementById('section-table'); s.classList.remove('collapsed'); });
+    await p.evaluate(() => window.editorV2Go && window.editorV2Go(4)); await p.waitForTimeout(300);   // 新画面は ④費用 のステップを開く
     await setRow(p, 0, { nm: '海上運賃', sv: 'サンプル運送', pt: 'FCL案', pq: '2', un: 'CNTR', pp: '1000', mk: '200' });
     await setRow(p, 1, { nm: 'THC', sv: 'サンプル運送', pt: 'LCL案', pq: '1', un: 'B/L', pp: '500', mk: '100' });
     await setRow(p, 2, { nm: '通関料', sv: '通関A', pq: '1', un: 'LOT', pp: '8000', mk: '2000' });

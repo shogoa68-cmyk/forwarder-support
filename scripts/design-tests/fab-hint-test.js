@@ -154,6 +154,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
   // 8) スマホ幅：ボタンや本文に重なる位置なら出さない（回数も数えない）／出すときは画面内・右端から 16px 以内
   {
     const { ctx, p } = await open({ w: 390, h: 800, mobile: true });
+    // 旧画面前提の位置（ログイン案内ボタンに重なる）で確認する（新画面では ❓ が上がり重ならない）
+    await p.evaluate(() => document.documentElement.classList.remove('editor-v2'));
     await p.waitForTimeout(5200);
     const auto = await hintInfo(p);
     ok('スマホ幅：下に押せる部品が隠れる位置なら、自動では出さない（回数は数えない）', !auto.shown && (await store(p)).n === null, { auto, s: await store(p) });
@@ -217,6 +219,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   {
     const { ctx, p } = await open({ store: { fbFabHintDone_v1: '1' } });
     const bottom = () => p.evaluate(() => Math.round(innerHeight - document.getElementById('fbQuickFab').getBoundingClientRect().bottom));
+    await p.evaluate(() => document.documentElement.classList.remove('editor-v2'));   // 既定は新画面なので、旧画面の位置はクラスを外して確認
     const base = await bottom();
     ok('旧画面・ダッシュボード（PC）：下から 72px', base === 72, base);
     await p.evaluate(() => document.documentElement.classList.add('editor-v2'));
@@ -224,6 +227,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
     const m = await open({ w: 390, h: 800, mobile: true, store: { fbFabHintDone_v1: '1' } });
     const mb = () => m.p.evaluate(() => Math.round(innerHeight - document.getElementById('fbQuickFab').getBoundingClientRect().bottom));
+    await m.p.evaluate(() => document.documentElement.classList.remove('editor-v2'));
     ok('スマホ（旧画面）：下から 72px', (await mb()) === 72, await mb());
     await m.p.evaluate(() => document.documentElement.classList.add('editor-v2'));
     ok('スマホ（新画面）：下の固定ドック＋合計バーの上（下から 120px）', (await mb()) === 120, await mb());

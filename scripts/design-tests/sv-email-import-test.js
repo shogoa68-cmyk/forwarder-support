@@ -159,7 +159,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member' });
     const first = '#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])';
-    const hdrBtn = () => p.evaluate(() => { const b = document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import'); return { exists: !!b, shown: !!b && !b.hidden && b.offsetParent !== null, canon: b ? b.dataset.canon : '' }; });
+    const hdrBtn = () => p.evaluate(() => { const b = document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import'); return { exists: !!b, // 新画面（Design 43）では見出しのボタンは隠して［⋯］メニューの「取り込み」から押す（メニューは !hidden のときだけ項目を出す）ため、登録済みかどうかは hidden 属性で見る
+      shown: !!b && !b.hidden, canon: b ? b.dataset.canon : '' }; });
 
     await setSv(p, 'テスト運送');
     let h = await hdrBtn();

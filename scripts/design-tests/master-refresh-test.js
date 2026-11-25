@@ -224,7 +224,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   }
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, approval: false, role: 'admin' });
-    const bm = () => p.evaluate(() => { const e = document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-bm'); return !!e && !e.hidden && e.offsetParent !== null; });
+    const bm = () => p.evaluate(() => { const e = document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-bm'); return !!e && !e.hidden && (e.offsetParent !== null || document.documentElement.classList.contains('editor-v2')); });   // 新画面ではサブコン見出しの BOOKMARK は［⋯］メニューへ移り、元のボタンは CSS で隠れる（hidden 属性＝出す／出さないの判定で確認）
     await setSv(p, 'テスト運送');
     await p.evaluate(async () => { await window.bmEnsureCarrierTypes(); window.refreshAllRowSvChips(); });
     ok('ブックマークが無い運送業者の見出しに「BOOKMARK」は出ない', !(await bm()), null);

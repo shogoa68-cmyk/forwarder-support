@@ -25,7 +25,11 @@ const http = require('http'), fs = require('fs'), path = require('path');
   { const { ctx, p, errs } = await open(1400);
     ok('[PC] 見出し下の空の帯はない（高さ 0）', (await p.evaluate(() => document.getElementById('qfCopiedFromInfo').getBoundingClientRect().height)) === 0);
     ok('[PC] 説明文「＊ が付いた3つが必須です」', (await p.textContent('.ci-first .ci-head')).includes('＊ が付いた3つが必須です'));
-    ok('[PC] 日付の要約は出さない・日付欄が見える', !(await box(p, '#ciDatesSum')).vis && (await box(p, '#qf-date')).vis);
+    // 新画面（案B）：日付欄は右の列の行（依頼受信・発行日）を開くと見える
+    const tog = k => p.click('.sb-row[data-k="' + k + '"] .sb-rh');
+    await tog('date');
+    ok('[PC] 日付の要約は出さない・日付欄が見える（行を開く）', !(await box(p, '#ciDatesSum')).vis && (await box(p, '#qf-date')).vis);
+    await tog('recv');
     ok('[PC] 自動バッジ：新規は出ている', await p.evaluate(() => !document.getElementById('ciAutoRecv').hidden && !document.getElementById('ciAutoDate').hidden));
     await p.click('#qf-received'); await p.keyboard.press('ArrowUp'); await p.waitForTimeout(150);
     await p.focus('#qf-received'); await p.keyboard.type('11012026'); await p.focus('#qf-date'); await p.keyboard.type('11022026'); await p.waitForTimeout(200);
@@ -36,12 +40,16 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('[PC] JS エラーなし', errs.length === 0, errs); await ctx.close(); }
   // スマホ
   { const { ctx, p, errs } = await open(390);
-    const s = await box(p, '#ciDatesSum');
-    ok('[スマホ] 日付は 1 行の要約に畳まれる', s.vis && !(await box(p, '#qf-date')).vis, s);
-    const t = await p.textContent('#ciDatesSum'); ok('[スマホ] 要約に発行日と有効期限（標準）', /発行 \d\d\/\d\d・有効期限 \d\d\/\d\d（標準）/.test(t), t);
-    await p.click('#ciDatesSum'); ok('[スマホ] 押すと 2 つの日付欄が開く', (await box(p, '#qf-date')).vis && (await box(p, '#qf-valid-until')).vis);
-    await p.click('#ciDatesSum'); ok('[スマホ] もう一度押すと畳む', !(await box(p, '#qf-date')).vis);
-    ok('[スマホ] 必須 3 項目は先頭（要約より上）', (await box(p, '#qf-ref')).t < s.t && (await box(p, '#qf-customer')).t < s.t && (await box(p, '#qf-person')).t < s.t);
+    // 新画面（案B）：①日付の要約ボタン #ciDatesSum は使わず、右の列（スマホは左の下）の行「発行日」「有効期限」が 1 行の要約になる
+    const row = k => '.sb-row[data-k="' + k + '"]';
+    const dRow = await box(p, row('date') + ' .sb-rh'), vRow = await box(p, row('valid') + ' .sb-rh');
+    ok('[スマホ] 発行日・有効期限は 1 行ずつの要約（日付欄は畳まれている）', dRow.vis && vRow.vis && !(await box(p, '#qf-date')).vis && !(await box(p, '#ciDatesSum')).vis, [dRow, vRow]);
+    const t = (await p.textContent(row('date') + ' .sb-v')) + '|' + (await p.textContent(row('valid') + ' .sb-v'));
+    ok('[スマホ] 要約に発行日と有効期限（標準）', /\d\d\/\d\d.*\|\d\d\/\d\d（標準）/.test(t), t);
+    await p.click(row('date') + ' .sb-rh'); ok('[スマホ] 押すと発行日の欄が開く', (await box(p, '#qf-date')).vis);
+    await p.click(row('valid') + ' .sb-rh'); ok('[スマホ] 有効期限を押すと有効期限の欄が開く（発行日は畳む）', (await box(p, '#qf-valid-until')).vis && !(await box(p, '#qf-date')).vis);
+    await p.click(row('valid') + ' .sb-rh'); ok('[スマホ] もう一度押すと畳む', !(await box(p, '#qf-valid-until')).vis);
+    ok('[スマホ] 必須 3 項目は先頭（日付の行より上）', (await box(p, '#qf-ref')).t < dRow.t && (await box(p, '#qf-customer')).t < dRow.t && (await box(p, '#qf-person')).t < dRow.t);
     ok('[スマホ] 「📝 社内メモ」ボタンが案件名の行にあり、画面内に収まる', await p.evaluate(() => { const r = document.getElementById('ciMemoBtn').getBoundingClientRect(); return r.right <= innerWidth && r.width > 0; }));
     ok('[スマホ] 管理番号入力は画面幅に収まる', (await box(p, '#section-ref')).r <= 391, await box(p, '#section-ref'));
     ok('[スマホ] JS エラーなし', errs.length === 0, errs);

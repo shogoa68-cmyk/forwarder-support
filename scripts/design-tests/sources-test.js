@@ -34,8 +34,8 @@ const runRef=async(p)=>{
  // 値を消しても、入力中（フォーカスがある間）は欄が消えない
  await openRef();await p.focus('#qf-core-ref');await p.fill('#qf-core-ref','');await wait(300);
  ok('受注以外で値を消しても、入力中は欄が消えない',await vis('#qfCoreRefField'),null);
- await p.evaluate(()=>document.getElementById('qf-core-ref').blur());await wait(400);
- ok('入力を終えて（空のまま）離れると、受注以外なら欄を隠す',!(await vis('#qfCoreRefField')),null);
+ await p.evaluate(()=>document.getElementById('qf-core-ref').blur());await wait(V2?1700:400);   // 新画面の右の列の行は 1.2 秒おきの更新で追従する
+ ok('入力を終えて（空のまま）離れると、受注以外なら欄を隠す',!(await vis('#qfCoreRefField')),await p.evaluate(()=>({fh:document.getElementById('qfCoreRefField').hidden,rowHidden:(document.querySelector('.sb-row[data-k="core"]')||{}).hidden,act:document.activeElement&&document.activeElement.id})));
  await setStatus('受注');
  ok('受注に戻すと、空でも欄が出る',await vis('#qfCoreRefField'),null);
  // 保存データを開き直したとき

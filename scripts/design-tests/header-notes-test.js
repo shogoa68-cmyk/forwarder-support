@@ -30,6 +30,9 @@ const run=async(p)=>{
  ok('名前付きパターン（FCL案・LCL案）の見出しにパターンリマークの入力欄がある',ptF&&ptF.remark&&ptL&&ptL.remark,st.pt);
  ok('パターン名のないサブコン（Bローカルだけ）のパターン見出しには入力欄を出さない（従来も小計が出なかった）',st.pt.filter(x=>x.sv===B.key).every(x=>!x.remark),st.pt);
 
+ // 新画面（Design 43 案B）：見出しの注記欄は［⋯］→「注記を書く」で開く段に入る（閉じている間は隠れる）。先に開く
+ const openNotes=sel=>p.evaluate(async sel=>{const tr=document.querySelector(sel);if(!tr||!window.gbOpenMenu||tr.classList.contains('gb-notes-open'))return;window.gbOpenMenu(tr);await new Promise(r=>setTimeout(r,80));const mi=[...document.querySelectorAll('#gbMenu button')].find(b=>/注記を書く/.test(b.textContent));if(mi)mi.click();await new Promise(r=>setTimeout(r,80));},sel);
+ await openNotes('tr.subcon-group-header[data-sv-label="A海運"]');await openNotes('tr.subcon-subgroup-header.is-pattern[data-pt-key="FCL案"]');
  // サブコンのリマーク：入力 → 保存先（マップ）に入る
  const remark=hdr('A海運').locator('.subcon-remark-input');
  await remark.fill('港湾諸費用は実費精算');await remark.blur();await wait(300);
