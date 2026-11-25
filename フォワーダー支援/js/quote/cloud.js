@@ -89,6 +89,7 @@
   let _cpReturnTabId = null;
   // メンバープロフィール（email → display_name / avatar）
   let _profileMap  = {};     // { 'email': 'name', ... }（後方互換）
+  window.cloudKnownPeople = () => Object.values(_profileMap);   // メール取込の伏せ字（人名を伏せる）用
   let _profileAv   = {};     // { 'email': { color, emoji }, ... }
   // 同時編集（フェーズ1：保存競合検知）用にロード中の案件を追跡
   let _loadedCloudId = null;

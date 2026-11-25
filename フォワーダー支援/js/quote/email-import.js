@@ -1349,8 +1349,35 @@
       .replace(/\S*(?:株式会社|有限会社|合同会社|㈱|[（(]株[）)]|御中)\S*/g, '<社名>')   // 社名・宛名は残さない
       .replace(/\S+\s?(?:様|殿)(?![぀-ゟ一-鿿])/g, '<宛名>')
       .replace(/\b[A-Za-z][\w&.,'-]*(?:\s+[A-Za-z][\w&.,'-]*)*\s+(?:Co\.?,?\s*Ltd\.?|Ltd\.?|Inc\.?|Corp\.?|LLC|GmbH|Pte\.?(?:\s*Ltd\.?)?|Limited)(?![A-Za-z])/gi, '<社名>')
+      .replace(_knownNameRe('co'), '<社名>')   // アプリが知っている社名（サブコン・お客様のマスターと別名・いまの案件のお客様）
+      .replace(_knownNameRe('pp'), '<人名>')   // アプリが知っている人名（いまの案件のご担当者・チームのメンバー）
       .replace(/[0-9０-９]/g, '9')
       .slice(0, 160);
+  }
+  // 伏せる名前の一覧（画面にある候補から作る・30 秒使い回す）。短すぎる名前（漢字 1 字・英字 2 字以下）は伏せない（普通の語を壊さないため）
+  let _knCache = null, _knAt = 0, _knSig = '';
+  function _knownNames() {
+    const gv = id => { const el = typeof document !== 'undefined' && document.getElementById && document.getElementById(id); if (!el) return ''; return el.tagName === 'DATALIST' ? String(el.children.length) : String(el.value || ''); };
+    const sig = [gv('qf-customer'), gv('qf-person'), gv('svSuggestions'), gv('custSuggestions'), _svCtx ? _svCtx.canon : ''].join('|');
+    if (_knCache && sig === _knSig && Date.now() - _knAt < 30000) return _knCache;
+    _knSig = sig;
+    const co = new Set(), pp = new Set();
+    const addList = (id, set) => { const dl = typeof document !== 'undefined' && document.getElementById && document.getElementById(id); if (dl && dl.children) Array.from(dl.children).forEach(o => o && o.value && set.add(String(o.value).trim())); };
+    const addVal = (id, set, split) => { const el = typeof document !== 'undefined' && document.getElementById && document.getElementById(id); const v = el && String(el.value || '').trim(); if (!v) return; set.add(v.replace(/\s*(様|殿|さん)$/, '')); if (split) v.replace(/\s*(様|殿|さん)$/, '').split(/[\s　]+/).forEach(t => set.add(t)); };
+    addList('svSuggestions', co); addList('custSuggestions', co); addVal('qf-customer', co, false);
+    if (_svCtx && _svCtx.canon) co.add(_svCtx.canon);
+    addVal('qf-person', pp, true);
+    try { (typeof window.cloudKnownPeople === 'function' ? window.cloudKnownPeople() : []).forEach(n => { n = String(n || '').trim(); if (!n) return; pp.add(n); n.split(/[\s　]+/).forEach(t => pp.add(t)); }); } catch (_) {}
+    const ok = n => n && (/[^\x00-\x7F]/.test(n) ? n.length >= 2 : n.length >= 3);
+    _knCache = { co: [...co].filter(ok), pp: [...pp].filter(ok) }; _knAt = Date.now();
+    return _knCache;
+  }
+  const _reEsc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  function _knownNameRe(kind) {
+    const list = _knownNames()[kind].slice().sort((a, b) => b.length - a.length);
+    if (!list.length) return /(?!)/;
+    // 英数字の名前は前後が英数字でないときだけ（「ONE」が「PHONE」の中で当たらないように）
+    return new RegExp(list.map(n => /^[\x00-\x7F]+$/.test(n) ? '(?<![A-Za-z0-9])' + _reEsc(n) + '(?![A-Za-z0-9])' : _reEsc(n)).join('|'), 'gi');
   }
   const _unreadSent = new Set();   // このページで送った形（同じ形を何度も送らない）
   let _unreadOff = false;          // 表（関数）が無い環境では以後送らない

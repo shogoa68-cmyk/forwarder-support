@@ -423,6 +423,26 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const mask = await p.evaluate(() => ({ a: window.eiMaskLine('定温庫保管料：\\850/M3/期'), b: window.eiMaskLine('連絡先 taro@example.com 03-1234-5678'), c: window.eiMaskLine('見積 https://example.com/q?id=12345 ＿１２３'), d: window.eiMaskLine('  特殊作業   ABC123  ') }));
     ok('伏せ字：数字は 9 に（半角・全角とも）・メールアドレスと URL は置き換え・空白はそろえる', mask.a === '定温庫保管料：\\999/M9/期' && mask.b === '連絡先 <mail> 99-9999-9999' && mask.c === '見積 <url> ＿999' && mask.d === '特殊作業 ABC999', mask);
 
+    // アプリが知っている社名・人名も伏せる（マスターの候補・いまの案件のお客様／ご担当者・チームのメンバー）
+    const kn = await p.evaluate(() => {
+      const set = (id, v) => { const el = document.getElementById(id); if (el) { el.value = v; } };
+      set('qf-customer', '青空商事'); set('qf-person', '佐藤 一郎');
+      const dl = document.getElementById('custSuggestions'); if (dl) { const o = document.createElement('option'); o.value = 'MIDORI TRADING'; dl.appendChild(o); }
+      const prev = window.cloudKnownPeople; window.cloudKnownPeople = () => ['高橋 花子'];
+      const r = {
+        a: window.eiMaskLine('青空商事向け 特別料金 USD 120'),
+        b: window.eiMaskLine('MIDORI TRADING handling fee 50'),
+        c: window.eiMaskLine('担当 佐藤 からの依頼 3,000'),
+        d: window.eiMaskLine('高橋さん確認済み 9,000'),
+        e: window.eiMaskLine('テスト運送 作業料 1,000'),
+        f: window.eiMaskLine('PHONE 料金 100'),
+      };
+      window.cloudKnownPeople = prev; set('qf-customer', ''); set('qf-person', '');
+      return r;
+    });
+    ok('伏せ字：マスター・案件のお客様は <社名>、ご担当者・メンバーは <人名> に（英字は語の途中では当てない）',
+      /^<社名>向け/.test(kn.a) && /^<社名> handling/.test(kn.b) && /担当 <人名> から/.test(kn.c) && /^<人名>さん/.test(kn.d) && /^<社名> 作業料/.test(kn.e) && /^PHONE/.test(kn.f), kn);
+
     // 読めなかった行がある文面 → 自動で記録される（伏せた形だけ）
     await p.evaluate(() => { document.getElementById('eiText').value = '特殊作業 ABC123 XYZ 999 要相談\n倉庫保管 〒105-0023 港区\n海上運賃 USD 1,200 /20GP'; window.eiParse(); }); await p.waitForTimeout(500);
     let c = await calls();
