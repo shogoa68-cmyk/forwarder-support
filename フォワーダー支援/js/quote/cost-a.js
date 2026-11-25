@@ -272,6 +272,8 @@
         + '<button type="button" data-cs="pat">🔖 パターンを付ける</button>'
         + '<button type="button" data-cs="hide">見積書に出さない</button>'
         + '<button type="button" data-cs="qty">数量をまとめて変更</button>'
+        + '<button type="button" data-cs="merge" title="選んだ行を 1 行にまとめます（先頭の行が統合先。仕入・売の合計を反映し、残りの行は見積書に出さない＋「統合先」の印）">🔗 統合</button>'
+        + '<button type="button" data-cs="more" title="保持・貼り付け・カテゴリ／通貨／単位／乗せ幅をまとめて変える">⋯ そのほか</button>'
         + '<button type="button" data-cs="del" class="is-danger">削除</button>'
         + '<span class="ca-sp"></span><button type="button" data-cs="clear">✕ 選択を外す</button>';
       s.addEventListener('click', e => { const b = e.target.closest('[data-cs]'); if (b) selAction(b.dataset.cs, b); });
@@ -326,6 +328,8 @@
     const rows = selected();
     s.hidden = !on || !rows.length;
     const n = s.querySelector('.ca-sel-n'); if (n) n.textContent = rows.length + ' 行を選択';
+    const mg = s.querySelector('[data-cs="merge"]');   // 統合は 2 行以上のときだけ
+    if (mg) { mg.disabled = rows.length < 2; mg.classList.toggle('is-off', rows.length < 2); }
     document.querySelectorAll('#tableBody tr.ca-row').forEach(tr => tr.classList.toggle('ca-picked', rows.includes(tr)));
   }
   function selAction(k, btn) {
@@ -340,7 +344,9 @@
       if (v == null || v.trim() === '' || isNaN(+v)) return;
       rows.forEach(tr => { const e = tr.querySelector('input[data-field="pq"]'); if (e) { e.value = v.trim(); e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); } });
       if (typeof window.quoteShowToast === 'function') window.quoteShowToast(rows.length + ' 行の数量を ' + v.trim() + ' にしました', 'success', 2200);
-    } else if (k === 'move') openMove(btn);
+    } else if (k === 'merge') { if (rows.length >= 2 && typeof window.mergeSelectedRowsFromToolbar === 'function') window.mergeSelectedRowsFromToolbar(); }
+    else if (k === 'more') openSelMore(btn, rows);
+    else if (k === 'move') openMove(btn);
     else if (k === 'pat') openPat(btn, rows);
     setTimeout(syncSel, 50);
   }
@@ -369,6 +375,45 @@
     inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); go(); } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeMenu(); } });
   }
   window.caAskText = askText;
+  // 選んだ行の「⋯ そのほか」＝旧画面の選択バー（#cmdbarContext）にあって帯に無い操作（元の関数・欄をそのまま使う）
+  function listMenu(anchor, items) {
+    closeMenu();
+    menu = document.createElement('div'); menu.className = 'ca-menu'; menu.setAttribute('role', 'menu');
+    items.forEach(it => {
+      if (it === '-') { const h = document.createElement('div'); h.className = 'ca-sepl'; menu.appendChild(h); return; }
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem'); b.className = 'ca-mi'; b.textContent = it[0];
+      if (it[2]) { b.disabled = true; b.title = it[2]; }
+      b.addEventListener('click', () => { if (b.disabled) return; closeMenu(); it[1](b); }); menu.appendChild(b);
+    });
+    document.body.appendChild(menu);
+    const r = anchor.getBoundingClientRect();
+    menu.style.top = Math.min(innerHeight - menu.offsetHeight - 8, r.bottom + 4) + 'px';
+    menu.style.left = Math.max(8, Math.min(r.left, innerWidth - menu.offsetWidth - 8)) + 'px';
+  }
+  function pickFromSelect(anchor, selId, title, apply) {
+    const sel = $(selId); if (!sel || typeof window[apply] !== 'function') return;
+    const opts = [...sel.options].filter(o => o.value && o.value !== '__none__');
+    if (!opts.length) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast('選べる項目がありません', 'warn'); return; }
+    listMenu(anchor, [[title, () => {}, ' '], '-'].concat(opts.map(o => [o.textContent.trim(), () => { sel.value = o.value; window[apply](sel); setTimeout(syncSel, 80); }])));
+  }
+  function askBulk(anchor, inputId, apply, o) {
+    askText(anchor, o, v => {
+      const b = $(inputId); if (!b || typeof window[apply] !== 'function') return;
+      b.value = v; window[apply](); setTimeout(syncSel, 80);
+    });
+  }
+  function openSelMore(anchor, rows) {
+    const paste = $('btnPasteClipboard');
+    listMenu(anchor, [
+      ['📋 保持する（あとで貼り付け）', () => window.copyRowsToClipboard && window.copyRowsToClipboard()],
+      ['📌 保持した行を貼り付け（選んだ行の前へ）', () => window.pasteClipboardRows && window.pasteClipboardRows(), paste && paste.disabled ? '先に「保持する」で行を保持してください' : ''],
+      '-',
+      ['カテゴリをまとめて変える', b => pickFromSelect(anchor, 'bulkCatSet', '選んだ ' + rows.length + ' 行のカテゴリ', 'applyBulkCategorySet')],
+      ['通貨をまとめて変える', b => pickFromSelect(anchor, 'bulkCurrencySet', '選んだ ' + rows.length + ' 行の通貨', 'applyBulkCurrencySet')],
+      ['単位をまとめて変える', () => askBulk(anchor, 'bulkUnitSet', 'applyBulkUnitSet', { title: '選んだ ' + rows.length + ' 行の単位', list: 'unit-list', placeholder: '例）R/T', ok: '変える', required: true })],
+      ['乗せ幅をまとめて変える', () => askBulk(anchor, 'bulkMarkupSet', 'applyBulkMarkupSet', { title: '選んだ ' + rows.length + ' 行の乗せ幅（仕入単価に足す額）', placeholder: '例）500', ok: '変える', required: true })],
+    ]);
+  }
   // 別のサブコンへ移す＝サブコン欄の書き換え（既存の一括設定 applyBulkSubcon と同じ処理）。パターン名はそのまま
   function openMove(anchor) {
     askText(anchor, { title: '移す先のサブコン', list: 'svSuggestions', placeholder: 'サブコン名（候補から選べます）', ok: '移す' }, v => {
