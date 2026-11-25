@@ -959,6 +959,11 @@
             <div class="qd-panel-foot">
               <button type="button" class="qd-btn-print" id="qdPrint">🖨️ PDF出力（印刷）</button>
               <button type="button" class="qd-btn-ghost" id="qdClose">閉じる</button>
+              <div class="qd-more-out">
+                <button type="button" class="qd-btn-sub" id="qdMail" title="明細付きのメール本文（文字だけ）をコピーします">✉️ メール本文</button>
+                <button type="button" class="qd-btn-sub" id="qdExcel" title="明細を Excel（.xlsx）でダウンロードします">📊 Excel</button>
+                <button type="button" class="qd-btn-sub" id="qdCheck" title="原価・乗せ幅・利益まで入った社内用の表で確認します（お客様には出しません）">🧮 社内チェック表</button>
+              </div>
             </div>
             <div class="qd-panel-body">
               <div class="qd-fg">
@@ -1012,6 +1017,9 @@
       overlay.addEventListener('click', e => { if (e.target === overlay) closeQuoteDoc(); });
       overlay.querySelector('#qdClose').addEventListener('click', closeQuoteDoc);
       overlay.querySelector('#qdPrint').addEventListener('click', printQuoteDoc);
+      overlay.querySelector('#qdMail').addEventListener('click', () => { if (typeof window.copyQuoteEmail === 'function') window.copyQuoteEmail(); });
+      overlay.querySelector('#qdExcel').addEventListener('click', () => { if (typeof window.exportExcel === 'function') window.exportExcel(); });
+      overlay.querySelector('#qdCheck').addEventListener('click', () => { closeQuoteDoc(); if (typeof window.openPreviewDirect === 'function') window.openPreviewDirect(); });
       overlay.querySelector('#qdEditIssuer').addEventListener('click', toggleIssuerForm);
       const hideChk = overlay.querySelector('#qdHideTotal');
       if (hideChk) {
@@ -1088,6 +1096,15 @@
       if (!window.sensitiveColumnsGate('PDF 出力')) return;
     }
     openQuoteDoc({ quickPrint: true });
+  }
+
+  // 「📋 プレビュー」ボタン・Ctrl+P の入口：出力前の確認を通してから、見積書の画面（PDF 出力の設定つき）を開く。
+  // 以前は先に社内用の表（表計算）を開いていたが、ほとんど使われないため、表は見積書の画面の［🧮 社内チェック表］から開く。
+  function openQuotePreview() {
+    if (typeof window.preOutputValidationGate === 'function') {
+      if (!window.preOutputValidationGate('プレビュー表示', () => openQuoteDoc())) return;
+    }
+    openQuoteDoc();
   }
 
   function refreshQuoteDoc() {
@@ -1202,6 +1219,7 @@
   // export
   window.openQuoteDoc = openQuoteDoc;
   window.quickQuotePdf = quickQuotePdf;
+  window.openQuotePreview = openQuotePreview;
   window.closeQuoteDoc = closeQuoteDoc;
   window.printQuoteDoc = printQuoteDoc;
   window.buildQuoteDocHTML = buildQuoteDocHTML;

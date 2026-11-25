@@ -187,7 +187,7 @@
 
     // 一括変更後：ユーザーに尋ねて印刷（プレビュー）モーダルを開く
     if (window.confirm(`${unitsChanged}単位・計${rowsChanged}行の数量を一括変更しました。\n印刷プレビューを開きますか？`)) {
-      if (typeof openPreview === 'function') openPreview();
+      if (typeof window.openQuotePreview === 'function') window.openQuotePreview();
       else if (typeof window.openPreview === 'function') window.openPreview();
       else window.print();
     } else if (typeof quoteShowToast === 'function') {

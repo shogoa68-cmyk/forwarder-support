@@ -4520,7 +4520,7 @@
         <!-- ===== 左レール：レイアウト切替＋表示カスタマイズ ===== -->
         <aside class="pv-rail">
           <div class="pv-rail-head">
-            <h2>📋 プレビュー</h2>
+            <h2>🧮 社内チェック表</h2>
           </div>
           <div class="pv-rail-grp">
             <div class="pv-rail-h3">レイアウト</div>
@@ -4563,7 +4563,7 @@
             <span class="pv-main-title">📋 プレビュー（表計算形式）</span>
             <span class="pv-main-sp"></span>
             <div class="pv-btns">
-              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()" title="お客様向けの御見積書を PDF で出力します（設定・確認はこの先の画面で）">📄 PDF 出力</button>
+              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="pvBackToDoc()" title="お客様向けの御見積書の画面へ戻ります（PDF 出力はここから）">📄 見積書に戻る</button>
               <button class="pv-btn-email-plain" onclick="copyQuoteEmail()" title="明細付きのメール本文（プレーンテキスト）としてコピー">✉️ メール本文</button>
               <button class="pv-btn-excel" onclick="exportExcel()" title="表計算形式で表示中の内容をExcel（.xlsx）でダウンロード">📊 Excel</button>
               <div class="pv-btn-grp" data-label="印刷">
@@ -5305,8 +5305,8 @@
 <!-- 見積アクションドック（右下フローティング・見積タブのみ表示） -->
 <button type="button" id="qfMemoFab" class="qf-memo-fab" onclick="toggleMemoFloat()" aria-label="案件名・社内メモ" title="案件名・社内メモ（1行目が案件名になります。お客様向け出力には含まれません）"><span class="qmf-i">📝</span><span class="qmf-t"> 案件名・社内メモ</span><span class="qmf-x" role="button" tabindex="0" aria-label="このボタンを隠す" title="このボタンを隠す（「⋯」メニューからいつでも付箋を開けます）">✕</span></button>
 <div id="quoteActionDock">
-  <button class="qad-btn qad-pdf" onclick="quickQuotePdf()" title="御見積書PDFをそのまま出力（A4縦）。ファイル名・発行元は前回の設定を使います。設定を変えたいときはプレビュー →「📄 御見積書」から">📄 PDF出力</button>
-  <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
+  <button class="qad-btn qad-pdf" onclick="quickQuotePdf()" title="御見積書PDFをそのまま出力（A4縦）。ファイル名・発行元は前回の設定を使います。設定を変えたいときは［📋 プレビュー］から">📄 PDF出力</button>
+  <button class="qad-btn qad-preview" onclick="openQuotePreview()" title="お客様に渡す御見積書の形で確認します。PDF・メール本文・Excel・社内チェック表もここから（Ctrl+P）">📋 プレビュー</button>
   <button class="qad-btn qad-save" id="qadMode" onclick="qpDockAction()" title="閲覧中は編集を開始／編集中は保存して作業終了">💾 保存</button>
 </div>
 
