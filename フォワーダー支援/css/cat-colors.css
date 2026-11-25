@@ -1,0 +1,64 @@
+/* ================================================================
+   見積もりテーブル：カテゴリごとの薄い色分け（2026-11・全テーマ・新旧の画面共通）
+   - 行の背景をカテゴリの薄い色に、左端にカテゴリの濃い色の線（4px）。
+   - 色は 1 か所（下の変数）で決める。旧来の quote.css／theme-industry.css の
+     「tr.cat-* td」の色（カテゴリ同士でほぼ同じ色・白のものもあった）より強く指定して上書き。
+   - 選択中（新画面 ca-picked）・行の詳細を開いた行（ca-open）は従来どおり。
+   - 凡例 #catLegend は js/quote/cat-colors.js（使っているカテゴリだけ）。
+   ================================================================ */
+#tableBody > tr.cat-domestic,       .cat-sw.cat-domestic,       [data-cat="domestic"]       { --cat-bg: #fdf5e4; --cat-bar: #d99a2b; }
+#tableBody > tr.cat-export-local,   .cat-sw.cat-export-local,   [data-cat="export-local"]   { --cat-bg: #fdefe5; --cat-bar: #e07b3c; }
+#tableBody > tr.cat-ocean,          .cat-sw.cat-ocean,          [data-cat="ocean"]          { --cat-bg: #e9f1fb; --cat-bar: #3f7fc4; }
+#tableBody > tr.cat-air,            .cat-sw.cat-air,            [data-cat="air"]            { --cat-bg: #efedfb; --cat-bar: #7466cf; }
+#tableBody > tr.cat-surcharge,      .cat-sw.cat-surcharge,      [data-cat="surcharge"]      { --cat-bg: #fbf8df; --cat-bar: #bfa72a; }
+#tableBody > tr.cat-import-local,   .cat-sw.cat-import-local,   [data-cat="import-local"]   { --cat-bg: #e6f5f2; --cat-bar: #2f9a84; }
+#tableBody > tr.cat-overseas,       .cat-sw.cat-overseas,       [data-cat="overseas"]       { --cat-bg: #ebf6e8; --cat-bar: #53a043; }
+#tableBody > tr.cat-customs,        .cat-sw.cat-customs,
+#tableBody > tr.cat-customs-export, .cat-sw.cat-customs-export, [data-cat="customs-export"] { --cat-bg: #f4edfa; --cat-bar: #9a62c6; }
+#tableBody > tr.cat-customs-import, .cat-sw.cat-customs-import, [data-cat="customs-import"] { --cat-bg: #faecf4; --cat-bar: #c25a97; }
+#tableBody > tr.cat-insurance,      .cat-sw.cat-insurance,      [data-cat="insurance"]      { --cat-bg: #fcefee; --cat-bar: #d0605c; }
+#tableBody > tr.cat-other,          .cat-sw.cat-other,          [data-cat="other"]          { --cat-bg: #f2f4f7; --cat-bar: #8a94a6; }
+#tableBody > tr.cat-domestic-transport, #tableBody > tr.cat-warehouse, #tableBody > tr.cat-packing-cost { --cat-bg: #f2f4f7; --cat-bar: #8a94a6; }
+/* 自作カテゴリ（5 色の順番） */
+#tableBody > tr.cat-user-a, .cat-sw.cat-user-a { --cat-bg: #fdeee3; --cat-bar: #d9822b; }
+#tableBody > tr.cat-user-b, .cat-sw.cat-user-b { --cat-bg: #e7f3fb; --cat-bar: #2f86b8; }
+#tableBody > tr.cat-user-c, .cat-sw.cat-user-c { --cat-bg: #edf6e6; --cat-bar: #5c9a3a; }
+#tableBody > tr.cat-user-d, .cat-sw.cat-user-d { --cat-bg: #f6edf9; --cat-bar: #a05fb8; }
+#tableBody > tr.cat-user-e, .cat-sw.cat-user-e { --cat-bg: #fbf3e1; --cat-bar: #b78a24; }
+
+/* ---- 旧い画面（表の行）：セルに薄い色・先頭のセルに左の線 ---- */
+#tab-quote-make #quoteTable #tableBody > tr[class*="cat-"]:not(.ca-row):not([data-virtual]) > td {
+  background-color: var(--cat-bg, transparent) !important;
+}
+#tab-quote-make #quoteTable #tableBody > tr[class*="cat-"]:not(.ca-row):not([data-virtual]):hover > td {
+  background-color: color-mix(in srgb, var(--cat-bg, #fff) 82%, var(--cat-bar, #888) 18%) !important;
+}
+#tab-quote-make #quoteTable #tableBody > tr[class*="cat-"]:not(.ca-row):not([data-virtual]) > td:first-child {
+  box-shadow: inset 4px 0 0 var(--cat-bar, transparent) !important;
+}
+/* 自作カテゴリは旧来 .cat-user-* が行そのものに太い線と色を付けていたため、行の側は消してセルに任せる */
+#tab-quote-make #quoteTable #tableBody > tr[class*="cat-user-"] { background: none !important; border-left: 0 !important; }
+
+/* ---- 新しい画面（④ 費用・1 段の行）：行に薄い色と左の線 ---- */
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row[class*="cat-"]:not([data-virtual]):not(.ca-open):not(.ca-picked) {
+  background: var(--cat-bg, #fff);
+  box-shadow: inset 4px 0 0 var(--cat-bar, transparent);
+}
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row[class*="cat-"]:not([data-virtual]):not(.ca-open):not(.ca-picked):hover {
+  background: color-mix(in srgb, var(--cat-bg, #fff) 82%, var(--cat-bar, #888) 18%);
+}
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row[class*="cat-user-"]:not(.ca-open):not(.ca-picked) { border-left: 0 !important; }
+
+/* ---- スマホの一覧（mobile-cost.js の行ボタン） ---- */
+#tab-quote-make .mc-row[data-cat] { background: var(--cat-bg, #fff) !important; box-shadow: inset 4px 0 0 var(--cat-bar, transparent); }
+
+/* ---- 凡例（表の上・使っているカテゴリだけ） ---- */
+#tab-quote-make #catLegend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 6px; font-size: var(--text-xs, 12px); color: var(--muted, #667085); }
+#tab-quote-make #catLegend[hidden] { display: none; }
+/* 旧い画面は行ごとにカテゴリの欄が見えているので凡例は出さない（表の位置も変えない） */
+html:not(.editor-v2) #tab-quote-make #catLegend { display: none !important; }
+#tab-quote-make #catLegend .cat-lg-h { font-weight: 600; }
+#tab-quote-make #catLegend .cat-lg-i { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+#tab-quote-make #catLegend .cat-sw { display: inline-block; width: 14px; height: 12px; border-radius: 3px; background: var(--cat-bg, #fff); box-shadow: inset 3px 0 0 var(--cat-bar, #ccc), inset 0 0 0 1px rgba(16, 24, 40, .12); }
+#tab-quote-make #catLegend .cat-lg-n { color: var(--muted, #98a2b3); }
+@media print { #tab-quote-make #catLegend { display: none !important; } }
