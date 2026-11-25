@@ -59,8 +59,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('[スマホ] 表の入力に一覧が追従（2,000+200=2,200 ×2 = 4,400）', (await p.textContent((V2 ? '#mcList .mc-row .mc2-st' : '#mcList .mc-row .mc-amt'))).includes('4,400'), await p.textContent((V2 ? '#mcList .mc-row .mc2-st' : '#mcList .mc-row .mc-amt')));
     // 行追加
     const n0 = await p.$$eval('#mcList .mc-row', e => e.length); await p.click(V2 ? '#mcList .mc2-addrow >> nth=0' : '#mcList [data-addrow]');   // 新画面は全体の「＋ 行を追加」を出さず、各サブコンの下の「＋ 明細を追加」 await p.waitForTimeout(500);
+    await p.waitForFunction(n => document.querySelectorAll('#mcList .mc-row').length >= n, n0 + 1, { timeout: 3000 }).catch(() => {});   // 一覧の描き直しを待つ
     ok('[スマホ] 「＋ 行を追加」で行が増える', (await p.$$eval('#mcList .mc-row', e => e.length)) === n0 + 1);
     await p.click(V2 ? '#mcList .mc2-addrow >> nth=1' : '#mcList .mc-sv >> nth=1 >> button.mc-add'); await p.waitForTimeout(500);
+    await p.waitForFunction(n => document.querySelectorAll('#mcList .mc-row').length >= n, n0 + 2, { timeout: 3000 }).catch(() => {});   // 一覧の描き直しを待つ
     ok('[スマホ] サブコン見出しの「＋」でそのサブコンに行が増える', (await p.$$eval('#mcList .mc-row', e => e.length)) === n0 + 2);
     // 行タップ → 編集シート
     await p.click('#mcList .mc-row >> nth=0'); await p.waitForTimeout(400);
