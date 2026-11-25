@@ -37,6 +37,7 @@ html.editor-v2 #tab-quote-make.sb-on:not(.sb-two):not(.qp-dash) #sbAside { margi
 #sbAside .sb-row[data-tone="warn"] .sb-v { color: #b42318; font-weight: 700; }
 /* 行の中に移した欄（もとの見た目の余計な枠・余白を消して、280px に収める） */
 #sbAside .sb-rb .e2-other, #sbAside .sb-rb .ci-cell, #sbAside .sb-rb #ciDuePanel, #sbAside .sb-rb #ciRelPanel, #sbAside .sb-rb #crBanner { display: block !important; }
+#sbAside .sb-rb #ciDuePanel[hidden] { display: none !important; }
 #sbAside .sb-rb .quote-field { margin: 0; }
 #sbAside .sb-rb .quote-field > label { display: none; }
 #sbAside .sb-rb input:not([type=checkbox]):not([type=radio]):not([type=hidden]), #sbAside .sb-rb select { width: 100% !important; max-width: 100%; height: 36px; box-sizing: border-box; }

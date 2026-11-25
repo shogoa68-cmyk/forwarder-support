@@ -256,7 +256,7 @@
     if (ths.length >= 10) {
       setText(ths[3], '項目名');
       setText(ths[4], '数量 × 単位');
-      setText(ths[6], '<span class="ca-h ca-h-pp" title="仕入単価（左は仕入の通貨）">仕入</span><span class="ca-h ca-h-mk" title="乗せ幅：仕入単価に加算して売単価になります">＋乗せ幅</span><span class="ca-h ca-h-bp" title="売単価＝仕入＋乗せ幅（自動）">売</span>');
+      setText(ths[6], '<span class="ca-h ca-h-pp" title="仕入単価（左は仕入の通貨）">仕入</span><span class="ca-h ca-h-mk" title="乗せ幅：仕入単価に加算して売単価になります">＋乗せ幅</span><span class="ca-h ca-h-bp" title="売単価＝仕入＋乗せ幅（自動）">売</span><button type="button" class="hint-i" data-hint="price" aria-label="仕・＋・売の説明" aria-haspopup="dialog">ⓘ</button>');
       setText(ths[8], '小計（売）');
       setText(ths[9], '粗利');
     }

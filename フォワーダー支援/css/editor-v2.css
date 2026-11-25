@@ -139,7 +139,7 @@ html.editor-v2 #tbMenuMore .tb-mi-quiet-only { order: 6; }
 html.editor-v2 #tab-quote-make #quoteTable #tableBody tr:not(:hover):not(:focus-within) .row-detail-btn:not(:has(.used-badge:not([data-n="0"]))):not([aria-expanded="true"]) { visibility: hidden !important; }
 
 /* サブコン・パターン見出し：客先表示名・リマークの入力は、空のあいだは見出しにカーソルを乗せる／入力するまで隠す（入っていれば出したまま） */
-html.editor-v2 #tab-quote-make #quoteTable :is(.subcon-group-header, .subcon-subgroup-header):not(:hover):not(:focus-within) .hdr-notes:not(:has(input:not(:placeholder-shown))) { display: none !important; }
+html.editor-v2 #tab-quote-make #quoteTable :is(.subcon-group-header, .subcon-subgroup-header):not(.gb-notes-open):not(:hover):not(:focus-within) .hdr-notes:not(:has(input:not(:placeholder-shown))) { display: none !important; }
 
 /* スマホ幅：費用の操作を 1 行に（上の e2CostBar は横にスクロール・重複する下の操作バーは出さない＝小計行の追加は「⋯」側・DOM は残す） */
 @media (max-width: 600px) {
