@@ -14,8 +14,9 @@ const run=async(p)=>{
   document.getElementById('qf-customer').value='テスト商事株式会社';
   document.getElementById('qf-person').value='幸崎';
  });
- const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).first();
- await f('nm').fill('海上運賃');await f('sv').fill('A海運');await f('un').fill("40'GP");await f('pq').fill('1');await f('pp').fill('1000');await f('mk').fill('100');await f('mk').blur();
+ // 新画面：1 段の行では一部の欄が行の詳細へ移って隠れるため、DOM の値を直接入れて input／change を発火する（旧画面でも同じ）
+ const setF=(n,v)=>p.evaluate(([n,v])=>{const e=document.querySelector(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`);e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));e.dispatchEvent(new Event('blur'));},[n,v]);
+ for(const [n,v] of [['nm','海上運賃'],['sv','A海運'],['un',"40'GP"],['pq','1'],['pp','1000'],['mk','100']])await setF(n,v);
  await p.waitForTimeout(500);
  const items=async()=>p.evaluate(()=>{preOutputValidationGate('テスト',()=>{});return [...document.querySelectorAll('#pvWarnGuideList .pv-wg-item')].map(li=>li.textContent.replace(/\s+/g,' '));});
  let t=await items();

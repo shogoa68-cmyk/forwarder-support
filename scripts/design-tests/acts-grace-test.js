@@ -1,4 +1,5 @@
 // つまみ列にホバーして出る操作メニューの「あそび」：外れても約0.6秒は消えない／メニューの上にいる間は消えない／離れて待てば消える（Industry。アニメーションを有効にして試す）。
+// ※旧画面専用（新画面は行の操作が［⋯］メニューに替わり、つまみのホバーメニューは出ない。新画面側は row-acts-hint-test／row-acts-dismiss-test が担当）。localStorage fwd.editorV2='0' で旧画面にして試験する。
 //   THEME=1 node scripts/design-tests/acts-grace-test.js
 const { chromium } = (()=>{try{return require('playwright-core')}catch(e){return require('playwright')}})();
 const http=require('http'),fs=require('fs'),path=require('path');
@@ -49,6 +50,7 @@ const run=async(p,OUT)=>{
  const URL=`http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
  const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--no-sandbox']});
  const ctx=await b.newContext({viewport:{width:+process.env.W||1400,height:1000},locale:'ja-JP'});
+  await ctx.addInitScript(() => { try { localStorage.setItem('fwd.editorV2', '0'); } catch (e) {} });
  await ctx.addInitScript(m=>{try{localStorage.setItem('fwd.uiMode',m)}catch(e){}},process.env.MODE||'detail');
  if(process.env.THEME) await ctx.addInitScript(()=>{try{localStorage.setItem('forwarderTheme_v1',JSON.stringify({site:true,doc:true}))}catch(e){}});
  await ctx.route(u=>!u.href.startsWith('http://127.0.0.1'),r=>r.abort());

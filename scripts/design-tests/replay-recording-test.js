@@ -2,6 +2,8 @@
 //   ①手順の読み取り（scripts/lib/recording-steps.js）②fetch-feedback の絞り込み（--recordings／--report／--raw）
 //   ③実際に見張り番で記録 → 本文を replay-recording.js で自動再生（手順が実行でき・値が入り・判定が出る）
 //   node scripts/design-tests/replay-recording-test.js
+// 注意：③は旧画面（?editor=v1）で試験する。新画面は①基本〜④費用がステップで分かれ、1 つの記録の中でお客様欄と明細欄を
+//   続けて入力できないため（再生ツール側も --url で旧画面を指定する）。
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), os = require('os'), path = require('path');
 const { spawnSync, execFile } = require('child_process');
@@ -79,7 +81,7 @@ const { parseReport } = require('../lib/recording-steps');
     fs.createReadStream(f).pipe(r);
   });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
-  const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
+  const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html?editor=v1`;
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   const ctx = await b.newContext({ viewport: { width: 1400, height: 900 }, locale: 'ja-JP' });
   await ctx.addInitScript(() => { try { localStorage.setItem('fwd.uiMode', 'detail'); localStorage.setItem('fbFabHintDone_v1', '1'); } catch (e) {} });
@@ -102,9 +104,14 @@ const { parseReport } = require('../lib/recording-steps');
   const catLabel = await p.evaluate(() => { const o = document.querySelector('#tableBody tr[id^="row-"] [data-field="cat"]').options; return o[1] ? o[1].text : ''; });
   const f = path.join(tmp, 'report.txt');
   fs.writeFileSync(f, recBody);
-  await b.close(); srv.close();
+  await b.close();
+  // spawnSync は同じプロセスのサーバーを止めてしまうので、旧画面を配る静的サーバーは別プロセスで立てる
+  const { spawn } = require('child_process');
+  const srv2 = spawn('node', ['-e', `const http=require('http'),fs=require('fs'),path=require('path');const root=${JSON.stringify(root)};http.createServer((q,r)=>{const f=path.join(root,decodeURIComponent(q.url.split('?')[0]));if(!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);r.end();return;}r.writeHead(200,{'Content-Type':f.endsWith('.css')?'text/css':f.endsWith('.js')?'text/javascript':'text/html; charset=utf-8'});fs.createReadStream(f).pipe(r);}).listen(0,'127.0.0.1',function(){console.log(this.address().port)});`], { stdio: ['ignore', 'pipe', 'inherit'] });
+  const port2 = await new Promise(res => srv2.stdout.once('data', d => res(String(d).trim())));
+  const U1 = ['--url', `http://127.0.0.1:${port2}/${encodeURIComponent('フォワーダー支援')}/index.html?editor=v1`];
 
-  const rp = spawnSync('node', [path.join(root, 'scripts', 'replay-recording.js'), '--file', f, '--init', 'qpNewQuote()',
+  const rp = spawnSync('node', [path.join(root, 'scripts', 'replay-recording.js'), '--file', f, ...U1, '--init', 'qpNewQuote()',
     '--eval', `(() => { const r = document.querySelector('#tableBody tr[id^="row-"]'); return { nm: r.querySelector('[data-field="nm"]').value, pp: r.querySelector('[data-field="pp"]').value, cust: document.getElementById('qf-customer').value.length }; })()`],
   { encoding: 'utf8', timeout: 90000 });
   const out = rp.stdout;
@@ -112,7 +119,7 @@ const { parseReport } = require('../lib/recording-steps');
   ok('手順がすべて実行できた', /手順：(\d+) 件中 \1 件を実行できた/.test(out) && !/❌/.test(out), out.slice(0, 700));
   ok('品名は残る・金額は 5 に置き換え・お客様名は文字数ぶんの x', /"nm":"THC"/.test(out) && /"pp":"55555\.5"/.test(out) && /"cust":8/.test(out), out.slice(-300));
   ok('記録されていたエラーを照合して、判定が出る（元の文字のまま・注意書きは混ざらない）', /記録との照合/.test(out) && /判定：再現できず/.test(out) && /テスト用のエラー ABC/.test(out) && !/（記録 \d+:\d\d/.test(out), out.slice(-500));
-  const j = spawnSync('node', [path.join(root, 'scripts', 'replay-recording.js'), '--file', f, '--init', 'qpNewQuote()', '--json'], { encoding: 'utf8', timeout: 90000 });
+  const j = spawnSync('node', [path.join(root, 'scripts', 'replay-recording.js'), '--file', f, ...U1, '--init', 'qpNewQuote()', '--json'], { encoding: 'utf8', timeout: 90000 });
   let jj = null; try { jj = JSON.parse(j.stdout); } catch (e) {}
   ok('--json は機械で読める（手順・エラー・判定）', jj && Array.isArray(jj.steps) && jj.failedSteps === 0 && typeof jj.verdict === 'string', j.stdout.slice(0, 200));
 
@@ -123,18 +130,19 @@ const { parseReport } = require('../lib/recording-steps');
     '3. [0:03・quote-make] 「カテゴリ」を選ぶ → ' + catLabel + '（明細1行目）',
     '4. [0:04・quote-make] 🚩 ここで不具合に気づいた', ''].join('\n');
   fs.writeFileSync(path.join(tmp, 'manual.txt'), manual);
-  const rm = spawnSync('node', [path.join(root, 'scripts', 'replay-recording.js'), '--file', path.join(tmp, 'manual.txt'), '--init', 'qpNewQuote()',
+  const rm = spawnSync('node', [path.join(root, 'scripts', 'replay-recording.js'), '--file', path.join(tmp, 'manual.txt'), ...U1, '--init', 'qpNewQuote()',
     '--eval', `document.querySelector('#tableBody tr[id^="row-"] [data-field="cat"]').selectedIndex`], { encoding: 'utf8', timeout: 90000 });
   ok('選択欄を選び直せる・キー操作・🚩も再生できる', rm.status === 0 && /最後の画面の確認[\s\S]*`1`/.test(rm.stdout) && /🚩/.test(rm.stdout) && /キー：Ctrl\+Z/.test(rm.stdout), { status: rm.status, out: rm.stdout.slice(0, 700), cat: catLabel });
 
   // 壊れた手順（存在しない id）→ 落ちずに ❌ として報告・終了コード 1
   const bad = body.replace('#qf-customer', '#no-such-field').split('【記録の開始時')[0] + '\n';
   fs.writeFileSync(path.join(tmp, 'bad.txt'), bad.replace(/^\d+\. \[0:0[0-9]・quote-make\] ⚠.*$/m, ''));
-  const rb = spawnSync('node', [path.join(root, 'scripts', 'replay-recording.js'), '--file', path.join(tmp, 'bad.txt')], { encoding: 'utf8', timeout: 90000 });
+  const rb = spawnSync('node', [path.join(root, 'scripts', 'replay-recording.js'), '--file', path.join(tmp, 'bad.txt'), ...U1], { encoding: 'utf8', timeout: 90000 });
   ok('実行できない手順は ❌ で報告し、落ちない（終了コード 1）', rb.status === 1 && /❌/.test(rb.stdout) && /--init/.test(rb.stdout), { status: rb.status, out: rb.stdout.slice(0, 400), err: rb.stderr.slice(0, 200) });
   const rn = spawnSync('node', [path.join(root, 'scripts', 'replay-recording.js'), '--file', path.join(tmp, 'nothing.txt')], { encoding: 'utf8' });
   ok('ファイルが無い場合は使い方の誤りとして終了（コード 2 か例外でない）', rn.status !== 0, rn.status);
 
+  srv.close(); srv2.kill();
   console.log(fails ? `\n${fails} 件失敗` : '\n全項目 OK');
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

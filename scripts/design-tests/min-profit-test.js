@@ -29,6 +29,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(700);
   await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(900);
   await p.evaluate(() => window.qpShowEditor && window.qpShowEditor()); await p.waitForTimeout(1200);
+  await p.evaluate(() => window.editorV2Go && window.editorV2Go(4)); await p.waitForTimeout(500);   // 新画面は ④費用 のステップを開く（旧画面では無視）
 
   const id = await p.evaluate(() => document.querySelector('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])').id.replace('row-', ''));
   const set = (f, v) => p.evaluate(([i, v]) => { const el = document.getElementById(i); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }, [f + '-' + id, String(v)]);   // MIN の欄は MIN モードを開くまで隠れているため DOM 経由

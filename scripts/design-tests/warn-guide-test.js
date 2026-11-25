@@ -1,5 +1,5 @@
 // 出力前の確認ガイド（右下）が、右下の固定ボタン（PDF出力／プレビュー／保存）や全体リマークの引き出しと重ならない試験。
-//   node scripts/design-tests/warn-guide-test.js   （THEME=1 Industry／MODE=simple かんたん／W=390 スマホ幅／EDITOR=v2 新画面＝ボタンが上部ツールバーにあるとき、ガイドはボタンの下に出る）
+//   node scripts/design-tests/warn-guide-test.js   （THEME=1 Industry／MODE=simple かんたん／W=390 スマホ幅／既定は新画面。EDITOR=v1 で旧画面（右下ドックの上に出る）／新画面＝ボタンが上部ツールバーにあるとき、ガイドはボタンの下に出る）
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
 const OUT = process.env.OUT || require('os').tmpdir() + '/design-tests-out'; fs.mkdirSync(OUT, { recursive: true });
@@ -13,7 +13,8 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   const W = +process.env.W || 1500, H = 900, narrow = W < 700;
   const ctx = await b.newContext({ viewport: { width: W, height: H }, locale: 'ja-JP', hasTouch: false });
   await ctx.addInitScript((mode) => { try { localStorage.setItem('fwd.uiMode', mode); localStorage.removeItem('quoteRemarkSheetH_v1'); } catch (e) {} }, process.env.MODE || 'detail');
-  if (process.env.EDITOR === 'v2') await ctx.addInitScript(() => { try { localStorage.setItem('fwd.editorV2', '1'); } catch (e) {} });
+  const V1 = process.env.EDITOR === 'v1'; // 既定は新画面（2026-11〜）。旧画面は EDITOR=v1
+  await ctx.addInitScript(v1 => { try { localStorage.setItem('fwd.editorV2', v1 ? '0' : '1'); } catch (e) {} }, V1);
   if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
   await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.setDefaultTimeout(8000);
@@ -47,7 +48,14 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   });
   await showGuide();
   let g = await geo();
-  if (process.env.EDITOR === 'v2' && !narrow) {
+  if (!V1 && narrow) {
+    // 新画面・スマホ幅：下の固定ドックの上に出て、画面内に収まり、押せる
+    ok('新画面（スマホ幅）：確認ガイドが出る', g.shown, g);
+    ok('新画面（スマホ幅）：ガイドは画面内に収まり、「このまま出力」が押せる', g.shown && g.top >= 0 && g.bottom <= g.vh && g.skipClickable, g);
+    ok('JS エラーなし', errs.length === 0, errs);
+    await b.close(); srv.close(); console.log(fails ? `\nFAIL=${fails}` : '\nALL PASS'); process.exit(fails ? 1 : 0);
+  }
+  if (!V1 && !narrow) {
     // 新画面：ボタンは上部ツールバー。ガイドはボタンの下に出て、画面内に収まり、「このまま出力」「次の箇所へ」が押せる
     const v = await p.evaluate(() => {
       const gd = document.getElementById('pvWarnGuide'), gr = gd.getBoundingClientRect();

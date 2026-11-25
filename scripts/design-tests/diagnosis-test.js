@@ -22,7 +22,8 @@ const ok = (n, c, d) => { if (c) { pass++; console.log('  ok  ' + n); } else { f
   await p.evaluate(() => switchTab('quote-make', document.querySelector('.cat-btn[aria-controls="tab-quote-make"]'))); await p.waitForTimeout(900);
   await p.evaluate(() => window.qpShowEditor && window.qpShowEditor()); await p.waitForTimeout(400);
   await p.evaluate(() => qspSetTab('fin'));
-  const f = (n, i) => p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).nth(i);
+  const setF=(n,i,v)=>p.evaluate(([n,i,v])=>{const tr=[...document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')][i];const e=tr&&tr.querySelector(`[data-field="${n}"]`);if(!e)return;e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));},[n,i,v]); // 新画面：1段の行は欄が隠れるため DOM 経由で入力
+  const f = (n, i) => ({ fill: v => setF(n, i, v) });
   const diag = async () => { await p.waitForTimeout(700); return p.evaluate(() => { const e = document.getElementById('qspDiag'); return (e.hidden ? '[hidden]' : '') + e.textContent; }); };
   ok('明細が無いときは非表示', (await diag()).startsWith('[hidden]'));
   await f('nm', 0).fill('海上運賃'); await f('pq', 0).fill('1'); await f('pp', 0).fill('100000'); await f('mk', 0).fill('4000');

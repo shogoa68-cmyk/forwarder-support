@@ -17,8 +17,10 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
  await p.goto(URL,{waitUntil:'domcontentloaded'});await p.waitForTimeout(700);
  await p.evaluate(()=>{const t=document.querySelector('[onclick*="quote-make"]');t&&t.click();});await p.waitForTimeout(900);
  await p.evaluate(()=>window.qpShowEditor&&window.qpShowEditor());await p.waitForTimeout(500);
- const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).first();
- await f('nm').fill('海上運賃');await f('sv').fill('A海運');await f('un').fill("40'GP");await f('pq').fill('1');await f('pp').fill('1000');await f('mk').fill('100');await f('mk').blur();
+ // 新画面（editor-v2）：費用はステップ④。1段の行では一部の欄が行の詳細へ移るため、値は evaluate で入れる（欄は DOM に残る）
+ await p.evaluate(()=>window.editorV2Go&&window.editorV2Go(4,true));await p.waitForTimeout(300);
+ const setF=(n,v)=>p.evaluate(([n,v])=>{const e=document.querySelector(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`);e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));e.dispatchEvent(new Event('blur'));},[n,v]);
+ await setF('nm','海上運賃');await setF('sv','A海運');await setF('un',"40'GP");await setF('pq','1');await setF('pp','1000');await setF('mk','100');
  await p.waitForTimeout(400);
  await p.evaluate(()=>{document.getElementById('qf-customer').value='株式会社サンプル';document.getElementById('qf-person').value='山田';});
  const build=(code,ret,en,on)=>p.evaluate(async([code,ret,en,on])=>{

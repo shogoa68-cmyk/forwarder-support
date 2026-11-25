@@ -45,6 +45,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
   // 実際の入力と同じ操作（本物のキー入力・フォーカス移動）で入れる
   await p.fill('#qf-customer', '山田商事株式会社'); await p.keyboard.press('Tab');
   await p.fill('#qf-person', '佐藤太郎'); await p.keyboard.press('Tab');
+  // 新画面：明細（ステップ④）へ移ってから入力する
+  await p.evaluate(() => { if (window.editorV2Go) window.editorV2Go(4); }); await p.waitForTimeout(300);
   await p.fill('#tableBody tr[id^="row-"] [data-field="nm"]', 'THC'); await p.keyboard.press('Tab');
   await p.fill('#tableBody tr[id^="row-"] [data-field="pp"]', '12345.5'); await p.keyboard.press('Tab');
   await p.evaluate(() => {

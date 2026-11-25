@@ -1,4 +1,5 @@
 // 全体リマークの引き出し：存在を知らせる「跳ねる」合図（Dock のアイコン風）の試験。
+// 注意：引き出し（#rmSheet）は旧画面の部品。新画面ではリマークが⑤の本文へ移るため、旧画面（?editor=v1）で試験する。
 //   node scripts/design-tests/remark-nudge-test.js   （THEME=1 Industry／MODE=simple かんたん／W=390 スマホ幅）
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -8,7 +9,7 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   const root = path.resolve(__dirname, '..', '..');
   const srv = http.createServer((q, r) => { const f = path.join(root, decodeURIComponent(q.url.split('?')[0])); if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'Content-Type': f.endsWith('.css') ? 'text/css' : f.endsWith('.js') ? 'text/javascript' : 'text/html; charset=utf-8' }); fs.createReadStream(f).pipe(r); });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
-  const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
+  const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html?editor=v1`;
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   const W = +process.env.W || 1500, H = 900, narrow = W < 700;
   const ctx = await b.newContext({ viewport: { width: W, height: H }, locale: 'ja-JP', hasTouch: false });

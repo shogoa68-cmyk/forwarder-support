@@ -16,6 +16,12 @@ const ok=(n,c,x)=>{console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringif
  await p.goto(URL,{waitUntil:'domcontentloaded'});await p.waitForTimeout(700);
  await p.evaluate(()=>{const t=document.querySelector('[onclick*="quote-make"]');t&&t.click();});await p.waitForTimeout(900);
  await p.evaluate(()=>window.qpShowEditor&&window.qpShowEditor());await p.waitForTimeout(500);
+ // 新画面：コピーのボタンは荷姿の「⋯」メニュー（#sbPackMore）に集約されている。メニューの項目を押してコピーする
+ const menuLabels=async()=>{await p.evaluate(()=>document.getElementById('sbPackMore').click());await p.waitForTimeout(150);const l=await p.evaluate(()=>[...document.querySelectorAll('.sb-menu .sb-mi')].map(b=>b.textContent.trim()));await p.evaluate(()=>{const m=document.querySelector('.sb-menu');if(m)document.getElementById('sbPackMore').click();});await p.waitForTimeout(100);return l;};
+ const menuClick=async(re)=>{await p.evaluate(()=>document.getElementById('sbPackMore').click());await p.waitForTimeout(150);await p.evaluate(src=>{const r=new RegExp(src);[...document.querySelectorAll('.sb-menu .sb-mi')].find(b=>r.test(b.textContent)).click();},re.source);await p.waitForTimeout(250);};
+ // 新画面：ステップ③（貨物・物量）へ移り、荷姿の詳細を開く
+ await p.evaluate(()=>{if(window.editorV2Go)window.editorV2Go(3);});await p.waitForTimeout(400);
+ await p.evaluate(()=>{const h=document.getElementById('sbPackHead');if(h&&h.getAttribute('aria-expanded')!=='true')h.click();});await p.waitForTimeout(300);
  // 荷姿を 2 行入れる
  await p.evaluate(()=>{document.querySelector('[onclick*="toggleQuoteSection(\'section-volume\')"]');const v=document.getElementById('volumeBody');if(v&&getComputedStyle(v).display==='none'){try{toggleQuoteSection('section-volume')}catch(e){}}});
  await p.evaluate(()=>{addPackingRow();addPackingRow();});await p.waitForTimeout(300);
@@ -23,11 +29,10 @@ const ok=(n,c,x)=>{console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringif
  await p.evaluate(rows=>{const tr=[...document.querySelectorAll('#cargoDetailBody tr')];rows.forEach((r,i)=>{const set=(sel,v)=>{const e=tr[i].querySelector(sel);if(!e)return;e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));};
    const ins=[...tr[i].querySelectorAll('input')];set('.cd-pkg input',r.pkg);set('.cd-qty input',r.qty);const dims=[...tr[i].querySelectorAll('.cd-dim input')];[r.l,r.w,r.h].forEach((v,k)=>{dims[k].value=v;dims[k].dispatchEvent(new Event('input',{bubbles:true}));});set('.cd-kg input',r.kg);const st=tr[i].querySelector('.cd-stack select');if(st){st.value=r.stack;st.dispatchEvent(new Event('change',{bubbles:true}));}});},rows);
  await p.waitForTimeout(300);
- const btn=await p.evaluate(()=>{const e=document.getElementById('cdCopyBtn');return e&&{txt:e.textContent.trim(),vis:e.getClientRects().length>0}});
- ok('荷姿・貨物明細の下に「📋 テキストでコピー」のボタンがある',btn&&btn.vis&&/テキストでコピー/.test(btn.txt),btn);
- ok('パターンが 1 つのとき「全パターンをコピー」は出ない',await p.evaluate(()=>{const e=document.getElementById('cdCopyAllBtn');return !!e&&getComputedStyle(e).display==='none';}));
- await p.evaluate(()=>{const e=document.getElementById('cdCopyBtn');e.scrollIntoView({block:'center'});});
- await p.click('#cdCopyBtn');await p.waitForTimeout(300);
+ const labs1=await menuLabels();
+ ok('荷姿の「⋯」メニューに「📋 テキストでコピー」がある（元のボタン #cdCopyBtn も残る）',labs1.some(l=>/テキストでコピー/.test(l))&&!!(await p.evaluate(()=>document.getElementById('cdCopyBtn'))),labs1);
+ ok('パターンが 1 つのとき「全パターンをコピー」は出ない',!labs1.some(l=>/全パターンをコピー/.test(l)));
+ await menuClick(/テキストでコピー/);
  let clip=await p.evaluate(()=>navigator.clipboard.readText());
  console.log(clip);
  ok('見出し「【物量情報】」で始まる',clip.startsWith('【物量情報】'),clip);
@@ -38,21 +43,21 @@ const ok=(n,c,x)=>{console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringif
  ok('モード未選択のとき R/T・CW は出さない',!/R\/T|CW/.test(clip),clip);
  // LCL → R/T
  await p.evaluate(()=>{const s=document.getElementById('cond-mode');if(s){const o=[...s.options].find(o=>/LCL/.test(o.value));if(o){s.value=o.value;s.dispatchEvent(new Event('change',{bubbles:true}));}}});
- await p.click('#cdCopyBtn');await p.waitForTimeout(250);
+ await menuClick(/テキストでコピー/);
  clip=await p.evaluate(()=>navigator.clipboard.readText());
  ok('海上 LCL のときは R/T を添える',/R\/T：2\.438/.test(clip)||/R\/T：\d/.test(clip),clip);
  await p.evaluate(()=>{const s=document.getElementById('cond-mode');if(s){const o=[...s.options].find(o=>/航空/.test(o.value));if(o){s.value=o.value;s.dispatchEvent(new Event('change',{bubbles:true}));}}});
- await p.click('#cdCopyBtn');await p.waitForTimeout(250);
+ await menuClick(/テキストでコピー/);
  clip=await p.evaluate(()=>navigator.clipboard.readText());
  ok('航空のときは CW（課金重量）を添える',/CW（課金重量）：[\d,.]+ kg/.test(clip)&&!/R\/T/.test(clip),clip);
  // 複数パターン
  await p.evaluate(()=>{window.prompt=()=> 'B案';addPackingPattern();});await p.waitForTimeout(300);
  await p.evaluate(()=>{addPackingRow();const tr=document.querySelector('#cargoDetailBody tr');const set=(sel,v)=>{const e=tr.querySelector(sel);e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));};set('.cd-pkg input','木箱');set('.cd-qty input',1);const d=[...tr.querySelectorAll('.cd-dim input')];[100,100,100].forEach((v,k)=>{d[k].value=v;d[k].dispatchEvent(new Event('input',{bubbles:true}));});set('.cd-kg input',50);});await p.waitForTimeout(300);
- ok('パターンが 2 つ以上になると「全パターンをコピー」が出る',await p.evaluate(()=>{const e=document.getElementById('cdCopyAllBtn');return getComputedStyle(e).display!=='none'&&e.getClientRects().length>0;}));
- await p.click('#cdCopyBtn');await p.waitForTimeout(250);
+ ok('パターンが 2 つ以上になると「全パターンをコピー」が出る',(await menuLabels()).some(l=>/全パターンをコピー/.test(l)));
+ await menuClick(/テキストでコピー/);
  clip=await p.evaluate(()=>navigator.clipboard.readText());
  ok('複数パターンのときは「■パターン名」を付け、編集中のパターンだけをコピー',clip.includes('■B案')&&clip.includes('・木箱')&&!clip.includes('カートン'),clip);
- await p.click('#cdCopyAllBtn');await p.waitForTimeout(250);
+ await menuClick(/全パターンをコピー/);
  clip=await p.evaluate(()=>navigator.clipboard.readText());
  ok('「全パターンをコピー」はすべてのパターンを順に並べる',clip.includes('■B案')&&clip.includes('・木箱')&&clip.includes('カートン')&&/■パターン1/.test(clip),clip);
  // サイズ不明

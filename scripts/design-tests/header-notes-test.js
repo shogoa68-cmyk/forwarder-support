@@ -86,10 +86,12 @@ const run=async(p)=>{
  await p.evaluate(()=>{setTransport('fcl')});
 
 
+ await p.evaluate(()=>window.editorV2Go&&window.editorV2Go(4,true));await p.waitForTimeout(300);   // 新画面：費用はステップ④
  const rows=[['海上運賃','A海運','ocean',"CNTR",2,1000,500,'JPY'],['THC','A海運','export-local',"20'GP",1,2000,1500,'JPY'],['ドキュメント費','Bローカル','export-local','B/L',1,3000,1000,'JPY']];
  for(let i=0;i<rows.length;i++){
   if(i>0){await p.evaluate(()=>window.addRow());await p.waitForTimeout(80);}
-  const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).nth(i);
+  // 1段の行では sv などが行の詳細へ移るため evaluate で入れる（欄は DOM に残る）
+  const f=n=>({fill:v=>p.evaluate(([n,v,i])=>{const e=document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type]) [data-field="'+n+'"]')[i];e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));},[n,v,i]),blur:()=>0});
   const r=rows[i];
   await f('nm').fill(r[0]);await f('sv').fill(r[1]);await f('un').fill(r[3]);await f('pq').fill(String(r[4]));
   await f('pp').fill(String(r[5]));await f('mk').fill(String(r[6]));await f('mk').blur();

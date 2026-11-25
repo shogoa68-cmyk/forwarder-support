@@ -8,17 +8,20 @@ const run=async(p)=>{
  const rows='#tableBody tr:not([data-virtual]):not([data-type])';const row=i=>p.locator(rows).nth(i);
  const total=()=>p.evaluate(()=>document.getElementById('tot-subtotal').textContent.replace(/[^0-9]/g,''));
  const state=i=>row(i).evaluate(tr=>({out:tr.dataset.outRange||'',reason:tr.dataset.outReason||'',cls:tr.classList.contains('row-out-of-range'),unk:tr.dataset.cnUnknown||'',cn:tr.querySelector('[data-field="cn"]').value,hint:(tr.querySelector('.cn-hint')||{}).textContent||''}));
- const openMore=async i=>{if(!(await row(i).locator('.cn-mode-btn').isVisible())){await row(i).locator('.row-detail-btn').click();await p.waitForTimeout(250);}};
- const setQty=async(i,v)=>{const f=row(i).locator('[data-field="pq"]');await f.fill(String(v));await f.blur();await p.waitForTimeout(450);};
- const setSel=async(i,cls,v)=>{await openMore(i);await row(i).locator('.cn-group .'+cls).selectOption(v,{force:true});await p.waitForTimeout(350);};
- const setNum=async(i,cls,v)=>{await openMore(i);await row(i).locator('.cn-group .'+cls).fill(String(v));await p.waitForTimeout(450);};
+ // 新画面（1 段の行）では［その他］の中身は行の詳細の奥に入って隠れる。要素は DOM にあるので、開く操作は不要・入力とクリックは DOM 経由で行う
+ const openMore=async i=>{};
+ const domSet=(i,sel,v,ev)=>row(i).locator(sel).evaluate((e,[v,ev])=>{e.value=v;ev.forEach(n=>e.dispatchEvent(new Event(n,{bubbles:true})));if(ev.includes('blur'))e.dispatchEvent(new Event('blur'));},[String(v),ev]);
+ const setQty=async(i,v)=>{await domSet(i,'[data-field="pq"]',v,['input','change','blur']);await p.waitForTimeout(450);};
+ const setSel=async(i,cls,v)=>{await domSet(i,'.cn-group .'+cls,v,['input','change']);await p.waitForTimeout(350);};
+ const setNum=async(i,cls,v)=>{await domSet(i,'.cn-group .'+cls,v,['input','change']);await p.waitForTimeout(450);};
+ const dclick=(i,sel)=>row(i).locator(sel).evaluate(e=>e.click());
  const setSelect=async(id,v)=>{await p.evaluate(([id,v])=>{const s=document.getElementById(id);const o=[...s.options].find(o=>o.value.startsWith(v));s.value=o?o.value:v;s.dispatchEvent(new Event('change',{bubbles:true}));},[id,v]);await p.waitForTimeout(450);};
  await p.evaluate(()=>document.getElementById('section-table').scrollIntoView());
  await setSelect('cond-incoterms','FOB');
  const t0=await total();
 
  // 1) 数量の範囲：20 以上 40 以下のときだけ有効（1 行目は数量 2）
- await openMore(0);await row(0).locator('.cn-mode-btn').click();await p.waitForTimeout(300);
+ await openMore(0);await dclick(0,'.cn-mode-btn');await p.waitForTimeout(300);
  ok('「表示条件」ボタンで条件の入力欄（項目・値・比較）が開く',await row(0).evaluate(tr=>tr.classList.contains('row-cn-mode')&&!!tr.querySelector('.cn-key')&&!!tr.querySelector('.cn-op')&&!!tr.querySelector('.cn-a')),null);
  ok('条件の値が空のうちは、判定せず表示のまま（除外されず・注意が出る）',(await state(0)).out===''&&(await state(0)).unk==='1',await state(0));
  await setNum(0,'cn-a',20);await setNum(0,'cn-b',40);
@@ -114,9 +117,9 @@ const run=async(p)=>{
  const back=await state(0);
  ok('保存して開き直しても、条件と除外が復元される',back.cn===before.cn&&back.reason==='condition',back);
  ok('復元した行の入力欄に、値（20〜40）が入っている',await row(0).evaluate(tr=>tr.querySelector('.cn-a')?.value==='20'&&tr.querySelector('.cn-b')?.value==='40'),null);
- await row(0).locator('td.handle-cell .drag-handle').hover();await row(0).locator('.row-dup-btn').click({timeout:3000});await p.waitForTimeout(500);
+ await dclick(0,'.row-dup-btn');await p.waitForTimeout(500);
  ok('行を複製すると、条件も引き継がれる',(await state(1)).cn===before.cn,await state(1));
- await openMore(0);await row(0).locator('.cn-mode-btn').click();await p.waitForTimeout(300);
+ await openMore(0);await dclick(0,'.cn-mode-btn');await p.waitForTimeout(300);
  const off=await state(0);
  ok('もう一度ボタンを押すと解除され（値が空）、有効に戻る',off.cn===''&&off.out==='',off);
 };
@@ -139,12 +142,9 @@ const run=async(p)=>{
  const rows=[['海上運賃','A海運','ocean',"40'GP/HQ",2,1200,300,'USD'],['BAF','A海運','surcharge','CNTR',2,80,20,'USD'],['THC','Bローカル','export-local',"20'GP",1,32000,5000,'JPY'],['ドキュメント費','Bローカル','export-local','B/L',1,8000,2000,'JPY'],['通関料','C通関','customs-export','shipment',1,12000,3000,'JPY']];
  for(let i=0;i<rows.length;i++){
   if(i>0){await p.evaluate(()=>window.addRow());await p.waitForTimeout(80);}
-  const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).nth(i);
   const r=rows[i];
-  await f('nm').fill(r[0]);await f('sv').fill(r[1]);await f('cat').selectOption(r[2],{force:true}).catch(()=>{});
-  await f('un').fill(r[3]);await f('pq').fill(String(r[4]));
-  await f('pc').selectOption(r[7],{force:true}).catch(()=>{});await f('bc').selectOption(r[7],{force:true}).catch(()=>{});
-  await f('pp').fill(String(r[5]));await f('mk').fill(String(r[6]));await f('mk').blur();
+  // 新画面（1 段の行）では欄が行の詳細へ移り隠れるので、値は DOM へ直接入れる
+  for(const [n,v] of [['nm',r[0]],['sv',r[1]],['cat',r[2]],['un',r[3]],['pq',String(r[4])],['pc',r[7]],['bc',r[7]],['pp',String(r[5])],['mk',String(r[6])]])await p.evaluate(([i,n,v])=>{const e=document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')[i].querySelector(`[data-field="${n}"]`);e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));},[i,n,v]);
  }
  await p.waitForTimeout(1500);
  await p.evaluate(()=>document.getElementById('section-table').scrollIntoView());await p.waitForTimeout(300);

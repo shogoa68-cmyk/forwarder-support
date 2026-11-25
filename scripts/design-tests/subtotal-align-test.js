@@ -8,13 +8,16 @@ const run=async(p)=>{
  const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify(x)));
  // A海運の 2 行に別々のパターンを付ける（パターン小計を出す）
  await p.evaluate(()=>{const f=(i,v)=>{const el=document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type]) [data-field="pt"]')[i];el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));};f(0,'FCL 20');f(1,'FCL 40');});
- await p.waitForTimeout(900);
+ await p.evaluate(()=>window.editorV2Go&&window.editorV2Go(4));await p.waitForTimeout(900); // 新画面は費用（ステップ④）を開く
  const sel='#tableBody tr.subcon-group-subtotal, #tableBody tr.subcon-pattern-subtotal';
  const m=await p.evaluate(sel=>[...document.querySelectorAll(sel)].filter(tr=>tr.offsetParent).map(tr=>{const inner=tr.querySelector('.subcon-subtotal-inner');const ir=inner.getBoundingClientRect();const g=c=>{const e=inner.querySelector(c);const r=e.getBoundingClientRect();return {l:Math.round(r.left),r:Math.round(r.right),t:Math.round(r.top)}};const lab=g('.subcon-subtotal-label'),add=g('.subcon-subtotal-add-btn'),cost=g('.st-cost'),sell=g('.st-sell'),mar=g('.st-margin');const pad=parseFloat(getComputedStyle(inner).paddingRight);return {pt:tr.classList.contains('subcon-pattern-subtotal'),lab,add,cost,sell,mar,innerR:Math.round(ir.right),pad}}),sel);
- ok('小計の行が複数ある（サブコン小計・パターン小計の両方）',m.some(x=>x.pt)&&m.some(x=>!x.pt),m.length);
+ // 新画面（cost-a）ではサブコン小計は出さず（見出しに金額がある）、パターンが 2 つ以上のサブコンのパターン小計だけ出る
+ const nGrp=await p.evaluate(()=>[...document.querySelectorAll('#tableBody tr.subcon-group-subtotal')].filter(t=>t.offsetParent).length);
+ ok('パターン小計が複数出て、サブコン小計は出ない（新画面）',m.length>=2&&m.every(x=>x.pt)&&nGrp===0,[m.length,nGrp]);
  ok('金額（仕入合計→売値合計→粗利率）が右端に右揃えで並ぶ（粗利率の右端＝バーの右の余白の内側）',m.every(x=>Math.abs(x.mar.r-(x.innerR-x.pad))<=2&&x.cost.r<=x.sell.l+1&&x.sell.r<=x.mar.l+1),m.map(x=>[x.mar.r,x.innerR-x.pad]));
  ok('パターン小計とサブコン小計で、金額の位置が縦にそろう（各金額の左右端が全行で同じ）',['cost','sell','mar'].every(k=>new Set(m.map(x=>x[k].r)).size===1&&new Set(m.map(x=>x[k].l)).size===1),m.map(x=>[x.cost.l,x.sell.l,x.mar.l]));
- ok('ラベルと「＋ 行追加」は左側（金額より左）',m.every(x=>x.lab.r<=x.cost.l&&x.add.r<=x.cost.l&&x.lab.l<x.add.l),m.map(x=>[x.lab.r,x.add.r,x.cost.l]));
+ // 新画面（cost-a）ではパターン小計の「＋ 行追加」は出さない（幅 0）ので、ラベルが金額より左にあることだけ確かめる
+ ok('ラベルは左側（金額より左）。＋行追加は出さない（新画面）',m.every(x=>x.lab.r<=x.cost.l&&(x.add.r-x.add.l)===0),m.map(x=>[x.lab.r,x.add.r,x.cost.l]));
  ok('同じバーの中は 1 行（金額とラベルの上端がそろう）',m.every(x=>Math.abs(x.cost.t-x.lab.t)<=12),m.map(x=>[x.cost.t,x.lab.t]));
  const bb=await p.locator('#tableBody tr.subcon-pattern-subtotal').first().boundingBox();
  await p.screenshot({path:process.env.SHOT||'/tmp/sub.png',clip:{x:0,y:Math.max(0,bb.y-30),width:1100,height:Math.min(300,1000-Math.max(0,bb.y-30))}});
@@ -40,11 +43,14 @@ const run=async(p)=>{
  for(let i=0;i<rows.length;i++){
   if(i>0){await p.evaluate(()=>window.addRow());await p.waitForTimeout(80);}
   const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).nth(i);
+  // 新画面（cost-a）は一部の欄が行の詳細に移り Playwright の fill が効かないため、値は evaluate で入れて input/change を発火する
+
+  const S=(n,v)=>p.evaluate(([i,n,v])=>{const el=document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')[i].querySelector(`[data-field="${n}"]`);el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));},[i,n,v]);
   const r=rows[i];
-  await f('nm').fill(r[0]);await f('sv').fill(r[1]);await f('cat').selectOption(r[2],{force:true}).catch(()=>{});
-  await f('un').fill(r[3]);await f('pq').fill(String(r[4]));
-  await f('pc').selectOption(r[7],{force:true}).catch(()=>{});await f('bc').selectOption(r[7],{force:true}).catch(()=>{});
-  await f('pp').fill(String(r[5]));await f('mk').fill(String(r[6]));await f('mk').blur();
+  await S('nm',r[0]);await S('sv',r[1]);await S('cat',r[2]);
+  await S('un',r[3]);await S('pq',String(r[4]));
+  await S('pc',r[7]);await S('bc',r[7]);
+  await S('pp',String(r[5]));await S('mk',String(r[6]));
  }
  await p.waitForTimeout(1500);
  await p.evaluate(()=>document.getElementById('section-table').scrollIntoView());await p.waitForTimeout(300);

@@ -1,11 +1,13 @@
-// 見積入力の 2 カラム配置（広い画面）の試験。  node scripts/design-tests/layout-cols-test.js （THEME=1, MODE=simple）
+// 見積入力の 2 カラム配置（広い画面）の試験。
+// 旧画面専用：新画面（editor-v2）は 2 カラム配置を使わず常に 1 カラム（layout-cols.js check()）。そのため ?editor=v1 で旧画面を指定して試験する。
+// 末尾に「新画面では 2 カラムにならない」確認も足してある。  node scripts/design-tests/layout-cols-test.js （THEME=1, MODE=simple）
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
 (async () => {
   const root = path.resolve(__dirname, '..', '..');
   const srv = http.createServer((q, r) => { const f = path.join(root, decodeURIComponent(q.url.split('?')[0])); if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'Content-Type': f.endsWith('.css') ? 'text/css' : f.endsWith('.js') ? 'text/javascript' : 'text/html; charset=utf-8' }); fs.createReadStream(f).pipe(r); });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
-  const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
+  const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html?editor=v1`;
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   const out = []; const ok = (n, c, d) => out.push((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' → ' + JSON.stringify(d)));
   const ctx = await b.newContext({ viewport: { width: 1920, height: 1032 }, locale: 'ja-JP' });
@@ -39,6 +41,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('[狭い画面] 値は残っている', await p.evaluate(() => document.getElementById('qf-customer').value === 'テスト商事'));
   await p.setViewportSize({ width: 1920, height: 1032 }); await p.waitForTimeout(500);
   ok('[広い画面へ戻す] もう一度 2 カラム', (await info()).on);
+  // 新画面では 2 カラムにしない
+  await p.evaluate(() => window.editorV2Set && window.editorV2Set(true)); await p.waitForTimeout(600);
+  ok('[新画面] 広い画面でも 2 カラムにならない（常に 1 カラム）', await p.evaluate(() => document.documentElement.classList.contains('editor-v2') && !document.body.classList.contains('qm-2col')));
   ok('JS エラーなし', errs.length === 0, errs);
   console.log(out.join('\n')); console.log(out.some(l => l.startsWith('FAIL')) ? 'NG' : 'OK');
   await b.close(); srv.close(); process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);

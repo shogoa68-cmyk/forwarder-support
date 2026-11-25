@@ -89,6 +89,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
   // 案件 A を開く（お客様・POL・POD・モード・貿易条件が入る）→ 右の「類似」を開く
   await p.evaluate(() => window.cloudLoadPreset && window.cloudLoadPreset('A')); await p.waitForTimeout(1500);
   await p.evaluate(() => { const b = document.querySelector('.qrc-rail-btn[data-mod="similar"]'); if (b) b.click(); else { const m = document.querySelector('#qrcMore2'); m && m.click(); const b2 = document.querySelector('.qrc-rail-btn[data-mod="similar"]'); b2 && b2.click(); } });
+  // 新画面：右レールは引き出し（body.e2-drawer）で見せる。レールのボタンを押したあと引き出しを開く
+  await p.evaluate(() => { if (document.documentElement.classList.contains('editor-v2')) { document.body.classList.add('e2-drawer'); document.body.dataset.e2drawer = 'similar'; } });
   await p.waitForTimeout(1200);
   const vis = sel => p.evaluate(s => { const e = document.querySelector(s); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, sel);
 

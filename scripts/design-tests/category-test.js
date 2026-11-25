@@ -38,16 +38,16 @@ const run=async(p)=>{
  await p.evaluate(()=>{const t=document.querySelector('[onclick*="quote-make"]');t&&t.click();});await p.waitForTimeout(1000);
  await p.evaluate(()=>window.qpShowEditor&&window.qpShowEditor());await p.waitForTimeout(500);
  await p.evaluate(()=>{setTransport('fcl')});
+ await p.evaluate(()=>{window.editorV2Go&&window.editorV2Go(4)});await p.waitForTimeout(300);
  // 明細（架空）：サブコン3社・7行。通貨違い・単位違いを含む
  const rows=[['海上運賃','A海運','ocean',"40'GP/HQ",2,1200,300,'USD'],['BAF','A海運','surcharge','CNTR',2,80,20,'USD'],['THC','Bローカル','export-local',"20'GP",1,32000,5000,'JPY'],['ドキュメント費','Bローカル','export-local','B/L',1,8000,2000,'JPY'],['通関料','C通関','customs-export','shipment',1,12000,3000,'JPY'],['輸出者検査','C通関','customs-export','CBM',3.5,2500,500,'JPY'],['配送費','D運輸','domestic',"40'GP",1,45000,8000,'JPY']];
  for(let i=0;i<rows.length;i++){
   if(i>0){await p.evaluate(()=>window.addRow());await p.waitForTimeout(80);}
-  const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).nth(i);
+  // 新画面（1 段の行）：サブコン・単位などは行の詳細に移っていて見えないため、欄の値を直接入れて input／change を通知する
   const r=rows[i];
-  await f('nm').fill(r[0]);await f('sv').fill(r[1]);await f('cat').selectOption(r[2],{force:true}).catch(()=>{});
-  await f('un').fill(r[3]);await f('pq').fill(String(r[4]));
-  await f('pc').selectOption(r[7],{force:true}).catch(()=>{});await f('bc').selectOption(r[7],{force:true}).catch(()=>{});
-  await f('pp').fill(String(r[5]));await f('mk').fill(String(r[6]));await f('mk').blur();
+  await p.evaluate(([i,r])=>{const tr=[...document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')][i];
+   const set=(n,v)=>{const e=tr.querySelector(`[data-field="${n}"]`);e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));};
+   set('nm',r[0]);set('sv',r[1]);set('cat',r[2]);set('un',r[3]);set('pq',String(r[4]));set('pc',r[7]);set('bc',r[7]);set('pp',String(r[5]));set('mk',String(r[6]));},[i,r]);
  }
  await p.waitForTimeout(1500);
  await p.evaluate(()=>document.getElementById('section-table').scrollIntoView());await p.waitForTimeout(300);

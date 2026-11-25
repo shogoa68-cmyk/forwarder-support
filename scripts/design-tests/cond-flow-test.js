@@ -16,7 +16,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(700);
   await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1500);
   await p.evaluate(() => { try { window.qpNewQuote(); } catch (e) {} }); await p.waitForTimeout(600);
-  const vis = s => p.evaluate(x => { const e = document.querySelector(x); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, s);
+  await p.evaluate(() => window.editorV2Go && window.editorV2Go(2, true)); await p.waitForTimeout(300); // 新画面：貿易条件はステップ②
+  // 新画面：下の要約 #cfCrumbs は表示を隠している（上の帯 #e2Chips2 の ✎ から押す）が DOM と状態は残るため、
+  // #cfCrumbs 内の要素は「存在するか」で判定する
+  const vis = s => p.evaluate(x => { const e = document.querySelector(x); if (!e) return false; if (/^#cfCrumbs/.test(x)) return true; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, s);
   ok('最初はインコタームズだけ', await vis('#cond-incoterms') && !(await vis('#dirBtns')) && !(await vis('#seaAirBtns')) && !(await vis('#cfCrumbs .cf-crumb')));
   await p.selectOption('#cond-incoterms', { label: 'FOB（本船渡し）' }); await p.waitForTimeout(200);
   ok('選ぶと要約になり、方向が開く', await vis('#cfCrumbs .cf-crumb[data-cf="inco"]') && !(await vis('#cond-incoterms')) && await vis('#dirBtns') && !(await vis('#seaAirBtns')));
@@ -26,11 +29,14 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.click('#seaAirBtns [data-transport="fcl"]'); await p.waitForTimeout(200);
   ok('3つ選ぶと全部が 1 行の要約', (await p.$$('#cfCrumbs .cf-crumb')).length === 3 && !(await vis('#seaAirBtns')));
   ok('値は保存用の欄に入っている', await p.evaluate(() => document.getElementById('cond-direction').value === 'export' && document.getElementById('cond-mode').value === '海上（FCL）'));
-  await p.click('#cfCrumbs .cf-crumb[data-cf="mode"]'); ok('要約を押すと選び直せる', await vis('#seaAirBtns'));
+  await p.evaluate(() => document.querySelector('#cfCrumbs .cf-crumb[data-cf="mode"]').click()); ok('要約を押すと選び直せる', await vis('#seaAirBtns'));
   await p.click('#seaAirBtns [data-transport="lcl"]'); await p.waitForTimeout(200);
   ok('選び直すと要約へ戻る（LCL）', !(await vis('#seaAirBtns')) && (await p.textContent('#cfCrumbs .cf-crumb[data-cf="mode"] b')).includes('LCL'));
   ok('保険は「＋ 保険付保（任意）」の裏', !(await vis('#insToggleBtn')) && await vis('#cfCrumbs .cf-opt'));
-  await p.click('#cfCrumbs .cf-opt'); ok('押すと保険のボタンが出る', await vis('#insToggleBtn'));
+  await p.evaluate(() => document.querySelector('#cfCrumbs .cf-opt').click());
+  // 新画面：保険付保は右の列（案B）の「保険付保」行を押すと、その行の下に保険のボタンが開く
+  await p.click('#sbAside .sb-row[data-k="ins"] .sb-h, #sbAside .sb-row[data-k="ins"]').catch(() => {}); await p.waitForTimeout(200);
+  ok('押すと保険のボタンが出る', await vis('#insToggleBtn'));
   // 読み込み（値が入った状態）で要約になる
   await p.evaluate(() => { window.qpNewQuote(); }); await p.waitForTimeout(500);
   ok('新規に戻すと最初の状態へ', await vis('#cond-incoterms') && !(await vis('#cfCrumbs .cf-crumb')));

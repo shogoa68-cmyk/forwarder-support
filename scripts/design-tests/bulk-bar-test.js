@@ -1,3 +1,4 @@
+// ※旧画面専用（新画面の選択バーは #caSel＝cost-a-test.js が担当。旧 #cmdbarContext は新画面では隠れる）。localStorage fwd.editorV2='0' で旧画面にして試験する。
 // 選択行の一括操作バー（1 行に整理・「一括設定 ▾」のパネル）の試験。 node scripts/design-tests/bulk-bar-test.js （THEME=1 Industry・W=390 スマホ幅・OUT=<dir> 画像）
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -9,7 +10,7 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   const ctx = await b.newContext({ viewport: { width: +(process.env.W || 1500), height: 900 }, locale: 'ja-JP' });
-  await ctx.addInitScript(() => { try { localStorage.setItem('fwd.uiMode', 'detail'); } catch (e) {} });
+  await ctx.addInitScript(() => { try { localStorage.setItem('fwd.uiMode', 'detail'); localStorage.setItem('fwd.editorV2', '0'); } catch (e) {} });
   if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
   await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.setDefaultTimeout(8000);

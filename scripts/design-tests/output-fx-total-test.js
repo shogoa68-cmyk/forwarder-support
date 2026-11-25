@@ -26,6 +26,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(700);
   await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(900);
   await p.evaluate(() => window.qpShowEditor && window.qpShowEditor()); await p.waitForTimeout(1200);
+  await p.evaluate(() => window.editorV2Go && window.editorV2Go(4)); await p.waitForTimeout(500);   // 新画面は ④費用 を開く
   await p.evaluate(() => { window.__clip = ''; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: t => { window.__clip = t; return Promise.resolve(); } } }); });
   const ids = () => p.evaluate(() => [...document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])')].map(t => t.id.replace('row-', '')));
   const fill = async (id, o) => {
@@ -34,7 +35,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.fill('#pq-' + id, '1'); await p.dispatchEvent('#pq-' + id, 'input');
     await p.fill('#pp-' + id, String(o.pp)); await p.dispatchEvent('#pp-' + id, 'input');
     await p.fill('#mk-' + id, String(o.mk)); await p.dispatchEvent('#mk-' + id, 'input');
-    if (!(await p.isChecked('#tx-' + id))) await p.check('#tx-' + id);
+    await p.evaluate(i => { const c = document.getElementById('tx-' + i); if (!c.checked) { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); } }, id);   // 新画面では課税が行の詳細の中（DOM 経由）
   };
   let list = await ids();
   await fill(list[0], { nm: '国内トラック', cur: 'JPY', pp: 700, mk: 333 });

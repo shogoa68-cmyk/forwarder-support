@@ -18,6 +18,7 @@ let fails=0;const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(
  await p.goto(URL,{waitUntil:'domcontentloaded'});await p.waitForTimeout(800);
  await p.evaluate(()=>document.querySelector('.cat-btn[aria-controls="tab-quote-make"]').click());await p.waitForTimeout(800);
  await p.evaluate(()=>{ if(typeof qpNewQuote==='function') qpNewQuote(); });await p.waitForTimeout(600);
+ await p.evaluate(()=>window.editorV2Go&&window.editorV2Go(3,true));await p.waitForTimeout(300); // 新画面：物量はステップ③
  await p.evaluate(()=>{const s=document.getElementById('section-volume'); if(s&&s.classList.contains('is-collapsed')) toggleQuoteSection('section-volume'); s&&s.scrollIntoView({block:'center'});});await p.waitForTimeout(300);
  const st=await p.evaluate(()=>{const chips=[...document.querySelectorAll('.container-chip-grid .cc-chip[data-ctype]')];
   return {n:chips.length,withInfo:chips.filter(c=>c.querySelector('.cc-info')).length,
@@ -57,12 +58,13 @@ let fails=0;const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(
  v=await pop(`.cc-chip[data-ctype="45'HC"] .cc-info-wrap`);
  ok('キーボードで焦点を当てても出る',v.shown&&/13\.54/.test(v.text),v);
  // 特殊コンテナ
- await p.click('.cc-cat-tab[data-cat="special"]');await p.waitForTimeout(300);
+ await p.evaluate(()=>setContainerCat('special'));  // 新画面：特殊コンテナは「❄️ 特殊コンテナ ▾」の切替（元のタブは隠れる）
+ await p.waitForTimeout(300);
  await p.hover(`.cc-chip[data-ctype="20'RF（冷凍）"] .cc-info`);await p.waitForTimeout(200);
  v=await pop(`.cc-chip[data-ctype="20'RF（冷凍）"] .cc-info-wrap`);
  ok('RF も出る',v.shown&&/5\.43×2\.28×2\.25/.test(v.text),v);
  await p.screenshot({path:OUT+'/container-info-rf.png',clip:{x:0,y:0,width:+process.env.W||1400,height:900}});
- await p.click('.cc-sub-tab[data-sub="otfr"]');await p.waitForTimeout(300);
+ await p.evaluate(()=>document.querySelector('.cc-sub-tab[data-sub="otfr"]').click());await p.waitForTimeout(300);
  await p.hover(`.cc-chip[data-ctype="40'FR（フラットラック）"] .cc-info`);await p.waitForTimeout(200);
  v=await pop(`.cc-chip[data-ctype="40'FR（フラットラック）"] .cc-info-wrap`);
  ok('FR は「床面（高さ制限なし）」で出る・画面内に収まる',v.shown&&/床面/.test(v.text)&&v.r<=v.vw,v);

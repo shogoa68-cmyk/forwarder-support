@@ -1,4 +1,5 @@
 // 右レールの共通の枠（Design 49）：線のアイコン・名前の言い換え・［その他］メニュー・引き出しの頭／状態／本文・幅 400px
+// 注意：右の引き出しは新画面では閉じている間 display:none（合計バーのボタンで開く別の作り）。レールの寸法・配置は旧画面（?editor=v1）で試験する。
 //   node scripts/design-tests/right-rail-test.js   （THEME=1 で Industry／EDITOR=v2／W=390／OUT=dir でスクショ）
 // 旧: 🆕 新規見積の入口モーダル：「一から作成」「似ている案件を参考に作成」（お客様・積み港・揚げ港・モードで絞り込み → コピーして新規案件に）。
 //   偽の Supabase（メモリ上）で、モーダルの出方・絞り込み・コピー後の編集画面（案件に固有の記録を引き継がない・クラウドに案件を作らない）を確かめる。
@@ -16,7 +17,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     fs.createReadStream(f).pipe(r);
   });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
-  const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
+  const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html?editor=v1`;
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   let fails = 0;
   const ok = (n, c, d) => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' → ' + JSON.stringify(d))); };

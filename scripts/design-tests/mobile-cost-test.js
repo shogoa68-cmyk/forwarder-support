@@ -32,6 +32,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('[PC] JS エラーなし', errs.length === 0, errs); await ctx.close(); }
   // スマホ幅
   { const { ctx, p, errs } = await open(390);
+    const V2 = await p.evaluate(() => document.documentElement.classList.contains('editor-v2'));   // 新画面（editor-v2）のスマホ一覧は mc2-* の 2 段カード
     await p.evaluate(() => { const s = document.getElementById('section-table'); s.classList.remove('collapsed'); });
     await setRow(p, 0, { nm: '海上運賃', sv: 'サンプル運送', pt: 'FCL案', pq: '2', un: 'CNTR', pp: '1000', mk: '200' });
     await setRow(p, 1, { nm: 'THC', sv: 'サンプル運送', pt: 'LCL案', pq: '1', un: 'B/L', pp: '500', mk: '100' });
@@ -42,22 +43,22 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('[スマホ] サブコン見出し（出てきた順）', names.join('|') === 'サンプル運送|通関A', names);
     ok('[スマホ] 行が 3 件・品名が出る', (await p.$$eval('#mcList .mc-row .mc-nm', els => els.map(e => e.textContent))).join('|') === '海上運賃|THC|通関料');
     ok('[スマホ] パターン見出し（変わるところだけ）', (await p.$$eval('#mcList .mc-pt', els => els.map(e => e.textContent))).join('|') === 'FCL案|LCL案');
-    const sub = await p.textContent('#mcList .mc-row .mc-sub'); ok('[スマホ] 「数量 単位 × 売単価」', /2 CNTR × 1200/.test(sub), sub);
-    ok('[スマホ] 金額が出る（2,400）', (await p.textContent('#mcList .mc-row .mc-amt')).includes('2,400'));
+    const sub = await p.textContent(V2 ? '#mcList .mc-row .mc2-bot' : '#mcList .mc-row .mc-sub'); ok(V2 ? '[スマホ] 「数量 × 単位 ・ 売の小計」' : '[スマホ] 「数量 単位 × 売単価」', V2 ? /2 × CNTR/.test(sub) && /2,400/.test(sub) : /2 CNTR × 1200/.test(sub), sub);
+    ok('[スマホ] 金額が出る（2,400）', (await p.textContent((V2 ? '#mcList .mc-row .mc2-st' : '#mcList .mc-row .mc-amt'))).includes('2,400'));
     ok('[スマホ] サブコン小計', (await p.textContent('#mcList .mc-sv-sum')).includes('3,000'), await p.textContent('#mcList .mc-sv-sum'));
     ok('[スマホ] 行の高さは 44px 以上・button 要素', await p.evaluate(() => { const b = document.querySelector('#mcList .mc-row'); return b.tagName === 'BUTTON' && b.getBoundingClientRect().height >= 44; }));
     // 状態：要調査・見積書に出さない
     await p.evaluate(() => { const tr = document.querySelector('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])'); tr.querySelector('.row-pending-btn').click(); const tr2 = [...document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])')][1]; tr2.querySelector('.row-hidequote-btn').click(); });
     await p.waitForTimeout(400);
-    ok('[スマホ] 要調査の札と黄色の帯', await p.evaluate(() => { const r = document.querySelector('#mcList .mc-row'); return r.classList.contains('is-pending') && !!r.querySelector('.t-pend'); }));
-    ok('[スマホ] 見積書に出さない行は札と取り消し線・合計から外れる', await p.evaluate(() => { const r = document.querySelectorAll('#mcList .mc-row')[1]; return r.classList.contains('is-hidden') && !!r.querySelector('.t-hide'); }) && (await p.textContent('#mcList .mc-sv-sum')).includes('2,400') && !(await p.textContent('#mcList .mc-sv-sum')).includes('3,000'));
+    ok('[スマホ] 要調査の札と黄色の帯', await p.evaluate(() => { const r = document.querySelector('#mcList .mc-row'); return r.classList.contains('is-pending') && !!r.querySelector('.t-pend, .mc2-tag.is-warn'); }));
+    ok('[スマホ] 見積書に出さない行は札と取り消し線・合計から外れる', await p.evaluate(() => { const r = document.querySelectorAll('#mcList .mc-row')[1]; return (r.classList.contains('is-hidden') || r.classList.contains('is-mute')) && !!r.querySelector('.t-hide, .mc2-tag.is-mute'); }) && (await p.textContent('#mcList .mc-sv-sum')).includes('2,400') && !(await p.textContent('#mcList .mc-sv-sum')).includes('3,000'));
     // 編集に追従
     await setRow(p, 0, { pp: '2000' }); await p.waitForTimeout(400);
-    ok('[スマホ] 表の入力に一覧が追従（2,000+200=2,200 ×2 = 4,400）', (await p.textContent('#mcList .mc-row .mc-amt')).includes('4,400'), await p.textContent('#mcList .mc-row .mc-amt'));
+    ok('[スマホ] 表の入力に一覧が追従（2,000+200=2,200 ×2 = 4,400）', (await p.textContent((V2 ? '#mcList .mc-row .mc2-st' : '#mcList .mc-row .mc-amt'))).includes('4,400'), await p.textContent((V2 ? '#mcList .mc-row .mc2-st' : '#mcList .mc-row .mc-amt')));
     // 行追加
-    const n0 = await p.$$eval('#mcList .mc-row', e => e.length); await p.click('#mcList [data-addrow]'); await p.waitForTimeout(500);
+    const n0 = await p.$$eval('#mcList .mc-row', e => e.length); await p.click(V2 ? '#mcList .mc2-addrow >> nth=0' : '#mcList [data-addrow]');   // 新画面は全体の「＋ 行を追加」を出さず、各サブコンの下の「＋ 明細を追加」 await p.waitForTimeout(500);
     ok('[スマホ] 「＋ 行を追加」で行が増える', (await p.$$eval('#mcList .mc-row', e => e.length)) === n0 + 1);
-    await p.click('#mcList .mc-sv >> nth=1 >> button.mc-add'); await p.waitForTimeout(500);
+    await p.click(V2 ? '#mcList .mc2-addrow >> nth=1' : '#mcList .mc-sv >> nth=1 >> button.mc-add'); await p.waitForTimeout(500);
     ok('[スマホ] サブコン見出しの「＋」でそのサブコンに行が増える', (await p.$$eval('#mcList .mc-row', e => e.length)) === n0 + 2);
     // 行タップ → 編集シート
     await p.click('#mcList .mc-row >> nth=0'); await p.waitForTimeout(400);
@@ -97,7 +98,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     if (process.env.MODE !== 'simple') { await p.click('#mcsMore > summary'); ok('[シート] その他：有効期間・単価のオプション（更新日は廃止）', await vis(p, '#mcs-vf') && !(await p.$('#mcs-lu')) && (await p.$$('#mcsModes .mcs-tg')).length >= 5); }
     // 完了で閉じる → 一覧に反映
     await p.click('#mcsDone'); await p.waitForTimeout(400);
-    ok('[シート] 「完了」で閉じ、一覧に反映（品名・入力完了の札）', !(await vis(p, '#mcSheet .mcs-box')) && (await p.textContent('#mcList')).includes('海上運賃（改）') && !!(await p.$('#mcList .t-done')));
+    ok('[シート] 「完了」で閉じ、一覧に反映（品名・入力完了の札）', !(await vis(p, '#mcSheet .mcs-box')) && (await p.textContent('#mcList')).includes('海上運賃（改）') && !!(await p.$('#mcList .t-done, #mcList .mc2-ok')));
     // 背景タップ・Esc
     await p.click('#mcList .mc-row >> nth=0'); await p.waitForTimeout(300); await p.keyboard.press('Escape'); await p.waitForTimeout(200);
     ok('[シート] Esc で閉じる', !(await vis(p, '#mcSheet .mcs-box')));

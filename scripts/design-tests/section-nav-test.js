@@ -1,4 +1,6 @@
 // 左端のセクションナビ（管理番号〜費用テーブル）と、費用テーブルの縮小表示になった右パネル。
+// 【旧画面専用】左端のセクションナビ #qSecNav は旧い見積入力画面だけの部品（新画面はステップのレール）。
+//   新画面が既定になったため、localStorage fwd.editorV2='0' を事前投入して旧画面で試験する。
 //   THEME=1 node scripts/design-tests/section-nav-test.js
 //   THEME=1 node scripts/design-tests/gray-rows-test.js
 const { chromium } = (()=>{try{return require('playwright-core')}catch(e){return require('playwright')}})();
@@ -45,7 +47,7 @@ const run=async(p)=>{
  const URL=`http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
  const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--no-sandbox']});
  const ctx=await b.newContext({viewport:{width:+process.env.W||1400,height:1000},locale:'ja-JP'});
- await ctx.addInitScript(m=>{try{localStorage.setItem('fwd.uiMode',m)}catch(e){}},process.env.MODE||'detail');
+ await ctx.addInitScript(m=>{try{localStorage.setItem('fwd.uiMode',m);localStorage.setItem('fwd.editorV2','0')}catch(e){}},process.env.MODE||'detail');
  if(process.env.THEME) await ctx.addInitScript(()=>{try{localStorage.setItem('forwarderTheme_v1',JSON.stringify({site:true,doc:true}))}catch(e){}});
  await ctx.route(u=>!u.href.startsWith('http://127.0.0.1'),r=>r.abort());
  const p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('dialog',d=>d.accept());p.setDefaultTimeout(8000);

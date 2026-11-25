@@ -28,36 +28,38 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
   const g0=await p.evaluate(geo);
   ok('ツールバーが左端まで広がり、カテゴリの行と左右の端がそろう',Math.abs(g0.tbL-g0.navL)<=1&&Math.abs(g0.tbR-g0.navR)<=2,g0);
   await p.evaluate(mk);await p.waitForTimeout(500);
-  const s=await p.evaluate(()=>{const bar=document.getElementById('qtyPatternBar');const tb=document.getElementById('saveToolbar');const chips=[...bar.querySelectorAll('.qpat-chip')];const rb=bar.getBoundingClientRect(),mb=tb.querySelector('.tb-menu').getBoundingClientRect(),dash=document.getElementById('qmDash').getBoundingClientRect();return {inTb:bar.parentElement===tb,hidden:bar.hidden,n:chips.length,names:chips.map(c=>c.querySelector('.qpat-name').textContent),left:Math.round(rb.left),right:Math.round(rb.right),menuL:Math.round(mb.left),dashR:Math.round(dash.right),tbH:Math.round(tb.getBoundingClientRect().height),legend:getComputedStyle(bar.querySelector('.qpat-legend')).display,titles:chips.map(c=>c.title)};});
-  ok('パターンが 2 つ以上のとき、ツールバーの「⋯」の左に 4 つのチップが出る',s.inTb&&!s.hidden&&s.n===4&&s.right<=s.menuL&&s.left>=s.dashR,s);
-  ok('チップのタイトルに、パターン名の全文が入っている（省略されても分かる）',/復路の物量（売行状況で変動のため不明）/.test(s.titles[3]),s.titles);
+  // 新画面（editor-v2）：チップの行（#qtyPatternBar）は隠し、ツールバーに「数量：○○ ▾ N案」（#e2Pat）を出す
+  const s=await p.evaluate(()=>{const tb=document.getElementById('saveToolbar');const pat=document.getElementById('e2Pat');const r=pat.getBoundingClientRect();const mb=tb.querySelector('.tb-menu').getBoundingClientRect();const dash=document.getElementById('qmDash').getBoundingClientRect();return {inTb:pat.parentElement===tb,hidden:pat.hidden,vis:r.width>0,txt:document.getElementById('e2PatBtn').textContent,left:Math.round(r.left),right:Math.round(r.right),menuL:Math.round(mb.left),dashR:Math.round(dash.right),tbH:Math.round(tb.getBoundingClientRect().height),barShown:document.getElementById('qtyPatternBar').getBoundingClientRect().width>0};});
+  ok('パターンが 2 つ以上のとき、ツールバーに「数量：○○ ▾ 4案」が出る（元のチップ行は隠す）',s.inTb&&!s.hidden&&s.vis&&/4案/.test(s.txt)&&/B列/.test(s.txt)&&!s.barShown&&s.right<=s.menuL&&s.left>=s.dashR,s);
+  await p.click('#e2PatBtn');await p.waitForTimeout(200);
+  const mn=await p.evaluate(()=>[...document.querySelectorAll('#e2PatMenu button')].map(x=>x.textContent.trim()));
+  ok('開くと 4 つの案が一覧に並び、パターン名の全文が入っている',mn.length===4&&/復路の物量（売行状況で変動のため不明）/.test(mn[3]),mn);
   ok('ツールバーの高さが変わらない（パターンが出ても）',Math.abs(s.tbH-Math.round(g0.tbH))<=1,{s0:g0.tbH,s:s.tbH});
-  await p.locator('#qtyPatternBar .qpat-chip').nth(2).click();await p.waitForTimeout(500);
-  const sw=await p.evaluate(()=>({idx:_packingActiveIdx,on:[...document.querySelectorAll('#qtyPatternBar .qpat-chip')].findIndex(c=>c.classList.contains('is-active')),hd:document.getElementById('hdQtyPat').textContent}));
-  ok('ツールバーのチップを押すと、そのパターンに切り替わる（列見出しの名前も変わる）',sw.idx===2&&sw.on===2&&/D列/.test(sw.hd),sw);
-  // 下の操作バーには、もうパターンのバーが無い
+  await p.locator('#e2PatMenu button').nth(2).click();await p.waitForTimeout(500);
+  const sw=await p.evaluate(()=>({idx:_packingActiveIdx,btn:document.getElementById('e2PatBtn').textContent,qp:document.getElementById('tab-quote-make').dataset.qpat}));
+  ok('一覧から案を選ぶと、そのパターンに切り替わる（ボタンの名前も変わり、表の色分け data-qpat が付く。1 段の行では列見出しの案名は無い）',sw.idx===2&&/D列/.test(sw.btn)&&!!sw.qp,sw);
   ok('表の操作バーの中にはパターンのバーが残っていない（1 段減る）',await p.evaluate(()=>!document.querySelector('.quote-cmdbar #qtyPatternBar')),null);
-  await p.evaluate(()=>{document.getElementById('section-table').scrollIntoView();window.scrollBy(0,300);});await p.waitForTimeout(400);
-  const st=await p.evaluate(()=>{const r=document.getElementById('qtyPatternBar').getBoundingClientRect();const e=document.elementFromPoint(r.left+30,r.top+r.height/2);return {top:Math.round(r.top),hit:!!(e&&e.closest('#qtyPatternBar'))};});
-  ok('スクロールしても、ツールバーのチップは画面の上にあり押せる',st.top>=0&&st.top<120&&st.hit,st);
+  await p.evaluate(()=>{window.editorV2Go&&window.editorV2Go(4);document.getElementById('section-table').scrollIntoView();window.scrollBy(0,300);});await p.waitForTimeout(400);
+  const st=await p.evaluate(()=>{const r=document.getElementById('e2Pat').getBoundingClientRect();const e=document.elementFromPoint(r.left+30,r.top+r.height/2);return {top:Math.round(r.top),hit:!!(e&&e.closest('#e2Pat'))};});
+  ok('スクロールしても、ツールバーの案の切替は画面の上にあり押せる',st.top>=0&&st.top<120&&st.hit,st);
   await p.screenshot({path:OUT+'/qpt-1900.png',clip:{x:0,y:0,width:1900,height:260}});
   ok('JS エラーなし（1900）',errs.length===0,errs);await ctx.close();
  }
  {
   const {ctx,p,errs}=await open(1400);
   await p.evaluate(mk);await p.waitForTimeout(500);
-  const s=await p.evaluate(()=>{const bar=document.getElementById('qtyPatternBar');const tb=document.getElementById('saveToolbar');return {inTb:bar.parentElement===tb,legend:getComputedStyle(bar.querySelector('.qpat-legend')).display,tbH:Math.round(tb.getBoundingClientRect().height),scrollable:bar.scrollWidth>=bar.clientWidth,pageX:document.documentElement.scrollWidth<=innerWidth+1};});
-  ok('1400px：チップはツールバーに収まり（凡例は省く・横に溢れない）、高さも変わらない',s.inTb&&s.legend==='none'&&s.tbH<=60&&s.pageX,s);
+  const s=await p.evaluate(()=>{const pat=document.getElementById('e2Pat');const tb=document.getElementById('saveToolbar');return {inTb:pat.parentElement===tb,vis:pat.getBoundingClientRect().width>0,tbH:Math.round(tb.getBoundingClientRect().height),pageX:document.documentElement.scrollWidth<=innerWidth+1};});
+  ok('1400px：案の切替はツールバーに収まり（横に溢れない）、高さも変わらない',s.inTb&&s.vis&&s.tbH<=60&&s.pageX,s);
   await p.screenshot({path:OUT+'/qpt-1400.png',clip:{x:0,y:0,width:1400,height:260}});
   ok('JS エラーなし（1400）',errs.length===0,errs);await ctx.close();
  }
  {
   const {ctx,p,errs}=await open(390);
   await p.evaluate(mk);await p.waitForTimeout(500);
-  const s=await p.evaluate(()=>{const bar=document.getElementById('qtyPatternBar');return {inCmd:!!bar.closest('.quote-cmdbar'),hidden:bar.hidden,n:bar.querySelectorAll('.qpat-chip').length};});
-  ok('スマホ幅では、表の操作バーの先頭に残る',s.inCmd&&!s.hidden&&s.n===4,s);
+  const s=await p.evaluate(()=>{const pat=document.getElementById('e2Pat');const r=pat.getBoundingClientRect();return {inTb:pat.parentElement===document.getElementById('saveToolbar'),vis:r.width>0&&r.right<=innerWidth+1,txt:document.getElementById('e2PatBtn').textContent};});
+  ok('スマホ幅でも、上のバーに「数量：○○ ▾ 4案」が出て画面内に収まる',s.inTb&&s.vis&&/4案/.test(s.txt),s);
   await p.setViewportSize({width:1400,height:800});await p.waitForTimeout(500);
-  ok('広げ直すと、ツールバーへ移る',await p.evaluate(()=>document.getElementById('qtyPatternBar').parentElement===document.getElementById('saveToolbar')),null);
+  ok('広げ直しても、ツールバーに残る',await p.evaluate(()=>{const e=document.getElementById('e2Pat');return e.parentElement===document.getElementById('saveToolbar')&&e.getBoundingClientRect().width>0}),null);
   ok('JS エラーなし（スマホ）',errs.length===0,errs);await ctx.close();
  }
  await b.close();srv.close();

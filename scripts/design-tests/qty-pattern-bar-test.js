@@ -6,28 +6,29 @@ const http=require('http'),fs=require('fs'),path=require('path');
 const OUT=process.env.OUT||require('os').tmpdir()+'/design-tests-out';fs.mkdirSync(OUT,{recursive:true});
 const run=async(p)=>{
  const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify(x)));
- const bar=()=>p.evaluate(()=>{const b=document.getElementById('qtyPatternBar');const h=document.getElementById('hdQtyPat');const tab=document.getElementById('tab-quote-make');const r=b.getBoundingClientRect();return {hidden:b.hidden,shown:b.offsetParent!==null,chips:[...b.querySelectorAll('.qpat-chip')].map(c=>({t:c.textContent.trim(),on:c.classList.contains('is-active')})),hd:h&&!h.hidden?h.textContent:'',qpat:tab.dataset.qpat||'',need:(b.querySelector('.qpat-need')||{}).textContent||'',legend:!!b.querySelector('.qpat-legend'),top:Math.round(r.top)};});
+ // 新画面：チップの行（#qtyPatternBar）は隠れ、ツールバーの「数量：○○ ▾ N案」（#e2Pat）と「要確認」（#e2PatNeed）が代わりに出る。列見出しの案名（#hdQtyPat）は 1 段の行には無い
+ const bar=()=>p.evaluate(()=>{const b=document.getElementById('qtyPatternBar');const pat=document.getElementById('e2Pat');const nd=document.getElementById('e2PatNeed');const btn=document.getElementById('e2PatBtn');const tab=document.getElementById('tab-quote-make');const r=pat.getBoundingClientRect();const shown=!pat.hidden&&r.width>0;return {hidden:!shown,shown,chips:[...b.querySelectorAll('.qpat-chip')].map(c=>({t:c.textContent.trim(),on:c.classList.contains('is-active')})),hd:shown?btn.textContent:'',qpat:tab.dataset.qpat||'',need:(nd&&!nd.hidden&&nd.getBoundingClientRect().width>0)?nd.textContent:'',legend:!!b.querySelector('.qpat-legend'),top:Math.round(r.top)};});
  // パターンが 1 つ：タブ（1 つ）と「＋」だけ出す（案を足す入口）。列見出し・要確認・凡例は出さない
  let b0=await bar();
- ok('数量パターンが 1 つだけのときは、タブが 1 つと「＋」だけ出る（列見出し・要確認・凡例は出ない）',!b0.hidden&&b0.shown&&b0.chips.length===1&&b0.hd===''&&b0.qpat===''&&!b0.need&&!b0.legend,b0);
+ ok('数量パターンが 1 つだけのときは、案のタブは 1 つだけで、ツールバーの切替は出ない（列見出し・要確認・凡例も出ない）',b0.hidden&&!b0.shown&&b0.chips.length===1&&b0.hd===''&&b0.qpat===''&&!b0.need&&!b0.legend,b0);
  // FCL案／LCL案を作る
  await p.evaluate(()=>{setTransport('fcl');window.createFclLclPatterns();});await p.waitForTimeout(600);
  let b1=await bar();
- ok('2 つ以上あると、バーにチップ（FCL案・LCL案）が出る',b1.shown&&b1.chips.length===2&&/FCL/.test(b1.chips[0].t)&&/LCL/.test(b1.chips[1].t),b1);
+ ok('2 つ以上あると、ツールバーに切替が出て、案（FCL案・LCL案）が並ぶ',b1.shown&&b1.chips.length===2&&/FCL/.test(b1.chips[0].t)&&/LCL/.test(b1.chips[1].t),b1);
  const act=b1.chips.findIndex(c=>c.on);
- ok('編集中のパターンのチップが濃く（is-active）、表の列見出しにも名前が出る',act>=0&&b1.hd.length>0&&b1.chips[act].t.includes(b1.hd.replace(/\s/g,''))||b1.hd.length>0,b1);
+ ok('編集中のパターンが is-active で、ツールバーのボタンに編集中の案名が出る',act>=0&&/数量：/.test(b1.hd)&&b1.hd.includes(b1.chips[act].t.replace(/[^\wぁ-んァ-ヶ一-龠]*(編集中)?.*$/,'').slice(0,3)),b1);
  ok('表の色（data-qpat）が編集中のモードに合う',['fcl','lcl'].includes(b1.qpat),b1);
  // 切替
  const other=b1.chips.findIndex(c=>!c.on);
- await p.locator('#qtyPatternBar .qpat-chip').nth(other).click();await p.waitForTimeout(600);
+ await p.click('#e2PatBtn');await p.locator('#e2PatMenu button').nth(other).click();await p.waitForTimeout(600);
  let b2=await bar();
- ok('チップを押すと、そのパターンに切り替わる（編集中の印・列見出し・色が変わる）',b2.chips[other].on&&!b2.chips[act].on&&b2.qpat!==b1.qpat&&b2.hd!==b1.hd,{b1,b2});
+ ok('一覧から案を選ぶと、そのパターンに切り替わる（編集中の印・ボタンの案名・色が変わる）',b2.chips[other].on&&!b2.chips[act].on&&b2.qpat!==b1.qpat&&b2.hd!==b1.hd,{b1,b2});
  // 要確認：「他のパターンには数量の記憶があるが、いまのパターンには無い」行を作る（1 行目の記憶を FCL 案から消す）
  await p.evaluate(()=>{const uid=document.querySelector('#tableBody tr:not([data-virtual]):not([data-type]) [data-field="uid"]').value;delete _packingPatterns[0].qtyLinks[uid];switchPackingPattern(1);switchPackingPattern(0);});
  await p.waitForTimeout(600);
  let b4=await bar();
  ok('他のパターンにだけ数量がある行は、「要確認 N 行」として数が出る',/要確認\s*1/.test(b4.need),b4);
- await p.evaluate(()=>document.querySelector('#qtyPatternBar .qpat-need').click());await p.waitForTimeout(500);
+ await p.evaluate(()=>window.editorV2Go&&window.editorV2Go(4));await p.waitForTimeout(300);await p.click('#e2PatNeed');await p.waitForTimeout(500);
  ok('「要確認」を押すと、その行へ飛ぶ（数量欄が画面内）',await p.evaluate(()=>{const e=document.querySelector('#tableBody .pq-pattern-needs-check');const r=e.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}),null);
  // 入力すると要確認が消える
  await p.evaluate(()=>{const pq=document.querySelector('#tableBody .pq-pattern-needs-check');pq.value='5';pq.dispatchEvent(new Event('input',{bubbles:true}));});await p.waitForTimeout(400);
@@ -35,7 +36,7 @@ const run=async(p)=>{
  // スクロールしても見える（操作バーは sticky）
  await p.evaluate(()=>{document.getElementById('section-table').scrollIntoView();window.scrollBy(0,700);});await p.waitForTimeout(300);
  const st=await bar();
- ok('表までスクロールしても、バーは画面の上に付いている',st.shown&&st.top>=0&&st.top<200,st);
+ ok('表までスクロールしても、ツールバーの切替は画面の上に付いている',st.shown&&st.top>=0&&st.top<200,st);
  await p.screenshot({path:process.env.SHOT||'/tmp/qp.png'});
 };
 (async()=>{
@@ -58,7 +59,7 @@ const run=async(p)=>{
  const rows=[['海上運賃','A海運','ocean',"40'GP/HQ",2,1200,300,'USD'],['BAF','A海運','surcharge','CNTR',2,80,20,'USD'],['THC','Bローカル','export-local',"20'GP",1,32000,5000,'JPY'],['ドキュメント費','Bローカル','export-local','B/L',1,8000,2000,'JPY'],['通関料','C通関','customs-export','shipment',1,12000,3000,'JPY'],['輸出者検査','C通関','customs-export','CBM',3.5,2500,500,'JPY'],['配送費','D運輸','domestic',"40'GP",1,45000,8000,'JPY']];
  for(let i=0;i<rows.length;i++){
   if(i>0){await p.evaluate(()=>window.addRow());await p.waitForTimeout(80);}
-  const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).nth(i);
+  const f=n=>{const set=(v)=>p.evaluate(([i,n,v])=>{const e=[...document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type]) [data-field="'+n+'"]')][i];if(!e)return;e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));},[i,n,String(v)]);return {fill:set,selectOption:set,blur:()=>Promise.resolve()};};
   const r=rows[i];
   await f('nm').fill(r[0]);await f('sv').fill(r[1]);await f('cat').selectOption(r[2],{force:true}).catch(()=>{});
   await f('un').fill(r[3]);await f('pq').fill(String(r[4]));

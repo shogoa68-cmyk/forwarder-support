@@ -23,7 +23,7 @@ const out=[];
  const rows=[['海上運賃FCL','A海運',2,1000,500],['海上運賃LCL','A海運',1,3000,1000],['ドキュメント費','Bローカル',1,3000,1000],['THC','Bローカル',1,2000,500],['通関','C通関',1,5000,500]];
  for(let i=0;i<rows.length;i++){
   if(i>0){await p.evaluate(()=>window.addRow());await p.waitForTimeout(80);}
-  const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).nth(i);
+  const f=n=>{const set=(v)=>p.evaluate(([i,n,v])=>{const e=[...document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type]) [data-field="'+n+'"]')][i];if(!e)return;e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));},[i,n,String(v)]);return {fill:set,selectOption:set,blur:()=>Promise.resolve()};};
   const r=rows[i];
   await f('nm').fill(r[0]);await f('sv').fill(r[1]);await f('pq').fill(String(r[2]));await f('pp').fill(String(r[3]));await f('mk').fill(String(r[4]));await f('mk').blur();
  }

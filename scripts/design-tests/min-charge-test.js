@@ -29,6 +29,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(700);
   await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(900);
   await p.evaluate(() => window.qpShowEditor && window.qpShowEditor()); await p.waitForTimeout(1200);
+  await p.evaluate(() => window.editorV2Go && window.editorV2Go(4)); await p.waitForTimeout(500);   // 新画面は ④費用 のステップを開く（旧画面では無視）
 
   const id = await p.evaluate(() => document.querySelector('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])').id.replace('row-', ''));
   // 航空運賃：100 kg × USD 0.10（仕入）＋ 0.05（乗せ幅）＝ 0.15（売）
@@ -44,10 +45,11 @@ const http = require('http'), fs = require('fs'), path = require('path');
 
   // MIN を ON にして、仕入 25・売値 28 を入れる
   await p.evaluate(id => toggleMinMode(id), id); await p.waitForTimeout(200);
-  const vis = await p.evaluate(id => !!document.getElementById('bpmin-' + id).offsetParent, id);
+  const vis = await p.evaluate(id => { if (window.caToggleDetail && document.getElementById('tab-quote-make').classList.contains('ca-on')) { const tr = document.getElementById('row-' + id); window.caToggleDetail(tr, true); const mb = tr.querySelector('[data-ca="more"]'); if (mb && mb.getAttribute('aria-expanded') !== 'true') mb.click(); }   // 新画面：MIN 欄は行の詳細の中
+    return !!document.getElementById('bpmin-' + id).offsetParent; }, id);
   ok('MIN を押すと最低料金の欄が出る', vis, vis);
-  await p.fill('#ppmin-' + id, '25'); await p.dispatchEvent('#ppmin-' + id, 'input');
-  await p.fill('#bpmin-' + id, '28'); await p.dispatchEvent('#bpmin-' + id, 'input');
+  await p.evaluate(([i, v]) => { const el = document.getElementById(i); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }, ['ppmin-' + id, '25']);   // 新画面では MIN 欄は行の詳細の中（DOM 経由で入力）
+  await p.evaluate(([i, v]) => { const el = document.getElementById(i); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }, ['bpmin-' + id, '28']);   // 新画面では MIN 欄は行の詳細の中（DOM 経由で入力）
   await p.waitForTimeout(400);
   const r1 = await p.evaluate(id => {
     const tr = document.getElementById('row-' + id);

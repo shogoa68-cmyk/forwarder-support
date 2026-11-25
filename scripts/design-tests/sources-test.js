@@ -1,18 +1,25 @@
 // 行ごとの「表示条件」（if 構文）：数量の範囲・総個数・コンテナ本数・輸送モード・貿易条件が条件に合うときだけ、行が客先向けの出力・合計に含まれる。
-//   node scripts/design-tests/row-cond-test.js            （THEME=1 で Industry）
+//   node scripts/design-tests/sources-test.js            （THEME=1 で Industry）
+// 新画面（既定）では REF# の欄は右の列の行「基幹 REF#」（steps-b）に移るので、REF# の確認は新画面・旧画面の両方で行う。
+// 「参照資料」カード（#qfSources の一覧・＋資料を追加）は新画面では隠れて［案件のファイル］に置き換わる（case-files.js）ため、
+// その確認は【旧画面専用】（fwd.editorV2='0' で別のページを開いて試験する）。
 const { chromium } = (()=>{try{return require('playwright-core')}catch(e){return require('playwright')}})();
 const http=require('http'),fs=require('fs'),path=require('path');
 const out=[];
 
 
 
-const run=async(p)=>{
- const ok=(n,c,x)=>{const l=(c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify(x));out.push(l);console.log(l);};
+const ok=(n,c,x)=>{const l=(c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify(x));out.push(l);console.log(l);};
+const runRef=async(p)=>{
  const wait=ms=>p.waitForTimeout(ms);
- const vis=sel=>p.evaluate(s=>{const e=document.querySelector(s);if(!e)return false;const r=e.getBoundingClientRect();return !!(e.offsetParent||e.getClientRects().length)&&r.width>0&&r.height>0;},sel);
+ const V2=await p.evaluate(()=>document.documentElement.classList.contains('editor-v2'));
+ const vis0=sel=>p.evaluate(s=>{const e=document.querySelector(s);if(!e)return false;const r=e.getBoundingClientRect();return !!(e.offsetParent||e.getClientRects().length)&&r.width>0&&r.height>0;},sel);
+ // 新画面：REF# は右の列の行（.sb-row[data-k=core]）。欄が出る＝その行が出る。入力するときは行を開く
+ const vis=sel=>(V2&&sel==='#qfCoreRefField')?vis0('.sb-row[data-k="core"]'):vis0(sel);
+ const openRef=async()=>{if(!V2)return;const open=await p.evaluate(()=>{const r=document.querySelector('.sb-row[data-k="core"]');return !!r&&r.classList.contains('is-open');});if(!open)await p.evaluate(()=>document.querySelector('.sb-row[data-k="core"] .sb-rh').click());await wait(200);};
  const setStatus=async s=>{await p.evaluate(s=>window.setQuoteStatus(s),s);await wait(250);};
- // 「必要なときだけ開く」を開く
- await p.evaluate(()=>{document.getElementById('section-ref').scrollIntoView();const b=document.getElementById('ciMoreBtn'),body=document.getElementById('ciMoreBody');if(body.hidden)b.click();});await wait(400);
+ // 「必要なときだけ開く」を開く（旧画面）
+ if(!V2)await p.evaluate(()=>{document.getElementById('section-ref').scrollIntoView();const b=document.getElementById('ciMoreBtn'),body=document.getElementById('ciMoreBody');if(body.hidden)b.click();});await wait(400);
 
  // ===== 基幹システム REF#：受注のときだけ =====
  await setStatus('下書き中');
@@ -21,18 +28,18 @@ const run=async(p)=>{
  ok('提示済みでも出さない',!(await vis('#qfCoreRefField')),null);
  await setStatus('受注');
  ok('受注にすると、基幹システム REF# の欄が出る',await vis('#qfCoreRefField'),null);
- await p.fill('#qf-core-ref','EX2410-0123');await p.dispatchEvent('#qf-core-ref','change');await wait(300);
+ await openRef();await p.fill('#qf-core-ref','EX2410-0123');await p.dispatchEvent('#qf-core-ref','change');await wait(300);
  await setStatus('改定中');
  ok('受注以外に戻しても、値が入っていれば出し続ける（入力済みの値を隠さない）',await vis('#qfCoreRefField'),null);
  // 値を消しても、入力中（フォーカスがある間）は欄が消えない
- await p.focus('#qf-core-ref');await p.fill('#qf-core-ref','');await wait(300);
+ await openRef();await p.focus('#qf-core-ref');await p.fill('#qf-core-ref','');await wait(300);
  ok('受注以外で値を消しても、入力中は欄が消えない',await vis('#qfCoreRefField'),null);
  await p.evaluate(()=>document.getElementById('qf-core-ref').blur());await wait(400);
  ok('入力を終えて（空のまま）離れると、受注以外なら欄を隠す',!(await vis('#qfCoreRefField')),null);
  await setStatus('受注');
  ok('受注に戻すと、空でも欄が出る',await vis('#qfCoreRefField'),null);
  // 保存データを開き直したとき
- await p.fill('#qf-core-ref','AB-12');await p.dispatchEvent('#qf-core-ref','change');
+ await openRef();await p.fill('#qf-core-ref','AB-12');await p.dispatchEvent('#qf-core-ref','change');
  const dRef=await p.evaluate(()=>gatherAllData());
  await setStatus('下書き中');await p.evaluate(()=>{document.getElementById('qf-core-ref').value='';window.ciSync();});await wait(200);
  await p.evaluate(()=>document.activeElement&&document.activeElement.blur());
@@ -43,6 +50,12 @@ const run=async(p)=>{
  await p.evaluate(d=>{d.fields['qf-status']='受注';d.fields['qf-core-ref']='';_applyQuoteData(d);},JSON.parse(JSON.stringify(dRef)));await wait(700);
  ok('受注の案件を開くと、値が無くても欄が出る',await vis('#qfCoreRefField'),null);
 
+};
+// 【旧画面専用】参照資料カード（新画面では一覧・追加ボタンを隠して［案件のファイル］に置き換えている）
+const runSrc=async(p)=>{
+ const wait=ms=>p.waitForTimeout(ms);
+ const vis=sel=>p.evaluate(s=>{const e=document.querySelector(s);if(!e)return false;const r=e.getBoundingClientRect();return !!(e.offsetParent||e.getClientRects().length)&&r.width>0&&r.height>0;},sel);
+ await p.evaluate(()=>{document.getElementById('section-ref').scrollIntoView();const b=document.getElementById('ciMoreBtn'),body=document.getElementById('ciMoreBody');if(body.hidden)b.click();});await wait(400);
  // ===== 参照資料カード =====
  await p.evaluate(()=>{const ta=document.getElementById('qf-refurl');ta.value='';window.renderRefUrlLinks();window.ciSync();});await wait(300);
  ok('「参照資料」カードがあり、「＋ 資料を追加」ボタンがある',await vis('#qfSources .src-add-btn'),null);
@@ -115,7 +128,9 @@ const run=async(p)=>{
  await new Promise(r=>srv.listen(0,'127.0.0.1',r));
  const URL=`http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
  const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--no-sandbox']});
+ const session=async(v2,runner)=>{
  const ctx=await b.newContext({viewport:{width:+process.env.W||1400,height:1000},locale:'ja-JP'});
+ if(!v2)await ctx.addInitScript(()=>{try{localStorage.setItem('fwd.editorV2','0')}catch(e){}});
  await ctx.addInitScript(m=>{try{localStorage.setItem('fwd.uiMode',m)}catch(e){}},process.env.MODE||'detail');
  if(process.env.THEME) await ctx.addInitScript(()=>{try{localStorage.setItem('forwarderTheme_v1',JSON.stringify({site:true,doc:true}))}catch(e){}});
  await ctx.route(u=>!u.href.startsWith('http://127.0.0.1'),r=>r.abort());
@@ -128,9 +143,13 @@ const run=async(p)=>{
 
 
 
+ await p.evaluate(()=>window.editorV2Go&&window.editorV2Go(1));   // 新画面：①基本のステップ（REF#・参照資料はここ）
  await p.waitForTimeout(500);
- await run(p);
+ await runner(p);
  console.log('errors',JSON.stringify(errs));
  out.push(errs.length?'FAIL JS エラー':'PASS JS エラーなし');
+ await ctx.close();};
+ console.log('--- 新画面：REF#');await session(true,runRef);
+ console.log('--- 旧画面（専用）：REF# と参照資料カード');await session(false,async p=>{await runRef(p);await runSrc(p);});
  await b.close();srv.close();
  const fails=out.filter(l=>l.startsWith('FAIL')).length;console.log('\nFAIL='+fails);process.exit(fails?1:0);})();

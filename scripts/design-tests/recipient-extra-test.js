@@ -20,7 +20,8 @@ const run=async(p)=>{
  ok('PDF：部署・役職が未入力の担当者は従来どおり',/テスト商事株式会社\s*山田 様/.test(t)&&!/課長/.test(t),t.slice(0,300));
  t=await doc('マスターに無い人');
  ok('PDF：マスターにいない氏名は従来どおり',/テスト商事株式会社\s*マスターに無い人 様/.test(t)&&!/海外営業部/.test(t),t.slice(0,300));
- const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).first();
+ // 新画面：③④のセクションは隠れているので、DOM 経由で最初の行へ値を入れる
+ const f=n=>({fill:v=>p.evaluate(([n,v])=>{const e=document.querySelector(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`);e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));},[n,v]),blur:()=>p.evaluate(n=>{const e=document.querySelector(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`);e.dispatchEvent(new Event('blur'));},n)});
  await f('nm').fill('海上運賃');await f('sv').fill('A海運');await f('un').fill("40'GP");await f('pq').fill('1');await f('pp').fill('1000');await f('mk').fill('100');await f('mk').blur();
  await p.waitForTimeout(500);
  await p.evaluate(()=>{document.getElementById('qf-person').value='幸崎';openPreview();});await p.waitForTimeout(600);

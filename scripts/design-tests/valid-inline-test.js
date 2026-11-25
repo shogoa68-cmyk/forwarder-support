@@ -1,4 +1,6 @@
 // 有効期間（サーチャージ）を、「その他 ▾」を開かなくても行の中で見て直せること（Industry）。  THEME=1 node scripts/design-tests/valid-inline-test.js
+// 旧画面専用（Industry の 3 段の行）：有効期間を品名セル内（td.name-cell > .w-valid）に出す row-layout.js の前提。
+// 新画面（cost-a の 1 段の行）では有効期間は「行の詳細」の中に出すため、新画面側は cost-a-test.js が担当。?editor=v1 で旧画面を開く。
 const { chromium } = (()=>{try{return require('playwright-core')}catch(e){return require('playwright')}})();
 const http=require('http'),fs=require('fs'),path=require('path');
 const OUT=process.env.OUT||require('os').tmpdir()+'/design-tests-out';fs.mkdirSync(OUT,{recursive:true});
@@ -37,7 +39,7 @@ const run=async(p,OUT)=>{
  const root=path.resolve(__dirname,'..','..');
  const srv=http.createServer((q,r)=>{const f=path.join(root,decodeURIComponent(q.url.split('?')[0]));if(!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);r.end();return;}r.writeHead(200,{'Content-Type':f.endsWith('.css')?'text/css':f.endsWith('.js')?'text/javascript':'text/html; charset=utf-8'});fs.createReadStream(f).pipe(r);});
  await new Promise(r=>srv.listen(0,'127.0.0.1',r));
- const URL=`http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
+ const URL=`http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html?editor=v1`;
  const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--no-sandbox']});
  const ctx=await b.newContext({viewport:{width:+process.env.W||1400,height:1000},locale:'ja-JP'});
  await ctx.addInitScript(m=>{try{localStorage.setItem('fwd.uiMode',m)}catch(e){}},process.env.MODE||'detail');
@@ -54,11 +56,14 @@ const run=async(p,OUT)=>{
  for(let i=0;i<rows.length;i++){
   if(i>0){await p.evaluate(()=>window.addRow());await p.waitForTimeout(80);}
   const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).nth(i);
+  // 新画面（cost-a）は一部の欄が行の詳細に移り Playwright の fill が効かないため、値は evaluate で入れて input/change を発火する
+
+  const S=(n,v)=>p.evaluate(([i,n,v])=>{const el=document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')[i].querySelector(`[data-field="${n}"]`);el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));},[i,n,v]);
   const r=rows[i];
-  await f('nm').fill(r[0]);await f('sv').fill(r[1]);await f('cat').selectOption(r[2],{force:true}).catch(()=>{});
-  await f('un').fill(r[3]);await f('pq').fill(String(r[4]));
-  await f('pc').selectOption(r[7],{force:true}).catch(()=>{});await f('bc').selectOption(r[7],{force:true}).catch(()=>{});
-  await f('pp').fill(String(r[5]));await f('mk').fill(String(r[6]));await f('mk').blur();
+  await S('nm',r[0]);await S('sv',r[1]);await S('cat',r[2]);
+  await S('un',r[3]);await S('pq',String(r[4]));
+  await S('pc',r[7]);await S('bc',r[7]);
+  await S('pp',String(r[5]));await S('mk',String(r[6]));
  }
  await p.waitForTimeout(1500);
  await p.evaluate(()=>document.getElementById('section-table').scrollIntoView());await p.waitForTimeout(300);

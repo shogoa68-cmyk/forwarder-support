@@ -45,7 +45,7 @@ const ok = (n, c, x) => console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' �
   // 一括設定の入力欄は「⚙ 一括設定 ▾」のパネルの中（開くまで見えない）
   await p.evaluate(() => { const t = document.getElementById('ctxBulkToggle'); if (t && document.getElementById('ctxBulkSet').hidden) t.click(); });
   await p.waitForTimeout(150);
-  await p.fill('#bulkSubconSet', 'ほげ');
+  await p.evaluate(() => { document.getElementById('bulkSubconSet').value = 'ほげ'; });   // 新画面では一括設定欄が隠れている（選択バーは別 UI）ため DOM 経由
   await key('#bulkSubconSet', 'Enter');
   ok('一括サブコン：変換確定の Enter では設定されない', await p.evaluate(id => document.getElementById('sv-' + id).value, id) === '');
   await p.evaluate(id => document.querySelector(`#row-${id} .row-select-chk`).click(), id);
@@ -72,6 +72,7 @@ const ok = (n, c, x) => console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' �
   await q.goto(URL, { waitUntil: 'domcontentloaded' }); await q.waitForTimeout(700);
   await q.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await q.waitForTimeout(900);
   await q.evaluate(() => window.qpShowEditor && window.qpShowEditor()); await q.waitForTimeout(500);
+  await q.evaluate(() => window.editorV2Go && window.editorV2Go(4)); await q.waitForTimeout(300);   // 新画面は ④費用 を開く
   const names = () => q.evaluate(() => [...document.querySelectorAll('#tableBody tr[id^=row-]:not([data-type])')].map(r => r.querySelector('[data-field=nm]').value).join(','));
   await q.evaluate(() => { addRow(); addRow(); });
   await q.fill('#nm-1', 'A'); await q.fill('#nm-2', 'B'); await q.fill('#nm-3', 'C'); await q.waitForTimeout(900);

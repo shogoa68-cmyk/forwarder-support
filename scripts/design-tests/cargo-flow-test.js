@@ -17,12 +17,15 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1500);
   await p.evaluate(() => { try { window.qpNewQuote(); } catch (e) {} }); await p.waitForTimeout(600);
   const vis = s => p.evaluate(x => { const e = document.querySelector(x); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, s);
-  await p.evaluate(() => document.getElementById('section-cargo').scrollIntoView());
+  // 新画面：ステップ③へ移る。危険品・関税率・他法令のボタンは右の列の行（.sb-row[data-k=kind|tax|law]）に替わっている
+  const go3 = async () => { await p.evaluate(() => window.editorV2Go && window.editorV2Go(3)); await p.waitForTimeout(400); };
+  const tog = k => p.click('.sb-row[data-k="' + k + '"] .sb-rh');
+  await go3();
   ok('貨物名・HS コードは最初から見える', await vis('#cond-cargo') && await vis('#cond-hs'));
   ok('危険品・特殊貨物／関税率／他法令は閉じている', !(await vis('#hazChips')) && !(await vis('#cond-hs-basic')) && !(await vis('#cargoLawPanel')) && !(await vis('#cargoRefChips')));
-  ok('3 つのボタンが貨物名・HS の右隣にある', await vis('#cargoKindBtn') && await vis('#cargoTaxBtn') && await vis('#cargoLawBtn') && await vis('.hs-tariff-link'));
-  ok('「関連知識・他法令」に件数 11', (await p.textContent('#cargoLawBtn')).includes('11'));
-  await p.click('#cargoKindBtn'); ok('危険品・特殊貨物を開くと区分チップ', await vis('#hazChips'));
+  ok('危険品・関税率・他法令の 3 行が右の列にあり、WEBタリフのリンクも見える', await vis('.sb-row[data-k="kind"] .sb-rh') && await vis('.sb-row[data-k="tax"] .sb-rh') && await vis('.sb-row[data-k="law"] .sb-rh') && await vis('.hs-tariff-link'));
+  ok('「関連知識・他法令」に件数 11', (await p.textContent('.sb-row[data-k="law"] .sb-v')).includes('11'));
+  await tog('kind'); ok('危険品・特殊貨物を開くと区分チップ', await vis('#hazChips'));
   ok('冷蔵・冷凍は「温度管理」の 1 チップにまとまる', await vis('#hazTempChip') && !(await vis('#hazChips [data-haz-value="温度管理品（冷蔵）"]')) && !(await vis('#hazChips [data-haz-value="温度管理品（冷凍）"]')));
   await p.click('#hazChips [data-haz-value="危険品あり（クラス要確認）"]'); await p.waitForTimeout(200);
   ok('危険品を選ぶと詳細（UN番号など）が出てボタンが茶色', await vis('#hz-un') && await p.evaluate(() => document.getElementById('cargoKindBtn').classList.contains('has-haz')) && (await p.textContent('#cargoKindBtn')).includes('危険品'));
@@ -35,12 +38,12 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('重量物の詳細（重量・寸法・荷役）', await vis('#hz-heavy-weight') && await vis('#hz-heavy-dim'));
   await p.click('#hazChips [data-haz-value="なし（一般貨物）"]'); await p.waitForTimeout(150);
   ok('一般貨物に戻すと詳細が消える', !(await vis('#hazmatDetail')));
-  await p.click('#cargoTaxBtn'); ok('関税率を開く', await vis('#cond-hs-basic') && await vis('#cond-hs-pref'));
-  await p.fill('#cond-hs-basic', '3.3%'); await p.click('#cargoTaxBtn'); await p.click('#cargoTaxBtn'); ok('値があると開いたまま・閉じ直しもできる', await vis('#cond-hs-basic'));
-  await p.click('#cargoLawBtn'); ok('他法令を開く', await vis('#cargoRefChips'));
-  await p.evaluate(() => window.qpNewQuote()); await p.waitForTimeout(500);
+  await tog('tax'); ok('関税率を開く', await vis('#cond-hs-basic') && await vis('#cond-hs-pref'));
+  await p.fill('#cond-hs-basic', '3.3%'); await tog('tax'); await tog('tax'); ok('値があると開いたまま・閉じ直しもできる', await vis('#cond-hs-basic'));
+  await tog('law'); ok('他法令を開く', await vis('#cargoRefChips'));
+  await p.evaluate(() => window.qpNewQuote()); await p.waitForTimeout(500); await go3();
   ok('新規に戻すと最初の状態', !(await vis('#hazChips')) && !(await vis('#cond-hs-basic')) && !(await vis('#cargoRefChips')));
-  if (process.env.OUT) { await p.click('#cargoKindBtn'); await p.click('#hazChips [data-haz-value=\"危険品あり（クラス要確認）\"]'); await p.evaluate(() => document.getElementById('section-cargo').scrollIntoView()); await p.waitForTimeout(300); await p.screenshot({ path: path.join(process.env.OUT, 'cargo-flow.png') }); }
+  if (process.env.OUT) { await tog('kind'); await p.click('#hazChips [data-haz-value=\"危険品あり（クラス要確認）\"]'); await p.evaluate(() => document.getElementById('section-cargo').scrollIntoView()); await p.waitForTimeout(300); await p.screenshot({ path: path.join(process.env.OUT, 'cargo-flow.png') }); }
   ok('JS エラーなし', errs.length === 0, errs);
   console.log(out.join('\n')); console.log(out.some(l => l.startsWith('FAIL')) ? 'NG' : 'OK');
   await b.close(); srv.close(); process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);

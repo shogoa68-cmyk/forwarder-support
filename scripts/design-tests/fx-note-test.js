@@ -18,7 +18,8 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
  await p.goto(URL,{waitUntil:'domcontentloaded'});await p.waitForTimeout(700);
  await p.evaluate(()=>{const t=document.querySelector('[onclick*="quote-make"]');t&&t.click();});await p.waitForTimeout(900);
  await p.evaluate(()=>window.qpShowEditor&&window.qpShowEditor());await p.waitForTimeout(500);
- const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).first();
+ const setF=(n,i,v)=>p.evaluate(([n,i,v])=>{const tr=[...document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')][i];const e=tr&&tr.querySelector(`[data-field="${n}"]`);if(!e)return;e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));},[n,i,v]); // 新画面：1段の行は欄が隠れるため DOM 経由で入力
+ const f=n=>({fill:v=>setF(n,0,v),blur:async()=>{}});
  await f('nm').fill('海上運賃');await f('sv').fill('A海運');await f('un').fill("40'GP");await f('pq').fill('1');await f('pp').fill('1000');await f('mk').fill('100');await f('mk').blur();
  await p.waitForTimeout(400);
  await p.evaluate(()=>{document.getElementById('qf-customer').value='株式会社サンプル';document.getElementById('qf-person').value='山田';});

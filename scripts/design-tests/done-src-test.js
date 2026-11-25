@@ -88,6 +88,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
 
   // 2) 全行インポート
   await p.evaluate(() => window.cloudImportSelectedRows()); await p.waitForTimeout(800);
+  await p.evaluate(() => window.editorV2Go && window.editorV2Go(4, true)); await p.waitForTimeout(300);   // 新画面：行の高さの測定はステップ④（費用）を出してから
   let ri = await rowsInfo();
   ok('3 行入る', ri.length === 3, ri);
   ok('入力完了マーク自体は付かない（この案件では未確認）', ri.every(r => !r.done), ri);

@@ -77,10 +77,13 @@ const run=async(p)=>{
  for(let i=0;i<rows.length;i++){
   if(i>0){await p.evaluate(()=>window.addRow());await p.waitForTimeout(80);}
   const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).nth(i);
+  // 新画面（cost-a）は一部の欄が行の詳細に移り Playwright の fill が効かないため、値は evaluate で入れて input/change を発火する
+
+  const S=(n,v)=>p.evaluate(([i,n,v])=>{const el=document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type])')[i].querySelector(`[data-field="${n}"]`);el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));},[i,n,v]);
   const r=rows[i];
-  await f('nm').fill(r[0]);await f('sv').fill(r[1]);await f('un').fill(r[3]);await f('pq').fill(String(r[4]));
-  await f('pc').selectOption(r[7],{force:true}).catch(()=>{});await f('bc').selectOption(r[7],{force:true}).catch(()=>{});
-  await f('pp').fill(String(r[5]));await f('mk').fill(String(r[6]));await f('mk').blur();
+  await S('nm',r[0]);await S('sv',r[1]);await S('un',r[3]);await S('pq',String(r[4]));
+  await S('pc',r[7]);await S('bc',r[7]);
+  await S('pp',String(r[5]));await S('mk',String(r[6]));
  }
  await p.waitForTimeout(1500);
  await run(p);

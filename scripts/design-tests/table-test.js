@@ -1,10 +1,12 @@
+// 旧画面専用：行のハンドル欄にマウスを乗せて出す操作ボタン（.row-acts）・.master-actions など旧い 3 段行の前提の試験。
+// 新画面（cost-a の 1 段の行・［⋯］メニュー）の同等の確認は cost-a-test.js／row-acts-hint-test.js が担当。そのため ?editor=v1 で旧画面を開く。
 const { chromium } = (()=>{try{return require('playwright-core')}catch(e){return require('playwright')}})();
 const http=require('http'),fs=require('fs'),path=require('path');
 (async()=>{
  const root=require('path').resolve(__dirname,'..','..');
  const srv=http.createServer((q,r)=>{const f=path.join(root,decodeURIComponent(q.url.split('?')[0]));if(!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);r.end();return;}r.writeHead(200,{'Content-Type':f.endsWith('.css')?'text/css':f.endsWith('.js')?'text/javascript':'text/html; charset=utf-8'});fs.createReadStream(f).pipe(r);});
  await new Promise(r=>srv.listen(0,'127.0.0.1',r));
- const URL=`http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
+ const URL=`http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html?editor=v1`;
  const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--no-sandbox']});
  const ctx=await b.newContext({viewport:{width:1400,height:1000},locale:'ja-JP',hasTouch:true});
  await ctx.addInitScript(m=>{try{localStorage.setItem('fwd.uiMode',m)}catch(e){}},process.env.MODE||'detail');

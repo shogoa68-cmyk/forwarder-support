@@ -16,6 +16,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(700);
   await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1500);
   await p.evaluate(() => { try { window.qpNewQuote(); } catch (e) {} }); await p.waitForTimeout(600);
+  await p.evaluate(() => window.editorV2Go && window.editorV2Go(2)); await p.waitForTimeout(300);   // 新画面：②ルートのステップへ
   const vis = s => p.evaluate(x => { const e = document.querySelector(x); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, s);
   if (await vis('#zone1Card')) {
   const T = async s => (await p.evaluate(x => { const e = document.querySelector(x); return e ? e.getBoundingClientRect().top : null; }, s));
@@ -35,12 +36,29 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.click('#zone3Btn'); await p.waitForTimeout(250);
   ok('到着地側も ON で開く', await vis('#z3Place') && await vis('#piece-customs-i'));
   await p.click('#zone3Btn');
+  } else if (await p.evaluate(() => document.documentElement.classList.contains('editor-v2'))) {
+  // 新画面：出発地側・到着地側は右の列のスイッチ行（steps-b）から切り替える（元の #zone1Btn／#zone3Btn を押すだけ）
+  ok('新画面：使わない側は場所・ピースが隠れている', !(await vis('#z1Place')) && !(await vis('#z3Place')));
+  await p.evaluate(() => document.getElementById('zone1Btn').click()); await p.waitForTimeout(300);
+  ok('新画面：出発地側を ON にすると場所・ピースが使える', await vis('#z1Place') && await vis('#piece-pickup') && await p.evaluate(() => document.getElementById('zone1Btn').getAttribute('aria-checked') === 'true'));
+  await p.fill('#z1Place', '川崎市'); await p.check('#piece-pickup'); await p.waitForTimeout(200);
+  await p.evaluate(() => document.getElementById('zone1Btn').click()); await p.waitForTimeout(300);
+  ok('新画面：OFF に戻すと隠れる', !(await vis('#z1Place')) && !(await vis('#piece-pickup')));
+  await p.evaluate(() => document.getElementById('zone3Btn').click()); await p.waitForTimeout(300);
+  ok('新画面：到着地側も ON で開く', await vis('#z3Place') && await vis('#piece-customs-i'));
+  await p.evaluate(() => document.getElementById('zone3Btn').click());
   } else { ok('（かんたん表示：出発地側・到着地側は上級者向けで隠れている）', !(await vis('#zone3Card'))); }
   ok('POL／POD は最初から見える', await vis('#z2Pol') && await vis('#z2Pod'));
+  // 新画面（steps-b）：キャリア等は「＋」の奥ではなく常に出す（［＋ キャリア…］の入口は隠す）。旧画面は従来どおり
+  const V2 = await p.evaluate(() => document.documentElement.classList.contains('editor-v2'));
+  if (V2) ok('新画面：経由地は「＋」の奥・キャリア／サービス／T/T は最初から見える', !(await vis('#z2Via')) && await vis('#z2ViaBtn') && await vis('#z2Carrier') && await vis('#z2Service') && await vis('#z2Tt') && !(await vis('#z2CarrierOptBtn')));
+  else {
   ok('経由地・キャリア・サービス・T/T は隠れている', !(await vis('#z2Via')) && !(await vis('#z2Carrier')) && !(await vis('#z2Service')) && !(await vis('#z2Tt')));
   ok('「＋」の入口が出ている', await vis('#z2ViaBtn') && await vis('#z2CarrierOptBtn'));
+  }
   await p.click('#z2ViaBtn'); ok('経由地を追加すると入力欄が出る', await vis('#z2Via') && !(await vis('#z2ViaBtn')));
-  await p.click('#z2CarrierOptBtn'); ok('キャリア等を開くと 4 欄が出る', await vis('#z2Carrier') && await vis('#z2Service') && await vis('#z2Tt'));
+  if (!V2) { await p.click('#z2CarrierOptBtn'); }
+  ok('キャリア等を開くと 4 欄が出る', await vis('#z2Carrier') && await vis('#z2Service') && await vis('#z2Tt'));
   ok('役割・実運送人は奥', !(await vis('#z2ActualCarrier')) && await vis('#z2RelayBtn'));
   await p.click('#z2RelayBtn'); ok('役割・実運送人を開く', await vis('#z2ActualCarrier') && await vis('#z2CarrierRole'));
   await p.fill('#z2Carrier', 'ONE'); await p.fill('#z2Pol', 'Yokohama'); await p.fill('#z2Pod', 'Shanghai'); await p.fill('#z2Tt', '14 days');
@@ -49,8 +67,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => window.routeAddOpen && window.routeAddOpen()); await p.waitForTimeout(150);   // Design 42-3：航路が 1 本以上あると入力欄は畳む
   ok('PODがPOLより下（縦の流れ）', await p.evaluate(() => document.getElementById('z2Pod').getBoundingClientRect().top > document.getElementById('z2Pol').getBoundingClientRect().top + 20));
   const saved = await p.evaluate(() => ({ c: document.getElementById('z2Carrier').value, v: document.getElementById('z2-routes-data').value.length }));
-  await p.evaluate(() => window.qpNewQuote()); await p.waitForTimeout(500); if (process.env.OUT) { await p.evaluate(() => document.getElementById('section-cond').scrollIntoView()); await p.screenshot({ path: require('path').join(process.env.OUT, 'route-flow.png') }); }
-  ok('新規に戻すと最初の状態（キャリア等は隠れる）', !(await vis('#z2Carrier')) && await vis('#z2CarrierOptBtn'));
+  await p.evaluate(() => { window.qpNewQuote(); window.editorV2Go && window.editorV2Go(2); }); await p.waitForTimeout(500); if (process.env.OUT) { await p.evaluate(() => document.getElementById('section-cond').scrollIntoView()); await p.screenshot({ path: require('path').join(process.env.OUT, 'route-flow.png') }); }
+  ok('新規に戻すと最初の状態（経由地は畳まれる。旧画面はキャリア等も隠れる）', !(await vis('#z2Via')) && (V2 ? await vis('#z2Carrier') : (!(await vis('#z2Carrier')) && await vis('#z2CarrierOptBtn'))));
   if (process.env.OUT) { await p.click('#zone1Btn'); await p.fill('#z1Place', '川崎市'); await p.check('#piece-pickup'); await p.evaluate(() => { document.getElementById('z2Pol').value='Yokohama'; document.getElementById('z2Pod').value='Los Angeles'; document.getElementById('section-cond').scrollIntoView(); }); await p.waitForTimeout(300); await p.screenshot({ path: path.join(process.env.OUT, 'route-ends.png') }); }
   ok('JS エラーなし', errs.length === 0, errs);
   if (process.env.OUT) { await p.evaluate(() => document.getElementById('section-cond').scrollIntoView()); await p.screenshot({ path: path.join(process.env.OUT, 'route-flow.png') }); }

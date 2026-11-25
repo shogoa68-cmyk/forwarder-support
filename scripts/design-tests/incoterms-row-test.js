@@ -14,7 +14,10 @@ const run=async(p)=>{
  await setInco('EXW');
  const t0=await total();
  // 1 行目を「FOB・CIF のときだけ有効」にする（いまは EXW ＝ 合わない）
- const openMore=async i=>{if(!(await row(i).locator('.ic-mode-btn').isVisible())){await row(i).locator('.row-detail-btn').click();await p.waitForTimeout(250);}};
+ // 新画面（cost-a）：貿易条件ボタンは行の詳細の［さらに ▾］の中。旧画面は［その他 ▾］（.row-detail-btn）の中
+ const openMore=async i=>{if(await row(i).locator('.ic-mode-btn').isVisible())return;
+  if(await p.evaluate(()=>!!window.caToggleDetail)){await row(i).evaluate(tr=>{window.caToggleDetail(tr,true);const m=tr.querySelector('.ca-dmore');if(m&&m.hidden)tr.querySelector('[data-ca="more"]').click();});await p.waitForTimeout(250);return;}
+  await row(i).locator('.row-detail-btn').click();await p.waitForTimeout(250);};
  await openMore(0);await row(0).locator('.ic-mode-btn').click();await p.waitForTimeout(250);
  ok('「貿易条件」ボタンで選択欄（チップ）が開く（11 件）',await row(0).evaluate(tr=>tr.classList.contains('row-ic-mode')&&tr.querySelectorAll('.ic-chip').length>=11),await row(0).evaluate(tr=>tr.querySelectorAll('.ic-chip').length));
  ok('何も選ばない間は、どの貿易条件でも有効（除外されない）',(await state(0)).out==='');
@@ -39,7 +42,7 @@ const run=async(p)=>{
  ok('保存して開き直しても、条件（FOB,CIF）と除外が復元される',back.ic==='FOB,CIF'&&back.reason==='incoterms',back);
  ok('復元した行の欄が開いていて、選択済みのチップが ON',await row(0).evaluate(tr=>tr.classList.contains('row-ic-mode')&&[...tr.querySelectorAll('.ic-chip.is-on')].map(b=>b.dataset.ic).join()==='FOB,CIF'),null);
  // 複製
- await row(0).locator('td.handle-cell .drag-handle').hover();await row(0).locator('.row-dup-btn').click({timeout:3000});await p.waitForTimeout(500);
+ await row(0).evaluate(tr=>tr.querySelector('.row-dup-btn').click());await p.waitForTimeout(500);
  ok('行を複製すると、条件も引き継がれる',(await state(1)).ic==='FOB,CIF');
  // 解除
  await openMore(0);await row(0).locator('.ic-mode-btn').click();await p.waitForTimeout(300);
@@ -62,16 +65,15 @@ const run=async(p)=>{
  await p.evaluate(()=>{const t=document.querySelector('[onclick*="quote-make"]');t&&t.click();});await p.waitForTimeout(1000);
  await p.evaluate(()=>window.qpShowEditor&&window.qpShowEditor());await p.waitForTimeout(500);
  await p.evaluate(()=>{setTransport('fcl')});
+ await p.evaluate(()=>window.editorV2Go&&window.editorV2Go(4,true));await p.waitForTimeout(300);   // 新画面：費用はステップ④
  // 明細（架空）：サブコン3社・7行。通貨違い・単位違いを含む
  const rows=[['海上運賃','A海運','ocean',"40'GP/HQ",2,1200,300,'USD'],['BAF','A海運','surcharge','CNTR',2,80,20,'USD'],['THC','Bローカル','export-local',"20'GP",1,32000,5000,'JPY'],['ドキュメント費','Bローカル','export-local','B/L',1,8000,2000,'JPY'],['通関料','C通関','customs-export','shipment',1,12000,3000,'JPY'],['輸出者検査','C通関','customs-export','CBM',3.5,2500,500,'JPY'],['配送費','D運輸','domestic',"40'GP",1,45000,8000,'JPY']];
  for(let i=0;i<rows.length;i++){
   if(i>0){await p.evaluate(()=>window.addRow());await p.waitForTimeout(80);}
-  const f=n=>p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).nth(i);
+  // 新画面（cost-a の 1 段の行）では一部の欄が行の詳細へ移り fill できないため、値は evaluate で入れる（欄は DOM に残る）
   const r=rows[i];
-  await f('nm').fill(r[0]);await f('sv').fill(r[1]);await f('cat').selectOption(r[2],{force:true}).catch(()=>{});
-  await f('un').fill(r[3]);await f('pq').fill(String(r[4]));
-  await f('pc').selectOption(r[7],{force:true}).catch(()=>{});await f('bc').selectOption(r[7],{force:true}).catch(()=>{});
-  await f('pp').fill(String(r[5]));await f('mk').fill(String(r[6]));await f('mk').blur();
+  await p.evaluate(([r,i])=>{const set=(n,v)=>{const e=document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type]) [data-field="'+n+'"]')[i];if(!e)return;e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));};
+   set('nm',r[0]);set('sv',r[1]);set('cat',r[2]);set('un',r[3]);set('pq',String(r[4]));set('pc',r[7]);set('bc',r[7]);set('pp',String(r[5]));set('mk',String(r[6]));},[r,i]);
  }
  await p.waitForTimeout(1500);
  await p.evaluate(()=>document.getElementById('section-table').scrollIntoView());await p.waitForTimeout(300);

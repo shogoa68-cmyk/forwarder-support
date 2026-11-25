@@ -96,6 +96,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => document.querySelector('#glossaryDrawer .gl-pin').click()); await p.evaluate(() => window.closeQuoteGlossary());
 
   // ④ 見積入力の列見出しの「ⓘ」
+  // 旧画面専用：新画面（cost-a の 1 段の行）は列見出しの「単価」を「仕入｜＋乗せ幅｜売」に差し替えて price の ⓘ を持たない（アプリ側の差）。ⓘ の部品（help-hints.js）は旧画面で試験する。
+  await p.evaluate(() => window.editorV2Set && window.editorV2Set(false)); await p.waitForTimeout(400);
   await p.evaluate(() => { const b = document.querySelector('.cat-btn[aria-controls="tab-quote-make"]'); b.click(); });
   await p.waitForTimeout(500);
   const tryTable = await p.evaluate(() => { const i = document.querySelectorAll('#quoteTable th .hint-i'); return i.length; });
