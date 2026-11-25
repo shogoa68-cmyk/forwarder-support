@@ -89,10 +89,10 @@
   var phone = false; try { phone = window.matchMedia('(max-width: 600px)').matches; } catch (e) {}
   h.classList.remove('mode-simple');
   /* 見積入力は新画面（editor-v2）に一本化（2026-11）。実際の利用では常に新画面（保存値・?editor= は無視）。
-     自動テスト（navigator.webdriver）だけ、旧画面前提の既存試験のため従来どおり（既定は旧画面・?editor=v2／EDITOR=v2 で新画面）。 */
+     自動テスト（navigator.webdriver）も既定は新画面（旧画面は ?editor=v1 のときだけ）。 */
   if (testing) {
     try { var ev = new URLSearchParams(location.search).get('editor'); if (ev === 'v2') localStorage.setItem('fwd.editorV2', '1'); else if (ev === 'v1') localStorage.setItem('fwd.editorV2', '0'); } catch (e) {}
-    try { h.classList.toggle('editor-v2', localStorage.getItem('fwd.editorV2') === '1'); } catch (e) {}
+    try { h.classList.toggle('editor-v2', localStorage.getItem('fwd.editorV2') !== '0'); } catch (e) { h.classList.add('editor-v2'); }
   } else { h.classList.add('editor-v2'); }   /* かんたん表示は廃止（2026-11）：常に詳細表示 */
   h.setAttribute('data-ui-mode-default', UI_MODE_DEFAULT);
   [].forEach.call(document.querySelectorAll('link[data-theme-css]'), function (l) {
