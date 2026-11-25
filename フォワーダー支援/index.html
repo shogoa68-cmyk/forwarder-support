@@ -28,6 +28,7 @@
 <!-- 「かんたん表示」（Claude Design 案）。<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま。 -->
 <link rel="stylesheet" href="css/simple-mode.css">
 <link rel="stylesheet" href="css/feedback.css">
+<link rel="stylesheet" href="css/ai-ocr.css">
 <link rel="stylesheet" href="css/glossary-drawer.css">
 <link rel="stylesheet" href="css/announcements.css">
 <link rel="stylesheet" href="css/org-teams.css">
@@ -4393,6 +4394,7 @@
         <p class="ic-sub" id="icSub">取り込み方を選んでください</p>
         <button type="button" class="ic-opt" onclick="icChoose('text')"><span class="ic-ico">📝</span><span><b>テキストで取り込む</b><small>メール本文などを貼り付けて、見積の行にします</small></span></button>
         <button type="button" class="ic-opt" onclick="icChoose('pdf')"><span class="ic-ico">📄</span><span><b>PDFで取り込む</b><small>文字が入ったPDFから文字を取り出して解析します（スキャン画像のPDFは非対応）</small></span></button>
+        <button type="button" class="ic-opt" id="icAiOcr" onclick="icChoose('aiocr')"><span class="ic-ico">📷</span><span><b>画像を AI で読む（準備中）</b><small>写真・スキャン・文字の無い PDF。表だけ切り抜き、社名などを黒く塗ってから送ります（管理者の設定が済むまでは送れません）</small></span></button>
         <button type="button" class="ic-opt" id="icPacking" onclick="icChoose('packing')"><span class="ic-ico">📦</span><span><b>荷姿・貨物明細を取り込む</b><small>見積の明細ではなく、貨物の寸法・個数などが入ります</small></span></button>
         <input type="file" id="icPdfFile" accept="application/pdf,.pdf" hidden onchange="icPdfSelected(this)">
       </div>
@@ -5158,6 +5160,7 @@
 <script src="js/quote/admin-creator-edit.js"></script>   <!-- 【一時機能】管理者が作成者を変更（やめるときは docs/sql/admin-edit-creator.sql 参照） -->
 <script src="js/quote/subcon-insert.js"></script>
 <script src="js/quote/email-import.js"></script>
+<script src="js/quote/ai-ocr.js"></script>
 <script src="js/quote/subcon-request-mail.js"></script>
 <script src="js/quote/memo-title.js"></script>
 <script src="js/quote/case-info.js"></script>

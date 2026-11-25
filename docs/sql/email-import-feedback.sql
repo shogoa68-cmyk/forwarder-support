@@ -91,7 +91,8 @@ create table if not exists public.email_export_keys (
 alter table public.email_export_keys enable row level security;   -- ポリシー無し＝誰も直接読めない
 revoke all on public.email_export_keys from anon, authenticated;
 insert into public.email_export_keys (id, token) values (1, '<長いランダム文字列>')
-  on conflict (id) do update set token = excluded.token;
+  on conflict (id) do update set token = excluded.token
+    where excluded.token not like '<%';   -- 置き換え忘れで流し直しても、使っている合言葉を消さない
 
 create or replace function public.email_import_export(p_token text, p_status text default 'new', p_limit int default 300)
 returns jsonb

@@ -37,11 +37,20 @@ async function main() {
   const group = (kind, title) => {
     const a = fb.filter(r => r.kind === kind);
     lines.push('', '## ' + title + '（' + a.length + ' 件）');
-    a.forEach(r => lines.push('- ×' + r.seen_count + '  `' + r.shape + '`' + (r.hint ? '  → ' + r.hint : '') + '  (' + day(r.last_seen) + ')'));
+    a.forEach(r => lines.push('- ×' + r.seen_count + (r.sv ? '  [' + r.sv + ']' : '') + '  `' + r.shape + '`' + (r.hint ? '  → ' + r.hint : '') + '  (' + day(r.last_seen) + ')'));
   };
   group('fix', '✏️ 品名・カテゴリ・単位を直した行（解析が間違えた例）');
   group('ignore', '❌ 明細ではないとされた行（解析が明細にしてしまった例）');
   group('ok', '✅ 合っていた行（解析の正解例）');
+  const rules = d.rules || [], props = d.proposals || [];
+  if (rules.length) {
+    lines.push('', '## 🧠 サブコンごとのいまのルール（' + rules.length + ' 社）');
+    rules.forEach(r => lines.push('- [' + r.sv + '] 置き換え ' + ((r.aliases || []).length) + ' 件・無視 ' + ((r.ignore || []).length) + ' 件' + (r.ccy ? '・通貨 ' + r.ccy : '') + (r.unit ? '・単位 ' + r.unit : '') + (r.qtyAsUnit ? '・数量付きは単価' : '')));
+  }
+  if (props.length) {
+    lines.push('', '## 🤖 これまでに出した案（' + props.length + ' 件・却下された案は出し直さない）');
+    props.forEach(p => lines.push('- [' + p.sv + '] ' + p.kind + ' ' + p.key + '（' + p.status + '）'));
+  }
   console.log(lines.join('\n'));
 }
 main().catch(e => { console.error(e && e.message ? e.message : e); process.exitCode = 1; });
