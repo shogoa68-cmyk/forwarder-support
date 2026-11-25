@@ -1180,7 +1180,71 @@
       '<button type="button" class="ei-rule-save" onclick="eiRuleSaveDefaults()">保存</button></div>' +
       '<p class="ei-rule-help">既定の通貨を決めると、通貨が書かれていない数字（例：<code>海上運賃 1200 /20GP</code>）も、その通貨の金額として読みます（確度は「要確認」）。</p>' +
       list + (r.at ? '<div class="ei-rule-meta">最終更新 ' + _esc(String(r.at).slice(0, 10)) + (r.by ? '・' + _esc((typeof window.cloudNameFor === 'function' && window.cloudNameFor(r.by)) || r.by) : '') + '</div>' : '') +
-      '</details>';
+      '</details><div class="ei-props" data-sv="' + _esc(_svCtx.canon) + '"></div>';
+    _mountProposals(wrap.querySelector('.ei-props'), _svCtx.canon, () => _renderSvCtx());
+  }
+
+  // ====== AI が作ったルールの「案」（email_rule_proposals・docs/sql/email-rule-proposals.sql）======
+  //  AI は案を出すだけ。採用するかどうかは人が決め、採用したときだけ、このサブコンのルールに足す
+  let _propOff = false;
+  const _PROP_KIND = { alias: '呼び名の置き換え', ignore: '取り込まない行の形', ccy: '既定の通貨', unit: '既定の単位', qty_as_unit: '数量付きの金額は単価' };
+  async function _loadProposals(canon) {
+    if (_propOff || !canon) return [];
+    const c = typeof window.cloudGetClient === 'function' ? window.cloudGetClient() : null;
+    const me = typeof window.cloudCurrentUser === 'function' ? window.cloudCurrentUser() : null;
+    if (!c || !me) return [];
+    try {
+      const { data, error } = await c.from('email_rule_proposals').select('id,sv,kind,key,payload,reason,created_at').eq('sv', canon).eq('status', 'pending').order('created_at', { ascending: true }).limit(50);
+      if (error) { if (/PGRST20[0-9]|42P01|does not exist|could not find/i.test(String(error.code || '') + ' ' + String(error.message || ''))) _propOff = true; return []; }
+      return data || [];
+    } catch (e) { return []; }
+  }
+  function _propText(p) {
+    const v = p.payload || {};
+    if (p.kind === 'alias') return _esc(v.from || '') + ' → <b>' + _esc(v.to || '') + '</b>' + (v.cat ? ' <i>[' + _esc(v.cat) + ']</i>' : '') + (v.unit ? ' <i>単位 ' + _esc(v.unit) + '</i>' : '');
+    if (p.kind === 'ignore') return '<code>' + _esc(v.shape || '') + '</code>';
+    if (p.kind === 'ccy') return '<b>' + _esc(v.ccy || '') + '</b>';
+    if (p.kind === 'unit') return '<b>' + _esc(v.unit || '') + '</b>';
+    if (p.kind === 'qty_as_unit') return v.on === false ? 'しない' : 'する';
+    return '';
+  }
+  function _applyProposal(r, p) {
+    const v = p.payload || {};
+    if (p.kind === 'alias') { if (!v.from || !v.to) return false; _upsertAlias(r.aliases, { from: String(v.from), to: String(v.to), cat: String(v.cat || ''), unit: String(v.unit || '') }); return true; }
+    if (p.kind === 'ignore') { if (!v.shape) return false; _upsertShape(r.ignore, String(v.shape)); return true; }
+    if (p.kind === 'ccy') { if (!/^[A-Z]{3}$/.test(String(v.ccy || ''))) return false; r.ccy = String(v.ccy); return true; }
+    if (p.kind === 'unit') { if (!v.unit) return false; r.unit = String(v.unit); return true; }
+    if (p.kind === 'qty_as_unit') { r.qtyAsUnit = v.on !== false; return true; }
+    return false;
+  }
+  async function _decideProposal(id, status) {
+    const c = typeof window.cloudGetClient === 'function' ? window.cloudGetClient() : null;
+    if (!c) return false;
+    try { const { error } = await c.rpc('email_rule_decide', { p_id: id, p_status: status }); return !error; } catch (e) { return false; }
+  }
+  async function _mountProposals(el, canon, after) {
+    if (!el) return;
+    const list = await _loadProposals(canon);
+    if (!el.isConnected) return;
+    if (!list.length) { el.innerHTML = ''; el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = '<div class="ei-props-h">🤖 AI からのルールの案（' + list.length + ' 件）<span>採用するとこのサブコンのルールに入ります。合っていなければ却下してください。</span></div>' +
+      list.map(p => '<div class="ei-prop" data-id="' + _esc(String(p.id)) + '"><span class="ei-prop-k">' + _esc(_PROP_KIND[p.kind] || p.kind) + '</span>' +
+        '<span class="ei-prop-v">' + _propText(p) + '</span>' + (p.reason ? '<span class="ei-prop-r">' + _esc(p.reason) + '</span>' : '') +
+        '<button type="button" class="ei-prop-ok">採用</button><button type="button" class="ei-prop-ng">却下</button></div>').join('');
+    el.onclick = async e => {
+      const b = e.target.closest('.ei-prop-ok, .ei-prop-ng'); if (!b) return;
+      const row = b.closest('.ei-prop'), p = list.find(x => String(x.id) === row.dataset.id); if (!p) return;
+      row.querySelectorAll('button').forEach(x => { x.disabled = true; });
+      const accept = b.classList.contains('ei-prop-ok');
+      if (accept) {
+        const r = _rulesOf(canon);
+        if (!_applyProposal(r, p) || !(await _saveRules(canon, r))) { row.querySelectorAll('button').forEach(x => { x.disabled = false; }); if (window.quoteShowToast) quoteShowToast('ルールに入れられませんでした', 'warning'); return; }
+      }
+      const ok = await _decideProposal(p.id, accept ? 'accepted' : 'rejected');
+      if (window.quoteShowToast) quoteShowToast(accept ? '🤖 案を採用して、ルールに入れました' : '🤖 案を却下しました（同じ案はもう出ません）', ok ? 'success' : 'warning');
+      if (typeof after === 'function') after(); else _mountProposals(el, canon);
+    };
   }
   async function eiRuleSaveDefaults() {
     if (!_svCtx) return;
@@ -1279,7 +1343,7 @@
     const delShapes = { ignore: new Set(), ok: new Set() };
     const staleN = r.aliases.filter(_isStaleRule).length;
     const ccyOpts = '<option value="">（なし）</option>' + CCY_LIST.map(c => '<option' + (r.ccy === c ? ' selected' : '') + '>' + c + '</option>').join('');
-    el.innerHTML =
+    el.innerHTML = '<div class="ei-props ir-props"></div>' +
       '<div class="ir-defaults"><label>既定の通貨 <select class="ir-ccy">' + ccyOpts + '</select></label>' +
       '<label>既定の単位 <input type="text" class="ir-unit" value="' + _esc(r.unit) + '" placeholder="例）20\'GP"></label>' +
       '<label class="ir-qau"><input type="checkbox" class="ir-qtyunit"' + (r.qtyAsUnit ? ' checked' : '') + '> 数量が書いてある行の金額は「単価」として読む</label></div>' +
@@ -1291,6 +1355,7 @@
       '<div class="ir-bar"><button type="button" class="ir-add">＋ ルールを追加</button><button type="button" class="ir-save">💾 ルールを保存</button>' +
       '<button type="button" class="ir-clean"' + (staleN ? '' : ' hidden') + ' title="' + _STALE_DAYS + '日以上使われていないルールをまとめて外します">⏳ 長く使っていないルール ' + staleN + ' 件を外す</button>' +
       '<span class="ir-meta">' + (r.at ? '最終更新 ' + _esc(String(r.at).slice(0, 10)) + (r.by ? '・' + _esc((typeof window.cloudNameFor === 'function' && window.cloudNameFor(r.by)) || r.by) : '') : '') + '</span></div>';
+    _mountProposals(el.querySelector('.ir-props'), canon, () => { eiMountRulesPanel(el, canon); if (_svCtx && _svCtx.canon === canon) _renderSvCtx(); });
     const list = el.querySelector('.ir-list'), empty = el.querySelector('.ir-empty');
     const syncEmpty = () => { empty.hidden = !!list.querySelector('.ir-row'); };
     el.querySelector('.ir-add').addEventListener('click', () => {
@@ -1407,9 +1472,10 @@
       const list = [];
       items.forEach(it => {
         const shape = eiMaskLine(it.shape), hint = eiMaskLine(it.hint || '');
-        const key = it.kind + '|' + shape + '|' + hint;
+        const sv = _svCtx ? String(_svCtx.canon || '').slice(0, 80) : '';   // どのサブコンの書き方か（AI がサブコン別のルール案を作るため）
+        const key = it.kind + '|' + shape + '|' + hint + '|' + sv;
         if (!shape || _fbSent.has(key)) return;
-        _fbSent.add(key); list.push({ kind: it.kind, shape, hint });
+        _fbSent.add(key); list.push(sv ? { kind: it.kind, shape, hint, sv } : { kind: it.kind, shape, hint });
       });
       if (!list.length) return;
       const { error } = await c.rpc('email_feedback_record', { items: list.slice(0, 20) });

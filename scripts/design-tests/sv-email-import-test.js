@@ -541,6 +541,29 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => window.eiLearnFromCorrections()); await p.waitForTimeout(300);
     ok('同じ内容は、このページから二度送らない', (await fbCalls()).length === fbSent0, fbSent0);
     await p.evaluate(() => window.closeEmailImport());
+    ok('サブコンから開いた取込の評価には、サブコン名（sv）が付く', (await fbCalls()).every(x => x.sv === 'ABCキャリア'), (await fbCalls()).map(x => x.sv));
+    // ===== AI からのルールの案（email_rule_proposals）：採用／却下 =====
+    await p.evaluate(() => {
+      window.__db.email_rule_proposals = [
+        { id: 901, sv: 'ABCキャリア', kind: 'alias', key: 'たんぼりょう', payload: { from: 'タンボ料', to: 'THC', cat: 'export-local', unit: 'CNTR' }, reason: '直した例が 3 回', status: 'pending', created_at: '2026-11-20' },
+        { id: 902, sv: 'ABCキャリア', kind: 'ccy', key: 'eur', payload: { ccy: 'EUR' }, reason: '', status: 'pending', created_at: '2026-11-21' },
+        { id: 903, sv: 'ほかの会社', kind: 'unit', key: 'bl', payload: { unit: 'BL' }, reason: '', status: 'pending', created_at: '2026-11-21' },
+      ];
+      window.__rpc = [];
+      window.eiOpenForSubcon('ABCキャリア');
+    }); await p.waitForTimeout(600);
+    const pr = await p.evaluate(() => [...document.querySelectorAll('#eiSvCtx .ei-prop')].map(x => x.dataset.id));
+    ok('このサブコンの案だけが「AI からのルールの案」に出る', pr.length === 2 && pr.includes('901') && pr.includes('902'), pr);
+    await p.evaluate(() => document.querySelector('#eiSvCtx .ei-prop[data-id="901"] .ei-prop-ok').click()); await p.waitForTimeout(700);
+    rr = await abcRules();
+    const dec = await p.evaluate(() => (window.__rpc || []).filter(c => c.name === 'email_rule_decide').map(c => c.args));
+    ok('採用すると、ルールに入り、採用の記録（email_rule_decide accepted）を送る', rr.aliases.some(a => a.from === 'タンボ料' && a.to === 'THC' && a.unit === 'CNTR') && dec.some(d => d.p_id === 901 && d.p_status === 'accepted'), { a: rr.aliases, dec });
+    await p.evaluate(() => { window.__db.email_rule_proposals.find(x => x.id === 901).status = 'accepted'; }); 
+    await p.evaluate(() => document.querySelector('#eiSvCtx .ei-prop[data-id="902"] .ei-prop-ng').click()); await p.waitForTimeout(700);
+    rr = await abcRules();
+    const dec2 = await p.evaluate(() => (window.__rpc || []).filter(c => c.name === 'email_rule_decide').map(c => c.args));
+    ok('却下すると、ルールは変えず、却下の記録（rejected）を送る', rr.ccy !== 'EUR' && dec2.some(d => d.p_id === 902 && d.p_status === 'rejected'), { ccy: rr.ccy, dec2 });
+    await p.evaluate(() => window.closeEmailImport());
     // ===== 品名・単位のマスターを参照する（解析時／確認画面で直したとき） =====
     await p.evaluate(() => { window.openEmailImport(); document.getElementById('eiText').value = "Terminal Handling Charge USD 100\n5. THC: terminal USD 50 /BL\nABC特殊作業 USD 10\n海上運賃 USD 100 /40HQ"; window.eiParse(); }); await p.waitForTimeout(500);
     const mm = await p.evaluate(() => [...document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')].map(tr => ({ name: tr.querySelector('.ei-name').value, unit: tr.querySelector('.ei-unit').value, cat: tr.querySelector('.ei-cat').value, unreg: tr.querySelector('.ei-name').classList.contains('name-unregistered'), flags: tr.querySelector('.ei-flags').textContent, list: tr.querySelector('.ei-name').getAttribute('list') + '/' + tr.querySelector('.ei-unit').getAttribute('list') })));
