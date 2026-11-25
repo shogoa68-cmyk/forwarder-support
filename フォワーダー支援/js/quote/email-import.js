@@ -570,7 +570,8 @@
   function closeImportChooser() { document.getElementById('importChooser')?.classList.remove('open'); }
   function icChoose(kind) {
     const canon = _chooserCanon;
-    if (kind === 'pdf') { document.getElementById('icPdfFile')?.click(); return; }   // 選択画面は、ファイルを選んだあとに閉じる
+    if (kind === 'pdf') { document.getElementById('icPdfFile')?.click(); return; }
+    if (kind === 'aiocr') { closeImportChooser(); if (typeof window.aiOcrOpen === 'function') window.aiOcrOpen(canon); return; }   // 選択画面は、ファイルを選んだあとに閉じる
     closeImportChooser();
     if (kind === 'text') { if (canon) eiOpenForSubcon(canon); else openEmailImport(); }
     else if (kind === 'packing' && typeof window.openPackingImport === 'function') window.openPackingImport();
