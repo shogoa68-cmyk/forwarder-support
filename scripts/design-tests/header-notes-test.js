@@ -32,7 +32,7 @@ const run=async(p)=>{
 
  // 新画面（Design 43 案B）：見出しの注記欄は［⋯］→「注記を書く」で開く段に入る（閉じている間は隠れる）。先に開く
  const openNotes=sel=>p.evaluate(async sel=>{const tr=document.querySelector(sel);if(!tr||!window.gbOpenMenu||tr.classList.contains('gb-notes-open'))return;window.gbOpenMenu(tr);await new Promise(r=>setTimeout(r,80));const mi=[...document.querySelectorAll('#gbMenu button')].find(b=>/注記を書く/.test(b.textContent));if(mi)mi.click();await new Promise(r=>setTimeout(r,80));},sel);
- await openNotes('tr.subcon-group-header[data-sv-label="A海運"]');await openNotes('tr.subcon-subgroup-header.is-pattern[data-pt-key="FCL案"]');
+ await openNotes('tr.subcon-group-header[data-sv-label="A海運"]');console.log("DBG",await p.evaluate(()=>document.querySelector('tr.subcon-group-header[data-sv-label="A海運"]').className+"|"+!!document.getElementById("gbMenu")));await openNotes('tr.subcon-subgroup-header.is-pattern[data-pt-key="FCL案"]');
  // サブコンのリマーク：入力 → 保存先（マップ）に入る
  const remark=hdr('A海運').locator('.subcon-remark-input');
  await remark.fill('港湾諸費用は実費精算');await remark.blur();await wait(300);

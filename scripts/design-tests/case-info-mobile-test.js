@@ -32,7 +32,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await tog('recv');
     ok('[PC] 自動バッジ：新規は出ている', await p.evaluate(() => !document.getElementById('ciAutoRecv').hidden && !document.getElementById('ciAutoDate').hidden));
     await p.click('#qf-received'); await p.keyboard.press('ArrowUp'); await p.waitForTimeout(150);
-    await p.focus('#qf-received'); await p.keyboard.type('11012026'); await p.focus('#qf-date'); await p.keyboard.type('11022026'); await p.waitForTimeout(200);
+    await p.focus('#qf-received'); await p.keyboard.type('11012026'); await tog('date'); await p.focus('#qf-date'); await p.keyboard.type('11022026'); await p.waitForTimeout(200);
     ok('[PC] 値を変えると自動バッジが消える', await p.evaluate(() => document.getElementById('ciAutoRecv').hidden && document.getElementById('ciAutoDate').hidden));
     ok('[PC] メモが空なら点なし', !(await p.evaluate(() => document.getElementById('ciMemoBtn').classList.contains('has-memo'))));
     await p.evaluate(() => { const m = document.getElementById('qf-memo'); m.value = 'テスト案件'; m.dispatchEvent(new Event('input', { bubbles: true })); }); await p.waitForTimeout(150);
