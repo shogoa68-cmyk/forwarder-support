@@ -241,6 +241,26 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const r = y('mcs-pq') < y('mcs-pp') && y('mcs-pp') < y('mcs-mk') && y('mcs-mk') < y('mcs-bp') && y('mcs-bp') < y('mcs-nt') && y('mcs-nt') < y('mcs-cat');
     document.getElementById('mcsDone').click(); return r; }));
   await p.setViewportSize({ width: 1440, height: 900 }); await p.waitForTimeout(500);
+  // ↓ 統合などで明細の中身が変わるため、ほかの確認が済んだあとで行う
+  await p.evaluate(() => { document.querySelectorAll('#tableBody .row-select-chk:checked').forEach(c => { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); [...document.querySelectorAll('#tableBody tr.ca-row .row-select-chk')].slice(0, 2).forEach(c => { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }); }); await p.waitForTimeout(250);
+  // 旧画面の選択バーにあった操作（統合・保持・貼付・一括設定）
+  ok('帯に［🔗 統合］［⋯ そのほか］・2 行選択中は統合を押せる', await p.evaluate(() => { const m = document.querySelector('#caSel [data-cs="merge"]'), o = document.querySelector('#caSel [data-cs="more"]'); return !!m && !!m.getClientRects().length && !m.disabled && !!o && !!o.getClientRects().length; }));
+  await p.evaluate(() => document.querySelector('#caSel [data-cs="more"]').click()); await p.waitForTimeout(150);
+  const sm = await p.evaluate(() => [...document.querySelectorAll('.ca-menu .ca-mi')].map(x => x.textContent));
+  ok('［⋯ そのほか］：保持・貼り付け・カテゴリ／通貨／単位／乗せ幅をまとめて変える', ['保持', '貼り付け', 'カテゴリ', '通貨', '単位', '乗せ幅'].every(k => sm.some(t => t.includes(k))), sm);
+  await p.evaluate(() => [...document.querySelectorAll('.ca-menu .ca-mi')].find(x => /単位をまとめて/.test(x.textContent)).click()); await p.waitForTimeout(150);
+  await p.fill('.ca-move-in', 'CBM'); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
+  ok('単位をまとめて変える：選んだ 2 行の単位が CBM に', await p.evaluate(() => [...document.querySelectorAll('#tableBody tr.ca-row')].filter(tr => tr.querySelector('.row-select-chk').checked).every(tr => tr.querySelector('[data-field="un"]').value === 'CBM')));
+  await p.evaluate(() => document.querySelector('#caSel [data-cs="more"]').click()); await p.waitForTimeout(150);
+  await p.evaluate(() => [...document.querySelectorAll('.ca-menu .ca-mi')].find(x => /カテゴリをまとめて/.test(x.textContent)).click()); await p.waitForTimeout(150);
+  const catPick = await p.evaluate(() => { const b = [...document.querySelectorAll('.ca-menu .ca-mi')].filter(x => !x.disabled); const opt = [...document.getElementById('bulkCatSet').options].find(o => o.value && o.value !== '__none__' && o.textContent.trim() === b[b.length - 1].textContent); b[b.length - 1].click(); return opt ? opt.value : null; });
+  await p.waitForTimeout(300);
+  ok('カテゴリをまとめて変える：選んだ 2 行のカテゴリが変わる', !!catPick && await p.evaluate(v => [...document.querySelectorAll('#tableBody tr.ca-row')].filter(tr => tr.querySelector('.row-select-chk').checked).every(tr => tr.querySelector('select.w-cat').value === v), catPick), catPick);
+  await p.evaluate(() => document.querySelector('#caSel [data-cs="merge"]').click()); await p.waitForTimeout(500);
+  ok('［🔗 統合］：2 行が 1 行にまとまる（2 行目は統合済みの印）', await p.evaluate(() => document.querySelectorAll('#tableBody tr[data-merged-into]').length === 1));
+  await p.evaluate(() => { document.querySelectorAll('#tableBody .row-select-chk:checked').forEach(c => { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); const c = document.querySelectorAll('#tableBody tr.ca-row .row-select-chk')[3]; c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(200);
+  ok('1 行だけ選んでいるときは［🔗 統合］は押せない', await p.evaluate(() => document.querySelector('#caSel [data-cs="merge"]').disabled));
+  await p.evaluate(() => window.clearRowSelection && window.clearRowSelection()); await p.waitForTimeout(150);
   // 旧い画面に戻すと、元の場所へ戻る
   await p.evaluate(() => window.editorV2Toggle()); await p.waitForTimeout(400);
   ok('旧い画面に戻すと、欄は元の場所（サブコンはカテゴリ欄・課税は課税の列）', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual]):not([data-type])'); return !tr.classList.contains('ca-row') && !!tr.querySelector('td.catsv-cell [data-field="sv"]') && !!tr.querySelector('td.tax-cell [data-field="tx"]') && !!tr.querySelector('td.ccy-cell select[data-field="pc"]') && !tr.querySelector('.ca-name'); }));

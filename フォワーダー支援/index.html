@@ -2394,7 +2394,7 @@
           <li><strong>輸送モード</strong>：🚢 Sea（FCL/LCL）/ ✈️ Air</li>
           <li><strong>オプション</strong>：🛡️ 保険付保 ON/OFF</li>
           <li><strong>ゾーンビルダー</strong>：出発地側 → 幹線輸送 → 到着地側 の3カードで作業ピース（集荷／梱包／通関／配送など）を組み立て</li>
-          <li><strong>🔧 この構成でプリセット適用</strong>で見積もり表の行を一括生成</li>
+          <li><strong>🔧 ルートのサブコンで枠をつくる</strong>で、ルートで入力したサブコンごとに見積もり表の枠（空の明細）をまとめてつくる</li>
         </ul>
 
         <h4>② 引き合い条件・貨物情報（📦 貨物情報 サブセクション）</h4>
@@ -3424,14 +3424,14 @@
       <!-- サブセクション：ゾーン構成からプリセット適用（独立セクション） -->
       <div class="zone-preset-section" data-tier="adv">
         <div class="zone-preset-section-head">
-          <span class="zone-preset-section-title">🔧 ゾーン構成から見積もり行を生成
+          <span class="zone-preset-section-title">🔧 ルートのサブコンで明細の枠をまとめてつくる
             <span class="zps-help-wrap">
               <button type="button" class="section-help-btn" aria-label="この機能の説明">?</button>
-              <span class="zps-help-tip">上で組んだ 出発地側 → 幹線輸送 → 到着地側 の作業ピースをもとに、見積もりテーブルの行を一括作成します。</span>
+              <span class="zps-help-tip">② ルートで入力したサブコン（出発地側・幹線輸送のキャリア・到着地側）ごとに、費用の表に枠（空の明細）をまとめてつくります。幹線輸送は航路ごとに分けます。1 社ずつ足すときは、表の［＋ サブコンを追加］からも選べます。</span>
             </span>
           </span>
         </div>
-        <button class="btn-zone-preset" onclick="applyZoneBasedPreset()">🔧 この構成でプリセット適用</button>
+        <button class="btn-zone-preset" onclick="applyZoneBasedPreset()" title="ルートで入力したサブコンごとに、費用の表へ空の明細の枠をつくります">🔧 ルートのサブコンで枠をつくる</button>
       </div>
 
     </div><!-- /section-cond -->
