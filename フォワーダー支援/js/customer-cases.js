@@ -319,4 +319,5 @@
   }
   if (!_wrapBanner()) window.addEventListener('load', _wrapBanner);
   window.CC_KINDS = KINDS;
+  window.ccAll = () => _sorted(_items);   // 情報共有の新着まとめ（js/share-feed.js）用
 })();

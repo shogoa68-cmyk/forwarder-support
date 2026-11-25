@@ -25,11 +25,11 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('明細がまだ無いとき、案内のカード（まだ明細がありません）が出る', await vis('#sfHint') && /まだ明細がありません/.test(await p.evaluate(() => document.getElementById('sfHint').textContent)));
   ok('明細がまだ無いとき、空の行と「（サブコン未設定）」の見出しは出さない', !(await vis('#tableScrollWrap')) && !(await vis('#mcHost')) && await p.evaluate(() => ![...document.querySelectorAll('#tableBody tr.subcon-group-header')].some(t => t.getBoundingClientRect().height > 0)));
   ok('案内は 1 つだけ（同じ案内の帯が重ならない）', await p.evaluate(() => document.querySelectorAll('.sf-hint:not([hidden])').length === 1));
-  if (v2) ok('明細が無い間、操作バーの折りたたみ・展開・＋サブコンを追加は出さない（案内のカードに一本化）', !(await vis('#e2CostBar [data-f="openAddSubconFrame"]')) && !(await vis('#e2CostBar [data-f="collapseAllGroups"]')));
+  if (v2) ok('明細が無い間、操作バーの折りたたみ・展開・＋サブコンを追加は出さない（案内のカードに一本化）', !(await vis('#tableWrap .quote-cmdbar [data-f="openAddSubconFrame"]')) && !(await vis('#tableWrap .quote-cmdbar [data-f="collapseAllGroups"]')));
   if (v2) {
-    ok('費用の操作バーの主ボタンが「＋ サブコンを追加」', await p.evaluate(() => /サブコンを追加/.test(document.querySelector('#e2CostBar .e2-primary')?.textContent || '')));
-    ok('主ボタンの文字が背景と同じ色になっていない（空の箱に見えない）', await p.evaluate(() => { const b = document.querySelector('#e2CostBar .e2-primary'); const c = getComputedStyle(b); return c.color !== c.backgroundColor && c.backgroundColor !== 'rgb(255, 255, 255)'; }), await p.evaluate(() => { const c = getComputedStyle(document.querySelector('#e2CostBar .e2-primary')); return [c.color, c.backgroundColor]; }));
-    ok('「＋ 行を追加」は操作バーから無くなった', await p.evaluate(() => ![...document.querySelectorAll('#e2CostBar button')].some(x => /行を追加/.test(x.textContent))));
+    ok('費用の操作バーの主ボタンが「＋ サブコンを追加」', await p.evaluate(() => /サブコンを追加/.test(document.querySelector('#tableWrap .quote-cmdbar .e2-primary')?.textContent || '')));
+    ok('主ボタンの文字が背景と同じ色になっていない（空の箱に見えない）', await p.evaluate(() => { const b = document.querySelector('#tableWrap .quote-cmdbar .e2-primary'); const c = getComputedStyle(b); return c.color !== c.backgroundColor && c.backgroundColor !== 'rgb(255, 255, 255)'; }), await p.evaluate(() => { const c = getComputedStyle(document.querySelector('#tableWrap .quote-cmdbar .e2-primary')); return [c.color, c.backgroundColor]; }));
+    ok('「＋ 行を追加」は操作バーから無くなった', await p.evaluate(() => ![...document.querySelectorAll('#tableWrap .quote-cmdbar button')].some(x => /行を追加/.test(x.textContent))));
   }
   const n0 = (await realRows()).length;
   await p.click('.sf-hint-btn'); await p.waitForTimeout(200);

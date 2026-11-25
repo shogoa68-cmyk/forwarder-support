@@ -23,9 +23,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const cu = await R('#qf-customer'), pe = await R('#qf-person'), cn = await R('#qf-case-name'), rf = await R('#qf-ref');
   ok('① 高さは 36px（スマホ 44px）', [cu, pe, cn, rf].every(x => x && x.h === (PHONE ? 44 : 36)), [cu, pe, cn, rf]);
   if (!PHONE) {
-    ok('① 1 行目はお客様｜ご担当者（同じ高さの行）', cu.y === pe.y && cu.x < pe.x, { cu, pe });
-    ok('① 2 行目は案件名（全幅）・3 行目は見積もり番号', cn.y > cu.y && rf.y > cn.y, { cn, rf });
-    ok('① 右端がそろう（ご担当者と案件名）', Math.abs(pe.r - cn.r) <= 2, { pe, cn });
+    // Design 46（案B）：①は左の列が 1 列（お客様→ご担当者→案件名→番号）。日付などは右の列（steps-b-test.js）
+    ok('① 左の列は 1 列（お客様→ご担当者→案件名→番号の順）', cu.y < pe.y && pe.y < cn.y && cn.y < rf.y, { cu, pe, cn, rf });
+    ok('① 右端がそろう（お客様と案件名）', Math.abs(cu.r - cn.r) <= 40, { cu, cn });
   } else ok('① スマホは 1 列（お客様→ご担当者→案件名→番号の順）', cu.y < pe.y && pe.y < cn.y && cn.y < rf.y, { cu, pe, cn, rf });
   ok('① 見出し「管理番号入力」は出さない', !(await R('#section-ref > h2')).vis);
   ok('① ご担当者の例文は「例）山田」だけ', await p.evaluate(() => document.getElementById('qf-person').placeholder === '例）山田'));
@@ -59,11 +59,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
   // ⑤ 並び
   await p.evaluate(() => window.editorV2Go(5, true)); await p.waitForTimeout(300);
   const ta = await R('#remarkTextarea'), cs = await R('#remarkCargoSel'), ch = await R('#remarkChar'), pb = await R('#presetBtns');
-  ok('⑤ 定型文 → 文章の欄 → 0文字・クリア → 品物別リマーク の順', pb.y < ta.y && ta.y < ch.y && ch.y < cs.y, { pb, ta, ch, cs });
+  // Design 48（案B）：定型文は［＋ 定型文を入れる ▾］のパネル、品物別は右の列（steps-b-test.js）
+  const rh = await R('#sbRmHead');
+  ok('⑤ 見出し（＋ 定型文を入れる）→ 文章の欄 → 0文字・クリア の順', rh && rh.y < ta.y && ta.y < ch.y, { rh, ta, ch });
   if (!PHONE) ok('⑤ 「0文字・クリア」は欄の右下', Math.abs(ch.r - ta.r) <= 80, { ch, ta });
   if (!PHONE) {
     const nav = await R('#e2Nav'), sec = await R('#section-remark'), out = await R('#e2Out');
-    ok('左右の端：［戻る］［次へ］・出力する の枠を本文の幅にそろえる', Math.abs(nav.x - sec.x) <= 2 && Math.abs(nav.r - sec.r) <= 2 && Math.abs(out.r - sec.r) <= 2, { nav, sec, out });
+    ok('左右の端：［戻る］［次へ］を本文の幅にそろえる（出力する は右の列＝Design 48）', Math.abs(nav.x - sec.x) <= 2 && Math.abs(nav.r - sec.r) <= 2 && out.x > sec.r, { nav, sec, out });
   }
 
   // ===== 41：プレビュー／PDF 出力 =====
@@ -74,9 +76,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.waitForTimeout(900);
   ok('41-A：プレビュー中は合計バー・❓を出さない', !(await R('#e2Total')).vis && !((await R('#fbQuickFab')) || { vis: false }).vis);
   ok('41-B：プレビューは表計算だけ（見積書の切替を出さない）', await p.evaluate(() => !document.getElementById('previewBox').classList.contains('layout-doc') && !document.querySelector('.pv-layout-btn[data-pvl="doc"]').getClientRects().length));
-  ok('41-C：見出しは「📋 プレビュー（表計算）」', await p.evaluate(() => document.querySelector('#previewBox .pv-main-title').textContent.trim() === '📋 プレビュー（表計算）'));
+  ok('41-C：見出しは「🧮 社内チェック表」（プレビューは見積書の画面から・2026-11）', await p.evaluate(() => /社内チェック表/.test(document.querySelector('#previewBox .pv-main-title').textContent)));
   const hg = await p.evaluate(() => [...document.querySelectorAll('#previewTable thead tr.pv-hgrp th')].map(t => t.textContent + ':' + t.colSpan));
-  ok('41-E：見出しは 2 段（項目｜仕入｜請求｜結果）', JSON.stringify(hg) === JSON.stringify(['項目:3', '仕入:5', '請求:3', '結果:6']), hg);
+  ok('41-E：見出しは 2 段（項目｜仕入｜請求｜結果）', JSON.stringify(hg) === JSON.stringify(['項目:3', '仕入:4', '請求:3', '結果:4']), hg);
   ok('41-E：カテゴリ未設定は空欄・CD の 0 は空欄', await p.evaluate(() => { const tr = document.querySelector('#previewTable tbody tr.pv-grp-row'); return !!tr && tr.cells[0].textContent.trim() === '' && tr.querySelector('.pv-cd').textContent.trim() === ''; }));
   const st = await p.evaluate(() => { const tr = document.querySelector('#previewTable tr.pv-subcon-subtotal'); if (!tr) return null; const cc = tr.querySelector('.pv-scs-costcol'), pr = tr.querySelector('td[data-ft-col="profit"]'), lc = tr.querySelector('.pv-scs-label .pv-scs-cost'); const cells = [...tr.cells].reduce((n, c) => n + (getComputedStyle(c).display === 'none' ? 0 : c.colSpan), 0); const head = [...document.querySelectorAll('#previewTable thead tr:not(.pv-hgrp) th')].filter(t => getComputedStyle(t).display !== 'none').length; return { cost: cc && cc.textContent, prof: pr && pr.textContent, inLabel: lc && getComputedStyle(lc).display, cells, head }; });
   ok('41-E：小計の仕入合計は「仕入」の列、粗利率は「利益」の列（ラベルの中には出さない）', st && /¥/.test(st.cost) && /粗利率/.test(st.prof) && st.inLabel === 'none', st);
@@ -89,7 +91,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.waitForTimeout(200);
   ok('41-E：列を隠すと、見出しのまとまり（項目）の幅も合わせる', await p.evaluate(() => document.querySelector('#previewTable thead tr.pv-hgrp th.pv-hg-item').colSpan === 2));
   await p.evaluate(() => { const c = document.querySelector('.pv-col-chk[data-col="cat"]'); c.click(); });
-  ok('41-I：右上は［PDF 出力］が主ボタン（右端の手前）・CSV の注記は消した', await p.evaluate(() => /PDF 出力/.test(document.querySelector('.pv-btn-pdf').textContent) && !/CSV はデータ行のみ/.test(document.getElementById('previewBox').textContent)));
+  ok('41-I：右上は［見積書に戻る］が主ボタン（右端の手前）・CSV の注記は消した', await p.evaluate(() => /見積書に戻る/.test(document.querySelector('.pv-btn-pdf').textContent) && !/CSV はデータ行のみ/.test(document.getElementById('previewBox').textContent)));
   // 確認ガイドを出したまま PDF 出力を開く → 用紙の上の帯になる
   await p.evaluate(() => { window.preOutputValidationGate('テスト', () => {}); });
   await p.evaluate(() => document.querySelector('.pv-btn-pdf').click()); await p.waitForTimeout(800);

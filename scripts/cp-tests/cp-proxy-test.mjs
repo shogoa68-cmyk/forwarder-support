@@ -526,6 +526,15 @@ const form = (init) => Object.fromEntries(new URLSearchParams(String(init.body))
   ok(du.state === 'done' && du.state_at && /返却/.test(du.state_note), '追跡完了：状態・時刻・理由を保存');
   ok(st.inserts.some((x) => x[0] === 'cp_changes' && x[1].some((c) => c.kind === 'state' && c.label === '追跡完了')), '追跡完了が変化の記録（ダイジェストの元）に入る');
 
+  // 取引の追跡：B/L が空なら取引から取り直し、名簿の手がかりの列に保存する
+  st = st0(); st.targets = [{ preset_id: 'tr1', source: 'trade', trade_no: 'IMP2611411-01', direction: 'import', bl_no: null, booking_no: null, container_nos: [], snapshot: null, consecutive_errors: 0, state: 'active' }];
+  f = net({ api: (init, u) => (u.includes('/Trades/Search') ? R(200, [{ tradeNo: 'IMP2611411-01', blNo: 'BL777' }]) : u.includes('/Trades/GetContainers/') ? R(200, [{ containerNo: 'MSKU7654321' }]) : u.includes('ImportContainers') ? R(200, [impRec]) : R(200, [])) });
+  h = load(makeEnv({ CP_WATCH_SECRET: WS, SUPABASE_SERVICE_ROLE_KEY: SK }), f, { sb: mkSb(st) });
+  r = await runW(h, { action: 'watch_run' });
+  const ku = st.updates.find((x) => x[0] === 'cp_watch_targets')[1];
+  ok(ku.bl_no === 'BL777' && ku.container_nos.join() === 'MSKU7654321' && ku.last_status === 'ok', '取引の追跡：取引から取り直した B/L・コンテナ番号を名簿に保存し、そのまま確認する');
+  ok(f.api().every((c) => (c.init.method || 'GET') === 'GET'), '取引の照会も GET だけ');
+
   // 選ぶ関数が無い（SQL 未実行）→ 失敗として記録して返す
   st = st0(); st.pickError = true;
   h = load(makeEnv({ CP_WATCH_SECRET: WS, SUPABASE_SERVICE_ROLE_KEY: SK }), net(), { sb: mkSb(st) });

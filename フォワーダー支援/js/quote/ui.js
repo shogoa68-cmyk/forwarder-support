@@ -847,6 +847,14 @@
       .replace(/&/g,'&amp;').replace(/</g,'&lt;')
       .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+  // onclick="f('…')" の中に入れる値：JS の文字列として（\ と '）、そのあと HTML 属性として（& " < >）処理する。
+  // ブラウザは属性を HTML として戻してから JS を動かすため、&#39; では ' に戻って文字列を抜けられてしまう。
+  function jsAttr(s) {
+    return String(s == null ? '' : s)
+      .replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+      .replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  window.jsAttr = jsAttr;
 
   // ========== テーブル上部 為替レートバー ==========
   // JPY換算に使われている非JPY通貨のレートをコンパクト表示
@@ -2829,13 +2837,16 @@
     if (ctrl && !e.shiftKey && !e.altKey && e.key === 's') {
       e.preventDefault();
       if (quoteTab.classList.contains('qp-dash')) return;
-      if (typeof cloudSaveCurrent === 'function') cloudSaveCurrent();
+      // 画面の［保存］ボタンと同じ入口（閲覧中は「閲覧中です」で止める＝ロックを取らずに上書きしない）
+      if (typeof quoteModeSaveDone === 'function') quoteModeSaveDone();
+      else if (typeof cloudSaveCurrent === 'function') cloudSaveCurrent();
       return;
     }
     // Ctrl+P → プレビュー
     if (ctrl && !e.shiftKey && !e.altKey && e.key === 'p') {
       e.preventDefault();
-      if (typeof openPreview === 'function') openPreview();
+      if (typeof window.openQuotePreview === 'function') window.openQuotePreview();
+      else if (typeof openPreview === 'function') openPreview();
       return;
     }
     // Ctrl+D → 選択行を下にコピー / 未選択はフォーカス行を複製
@@ -3379,7 +3390,7 @@
     }
 
     if (!blocks.length) {
-      wrap.innerHTML = '<div class="bm-rail-empty">「貿易条件・輸送モード」で輸送モードとキャリア／サブコンを設定すると、関連するリンクがここに表示されます。<br><br>※ リンクはチーム共有ブックマークから表示します（ログイン必須）。初回は「🔖 BOOKMARK」タブの「🌱 内蔵リンク取込」で内蔵リンクを取り込んでください。</div>';
+      wrap.innerHTML = '<div class="qrc-empty bm-rail-empty"><b>この案件に合うリンクはまだありません</b><span>「貿易条件・輸送モード」でキャリア／サブコンを設定すると、関連するリンクがここに出ます。</span>' + (typeof window.seedCarrierBookmarks === 'function' ? '<button type="button" class="qrc-btn-pri" onclick="seedCarrierBookmarks()">内蔵リンクを取り込む</button>' : '') + '<button type="button" class="qrc-btn-text" onclick="document.querySelector(\'.cat-btn[aria-controls=&quot;tab-bookmark&quot;]\')?.click()">ブックマークを管理</button></div>';
       return;
     }
     wrap.innerHTML = blocks.join('');
@@ -3477,7 +3488,7 @@
     });
 
     if (!activeRows.length) {
-      panel.innerHTML = '<p class="qsp-empty">費用項目を入力すると<br>ここにまとめが表示されます</p>';
+      panel.innerHTML = '<div class="qrc-empty qsp-empty"><b>まだ金額がありません</b><span>費用の明細を入れると、売・仕入・粗利がここにまとまります。</span><button type="button" class="qrc-btn-sub" onclick="qrcGoCost()">④ 費用へ</button></div>';
       window._qspLast = null;
       if (typeof window.qdgRender === 'function') window.qdgRender();
       return;
@@ -3555,20 +3566,22 @@
     const taxAmt = Math.ceil(taxAmtJPY);
     const taxLabel = '消費税（10%）';
 
+    // Design 49（K2）：通貨ごとの請求小計／合計（JPY 換算）／消費税 の 3 グループ（枠 1px・頭は薄い灰）。クラス名・文言は従来どおり
+    const _g = (head, body, cls) => `<section class="qrc-group ${cls || ''}"><div class="qrc-group-head qsp-section-label">${head}</div><div class="qrc-group-body">${body}</div></section>`;
+    const lowMk = mkPct < 5;
     panel.innerHTML = `
       <div class="qsp-row-count">${activeRows.length} 費用項目</div>
-      <div class="qsp-section-label">通貨別請求小計</div>
-      ${curLines}
-      <div class="qsp-section-label">合計（JPY 換算）</div>
-      <div class="qsp-total-row"><span>仕入合計</span><span>¥${fmtJPY(totalCostJPY)}</span></div>
-      <div class="qsp-total-row"><span>売上合計</span><span>¥${fmtJPY(totalBillJPY)}</span></div>
-      <div class="qsp-profit-row ${profCls}"><span>利益</span><span>¥${fmtJPY(profit)}</span></div>
-      <div class="qsp-markup-row"><span>粗利率</span><span>${mkPct.toFixed(1)}%</span></div>
-      ${psLines}
-      <div class="qsp-section-label">消費税</div>
-      <div class="qsp-tax-row"><span>課税合計</span><span>¥${fmtJPY(taxableJPY)}</span></div>
-      <div class="qsp-tax-row"><span>免税合計</span><span>¥${fmtJPY(exemptJPY)}</span></div>
-      <div class="qsp-tax-row qsp-tax-amt"><span>${taxLabel}</span><span>¥${fmtJPY(taxAmt)}</span></div>
+      ${curLines ? _g('通貨ごとの請求小計', curLines, 'qrc-g-cur') : ''}
+      ${_g('合計（JPY 換算）', `
+        <div class="qsp-total-row"><span>仕入合計</span><span>¥${fmtJPY(totalCostJPY)}</span></div>
+        <div class="qsp-total-row"><span>売上合計</span><span>¥${fmtJPY(totalBillJPY)}</span></div>
+        <div class="qsp-profit-row ${profCls}"><span>利益</span><span>¥${fmtJPY(profit)}</span></div>
+        <div class="qsp-markup-row${lowMk ? ' is-low' : ''}"><span>粗利率</span><span>${mkPct.toFixed(1)}%</span></div>`)}
+      ${psLines ? `<section class="qrc-group qrc-g-ps">${psLines}</section>` : ''}
+      ${_g('消費税', `
+        <div class="qsp-tax-row"><span>課税合計</span><span>¥${fmtJPY(taxableJPY)}</span></div>
+        <div class="qsp-tax-row"><span>免税合計</span><span>¥${fmtJPY(exemptJPY)}</span></div>
+        <div class="qsp-tax-row qsp-tax-amt"><span>${taxLabel}</span><span>¥${fmtJPY(taxAmt)}</span></div>`)}
       ${hasFx ? '<p class="qsp-fx-note">※ 外貨は現在の参照レートで換算（概算）</p>' : ''}
     `;
     window._qspLast = { count: activeRows.length, bill: totalBillJPY, cost: totalCostJPY, mk: mkPct, hasFx };   // 診断カード（diagnosis.js）が読む
@@ -4180,8 +4193,8 @@
               'title="この行を別ブランチ（サブコン/パターン）へコピー">⧉</button>' +
             '</div>';
         }
-        const addSv = escapeHtml(g.svLabel || '').replace(/'/g, '&#39;');
-        const addPt = escapeHtml(g.pt || '').replace(/'/g, '&#39;');
+        const addSv = jsAttr(g.svLabel || '');
+        const addPt = jsAttr(g.pt || '');
         // ブランチ別 申し送りメモ（進捗管理）
         const notePt = g.level === 1 ? (g.pt || '') : '';
         const note = (typeof window.getSubconGroupNote === 'function') ? window.getSubconGroupNote(g.sv, notePt) : null;
@@ -4216,11 +4229,27 @@
             'onclick="window._qspGroupAction(' + i + ',\'exclude\')" ' +
             'title="' + (g.isExcluded ? '見積もりに含める' : '見積もりから除外') + '">' +
             (g.isExcluded ? '含む' : '除外') + '</button>' +
+          '<button type="button" class="qsp-dig-grp-more" onclick="window._qspGrpMenu(this,event)" title="明細を追加・見積から外す" aria-label="その他の操作">⋯</button>' +
           '</div>' + noteLine;
       }).join('') + '</div>';
     }
     el.innerHTML = html;
     if (typeof window._qspInitRowDrag === 'function') window._qspInitRowDrag();
+  };
+  // Design 49：会社の頭の［＋］［除外］は［⋯］1 つへ（元のボタンを押すだけ・DOM は残す）
+  window._qspGrpMenu = function (btn, ev) {
+    if (ev) ev.stopPropagation();
+    const old = document.getElementById('qspGrpMenu'); if (old) { old.remove(); return; }
+    const item = btn.closest('.qsp-dig-grp-item'); if (!item) return;
+    const add = item.querySelector('.qsp-dig-grp-add'), ex = item.querySelector('.qsp-dig-grp-excl');
+    const m = document.createElement('div'); m.id = 'qspGrpMenu'; m.className = 'qsp-grp-menu';
+    [[add, '＋ 明細を追加'], [ex, ex ? (ex.textContent === '含む' ? '見積に含める' : '見積から外す') : '']].forEach(function (a) {
+      if (!a[0]) return; const b = document.createElement('button'); b.type = 'button'; b.textContent = a[1];
+      b.onclick = function () { m.remove(); a[0].click(); }; m.appendChild(b);
+    });
+    document.body.appendChild(m);
+    const r = btn.getBoundingClientRect(); m.style.top = (r.bottom + 4) + 'px'; m.style.left = Math.max(8, r.right - 150) + 'px';
+    setTimeout(function () { document.addEventListener('click', function f() { m.remove(); document.removeEventListener('click', f); }); }, 0);
   };
   // 費用テーブルのサブコン／パターン見出し行＋明細行を DOM 順に収集（ジャンプ用）
   function _collectTableGroups() {

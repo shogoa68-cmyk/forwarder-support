@@ -253,6 +253,7 @@ async function handleWatchRun(req: Request): Promise<Response> {
         last_checked_at: r.checked_at, last_status: r.status, last_error: r.error, updated_at: r.checked_at,
         consecutive_errors: r.status === 'error' ? (tg?.consecutive_errors ?? 0) + 1 : 0,
       };
+      if (r.keys) { upd.bl_no = r.keys.bl_no; upd.booking_no = r.keys.booking_no; upd.container_nos = r.keys.container_nos; }   // 取引から取り直した手がかり
       if (r.status === 'ok') {   // 該当なし・失敗のときは前回の写しを残す
         upd.snapshot = r.items; upd.urgent_at = r.urgent_at; upd.state = r.state; upd.state_note = r.state_note;
         if (r.state !== (tg?.state ?? 'active')) upd.state_at = r.checked_at;

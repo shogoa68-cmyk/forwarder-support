@@ -37,6 +37,18 @@
   function loadHideTotal() {
     try { return localStorage.getItem(HIDE_TOTAL_KEY) === '1'; } catch (e) { return false; }
   }
+  // 小計の表示（案件ごと・隠し項目 #qf-subtotal-mode に保存。空＝おまかせ）
+  const SUBTOTAL_MODES = ['auto', 'all', 'subcon', 'pattern', 'none'];
+  function loadSubtotalMode() {
+    const v = (document.getElementById('qf-subtotal-mode')?.value || '').trim();
+    return SUBTOTAL_MODES.includes(v) ? v : 'auto';
+  }
+  function saveSubtotalMode(v) {
+    const f = document.getElementById('qf-subtotal-mode');
+    if (f) f.value = (v === 'auto' || !SUBTOTAL_MODES.includes(v)) ? '' : v;
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (f) f.dispatchEvent(new Event('input', { bubbles: true }));   // 未保存の変更として知らせる
+  }
   // PDF 出力後にステータスを「提示済み」へ進めるか（既定 ON）
   const AUTO_STATUS_KEY = 'quoteDocAutoStatus_v1';
   function loadAutoStatus() {
@@ -616,10 +628,16 @@
     let _ptActive = false, _ptSubOn = false, _ptKey = null, _ptJpy = 0, _ptJpyHi = 0, _ptHas = false;
     // 小計の金額表示：上限が下限と違うときは「¥下限〜¥上限」（合計・手動の小計行と同じ書式）
     const _subYen = (lo, hi) => (hi !== lo) ? `¥${fmtInt(lo)}〜¥${fmtInt(hi)}` : `¥${fmtInt(lo)}`;
+    // 小計の出し方（PDF 出力設定「小計の表示」・案件ごとに保存）：auto＝おまかせ（下記の既定の判断）／all＝両方／
+    // subcon＝サブコン小計だけ／pattern＝パターン小計だけ／none＝出さない。手で入れた「小計」行（qd-sub）は対象外
+    const _stMode = loadSubtotalMode();
     const _ptPush = () => {
       // パターン小計はサブコン内に2パターン以上あるときだけ出す
       // （1パターンのみだと直後のサブコン小計と同額の小計行が2行並び冗長）
-      if (_ptActive && _ptSubOn && _ptHas) {
+      // ただし、サブコン名を出していない枠ではサブコン小計を出さないので、パターンが 1 つだけでもパターンの小計を出す
+      const _ptShow = _stMode === 'auto' ? (_ptSubOn || (_scActive && !_scHeadLabel))
+                    : (_stMode === 'all' || _stMode === 'pattern');
+      if (_ptActive && _ptHas && _ptShow) {
         // パターン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
         lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ ${t('subtotal')}</td><td class="qd-num">${_subYen(_ptJpy, _ptJpyHi)}</td></tr>`);
       }
@@ -631,11 +649,16 @@
       // 案どうしの合算（比較用の案を足した意味のない金額）になるので出さない。パターンごとの小計だけを残す。
       // この時点の _ptSubOn は、いま閉じようとしているサブコンのもの（次のサブコンの判定は境界の後）
       const _scSumMeaningless = hideTotal && _ptSubOn;
-      if (_scActive && _scHas && !_scSumMeaningless) {
+      // サブコン名を出していない枠（客先表示名が空）は、サブコン別の小計も出さない（お客様には区切りの意味が無いため）
+      const _scShow = _stMode === 'auto' ? (!_scSumMeaningless && !!_scHeadLabel)
+                    : (_stMode === 'all' || _stMode === 'subcon');   // 自分で選んだときは、その指定どおりに出す
+      if (_scActive && _scHas && _scShow) {
         // サブコン小計はページが分かれると見出し行が前ページに残り会社名が分からなくなるため、
         // 「小計」だけでなくサブコン名も併記する（例：「SEABRIDGE 小計」）
         lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${_scHeadLabel ? esc(_scHeadLabel) + ' ' : ''}${t('subtotal')}</td><td class="qd-num">${_subYen(_scJpy, _scJpyHi)}</td></tr>`);
+        return true;
       }
+      return false;
     };
     let _hasRangeRow = false;   // 幅（〜）で示した行があるか（あれば合計の注記を出す）
     rows.forEach(r => {
@@ -695,7 +718,11 @@
       if (_scActive) {
         const k = _scNorm(r);
         if (_scHas && k !== _scKey) {
-          _scPush(); _scJpy = 0; _scJpyHi = 0; _scHas = false; _catKey = null;
+          const _scSubPushed = _scPush(); _scJpy = 0; _scJpyHi = 0; _scHas = false;
+          // 名前を出さない枠どうしの境目では、カテゴリ見出しを出し直さない（同じ見出しが続けて並ばないように）。
+          // ただし小計の行で区切ったときは、次の枠の見出しを出し直す
+          const _alNext = ((typeof getSubconAliases === 'function' ? getSubconAliases()[k] : '') || '').trim();
+          if (_scHeadLabel || _alNext || _scSubPushed) _catKey = null;
           _ptActive = false; _ptKey = null;
         }
         if (!_scHas) {
@@ -710,7 +737,7 @@
           if (_rmH && _rmH.show && _rmH.text && _rmH.text.trim()) {
             lineHTML.push(`<tr class="qd-subcon-remark"><td colspan="5">📝 ${linkify(esc(_enText(_rmH.text)))}</td></tr>`);
           }
-          _catKey = null;   // 新しいサブコンに入ったのでカテゴリ見出しを再出させる
+          if (_scHeadLabel) _catKey = null;   // 名前を出すサブコンに入ったのでカテゴリ見出しを再出させる
           const ps = scPatternSets[k] || new Set();
           _ptActive = ps.size >= 2 || (ps.size === 1 && !ps.has(''));
           _ptSubOn  = ps.size >= 2;
@@ -932,6 +959,11 @@
             <div class="qd-panel-foot">
               <button type="button" class="qd-btn-print" id="qdPrint">🖨️ PDF出力（印刷）</button>
               <button type="button" class="qd-btn-ghost" id="qdClose">閉じる</button>
+              <div class="qd-more-out">
+                <button type="button" class="qd-btn-sub" id="qdMail" title="明細付きのメール本文（文字だけ）をコピーします">✉️ メール本文</button>
+                <button type="button" class="qd-btn-sub" id="qdExcel" title="明細を Excel（.xlsx）でダウンロードします">📊 Excel</button>
+                <button type="button" class="qd-btn-sub" id="qdCheck" title="原価・乗せ幅・利益まで入った社内用の表で確認します（お客様には出しません）">🧮 社内チェック表</button>
+              </div>
             </div>
             <div class="qd-panel-body">
               <div class="qd-fg">
@@ -947,6 +979,16 @@
                 <span class="qd-toggle-l">合計・税サマリを非表示<small>パターン比較用</small></span>
                 <input type="checkbox" id="qdHideTotal"><span class="qd-toggle-sw"></span>
               </label>
+              <div class="qd-fg qd-st-fg" title="御見積書に出す小計の行を選びます（この案件に保存）。おまかせ：サブコン名を出した枠はサブコン小計、名前を出していない枠はパターンの小計を出します。手で入れた「小計」行はいつも出ます。">
+                <label for="qdSubtotalMode">小計の表示<small>サブコン・パターンの小計</small></label>
+                <div class="qd-inp"><select id="qdSubtotalMode">
+                  <option value="auto">おまかせ（おすすめ）</option>
+                  <option value="all">サブコン小計とパターン小計を出す</option>
+                  <option value="subcon">サブコン小計だけ出す</option>
+                  <option value="pattern">パターン小計だけ出す</option>
+                  <option value="none">小計を出さない</option>
+                </select></div>
+              </div>
               <label class="qd-toggle" title="ONにすると、貿易条件（インコタームズ）の下に、費用とリスクを売主・買主のどちらが負うかを示す図を入れます。往復案件で往路と復路の条件が違うときは2つ並べます。">
                 <span class="qd-toggle-l">📐 貿易条件の図解<small>売主／買主の分担</small></span>
                 <input type="checkbox" id="qdIncoDiagram"><span class="qd-toggle-sw"></span>
@@ -975,11 +1017,16 @@
       overlay.addEventListener('click', e => { if (e.target === overlay) closeQuoteDoc(); });
       overlay.querySelector('#qdClose').addEventListener('click', closeQuoteDoc);
       overlay.querySelector('#qdPrint').addEventListener('click', printQuoteDoc);
+      overlay.querySelector('#qdMail').addEventListener('click', () => { if (typeof window.copyQuoteEmail === 'function') window.copyQuoteEmail(); });
+      overlay.querySelector('#qdExcel').addEventListener('click', () => { if (typeof window.exportExcel === 'function') window.exportExcel(); });
+      overlay.querySelector('#qdCheck').addEventListener('click', () => { closeQuoteDoc(); if (typeof window.openPreviewDirect === 'function') window.openPreviewDirect(); });
       overlay.querySelector('#qdEditIssuer').addEventListener('click', toggleIssuerForm);
       const hideChk = overlay.querySelector('#qdHideTotal');
       if (hideChk) {
         hideChk.addEventListener('change', () => { saveHideTotal(hideChk.checked); refreshQuoteDoc(); });
       }
+      const stSel = overlay.querySelector('#qdSubtotalMode');
+      if (stSel) stSel.addEventListener('change', () => { saveSubtotalMode(stSel.value); refreshQuoteDoc(); });
       const incoChk = overlay.querySelector('#qdIncoDiagram');
       if (incoChk) incoChk.addEventListener('change', () => {
         if (typeof window.setIncoDiagramEnabled === 'function') window.setIncoDiagramEnabled(incoChk.checked);
@@ -1003,6 +1050,8 @@
     // チェック状態・ファイル名を保存値に同期（オーバーレイ再利用時も整合）
     const hideChk = overlay.querySelector('#qdHideTotal');
     if (hideChk) hideChk.checked = loadHideTotal();
+    const stSel2 = overlay.querySelector('#qdSubtotalMode');
+    if (stSel2) stSel2.value = loadSubtotalMode();
     const incoChk2 = overlay.querySelector('#qdIncoDiagram');
     if (incoChk2) incoChk2.checked = typeof window.incoDiagramEnabled === 'function' && window.incoDiagramEnabled();
     const autoChk2 = overlay.querySelector('#qdAutoStatus');
@@ -1047,6 +1096,15 @@
       if (!window.sensitiveColumnsGate('PDF 出力')) return;
     }
     openQuoteDoc({ quickPrint: true });
+  }
+
+  // 「📋 プレビュー」ボタン・Ctrl+P の入口：出力前の確認を通してから、見積書の画面（PDF 出力の設定つき）を開く。
+  // 以前は先に社内用の表（表計算）を開いていたが、ほとんど使われないため、表は見積書の画面の［🧮 社内チェック表］から開く。
+  function openQuotePreview() {
+    if (typeof window.preOutputValidationGate === 'function') {
+      if (!window.preOutputValidationGate('プレビュー表示', () => openQuoteDoc())) return;
+    }
+    openQuoteDoc();
   }
 
   function refreshQuoteDoc() {
@@ -1161,6 +1219,7 @@
   // export
   window.openQuoteDoc = openQuoteDoc;
   window.quickQuotePdf = quickQuotePdf;
+  window.openQuotePreview = openQuotePreview;
   window.closeQuoteDoc = closeQuoteDoc;
   window.printQuoteDoc = printQuoteDoc;
   window.buildQuoteDocHTML = buildQuoteDocHTML;
