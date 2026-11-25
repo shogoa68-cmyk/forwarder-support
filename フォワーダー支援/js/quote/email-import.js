@@ -102,7 +102,7 @@
 
   // ---- 単位・数量の見つけ方（「/20GP」「per 40HC」「(20GP)」「× 3台」「2×40'HC」）----
   // 20・40・45 は「'」かサイズ記号（GP/HC…）が付くときだけ単位（日付の「/20」などを単位と取り違えない）
-  const _UNIT_SRC = "(?:(?:20|40|45)(?:\\s*['’]\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU)?|\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU))|R\\/T|RT|CBM|M3|M³|㎥|KGS?|MT|CNTR|CTR|CNT|CONTAINER|B\\/L|BL|SHPT|SHIPMENT|SHP|VAN|JOB|PKG|PLT|PALLET|CTN|PCS?|SET|BOX|TEU|FEU|件|台|本|枚|式|梱|才|個|便|回|コンテナ|ロット|口|パレット|トン|立米|DAY|WEEK|MONTH|YEAR|日|週|月|年|期)";
+  const _UNIT_SRC = "(?:(?:20|40|45)(?:\\s*['’]\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU)?|\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU))|R\\/T|RT|CBM|M3|M³|㎥|KGS?|MT|CNTR|CTR|CNT|CONTAINER|B\\/L|BL|SHPT|SHIPMENT|SHP|VAN|JOB|PKG|PLT|PALLET|CTN|PCS?|SET|BOX|TEU|FEU|VEHICLES?|UNITS?|TRUCKS?|件|葉|台|本|枚|式|梱|才|個|便|回|コンテナ|ロット|口|パレット|トン|立米|DAY|WEEK|MONTH|YEAR|日|週|月|年|期)";
   const _UNIT_END = '(?![A-Za-z0-9])';
   const _PER_RE        = new RegExp('(?:\\/|\\bper\\b|あたり|につき|毎|@)\\s*(?:1\\s*)?(' + _UNIT_SRC + ')' + _UNIT_END, 'i');
   const _PERIOD_RE     = new RegExp('(?:^|\\s)\\/\\s*(DAY|WEEK|MONTH|YEAR|日|週|月|年|期)' + _UNIT_END, 'i');
@@ -143,6 +143,12 @@
       // 「/M3/期」「/CBM/月」のように、続けて期間の単位が付くときはつなげる（保管料など）
       const pm = rest.match(_PERIOD_RE);
       if (pm && unit === m[1]) { unit = unit + '/' + pm[1]; rest = rest.slice(0, pm.index) + ' ' + rest.slice(pm.index + pm[0].length); }
+      // 「/20'/40'HQ」のように単位が「/」で続くときは 1 つの単位としてつなぐ（2 つ目が品名に残らないように）
+      else if (unit === m[1]) {
+        const um = rest.slice(m.index).match(new RegExp('^\\s*\\/\\s*(' + _UNIT_SRC + ')' + _UNIT_END, 'i'));
+        if (um) { unit = unit + '/' + um[1]; rest = rest.slice(0, m.index) + ' ' + rest.slice(m.index + um[0].length); }
+      }
+      unit = unit.replace(/’/g, "'");
     } else if (!unit && (m = rest.match(_CNTR_TAIL_RE))) {
       unit = m[1]; rest = rest.slice(0, m.index); perUnit = true;
     }
@@ -150,7 +156,10 @@
     if (minNote) rest = rest.replace(/\b(or|または)\b/gi, ' ');
     let name = rest.replace(/[（(]\s*[）)]/g, ' ');
     if (!/[（(]/.test(name)) name = name.replace(/[)）]\s*$/, '');
-    name = name.replace(/\s+/g, ' ').replace(/^[\s:：/／,，、\-–]+|[\s:：/／,，、\-–×]+$/g, '').trim();
+    name = name.replace(/\s+/g, ' ').replace(/^[\s:：/／,，、\-–]+|[\s:：/／,，、\-–×.。]+$/g, '').trim();
+    // 行頭の番号「1. 」「(2) 」「3）」は品名にしない（品名が空になるときは残す）
+    const nn0 = name.replace(/^[（(]?\d{1,2}[.)）](?!\d)\s*/, '').trim();
+    if (nn0 && nn0 !== name && /[A-Za-z぀-ヿ一-鿿]/.test(nn0)) name = nn0;
 
     // 「検品料1台あたり」のように「N台あたり」が品名に混ざるときは、単位（台など）として取り出す（品名が空になるときは残す）
     if (!unit && (m = name.match(/(\d+)\s*(台|個|本|枚)(?:あたり|当たり)(?=\s|$)/))) {
@@ -408,8 +417,9 @@
       }
 
       // パターンB（自形式・実費）
-      if (/(^|[\s:：])実費(\s|$)/.test(body)) {   // 「諸掛り：実費」のようにコロンで区切った書き方も
-        const nm2 = body.replace(/(^|[\s:：])実費(\s|$)/, ' ').replace(/\s+/g, ' ').replace(/[\s:：]+$/, '').trim();
+      const _ACT_RE = /(^|[\s:：])(?:実費|at\s+cost)(?=[\s.。]|$)[.。]?/i;   // 英語の「At cost」も実費
+      if (_ACT_RE.test(body)) {   // 「諸掛り：実費」のようにコロンで区切った書き方も
+        const nm2 = body.replace(_ACT_RE, ' ').replace(/\s+/g, ' ').replace(/[\s:：]+$/, '').replace(/^[（(]?\d{1,2}[.)）](?!\d)\s*/, '').trim();
         if (nm2) {
           pushItem({ _kind: 'item', conf: 'high', name: nm2, qty: '', unit: '', ccy: 'JPY', price: null, actual: true, taxed, taxSrc: tax, cond, ref: refFlg, note });
           return;
