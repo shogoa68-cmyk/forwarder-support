@@ -218,7 +218,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // ===== 取り込みの入口（テキスト／PDF／荷姿） =====
     await p.evaluate(() => { window.closeEmailImport(); window.openImportChooser(); }); await p.waitForTimeout(200);
     const ch1 = await p.evaluate(() => ({ open: document.getElementById('importChooser').classList.contains('open'), n: document.querySelectorAll('#importChooser .ic-opt').length, pk: !document.getElementById('icPacking').hidden }));
-    ok('「取り込み」で選択画面が開き、テキスト・PDF・荷姿の3択が出る', ch1.open && ch1.n === 3 && ch1.pk, ch1);
+    ok('「取り込み」で選択画面が開き、テキスト・PDF・画像（AI）・荷姿の4択が出る', ch1.open && ch1.n === 4 && ch1.pk, ch1);
     await p.evaluate(() => window.icChoose('text')); await p.waitForTimeout(200);
     const ch2 = await p.evaluate(() => ({ ch: document.getElementById('importChooser').classList.contains('open'), ei: document.getElementById('emailImportModal').classList.contains('open'), ctx: document.getElementById('emailImportBox').classList.contains('ei-sv-ctx') }));
     ok('「テキストで取り込む」で選択画面が閉じ、通常のメール取込が開く', !ch2.ch && ch2.ei && !ch2.ctx, ch2);
