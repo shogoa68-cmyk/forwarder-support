@@ -453,7 +453,7 @@
     const tf = document.querySelector('#quoteTable tfoot'); if (tf) new MutationObserver(kick).observe(tf, { childList: true, subtree: true, characterData: true });
     ['input', 'change'].forEach(ev => tb.addEventListener(ev, e => { if (!on) return; const tr = e.target.closest && e.target.closest('tr'); if (isDataRow(tr)) syncRow(tr); if (e.target.classList && e.target.classList.contains('row-select-chk')) syncSel(); }));
     document.addEventListener('change', e => { if (on && e.target && e.target.id === 'selectAllChk') setTimeout(syncSel, 0); });
-    // 行の何もない所を押すと詳細を開く／［⋯］・詳細の中のボタン
+    // ［⋯］・［▸ 詳細］・詳細の中のボタン
     tb.addEventListener('click', e => {
       if (!on) return;
       const tr = e.target.closest('tr'); if (!isDataRow(tr)) return;
@@ -474,8 +474,7 @@
       }
       const qk = e.target.closest('[data-ca-q]');
       if (qk) { e.preventDefault(); const o = tr.querySelector('.' + qk.dataset.caQ); if (o) o.click(); setTimeout(() => syncRow(tr), 30); return; }
-      if (e.target.closest('input, select, textarea, button, a, label, .row-detail-panel, .drag-handle')) return;
-      window.caToggleDetail(tr);
+      // 行の空いた所を押しても詳細は開かない（開くのは［▸ 詳細］と［⋯］→「行の詳細」だけ・2026-11）
     }, true);
     document.addEventListener('keydown', e => {
       if (!on) return;
@@ -483,7 +482,6 @@
         if (menu) { closeMenu(); return; }
         const o = document.querySelector('#tableBody tr.ca-open'); if (o) { closeDetail(o); }
       }
-      if (e.key === 'Enter' && e.target && e.target.tagName === 'TR' && isDataRow(e.target)) { e.preventDefault(); window.caToggleDetail(e.target); }
     });
     document.addEventListener('pointerdown', e => { if (menu && !menu.contains(e.target) && !e.target.closest('.row-acts-hint, #caMoreBtn, [data-cs="move"], [data-cs="pat"], .gb-more, #gbMenu')) closeMenu(); }, true);
     // ドラッグで並べ替える前に、開いている詳細は閉じる
