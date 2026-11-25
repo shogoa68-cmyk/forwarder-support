@@ -64,8 +64,12 @@ const http = require('http'), fs = require('fs'), path = require('path');
   if (v2) { await p.evaluate(() => { const b = document.getElementById('qadMode'); b && b.click(); }); await p.waitForTimeout(600); }
   if (v2) {   // 新画面：取っ手は閉じている間は出さず、合計バーの［📁 一時ファイル］から開く
     ok('[新画面] 閉じている間は取っ手バーを出さない（下の固定物を減らす）', !(await vis(p, '#rmSheet')));
-    ok('[新画面] 合計バーに［一時ファイル］のボタンがある', await vis(p, '#e2Total [data-e2f]'));
-    await p.evaluate(() => document.querySelector('#e2Total [data-e2f]').click()); await p.waitForTimeout(500);
+    ok('[新画面] 合計バーには［一時ファイル］を置かない（出力と近い⑤の「出力する」枠へ移した）', !(await p.evaluate(() => !!document.querySelector('#e2Total [data-e2f]'))));
+    await p.evaluate(() => { const n = document.querySelector('#e2Steps [data-e2s="5"]'); n && n.click(); }); await p.waitForTimeout(400);
+    ok('[新画面] ステップ⑤の「出力する」枠に［📁 案件のファイル］がある', await vis(p, '#e2Out [data-e2o="files"]') && /案件のファイル/.test(await p.textContent('#e2Out [data-e2o="files"]')));
+    await p.evaluate(() => document.querySelector('#e2Out [data-e2o="files"]').click()); await p.waitForTimeout(500);
+    ok('[新画面] それを押すと「案件のファイル」の一覧が開く', await vis(p, '#cfOverlay .cf-box'));
+    await p.evaluate(() => { window.cfClose(); window.rmsShowFiles(); }); await p.waitForTimeout(500);
   }
   ok('引き出しの取っ手に「📁 一時ファイル」のタブがある', await vis(p, '#rmSheet .rms-tab[data-pane="files"]'));
   ok(v2 ? '[新画面] リマークのタブは出ず、一時ファイルだけ' : '「📝 全体リマーク」のタブも残っている', v2 ? !(await vis(p, '#rmSheet .rms-tab[data-pane="remark"]')) : await vis(p, '#rmSheet .rms-tab[data-pane="remark"]'));
@@ -75,7 +79,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   }
   if (!v2) { await p.click('#rmSheet .rms-tab[data-pane="files"]'); } await p.waitForTimeout(500); if (process.env.DBG) { console.log(JSON.stringify(await p.evaluate(() => ({open: window.rmsIsOpen(), pane: window.rmsPane(), h: document.getElementById('rmsBody').getBoundingClientRect().height, tf: document.getElementById('tfPane').getBoundingClientRect().toJSON(), hid: document.getElementById('tfPane').hidden, disp: getComputedStyle(document.getElementById('tfPane')).display})))); await p.screenshot({path:'/tmp/claude-0/tf/dbg.png'}); }
   ok('タブを押すと引き出しが開き、一時ファイルの画面になる', await p.evaluate(() => window.rmsIsOpen() && window.rmsPane() === 'files') && await vis(p, '#tfPane .tf-toolbar'));
-  ok('リマーク側は隠れ、一時ファイルの画面だけが出る', !(await vis(p, '#remarkTextarea')));
+  ok('リマーク側は隠れ、一時ファイルの画面だけが出る', v2 ? await p.evaluate(() => document.getElementById('rmsBody').getBoundingClientRect().height > 50) : !(await vis(p, '#remarkTextarea')));
   ok('空のときは案内（ドラッグ＆ドロップ・3 時間）を出す', /3 時間/.test(await p.evaluate(() => document.getElementById('tfMain').textContent)) && /空/.test(await p.evaluate(() => document.getElementById('tfMain').textContent)));
   ok('エクスプローラー風：ツールバー・パンくず・ステータスバーがある', await vis(p, '#tfPane .tf-addr') && await vis(p, '#tfStatus') && (await p.$$('#tfPane .tf-toolbar [data-act]')).length >= 6);
   await shot(p, '1-empty');

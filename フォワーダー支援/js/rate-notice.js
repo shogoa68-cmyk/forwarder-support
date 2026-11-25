@@ -20,8 +20,9 @@
   function _cloud() { return !!_c() && !!_me(); }
 
   // === ヘルパー ===
-  function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   function _ea(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  function _ej(s)  { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }   // onclick="f('…')" の中の値（JS の文字列＋HTML 属性の両方）
   function _fmtDate(d) { return d ? String(d).slice(0,10) : ''; }
   function _amt(a, cur) {
     if (a == null || a === '') return '—';
@@ -167,7 +168,7 @@
       const chk = _selected.has(p.id) ? 'checked' : '';
       const sel = _selected.has(p.id) ? ' rn-plan-row--sel' : '';
       return `<label class="rn-plan-row${sel}">` +
-        `<input type="checkbox" class="rn-plan-chk" value="${_ea(p.id)}" ${chk} onchange="rnTogglePair('${_ea(p.id)}')">` +
+        `<input type="checkbox" class="rn-plan-chk" value="${_ea(p.id)}" ${chk} onchange="rnTogglePair('${_ej(p.id)}')">` +
         `<div class="rn-plan-main">` +
           `<div class="rn-plan-nm">${_esc(c.name)}${badge}</div>` +
           `<div class="rn-plan-route">${_esc([c.carrier, _route(c)].filter(Boolean).join('  '))}</div>` +
@@ -343,10 +344,10 @@
         itemsHtml +
         `<div class="rn-hist-meta">${meta}</div>` +
         `<div class="rn-hist-ops">` +
-          `<button class="rn-op" onclick="rnReopen('${_ea(n.id)}')">📝 開く</button>` +
-          `<button class="rn-op" onclick="rnCopyNotice('${_ea(n.id)}')">📋 本文コピー</button>` +
-          (sent ? '' : `<button class="rn-op rn-op--go" onclick="rnMarkSent('${_ea(n.id)}')">✅ 送信済みにする</button>`) +
-          `<button class="rn-op rn-op--del" onclick="rnDeleteNotice('${_ea(n.id)}')">🗑️ 削除</button>` +
+          `<button class="rn-op" onclick="rnReopen('${_ej(n.id)}')">📝 開く</button>` +
+          `<button class="rn-op" onclick="rnCopyNotice('${_ej(n.id)}')">📋 本文コピー</button>` +
+          (sent ? '' : `<button class="rn-op rn-op--go" onclick="rnMarkSent('${_ej(n.id)}')">✅ 送信済みにする</button>`) +
+          `<button class="rn-op rn-op--del" onclick="rnDeleteNotice('${_ej(n.id)}')">🗑️ 削除</button>` +
         `</div>` +
       `</div>`;
     }).join('');

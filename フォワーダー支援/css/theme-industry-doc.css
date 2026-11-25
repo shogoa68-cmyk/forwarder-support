@@ -79,6 +79,12 @@ html.theme-industry-doc {
   border-radius: 0;
   color: #f2f2f3;
 }
+:where(html.theme-industry-doc) #quoteDocOverlay .qd-inp .qd-ext {
+  color: rgba(240,232,218,.5);
+}
+:where(html.theme-industry-doc) #quoteDocOverlay .qd-inp.qd-static {
+  color: rgba(240,232,218,.55);
+}
 :where(html.theme-industry-doc) #quoteDocOverlay .qd-inp:focus {
   border-color: #94bce3;
 }

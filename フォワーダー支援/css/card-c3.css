@@ -235,3 +235,17 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-title.is-empty { color: #5
   #tab-quote-make #qpDashboard .qpd-rows-head.qpd-row--linkmode:not(.qpd-rows-head--simple),
   #tab-quote-make #qpDashboard .qpd-row.qpd-row--linkmode:not(.qpd-row--simple) { grid-template-columns: 24px 84px minmax(120px, 1.4fr) minmax(120px, 1.6fr) 110px 92px 120px; }
 }
+
+/* ===== マスターに未登録のお客様：名前の横の「＋ マスター登録」／申請済みの印（2026-11）===== */
+#tab-quote-make #qpDashboard #qpdListWrap .cust-reg-btn { flex: none; align-self: flex-start; min-height: 28px; margin: 4px 0 0; padding: 0 10px; border: 1px dashed var(--accent-dk, #2c455d); border-radius: 999px; background: var(--surface, #fff); color: var(--accent-dk, #2c455d); font: inherit; font-size: var(--text-xs, 12px); font-weight: 700; cursor: pointer; white-space: nowrap; }
+#tab-quote-make #qpDashboard #qpdListWrap .cust-reg-btn:hover { background: var(--accent-dk, #2c455d); color: #fff; border-style: solid; }
+#tab-quote-make #qpDashboard #qpdListWrap .cust-reg-pend { display: inline-block; margin: 4px 0 0; padding: 2px 10px; border-radius: 999px; background: #e7f0fb; color: #2f5fb3; font-size: var(--text-xs, 12px); font-weight: 700; white-space: nowrap; }
+#tab-quote-make #qpDashboard #qpdListWrap .qpd-row-cust .cust-reg-btn, #tab-quote-make #qpDashboard #qpdListWrap .qpd-row-cust .cust-reg-pend { margin: 0 0 0 6px; min-height: 24px; align-self: center; }
+@media (max-width: 600px) { #tab-quote-make #qpDashboard #qpdListWrap .cust-reg-btn { min-height: 44px; padding: 0 14px; font-size: var(--text-sm, 14px); } }
+
+/* Design 42-7：関連（メイン／サブも含む）は「🔗 関連 N件」の札だけ。押すと一覧が開く */
+#tab-quote-make #qpDashboard .cloud-link-badge {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 10px; margin: 4px 0;
+  border: 1px solid #c8d3e6; border-radius: 14px; background: #eef3fb; color: #24467a; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+@media (max-width: 600px), (pointer: coarse) { #tab-quote-make #qpDashboard .cloud-link-badge { min-height: 44px; } }

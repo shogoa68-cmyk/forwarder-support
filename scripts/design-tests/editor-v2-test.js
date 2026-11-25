@@ -9,7 +9,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html?editor=v2`;
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   let fails = 0; const ok = (n, c, d) => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' → ' + JSON.stringify(d))); };
-  const W = +(process.env.W || 1400), mobile = W <= 600, th = process.env.THEME;
+  const W = +(process.env.W || 1300), mobile = W <= 600, th = process.env.THEME;
   const ctx = await b.newContext({ viewport: { width: W, height: 900 }, locale: 'ja-JP', hasTouch: mobile, isMobile: mobile });
   await ctx.addInitScript(({ th }) => {
     try { localStorage.setItem('fwd.uiMode', 'detail'); localStorage.setItem('forwarderTheme_v1', JSON.stringify(th === 'classic' ? { site: false, doc: false } : { site: true, doc: true })); } catch (e) {}
@@ -92,9 +92,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('[T3] 題名は 1 行（最大幅 380px）', await p.evaluate(() => { const b = document.getElementById('e2tName'); return b.getBoundingClientRect().width <= 381 && getComputedStyle(b).whiteSpace === 'nowrap'; }));
   }
   if (out) await p.screenshot({ path: path.join(out, 'e2-top.png') });
-  await p.click('#e2MoreBtn'); await p.waitForTimeout(250);
-  ok('［その他の情報］を開くと日付が出る', mobile || (await vis('#qf-date') && await vis('#qf-received')));
-  await p.click('#e2MoreBtn'); await p.waitForTimeout(200);
+  // Design 46（案B）：日付は右の列の行（押すとその下に欄が開く）
+  await p.evaluate(() => window.sbOpenRow('date')); await p.waitForTimeout(250);
+  ok('右の列の「発行日」の行を開くと日付が出る', await vis('#qf-date'));
+  await p.evaluate(() => window.sbOpenRow('')); await p.waitForTimeout(200);
   await p.fill('#qf-case-name', 'テスト案件ZZ'); await p.waitForTimeout(300);
   await p.fill('#qf-ref', '99-261116-001'); await p.waitForTimeout(300);
   ok('上部の題名は「案件番号 / 案件名」', /^99-261116-001 \/ テスト案件ZZ$/.test((await p.textContent('#e2tName')) || ''));
@@ -103,16 +104,17 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.click('#e2Next'); await p.waitForTimeout(400);
   if (out) await p.screenshot({ path: path.join(out, 'e2-step2.png'), fullPage: true });
   if (out) { await p.click('#e2Next'); await p.waitForTimeout(400); await p.screenshot({ path: path.join(out, 'e2-step3.png'), fullPage: true }); await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(300); }
-  ok('②ルート：①と同じ左位置・幅（2 カラムの配置を引きずらない）', await p.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(); const a = r('section-cond'); const ref = document.getElementById('section-ref'); const cols = !!document.getElementById('qmCols'); const tab = document.getElementById('tab-quote-make'); const m = tab.querySelector('.quote-main').getBoundingClientRect(); return !cols && Math.abs(a.left - m.left) < 40 && a.width >= Math.min(1000, m.width) * 0.9; }));
+  ok('②ルート：①と同じ左位置・幅（2 カラムの配置を引きずらない）', await p.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(); const a = r('section-cond'); const ref = document.getElementById('section-ref'); const cols = !!document.getElementById('qmCols'); const tab = document.getElementById('tab-quote-make'); const mm = tab.querySelector('.quote-main'); const m = mm.getBoundingClientRect(); const pr = parseFloat(getComputedStyle(mm).paddingRight) || 0; const w = m.width - pr; return !cols && Math.abs(a.left - m.left) < 40 && a.width >= Math.min(1000, w) * 0.9; }));
   ok('［次へ］で②ルート', await vis('#section-cond') && !(await vis('#section-ref')));
   await p.evaluate(() => { const i = document.getElementById('cond-incoterms'); if (i && i.options.length > 1) { i.value = i.options[1].value; i.dispatchEvent(new Event('change', { bubbles: true })); } const a = document.getElementById('z2Pol'); a.value = 'TOKYO'; a.dispatchEvent(new Event('input', { bubbles: true })); const b = document.getElementById('z2Pod'); b.value = 'LOS ANGELES'; b.dispatchEvent(new Event('input', { bubbles: true })); });
   await p.waitForTimeout(300);
-  ok('②に条件のチップ要約（航路）', /TOKYO → LOS ANGELES/.test(await p.textContent('#e2Chips2')));
+  ok('②の右の列に貿易条件が出る（要約の帯の代わり）', await p.evaluate(() => { const r = document.querySelector('#sbAside .sb-panel:not([hidden]) .sb-row[data-k="inco"] .sb-v'); return !!r && !/^なし$/.test(r.textContent); }));
   await p.click('#e2Next'); await p.waitForTimeout(300);
-  ok('③に要約の帯と、荷姿の詳細は畳まれている', await vis('#e2Chips3') && await vis('#e2PackBtn') && !(await vis('.cond-field--cargo-detail')));
-  await p.click('#e2PackBtn'); await p.waitForTimeout(200);
-  ok('③「詳細 ▾」で荷姿が開く', await vis('.cond-field--cargo-detail'));
-  await p.click('#e2PackBtn'); await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(200);
+  await p.waitForTimeout(300);
+  ok('③ 荷姿の詳細は畳まれていて、「荷姿・貨物明細 ▸ 開く」がある', await vis('#sbPackHead') && !(await vis('.cond-field--cargo-detail')));
+  await p.evaluate(() => document.getElementById('sbPackHead').click()); await p.waitForTimeout(200);
+  ok('③「▸ 開く」で荷姿が開く', await vis('.cond-field--cargo-detail'));
+  await p.evaluate(() => document.getElementById('sbPackHead').click()); await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(200);
   await p.click('#e2Steps [data-e2s="5"]'); await p.waitForTimeout(600);
   ok('⑤リマークは本文に直接出る（下の引き出しにはリマークを入れず、「一時ファイル」のタブだけ）', await p.evaluate(() => { const sec = document.getElementById('section-remark'); const sh = document.getElementById('rmSheet'); const t = sh && sh.querySelector('.rms-tab[data-pane="remark"]'); return !!sec.closest('.quote-main') && !(sh && sh.contains(sec)) && (!t || getComputedStyle(t).display === 'none'); }));
   ok('⑤リマーク：入力欄が見えて、上に何も重ならず押せる', await p.evaluate(() => { const t = document.getElementById('remarkTextarea'); if (!t) return false; t.scrollIntoView({ block: 'center' }); const b = t.getBoundingClientRect(); if (b.width < 50 || b.height < 20) return false; const e = document.elementFromPoint(b.left + 20, b.top + 10); return !!e && e.id === 'remarkTextarea'; }));
@@ -121,18 +123,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.click('#e2Steps [data-e2s="2"]'); await p.waitForTimeout(200);
   await p.click('#e2Steps [data-e2s="4"]'); await p.waitForTimeout(500);
   ok('④費用でテーブル', await vis('#section-table') && !(await vis('#section-cond')));
-  ok('④費用の上に［すべて折りたたむ］［すべて展開］［＋ 行を追加］［📦 チャージ］', (await p.$$('#e2CostBar button')).length === 4 && await vis('#e2CostBar'));
+  // Design 50（案A）：上の操作は 1 行（［＋ サブコンを追加］［📦 チャージから追加］…［⋯］）。すべて開く／閉じるは［⋯］の中
+  ok('④費用の上の操作の行に［＋ サブコンを追加］［📦 チャージから追加］［⋯］', await vis('#tableWrap .quote-cmdbar [data-f="openAddSubconFrame"]') && await vis('#tableWrap .quote-cmdbar [data-f="lcOpenPicker"]') && await vis('#caMoreBtn'));
   const nBefore = await p.evaluate(() => document.querySelectorAll('#tableBody tr:not([data-virtual])').length);
-  await p.click('#e2CostBar [data-f="addRow"]'); await p.waitForTimeout(400);
+  await p.evaluate(() => document.querySelector('#tableWrap .quote-cmdbar [data-f="openAddSubconFrame"]').click()); await p.waitForTimeout(200);
+  await p.fill('#sfPop .sf-pop-in', '枠テスト運輸'); await p.keyboard.press('Enter'); await p.waitForTimeout(400);
   ok('操作バーの重複（チャージ）は隠れ、行パターンのボタンは操作バーから外れた（右レールから開く）', !(await vis('.quote-cmdbar .cmdbar-lc-btn')) && !(await vis('.quote-cmdbar .cmdbar-pattern-btn')));
   if (!mobile) { await p.evaluate(() => { const m = document.querySelector('[data-tb-menu="more"]'); m.classList.add('is-open'); }); await p.waitForTimeout(150);
-    const mres = await p.evaluate(() => { const m = document.getElementById('tbMenuMore'); const items = [...m.children].filter(e => getComputedStyle(e).display !== 'none').sort((a, b) => (+getComputedStyle(a).order) - (+getComputedStyle(b).order)); const heads = items.filter(e => e.classList.contains('tb-menu-group')).map(e => getComputedStyle(e, '::after').content.replace(/"/g, '')); const first = !!(items[1] && items[1].textContent.includes('メール取込')); return { heads, first, items: items.map(e => e.textContent.trim().slice(0, 8) + ':' + getComputedStyle(e).order) }; });
+    const mres = await p.evaluate(() => { const m = document.getElementById('tbMenuMore'); const items = [...m.children].filter(e => getComputedStyle(e).display !== 'none').sort((a, b) => (+getComputedStyle(a).order) - (+getComputedStyle(b).order)); const heads = items.filter(e => e.classList.contains('tb-menu-group')).map(e => getComputedStyle(e, '::after').content.replace(/"/g, '')); const first = !!(items[0] && items[0].classList.contains('tb-menu-group') && items[1] && /取り込み|メール取込/.test(items[1].textContent)); return { heads, first, items: items.map(e => e.textContent.trim().slice(0, 8) + ':' + getComputedStyle(e).order) }; });
     ok('「⋯」は「案件」「その他」の 2 区分で、案件が先', mres.heads.join(',') === '案件,その他' && mres.first, mres);
     await p.evaluate(() => document.querySelector('[data-tb-menu="more"]').classList.remove('is-open')); }
-  ok('［＋ 行を追加］で行が 1 本増える', (await p.evaluate(() => document.querySelectorAll('#tableBody tr:not([data-virtual])').length)) > nBefore);
+  ok('［＋ サブコンを追加］で、そのサブコンの枠（行）ができる', await p.evaluate(() => [...document.querySelectorAll('#tableBody tr:not([data-virtual]) [data-field="sv"]')].some(i => i.value === '枠テスト運輸')));
   await p.evaluate(() => document.activeElement && document.activeElement.blur()); await p.mouse.move(5, 5); await p.waitForTimeout(300);
-  ok('明細：空のサブコン・パターン・有効期間は行を触るまで隠れる', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual])'); const hid = sel => { const e = tr.querySelector(sel); return !e || getComputedStyle(e).display === 'none'; }; return hid('.w-subcon') && hid('.w-pattern') && hid('.w-valid'); }));
-  ok('明細：未設定のカテゴリ・課税は隠れる', await p.evaluate(() => { const r = document.querySelector('#tableBody tr:not([data-virtual])'); const c = r.querySelector('select.w-cat'), x = r.querySelector('.tax-cell input'); return getComputedStyle(c).display === 'none' && getComputedStyle(x).visibility === 'hidden'; }));
+  ok('明細：空のパターン・有効期間は行を触るまで隠れる（サブコンは枠をつくったので入っている）', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual])'); const hid = sel => { const e = tr.querySelector(sel); return !e || getComputedStyle(e).display === 'none'; }; return hid('.w-pattern') && hid('.w-valid'); }));
+  // Design 50（案A）：カテゴリ・課税は「行の詳細」の中（閉じている間は見えない）
+  ok('明細：カテゴリ・課税は行に出さない（行の詳細の中）', await p.evaluate(() => { const r = document.querySelector('#tableBody tr:not([data-virtual])'); const c = r.querySelector('select.w-cat'), x = r.querySelector('input[data-field="tx"]'); return !c.getClientRects().length && !x.getClientRects().length && !!c.closest('.row-detail-panel') && !!x.closest('.row-detail-panel'); }));
   if (mobile) {   // スマホ幅：数量登録で右の引き出しが画面内に開き、中身が出る
     await p.evaluate(() => document.querySelector('#e2Total [data-e2q]').click()); await p.waitForTimeout(500);
     const r = await p.evaluate(() => { const c = document.querySelector('.quote-right-col').getBoundingClientRect(); const sc = document.getElementById('scPanel'); return { l: c.left, w: c.width, vw: innerWidth, sc: !!sc && getComputedStyle(sc).display !== 'none', body: document.body.classList.contains('e2-drawer') }; });
@@ -168,7 +173,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   if (out) await p.screenshot({ path: path.join(out, 'e2-drawer.png') });
   { // 右カラム 案A（Design 33）
     const rc = await p.evaluate(() => { const r = document.getElementById('qrcRail'); const main = [...r.children].filter(x => x.matches('.qrc-rail-btn:not(.qrc-more2-btn)')).map(x => x.dataset.mod); const more = [...document.querySelectorAll('#qrcRailMore .qrc-rail-btn')].map(x => x.dataset.mod); const b = document.querySelector('#e2Total [data-e2q]'); return { main, more, moreOpen: !document.getElementById('qrcRailMore').hidden, pressed: b.classList.contains('is-open'), lab: document.querySelector('[data-mod="scenario"] .qrc-rail-ico').textContent }; });
-    ok('右レール：よく使う 5 つ＋その他（数量はその他の中・開いて見える）', rc.main.slice().sort().join() === 'charges,chat,digest,fin,subcon' && rc.more.includes('scenario') && rc.more.length === 6 && rc.moreOpen && rc.lab === '🔢', rc);
+    ok('右レール：よく使う 5 つ＋その他（数量はその他の中・開いて見える）', rc.main.slice().sort().join() === 'charges,chat,digest,fin,subcon' && rc.more.includes('scenario') && rc.more.length === 6, rc);   // Design 49：［その他］は左のメニュー（常時は閉じる）・アイコンは SVG
     ok('「数量登録」は開いている間、押された見た目', rc.pressed, rc);
     await p.keyboard.press('Escape'); await p.waitForTimeout(300);
     { const st = await p.evaluate(() => ({ d: document.body.classList.contains('e2-drawer'), o: [...document.querySelectorAll('#e2Total .is-open')].map(x => x.textContent.trim().slice(0, 8)), act: document.activeElement && (document.activeElement.id || document.activeElement.tagName), ov: !!document.querySelector('.confirm-overlay, #previewOverlay.open, #fbOverlay.open, #mdDetailModal.open, .nq-overlay') })); ok('Esc で引き出しが閉じる（ボタンの押された見た目も戻る）', !st.d && st.o.length === 0, st); }

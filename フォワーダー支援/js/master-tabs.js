@@ -16,6 +16,7 @@
     const company = isSv
       ? [L('md_location'), L('md_website'), holder(form, 'md_svTypes', '.master-detail-tags'), holder(form, 'md_areas', '.master-detail-areas'), L('md_group')].filter(Boolean)
       : [L('md_location'), L('md_mainGoods'), L('md_destCountry'), L('md_tendency'), L('md_website'), holder(form, 'md_tags', '.master-detail-tags')].filter(Boolean);
+    const sites = [holder(form, 'md_sites', '.master-detail-contacts')].filter(Boolean);
     const memo = [L('md_memo')].filter(Boolean);
     // 基本情報
     const top = document.createElement('div'); top.className = 'mt-basic';
@@ -25,13 +26,13 @@
     const panels = {};
     const defs = isSv
       ? [['people', '担当者'], ['company', '会社の詳細・種別・エリア'], ['mail', 'メール取込ルール'], ['news', 'ニュース'], ['memo', 'メモ・添付']]
-      : [['people', '担当者'], ['company', '会社の詳細・タグ'], ['cases', '顧客カルテ'], ['rules', '取引ルール'], ['news', 'ニュース'], ['memo', 'メモ・添付']];
+      : [['people', '担当者'], ['sites', '倉庫・配送先'], ['company', '会社の詳細・タグ'], ['cases', '顧客カルテ'], ['rules', '取引ルール'], ['news', 'ニュース'], ['memo', 'メモ・添付']];
     defs.forEach(([k, label]) => {
       const p = document.createElement('div'); p.className = 'mt-panel'; p.dataset.mt = k; p.setAttribute('role', 'tabpanel'); panels[k] = p;
       const b = document.createElement('button'); b.type = 'button'; b.className = 'mt-tab'; b.dataset.mt = k; b.setAttribute('role', 'tab');
       b.innerHTML = label + ' <span class="mt-sum"></span>'; b.addEventListener('click', () => show(k)); bar.appendChild(b);
     });
-    people.forEach(e => panels.people.appendChild(e)); company.forEach(e => panels.company.appendChild(e));
+    people.forEach(e => panels.people.appendChild(e)); if (panels.sites) sites.forEach(e => panels.sites.appendChild(e)); company.forEach(e => panels.company.appendChild(e));
     if (cr) panels.rules.appendChild(cr); if (mn) panels.news.appendChild(mn); if (cc) panels.cases.appendChild(cc); if (ir && panels.mail) panels.mail.appendChild(ir); memo.forEach(e => panels.memo.appendChild(e)); if (attach) panels.memo.appendChild(attach);
     form.innerHTML = ''; form.appendChild(top); form.appendChild(bar); defs.forEach(([k]) => form.appendChild(panels[k]));
     // 保存バー：下に常時表示（本文のスクロールの外）
@@ -51,6 +52,8 @@
     function refresh() {
       const named = [...modal.querySelectorAll('#md_contacts .md-contact-name')].filter(i => i.value.trim()).length;
       sum('people', named ? named + '名' : '');
+      const siteN = [...modal.querySelectorAll('#md_sites .md-site-row')].filter(r => [...r.querySelectorAll('input')].some(i => i.value.trim())).length;
+      sum('sites', siteN ? siteN + '件' : '');
       const tags = modal.querySelectorAll(isSv ? '#md_svTypes .stats-md-tag-chip, #md_areas .stats-md-tag-chip' : '#md_tags .stats-md-tag-chip').length;
       const filled = (isSv ? ['md_location', 'md_website', 'md_group'] : ['md_location', 'md_mainGoods', 'md_destCountry', 'md_tendency', 'md_website']).filter(i => (modal.querySelector('#' + i)?.value || '').trim()).length;
       sum('company', [filled ? filled + '項目' : '', tags ? (isSv ? '種別・エリア' : 'タグ') + tags : ''].filter(Boolean).join('・'));
@@ -65,9 +68,12 @@
     ['input', 'change', 'click'].forEach(t => modal.addEventListener(t, () => setTimeout(refresh, 0)));
     ['#mdAttachList', '#crPanel', '#mnPanel', '#ccPanel', '#irPanel'].forEach(s => { const e = modal.querySelector(s); if (e) new MutationObserver(refresh).observe(e, { childList: true, subtree: true }); });
     const strictInit = () => modal.querySelector('#crPanel .cr-item.cr-lv-strict:not(.is-retired)');
-    show('people'); refresh();
-    // 厳守の取引ルールがあるときは「取引ルール」タブを開いて見せる（取りこぼし防止）
-    setTimeout(() => { if (strictInit()) show('rules'); refresh(); }, 600);
+    // 他の画面から「このタブで開く」と頼まれたとき（statsJumpToMaster(field, name, 'news') など）はそのタブ
+    const want = window.__mtWantTab; window.__mtWantTab = '';
+    show(want && panels[want] ? want : 'people'); refresh();
+    if (want && panels[want]) bar.querySelector('.mt-tab[data-mt="' + want + '"]').scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    // 厳守の取引ルールがあるときは「取引ルール」タブを開いて見せる（取りこぼし防止・タブの指定があるときは除く）
+    setTimeout(() => { if (!(want && panels[want]) && strictInit()) show('rules'); refresh(); }, 600);
   }
 
   // ---- 詳細ドロワー（Design 29・④）：「● 編集中（未保存）」の印と、未保存で閉じるときの確認・背景クリックで閉じる ----
@@ -108,6 +114,20 @@
     m.addEventListener('click', e => { if (e.target === m && m.dataset.mtBd) { delete m.dataset.mtBd; window.statsCloseMasterDetail(); } });
   }
 
+  // 他の画面から飛んできたときは、詳細の見出しにも［← ○○に戻る］（上部の戻るバーは詳細の裏に隠れるため）
+  function backBtn(m) {
+    if (!m) return;
+    const head = m.querySelector('.md-modal-head'); if (!head) return;
+    const label = typeof window.statsMasterReturnLabel === 'function' ? window.statsMasterReturnLabel() : '';
+    let b = head.querySelector('.md-back-btn');
+    if (!label) { if (b) b.remove(); return; }
+    if (!b) {
+      b = document.createElement('button'); b.type = 'button'; b.className = 'md-back-btn';
+      b.addEventListener('click', () => window.statsMasterGoBack && window.statsMasterGoBack());
+      head.insertBefore(b, head.firstChild);
+    }
+    b.textContent = '← ' + label + 'に戻る';
+  }
   function hook() {
     const orig = window.statsToggleMasterDetail;
     if (typeof orig !== 'function' || orig.__mt) return false;
@@ -115,6 +135,8 @@
       const r = orig.apply(this, arguments);
       dirtyHook(); setupDrawer(document.getElementById('mdDetailModal'));
       if (field === 'customer' || field === 'sv') { const m = document.getElementById('mdDetailModal'); if (m) { m.dataset.mtField = field; organize(m); } }
+      window.__mtWantTab = '';
+      backBtn(document.getElementById('mdDetailModal'));
       return r;
     };
     w.__mt = true; window.statsToggleMasterDetail = w; return true;

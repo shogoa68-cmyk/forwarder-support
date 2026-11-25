@@ -4125,7 +4125,7 @@ body:has(#previewOverlay.open) #qfMemoFloat, body:has(#previewOverlay.open) .qf-
 #tab-quote-make .pv-rail-head { padding-bottom: var(--sp-4); }
 #tab-quote-make .pv-rail-grp { display: flex; flex-direction: column; gap: var(--sp-5); }
 #tab-quote-make .pv-rail-h3 {
-  font-size: var(--fs-11); color: #9a8f7a; letter-spacing: .06em; text-transform: uppercase;
+  font-size: var(--fs-11); color: #6f6552; letter-spacing: .06em; text-transform: uppercase;
   font-weight: 700; margin-bottom: var(--sp-4);
 }
 #tab-quote-make .pv-rail-seg { display: flex; flex-direction: column; gap: var(--sp-6); }
@@ -4467,6 +4467,13 @@ body:has(#previewOverlay.open) #qfMemoFloat, body:has(#previewOverlay.open) .qf-
 #tab-quote-make .qm-banner { font-size: var(--fs-11-5); font-weight: 700; padding: var(--sp-3) var(--sp-11); border-radius: var(--r-pill); white-space: nowrap; }
 #tab-quote-make .qm-banner-view { background: var(--amber-94); border: 1px solid #e7c79a; color: #8a5a16; }
 #tab-quote-make .qm-banner-edit { background: var(--green-88); border: 1px solid #b6cf99; color: #3f6a2a; }
+/* 放置・編集権の解放のあとに残した「未保存の下書き」の帯（案件を開いたときだけ・cloud.js _draftBarShow） */
+#tab-quote-make .qm-draft-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12, 12px); flex-wrap: wrap; margin: var(--sp-6, 6px) 0; padding: var(--sp-8, 8px) var(--sp-14, 14px); background: var(--amber-94, #fdf3e1); border: 1px solid #e7c79a; border-radius: var(--r-8, 8px); color: #7a4d10; font-size: var(--text-sm, 13px); line-height: 1.6; }
+#tab-quote-make.qp-dash .qm-draft-bar { display: none; }
+#tab-quote-make .qm-draft-bar .qmd-warn { color: #b3261e; font-weight: 700; }
+#tab-quote-make .qm-draft-bar .qmd-btns { display: inline-flex; gap: var(--sp-8, 8px); }
+#tab-quote-make .qm-draft-bar button { min-height: 36px; padding: 0 var(--sp-14, 14px); border-radius: var(--r-8, 8px); border: 1px solid #c9a56a; background: #fff; color: #7a4d10; font: inherit; font-weight: 700; cursor: pointer; }
+#tab-quote-make .qm-draft-bar .qmd-go { background: #7a4d10; border-color: #7a4d10; color: #fff; }
 /* 閲覧モード：フォームを淡くして読み取り専用を視覚化（操作無効化は inert が担う） */
 #tab-quote-make.qmode-view .quote-main { opacity: .72; }
 
@@ -12545,6 +12552,11 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make .ei-rate-btn:hover { opacity: 1; }
 #tab-quote-make .ei-rate-btn.on { opacity: 1; border-color: #2f8f83; background: #e6f5f1; }
 #tab-quote-make .ei-rate-btn[data-k="ng"].on { border-color: #c2410c; background: #fdebd3; }
+#tab-quote-make .ei-rate-btn:disabled { opacity: .25; cursor: not-allowed; }
+#tab-quote-make .ei-edited-tag { font-size: var(--text-xs, 12px); color: #1d4ed8; white-space: nowrap; }
+#tab-quote-make .ei-rate-guide { margin: 6px 0; border: 1px solid var(--border-md, #d0d7de); border-radius: 8px; background: #f8fafc; padding: 4px 10px; font-size: var(--text-sm, 13px); }
+#tab-quote-make .ei-rate-guide summary { cursor: pointer; padding: 4px 0; font-weight: 600; }
+#tab-quote-make .ei-rate-guide p { margin: 6px 0; line-height: var(--lh-body, 1.7); }
 #tab-quote-make tr.ei-rate-ngrow td { opacity: .5; }
 #tab-quote-make tr.ei-rate-ngrow td.ei-rate-cell { opacity: 1; }
 #tab-quote-make .ei-ign-btn { margin-left: 8px; padding: 2px 8px; border: 1px solid #d4a72c; border-radius: 6px; background: #fff; color: #7d4e00; cursor: pointer; font-size: var(--text-xs, 12px); }

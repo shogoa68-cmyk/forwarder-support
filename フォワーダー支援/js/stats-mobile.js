@@ -274,6 +274,7 @@
   // stats.js が集計を終えたとき（案件・マスターの読み込み後など）に今日の確認を更新する
   window.smOnStatsReady = function () { if (inited && mobile() && view === 'home') render(); };
   window.smShowHome = function () { if (!inited) init(); show('home'); };
+  window.smOpenPane = function (id) { if (!inited) init(); open(id); };
 
   function init() {
     if (inited) return;

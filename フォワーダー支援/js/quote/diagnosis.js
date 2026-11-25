@@ -148,8 +148,15 @@
     el.innerHTML =
       `<div class="qdg-head"><span class="qdg-title">🩺 見積の診断（目安）</span>` +
       (attention ? `<span class="qdg-badge">要確認 ${attention}</span>` : '<span class="qdg-badge qdg-badge-ok">気になる点なし</span>') + '</div>' +
-      '<ul class="qdg-list">' + items.map(i => `<li class="qdg-item qdg-${i.lv}"><span class="qdg-dot" aria-hidden="true">${DOT[i.lv]}</span><span class="qdg-text">${i.t}</span></li>`).join('') + '</ul>' +
-      '<p class="qdg-note">固定のルール（粗利率 5%／8〜12%／15% など）と、この端末にある過去の案件から出した目安です。AI の判断ではなく、外部へは送信されません。</p>';
+      (function () {
+        const li = i => `<li class="qdg-item qdg-${i.lv}"><span class="qdg-dot" aria-hidden="true">${DOT[i.lv]}</span><span class="qdg-text">${i.t}</span></li>`;
+        const note = '<p class="qdg-note">固定のルール（粗利率 5%／8〜12%／15% など）と、この端末にある過去の案件から出した目安です。AI の判断ではなく、外部へは送信されません。</p>';
+        // Design 49：要点 1 行＋［詳しく ▾］（残りと注記は奥）。気になる点が無いときは全項目をそのまま出す
+        const first = items.find(i => i.lv === 'bad') || items.find(i => i.lv === 'warn');
+        if (!first || items.length < 2) return '<ul class="qdg-list">' + items.map(li).join('') + '</ul>' + note;
+        const rest = items.filter(i => i !== first);
+        return '<ul class="qdg-list">' + li(first) + '</ul><details class="qdg-more"><summary>詳しく</summary><ul class="qdg-list">' + rest.map(li).join('') + '</ul>' + note + '</details>';
+      })();
     if (typeof window.updateQspTabBadges === 'function') window.updateQspTabBadges();
   };
 })();

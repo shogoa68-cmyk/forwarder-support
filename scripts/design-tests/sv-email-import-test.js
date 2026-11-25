@@ -363,6 +363,28 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('画面のエラーが出ていない', errs.length === 0, errs);
     await ctx.close();
   }
+  // ===== 別のサブコンの見出しから開き直したとき、前のサブコンの確認画面（一括設定・各行のサブコン）が残らない =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member' });
+    await setSv(p, 'テスト運送');
+    await p.evaluate(() => { document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); window.icChoose('text'); }); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.getElementById('eiText').value = '海上運賃 USD 1,200 /20GP'; window.eiParse(); }); await p.waitForTimeout(300);
+    ok('（前提）テスト運送の取込を解析すると、一括設定がテスト運送になる', await p.evaluate(() => document.getElementById('eiBulkSv').value === 'テスト運送'));
+    await p.evaluate(() => window.closeEmailImport()); await p.waitForTimeout(100);
+    await p.evaluate(() => window.eiOpenForSubcon('テスト運送')); await p.waitForTimeout(200);
+    ok('同じサブコンで閉じて開き直したときは、貼り付け文と確認画面を残す（うっかり閉じても失わない）', await p.evaluate(() => document.getElementById('eiText').value.includes('海上運賃') && !!document.getElementById('eiBulkSv')));
+    await p.evaluate(() => { window.closeEmailImport(); window.eiOpenForSubcon('ABCキャリア'); }); await p.waitForTimeout(300);
+    ok('別のサブコンの取込を開くと、前のサブコンの確認画面は残らない（貼り付け文・確認画面が空）', await p.evaluate(() => document.getElementById('eiText').value === '' && document.getElementById('eiReviewWrap').innerHTML === '' && !document.getElementById('eiBulkSv')), await p.evaluate(() => [document.getElementById('eiText').value.length, document.getElementById('eiReviewWrap').innerHTML.length]));
+    await p.evaluate(() => { document.getElementById('eiText').value = '海上運賃 USD 1,200 /20GP'; window.eiParse(); }); await p.waitForTimeout(300);
+    ok('解析すると、一括設定・各行のサブコンは今開いたサブコン（ABCキャリア）になる', await p.evaluate(() => document.getElementById('eiBulkSv').value === 'ABCキャリア' && [...document.querySelectorAll('#eiReviewWrap .ei-sv')].every(i => i.value === 'ABCキャリア')), await p.evaluate(() => document.getElementById('eiBulkSv').value));
+    await p.evaluate(() => { window.closeEmailImport(); window.openEmailImport(); }); await p.waitForTimeout(200);
+    ok('サブコンを決めない通常の取込を開くと、サブコン専用の確認画面は残らない', await p.evaluate(() => document.getElementById('eiText').value === '' && !document.getElementById('eiBulkSv')));
+    await p.evaluate(() => { document.getElementById('eiText').value = '海上運賃 USD 1,200 /20GP'; window.eiParse(); window.eiInsertRows && window.eiInsertRows(); }); await p.waitForTimeout(300);
+    await p.evaluate(() => { window.closeEmailImport(); window.openEmailImport(); }); await p.waitForTimeout(200);
+    ok('挿入し終えた取り込みは、次に開くとき空になる', await p.evaluate(() => document.getElementById('eiText').value === '' && !document.getElementById('eiBulkSv')));
+    ok('エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
   // ===== 実際の文面（円記号が「\\」）：読めなかった状態 → 読める → 直して覚える =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member' });
@@ -377,7 +399,6 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('サブコン専用の取込では、お客様・REF#・有効期限・「単価を売値として取り込む」は表示しない（サブコン一括設定は出す）', !(await vis('#eiF-customer')) && !(await vis('#eiF-ref')) && !(await vis('#eiF-valid')) && !(await vis('#eiSellMode')) && await vis('#eiBulkSv'), [await vis('#eiF-customer'), await vis('#eiSellMode'), await vis('#eiBulkSv')]);
     ok('サブコン専用の取込の説明文には、非表示にした「売値として取り込む」の説明が残らない', await p.evaluate(() => { const h = document.querySelector('#eiReviewWrap .ei-hint').textContent; return !/売値として取り込む/.test(h) && /課税/.test(h); }), await p.evaluate(() => document.querySelector('#eiReviewWrap .ei-hint').textContent));
     ok('読み取れなかった行の案内は出ない（すべて読めたため）', await p.evaluate(() => !document.querySelector('#eiReviewWrap .ei-unread')), null);
-
     // 直して覚える → 次回から自動
     await p.evaluate(() => { const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[3]; tr.querySelector('.ei-name').value = '東京CY搬入（ショートドレー）'; window.eiLearnFromCorrections(); }); await p.waitForTimeout(700);
     const learned = await p.evaluate(() => window.__db.master_details.find(r => r.field === 'sv' && r.value === 'テスト運送').details.importRules.aliases);
@@ -443,6 +464,23 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('❌ を押した行は、挿入のチェックが外れて印が付く（もう一度押すと取り消し）', r1.okOn && r1.ngChk === false && r1.ngRate === 'ng', r1);
     const r2 = await p.evaluate(() => { const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[2]; tr.querySelector('.ei-rate-btn[data-k="ng"]').click(); const a = tr.querySelector('.ei-chk').checked; tr.querySelector('.ei-rate-btn[data-k="ng"]').click(); return a; });
     ok('❌ をもう一度押すと取り消されてチェックが戻る', r2 === true, r2);
+    // 直した行は ✅ を選べない（❌ は選べる）／元に戻すと ✅ も戻る
+    const edr = await p.evaluate(() => {
+      const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[1], nm = tr.querySelector('.ei-name'), base = nm.value;
+      const okB = tr.querySelector('.ei-rate-btn[data-k="ok"]'), ngB = tr.querySelector('.ei-rate-btn[data-k="ng"]'), tag = tr.querySelector('.ei-edited-tag');
+      const fire = () => nm.dispatchEvent(new Event('change', { bubbles: true }));
+      okB.click(); const before = { on: okB.classList.contains('on'), dis: okB.disabled, tagHidden: tag.hidden };
+      nm.value = 'ZZ直した品名'; fire();
+      const edited = { on: okB.classList.contains('on'), dis: okB.disabled, tagHidden: tag.hidden, rate: tr.dataset.rate || '', ngDis: ngB.disabled };
+      okB.click(); const afterClick = tr.dataset.rate || '';
+      nm.value = base; fire();
+      const reverted = { dis: okB.disabled, tagHidden: tag.hidden, rate: tr.dataset.rate || '' };
+      return { before, edited, afterClick, reverted, guide: !!document.querySelector('#eiReviewWrap .ei-rate-guide') };
+    });
+    ok('✅を押したあと品名を直すと、✅は外れて押せなくなり「✏️ 修正済み」が出る', edr.before.on && !edr.before.dis && edr.before.tagHidden && !edr.edited.on && edr.edited.dis && !edr.edited.tagHidden && edr.edited.rate === '', edr);
+    ok('直した行でも ❌ は押せる／直した行の ✅ クリックは何も起きない', edr.edited.ngDis === false && edr.afterClick === '', edr);
+    ok('直した内容を元に戻すと、✅ が押せる状態に戻る', edr.reverted.dis === false && edr.reverted.tagHidden === true, edr);
+    ok('✅／❌ の選び方の説明（❓）が確認画面に出る', edr.guide, edr);
     await p.evaluate(() => window.eiLearnFromCorrections()); await p.waitForTimeout(700);
     let rr = await abcRules();
     ok('「覚える」で、❌の形が ignore に・✅の形が ok に保存される（数字は 9 に伏せた形）', rr && rr.ignore && rr.ignore.length === 1 && /注意書き USD 99 at cost/.test(rr.ignore[0].shape) && rr.ok && rr.ok.length === 1 && /海上運賃 USD 9,999 \/9GP|海上運賃/.test(rr.ok[0].shape) && !/1,200/.test(rr.ok[0].shape), rr);

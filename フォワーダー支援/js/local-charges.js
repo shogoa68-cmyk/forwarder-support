@@ -205,8 +205,9 @@
 
   // === ヘルパー ===
 
-  function _esc(s)     { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _esc(s)     { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   function _ea(s)      { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  function _ej(s)  { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }   // onclick="f('…')" の中の値（JS の文字列＋HTML 属性の両方）
   function _fmtDate(d) { return d ? String(d).slice(0,10) : ''; }
   function _fmtAmt(a, cur) {
     if (a == null || a === '') return '—';
@@ -480,7 +481,7 @@
       const pr = document.getElementById(presetId);
       if (pr && !pr.dataset.lcReady) {
         pr.innerHTML = presets.map(p =>
-          `<button type="button" class="lc-preset-chip" onclick="lcPresetAdd('${which}','${_ea(p)}')">＋${_esc(p)}</button>`
+          `<button type="button" class="lc-preset-chip" onclick="lcPresetAdd('${which}','${_ej(p)}')">＋${_esc(p)}</button>`
         ).join('');
         pr.dataset.lcReady = '1';
       }
@@ -987,7 +988,7 @@
       const descTitle = c.description ? ` title="${String(c.description).replace(/"/g,'&quot;')}"` : '';
       const periodLabel = c.valid_from ? (c.valid_from + (c.valid_to ? '～'+c.valid_to : '～')) : '';
       return `<label class="lc-rail-card${cls}${selCls}"${descTitle}>` +
-             `<input type="checkbox" class="lc-rail-chk" value="${_ea(c.id)}" ${chk} onchange="lcRailToggle('${_ea(c.id)}')">` +
+             `<input type="checkbox" class="lc-rail-chk" value="${_ea(c.id)}" ${chk} onchange="lcRailToggle('${_ej(c.id)}')">` +
              `<div class="lc-rail-info">` +
              `<div class="lc-rail-name">${_esc(c.name)}${badge}</div>` +
              (meta ? `<div class="lc-rail-meta" title="${_ea(metaFull)}">${_esc(meta)}</div>` : '') +

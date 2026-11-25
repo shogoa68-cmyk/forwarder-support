@@ -11,7 +11,7 @@
 //   関連番号・保管した自由入力・入力完了の記録・「代替わり」の印（コピー元との差分表示も付けない）。
 // ・既存の「📋 コピー」（案件を保存済みのまま複製）・「サブ案件を作成」とは別の入口。関連付け（メイン／サブ）は作らない。
 //
-// 依存（window 経由）：cloudGetAllRows, qpNewQuote, _applyQuoteData, ciApplyNewCaseDefaults, maybeAutoFillRef, quoteShowToast, nameCanon
+// 依存（window 経由）：cloudGetAllRows, qpNewQuote, _applyQuoteData, ciApplyNewCaseDefaults, maybeAutoFillRef, quoteShowToast, nameCanon, statsGetMasters, synGetGroups, mdGetAll, nameVariants（マスター。なくても動く）
 (function () {
   'use strict';
 
@@ -29,12 +29,54 @@
     return norm(v);
   };
 
+  // 港名は、マスターの別名（例：横浜）を代表名（YOKOHAMA）にそろえて比べる（取れなければそのまま）
+  const portKey = s => {
+    let v = String(s == null ? '' : s).trim();
+    try { if (v && typeof window.nameCanon === 'function') v = window.nameCanon('port', v) || v; } catch (e) {}
+    return norm(v);
+  };
+
+  // ---------- 入力候補：マスターから引用する ----------
+  // お客様・港の候補は、マスター（登録名）と別名・ふりがな・英語名から作る（案件に入っている値ではない）。
+  // 別名は「別名 → 代表名」の候補としても出す（別名で打っても見つかる）。マスターがまだ 0 件（未ログイン・読み込み前）のときだけ、
+  // 案件に入っている値で代用する（候補が空にならないように）。
+  function masterOptions(field, fallback) {
+    const names = new Map();   // 代表名 → { label }
+    try {
+      (typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : []).filter(m => m.field === field).forEach(m => names.set(m.value, { aliases: [] }));
+      (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : []).forEach(g => {
+        const e = names.get(g.canonical) || { aliases: [] };
+        e.aliases = (g.aliases || []).filter(a => a && a !== g.canonical);
+        names.set(g.canonical, e);
+      });
+    } catch (e) {}
+    if (!names.size) return distinct(fallback).map(v => ({ value: v, label: '' }));
+    const det = {};
+    try { (typeof window.mdGetAll === 'function' ? window.mdGetAll(field) : []).forEach(m => { det[m.value] = m.details || {}; }); } catch (e) {}
+    const out = [];
+    Array.from(names.keys()).sort((a, b) => a.localeCompare(b, 'ja')).forEach(v => {
+      const d = det[v] || {}, e = names.get(v);
+      const lab = [String(d.furigana || '').trim(), String(d.enName || '').trim(), e.aliases.length ? '別名: ' + e.aliases.slice(0, 6).join('・') : ''].filter(Boolean).join(' / ');
+      out.push({ value: v, label: lab });
+      e.aliases.forEach(a => out.push({ value: a, label: '→ ' + v }));
+    });
+    return out;
+  }
+  const optHtml = list => list.map(o => '<option value="' + esc(o.value) + '"' + (o.label ? ' label="' + esc(o.label) + '"' : '') + '></option>').join('');
+
   let st = null;   // { step:'choose'|'similar', f:{cust,pol,pod,mode}, sort:'new'|'cust' }
   let lastFocus = null;
 
   function allRows() { try { return typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []; } catch (e) { return []; } }
   function portsOf(v) { return String(v || '').split(/[,、／/]/).map(x => x.trim()).filter(Boolean); }
   const distinct = arr => Array.from(new Set(arr.filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ja'));
+
+  // 港：入力そのままの部分一致、または「マスターの代表名にそろえた」部分一致（別名で打っても、案件が代表名・別名どちらで入っていても見つかる）
+  function portHit(caseVal, input) {
+    if (norm(caseVal).includes(norm(input))) return true;
+    const k = portKey(input);
+    return portsOf(caseVal).some(t => portKey(t).includes(k));
+  }
 
   // ---------- 絞り込みと並び順 ----------
   // 入力のある条件だけを効かせる（AND）。お客様・港は部分一致、モードは完全一致。
@@ -43,8 +85,8 @@
     const used = { cust: !!f.cust.trim(), pol: !!f.pol.trim(), pod: !!f.pod.trim(), mode: !!f.mode };
     let ok = true;
     if (used.cust) { hit.cust = custKey(r.customer).includes(custKey(f.cust)); ok = ok && hit.cust; }
-    if (used.pol) { hit.pol = norm(r.pol).includes(norm(f.pol)); ok = ok && hit.pol; }
-    if (used.pod) { hit.pod = norm(r.pod).includes(norm(f.pod)); ok = ok && hit.pod; }
+    if (used.pol) { hit.pol = portHit(r.pol, f.pol); ok = ok && hit.pol; }
+    if (used.pod) { hit.pod = portHit(r.pod, f.pod); ok = ok && hit.pod; }
     if (used.mode) { hit.mode = (r.transport_mode || '') === f.mode; ok = ok && hit.mode; }
     return { ok, hit, used, score: (hit.cust ? 1 : 0) + (hit.pol ? 1 : 0) + (hit.pod ? 1 : 0) + (hit.mode ? 1 : 0) };
   }
@@ -92,8 +134,8 @@
 
   function similarHtml() {
     const rows = allRows();
-    const custs = distinct(rows.map(r => r.customer));
-    const ports = distinct([].concat.apply([], rows.map(r => portsOf(r.pol).concat(portsOf(r.pod)))));
+    const custs = masterOptions('customer', rows.map(r => r.customer));
+    const ports = masterOptions('port', [].concat.apply([], rows.map(r => portsOf(r.pol).concat(portsOf(r.pod)))));
     const modes = distinct(rows.map(r => r.transport_mode));
     const f = st.f;
     return '<button type="button" class="nq-back" data-nq="back">‹ 戻る</button>'
@@ -104,8 +146,8 @@
       + '<label class="nq-f"><span>モード</span><select id="nqMode"><option value="">すべて</option>'
       + modes.map(m => '<option value="' + esc(m) + '"' + (f.mode === m ? ' selected' : '') + '>' + esc(m) + '</option>').join('') + '</select></label>'
       + '</div>'
-      + '<datalist id="nqCustList">' + custs.map(v => '<option value="' + esc(v) + '"></option>').join('') + '</datalist>'
-      + '<datalist id="nqPortList">' + ports.map(v => '<option value="' + esc(v) + '"></option>').join('') + '</datalist>'
+      + '<datalist id="nqCustList">' + optHtml(custs) + '</datalist>'
+      + '<datalist id="nqPortList">' + optHtml(ports) + '</datalist>'
       + '<div class="nq-bar"><span id="nqCount" class="nq-count" aria-live="polite"></span>'
       + '<span class="nq-bar-r"><button type="button" class="nq-clear" data-nq="clear">条件をクリア</button>'
       + '<label class="nq-sort">並び順 <select id="nqSort"><option value="new"' + (st.sort === 'new' ? ' selected' : '') + '>更新が新しい順</option>'
@@ -159,7 +201,10 @@
   function onKey(e) {
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
   }
-  function open() {
+  async function open() {
+    if ($('nqOverlay')) return;
+    // 編集中の入力を確認なしで捨てないよう、選ぶ画面を出す前に確認する（一から作成・コピーして作成のどちらも入力を空にするため）
+    if (typeof window.cloudConfirmLeaveUnsaved === 'function' && !(await window.cloudConfirmLeaveUnsaved('新しい見積を作る'))) return;
     if ($('nqOverlay')) return;
     lastFocus = document.activeElement;
     st = { step: 'choose', f: { cust: '', pol: '', pod: '', mode: '' }, sort: 'new' };
@@ -205,7 +250,7 @@
 
   // 案件に固有の記録を除いた、新規案件用の内容
   const DROP_FIELDS = ['qf-ref', 'qf-core-ref', 'qf-lost-reason', 'qf-lost-note', 'qf-inq-kind', 'qf-inq-channel', 'qf-inq-spec',
-    'qf-first-presented', 'qf-recv-time', 'qf-versions', 'qf-related-data', 'qf-free-entries', 'qf-import-src', 'qf-revision-baseline', 'qf-follower', 'qf-follow-log',
+    'qf-first-presented', 'qf-recv-time', 'qf-versions', 'qf-related-data', 'qf-free-entries', 'qf-import-src', 'qf-revision-baseline', 'qf-follower', 'qf-follow-log', 'qf-ops', 'qf-core-ref2', 'qf-cp-keys',
     'qf-received', 'qf-date', 'qf-valid-until', 'qf-due'];
   function freshData(src) {
     const data = JSON.parse(JSON.stringify(src));

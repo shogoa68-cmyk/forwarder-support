@@ -57,6 +57,25 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('[' + w + '] 保存ボタンが 1 行（高さ 60px 以下・幅 70px 以上）', r && r.h <= 60 && r.w >= 70, r);
     await ctx.close();
   }
+  // 名前の整理（お客様）：スマホ幅で表が横に伸びて「操作」が画面の外へ出ていた → カードに並べ替える
+  for (const w of [360, 390, 600]) {
+    const { ctx, p } = await open(w);
+    await p.evaluate(async () => {
+      const rows = []; for (let i = 1; i <= 12; i++) rows.push({ id: i, name: 'c' + i, status: '受注', customer: ['東京商事株式会社', '東京商事(株)', 'ＡＢＣ物流'][i % 3], data: { rows: [], fields: {} }, updated_at: new Date().toISOString(), created_by: 's@example.com' });
+      window.cloudGetAllRows = () => rows;
+      if (window.statsRefresh) await window.statsRefresh();
+      if (window.mmShow) window.mmShow('fix'); else if (window.masterSetPane) window.masterSetPane('fix');
+      if (window.fixSetKind) window.fixSetKind('customer');
+      await new Promise(r => setTimeout(r, 800));
+    });
+    const r = await p.evaluate(() => {
+      const pane = document.getElementById('statsPane-customer'); if (!pane) return null;
+      const bad = [...pane.querySelectorAll('button')].filter(x => { const q = x.getBoundingClientRect(); return q.width > 0 && q.right > innerWidth + 1; }).length;
+      return { over: document.documentElement.scrollWidth - innerWidth, bad };
+    });
+    ok('[' + w + '] 名前の整理（お客様）：横にはみ出さず、ボタンが画面内', r && r.over <= 1 && r.bad === 0, r);
+    await ctx.close();
+  }
   await b.close(); srv.close();
   console.log(`${THEME}: PASS ${pass} / FAIL ${fail}`);
   process.exit(fail ? 1 : 0);

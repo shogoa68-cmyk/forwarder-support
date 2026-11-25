@@ -138,7 +138,7 @@
           ? `<span class="cmp-pt-total-breakdown">（共通${_cmpFmtJpy(commonTotal)}＋個別${_cmpFmtJpy(p.ownTotal)}）</span>`
           : '';
         return `<button type="button" class="cmp-pt-total-row${isCheapest ? ' cmp-pt-total--best' : ''}${isActive ? ' cmp-pt-total--active' : ''}"
-            onclick="cmpSetPatternFilter('${escHtml(p.pt).replace(/'/g, "\\'")}')" title="クリックするとこのパターンの内訳（下の品目別比較）に絞り込みます">
+            onclick="cmpSetPatternFilter('${jsAttr(p.pt)}')" title="クリックするとこのパターンの内訳（下の品目別比較）に絞り込みます">
           <span class="cmp-pt-total-star">${isCheapest ? '⭐' : ''}</span>
           <span class="cmp-pt-total-name">${escHtml(p.pt)}</span>
           <span class="cmp-pt-total-amt">${_cmpFmtJpy(p.grandTotal)}</span>
@@ -156,7 +156,7 @@
       const emptyMsg = _cmpPatternFilter
         ? `「${escHtml(_cmpPatternFilter)}」に品名・単位の両方が一致する行が2件以上ありません（パターン未設定の共通費用も対象に含めています）。`
         : '品名・単位の両方が一致する行が2件以上あると、ここで仕入単価を比較できます。<br>同じ費用について複数サブコンから見積を取った場合、それぞれ同じ品名・単位で行を入力してください。';
-      panel.innerHTML = patternTotalsHtml + patternSelectHtml + `<p class="cmp-empty">${emptyMsg}</p>`;
+      panel.innerHTML = patternTotalsHtml + patternSelectHtml + `<div class="qrc-empty cmp-empty"><b>比べられる行がまだありません</b><span>${emptyMsg}</span><button type="button" class="qrc-btn-sub" onclick="qrcGoCost()">④ 費用へ</button></div>`;
       return;
     }
 
