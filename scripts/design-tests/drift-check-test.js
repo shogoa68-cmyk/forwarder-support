@@ -1,4 +1,4 @@
-// ゆらぎチェック（js/drift-engine.js・js/drift-check.js）：判定の仕分け・自動登録（管理者のみ）・カードの操作・元に戻す・別物にする
+// 表記ゆれチェック（js/drift-engine.js・js/drift-check.js）：判定の仕分け・自動登録（管理者のみ）・カードの操作・元に戻す・別物にする
 // 使い方: node scripts/design-tests/drift-check-test.js   （THEME=1 で Industry）
 const { chromium } = require('playwright-core');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -163,6 +163,10 @@ const ok = (n, c, d) => { if (c) { pass++; console.log('  ok  ' + n); } else { f
   await p.evaluate(() => { window._myRole = 'member'; window.__calls.length = 0; window.__groups = [{ field: 'customer', canonical: 'Maersk Line', aliases: [] }]; localStorage.removeItem('driftDismissed_v1'); });
   await p.evaluate(() => window.driftDebug.run({ apply: true }));
   ok('メンバーのときは自動登録しない（候補は出る）', await p.evaluate(() => window.__calls.length === 0 && window.driftDebug.res().customer.auto.length > 0));
+  await p.evaluate(() => { window._myRole = 'member'; window.driftRenderCard(); });
+  ok('メンバーには表記ゆれチェックのカード・件数バッジを出さない', await p.evaluate(() => { const c = document.getElementById('driftCard'); return !!c && c.innerHTML === '' && !document.getElementById('driftTabBadge'); }));
+  await p.evaluate(() => { window._myRole = 'admin'; window.driftRenderCard(); });
+  ok('管理者にはカードが出る', await p.evaluate(() => (document.getElementById('driftCard') || { innerHTML: '' }).innerHTML.includes('表記ゆれチェック')));
   ok('ページエラーなし', errs.length === 0, JSON.stringify(errs));
   await b.close(); srv.close();
   console.log(`\n${pass} 項目 OK / ${fail} 件 NG`); process.exit(fail ? 1 : 0);

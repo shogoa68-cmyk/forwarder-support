@@ -33,7 +33,12 @@ srv.listen(0, async () => {
   // ---- PC：変わらない ----
   { const { ctx, p } = await open(1400); await openStats(p);
     ok('PC: 14 タブが見える', await vis(p, '#tab-stats .stats-tabs'));
-    ok('PC: 数字カードが見える', await vis(p, '#tab-stats .stats-summary-cards'));
+    ok('[分析] PC: 数字カード 6 枚は出ない', !(await vis(p, '#tab-stats .stats-summary-cards')));
+    ok('[分析] PC: 左のメニューが 3 グループ', await p.evaluate(() => document.querySelectorAll('#tab-stats .sa-group').length === 3 && document.querySelector('#tab-stats > .stats-tabs').getBoundingClientRect().width < 260));
+    ok('[分析] PC: 受注分析に大きな数字 4 枚（平均粗利率つき）', await p.evaluate(() => document.querySelectorAll('#saHead .sa-big > div').length === 4 && /平均粗利率/.test(document.getElementById('saHead').textContent) && /受注率/.test(document.getElementById('saHead').textContent)));
+    ok('[分析] PC: 粗利率の帯に横棒がある', await p.evaluate(() => document.querySelectorAll('#statsPane-winrate .sa-bar').length >= 1));
+    ok('[分析] PC: お客様別にも受注率の横棒がある', await p.evaluate(() => { const h = [].slice.call(document.querySelectorAll('#statsPane-winrate h3')).filter(x => /お客様別/.test(x.textContent))[0]; const t = h && h.parentNode.querySelector('table.stats-table'); return !!t && t.querySelectorAll('.sa-bar').length >= 1; }));
+    ok('[分析] PC: 説明帯は［ⓘ］で開く', await p.evaluate(() => { const h = document.querySelector('#statsPane-winrate .sa-hint'), b = document.querySelector('#statsPane-winrate .sa-info'); if (!h || !b) return false; const closed = getComputedStyle(h).display === 'none'; b.click(); return closed && getComputedStyle(h).display !== 'none'; }));
     ok('PC: 今日の確認は出ない', !(await vis(p, '#smHome')) && !(await vis(p, '#smBar')));
     ok('PC: sm-on が付かない', await p.evaluate(() => !document.getElementById('tab-stats').classList.contains('sm-on')));
     await ctx.close(); }
@@ -44,7 +49,7 @@ srv.listen(0, async () => {
     ok('SP: タブ・数字カード・各ペインは隠れる', !(await vis(p, '#tab-stats .stats-tabs')) && !(await vis(p, '#tab-stats .stats-summary-cards')) && !(await vis(p, '#statsPane-sv')));
     const cards = await p.$$eval('#smHome .sm-act', els => els.map(e => e.innerText.replace(/\s+/g, ' ')));
     ok('SP: カード 3 枚', cards.length === 3, cards);
-    ok('SP: ゆらぎ（未整理・ゆらぎの件数）', /未整理 \d+件・ゆらぎ \d+件/.test(cards[0]), cards[0]);
+    ok('SP: 表記ゆれ（未整理・表記ゆれの件数）', /未整理 \d+件・表記ゆれ \d+件/.test(cards[0]), cards[0]);
     ok('SP: 粗利率の低い明細（10%未満 1件）', /10%未満 1件/.test(cards[1]) && /CFS作業料/.test(cards[1]), cards[1]);
     ok('SP: 受注率と失注（失注 2件・最多は価格）', /失注 2件/.test(cards[2]) && /価格」2件/.test(cards[2]), cards[2]);
     ok('SP: 横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -67,8 +72,8 @@ srv.listen(0, async () => {
     ok('SP: 閉じるでシートが消える', !(await vis(p, '#smSheet')));
     // 書き込みの確認シート（☆登録）
     await p.click('#smPick'); await p.click('#smSheet [data-pane="sv"]'); await p.waitForTimeout(800);
-    const btn = await p.$('#statsPane-sv .stats-vote-btn'); ok('SP: 名寄せの ☆登録 ボタンがある', !!btn);
-    if (btn) {
+    const btn = await p.$('#statsPane-sv .stats-vote-btn'); /* 名寄せはマスター管理へ移設（Design 29） */
+    if (btn && await btn.isVisible()) {
       await btn.scrollIntoViewIfNeeded(); await btn.click(); await p.waitForTimeout(300);
       ok('SP: ☆登録は確認シートが出る（何を・どう変わる）', await vis(p, '#smSheet.sm-sheet-wrap') || await vis(p, '#smSheet .sm-sheet'));
       const t = await p.textContent('#smSheet .sm-sheet'); ok('SP: 確認シートの文言', /をマスターに登録しますか/.test(t) && /過去の案件は変わりません/.test(t), t);
@@ -82,22 +87,25 @@ srv.listen(0, async () => {
     }
     // ---- 第 2 回：名寄せは 1 表記＝1 カード ----
     await p.evaluate(() => { const o = document.getElementById('smSheet'); if (o) o.remove(); document.body.classList.remove('sm-sheet-open'); });
-    const chips = await p.$$eval('#statsPane-sv .sm-fchip', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()).join('|')); ok('SP2: 名寄せの絞り込みチップ（すべて・未整理のみ N・ゆらぎあり N）', chips === 'すべて|未整理のみ 3|ゆらぎあり 1', chips);
+    // 名寄せ（サブコン等）はマスター管理の「名前の整理」へ移設（Design 29）。スマホの 1 件 1 カード表示は段階⑥で作り直すため、いまは確認しない。
+    if (false) {
+    const chips = await p.$$eval('#statsPane-sv .sm-fchip', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()).join('|')); ok('SP2: 名寄せの絞り込みチップ（すべて・未整理のみ N・表記ゆれあり N）', chips === 'すべて|未整理のみ 3|表記ゆれあり 1', chips);
     ok('SP2: 元のチェック 2 つは隠れる（DOM は残る）', !(await vis(p, '#statsPane-sv .sm-f-unorg')) && (await p.$$eval('#statsPane-sv .sm-f-unorg input, #statsPane-sv .sm-f-fluct input', e => e.length)) === 2);
     ok('SP2: 表のヘッダーは隠れ、行はカード（縦並び・枠つき）', !(await vis(p, '#statsPane-sv thead')) && await p.$eval('#statsPane-sv tbody > tr', e => { const c = getComputedStyle(e); return c.display === 'flex' && c.flexDirection === 'column' && parseFloat(c.borderTopWidth) >= 1; }));
     ok('SP2: 使用 N件 の表示', await p.$$eval('#statsPane-sv td.stats-num-col', els => els.length > 0 && els.every(e => getComputedStyle(e, '::before').content.includes('使用'))));
     ok('SP2: カード内のボタンは 44px 以上', await p.$$eval('#statsPane-sv td.stats-chips-cell button', els => els.filter(b => b.getBoundingClientRect().height > 0).every(b => b.getBoundingClientRect().height >= 43.5)));
     ok('SP2: カードが横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await p.click('#statsPane-sv .sm-fchip[data-f="fluct"]'); await p.waitForTimeout(500);
-    ok('SP2: ゆらぎありで絞る（カード 1 枚・チップが押された状態）', (await p.$$eval('#statsPane-sv tbody > tr', e => e.length)) === 1 && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="fluct"]', 'aria-pressed')) === 'true' && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="all"]', 'aria-pressed')) === 'false');
+    ok('SP2: 表記ゆれありで絞る（カード 1 枚・チップが押された状態）', (await p.$$eval('#statsPane-sv tbody > tr', e => e.length)) === 1 && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="fluct"]', 'aria-pressed')) === 'true' && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="all"]', 'aria-pressed')) === 'false');
     await p.click('#statsPane-sv .sm-fchip[data-f="unorg"]'); await p.waitForTimeout(500);
-    ok('SP2: 未整理のみに切り替え（ゆらぎは外れる）', (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="unorg"]', 'aria-pressed')) === 'true' && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="fluct"]', 'aria-pressed')) === 'false');
+    ok('SP2: 未整理のみに切り替え（表記ゆれは外れる）', (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="unorg"]', 'aria-pressed')) === 'true' && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="fluct"]', 'aria-pressed')) === 'false');
     await p.click('#statsPane-sv .sm-fchip[data-f="all"]'); await p.waitForTimeout(500);
     const nAll = await p.$$eval('#statsPane-sv tbody > tr', e => e.length); ok('SP2: すべてで元に戻る', nAll === 3, nAll);
     await p.click('#smPick'); await p.click('#smSheet [data-pane="customer"]'); await p.waitForTimeout(800);
     ok('SP2: お客様の画面もカード（絞り込みチップあり）', (await p.$$eval('#statsPane-customer .sm-fchip', e => e.length)) === 3 && await p.$eval('#statsPane-customer tbody > tr', e => getComputedStyle(e).display === 'flex'));
     await p.click('#smPick'); await p.click('#smSheet [data-pane="un"]'); await p.waitForTimeout(800);
     ok('SP2: 単位の画面も崩れない（横にはみ出さない）', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    }
     // 取り消しにくい操作（一括置換ほか）の確認は下から出るシート
     await p.evaluate(() => { window.__c = window.uiConfirm({ title: '品名の表記を一括置換しますか？', lines: ['書き換わる案件：クラウド 12 件'], irreversible: 'バックアップを自動でダウンロードします。', okLabel: '置換する', danger: true }); });
     await p.waitForTimeout(200);
@@ -106,6 +114,8 @@ srv.listen(0, async () => {
     ok('SP2: 確認の件数が出て、ボタンは 44px', /12 件/.test(cg.text) && cg.btn.every(h => h >= 43.5), cg);
     await p.click('.confirm-dialog .btn-cancel'); await p.waitForTimeout(100);
     // ---- 第 3 回：分析の画面（受注分析・明細台帳ほか）----
+    // 名寄せの選択でマスター管理へ移ったので、統計タブへ戻って今日の確認から入り直す
+    await openStats(p); await p.click('#smAll'); await p.click('#smSheet [data-pane="winrate"]'); await p.waitForTimeout(900);
     const goPane = async id => { await p.click('#smPick'); await p.click('#smSheet [data-pane="' + id + '"]'); await p.waitForTimeout(900); };
     await goPane('winrate');
     const tiles = await p.$$eval('#statsPane-winrate .sm-wtile', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()));
@@ -123,12 +133,12 @@ srv.listen(0, async () => {
     ok('SP3: 列が多い表は「詳細を見る」で残りを開く', await p.evaluate(() => { const tr = [...document.querySelectorAll('#statsPane-ledger .sm-wide tbody > tr')].find(r => r.querySelector('.sm-more')); if (!tr) return false; const hid = tr.querySelector('td:nth-child(6)'); const before = getComputedStyle(hid).display === 'none'; tr.querySelector('.sm-more').click(); const after = getComputedStyle(hid).display !== 'none'; return before && after && tr.classList.contains('sm-open'); }));
     ok('SP3: 明細台帳が横にはみ出さない（カードが画面幅に収まる）', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('#statsPane-ledger .sm-ct tbody > tr')].every(r => r.getBoundingClientRect().right <= innerWidth + 1)));
     ok('SP3: 台帳の絞り込み欄は 44px', await p.$$eval('#statsPane-ledger .ldg-filter :is(input, select, button)', e => e.every(x => x.getBoundingClientRect().height >= 43.5)));
-    for (const id of ['svport', 'custitem', 'margindiff', 'pattern', 'data', 'charges', 'kpi']) { await goPane(id); ok('SP3: ' + id + ' が横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)); }
+    for (const id of ['svport', 'custitem', 'margindiff', 'pattern', 'data', 'kpi']) { await goPane(id); ok('SP3: ' + id + ' が横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)); }
     // 基準値
     ok('SP: 粗利率の基準を変える入口がある', await vis(p, '#smHome') || true);
     // PC 幅に戻すと元の画面
     await p.setViewportSize({ width: 1400, height: 900 }); await p.waitForTimeout(400);
-    ok('SP→PC: タブ・カードが戻り、今日の確認は消える', await vis(p, '#tab-stats .stats-tabs') && await vis(p, '#tab-stats .stats-summary-cards') && !(await vis(p, '#smBar')) && !(await vis(p, '#smHome')));
+    ok('SP→PC: 左のメニューが戻り（カードは廃止）、今日の確認は消える', await vis(p, '#tab-stats .stats-tabs') && !(await vis(p, '#tab-stats .stats-summary-cards')) && !(await vis(p, '#smBar')) && !(await vis(p, '#smHome')));
     await ctx.close(); }
 
   ok('JS エラーなし', errs.length === 0, errs);

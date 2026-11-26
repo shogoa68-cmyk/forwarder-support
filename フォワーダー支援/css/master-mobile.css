@@ -8,7 +8,9 @@
   #tab-master.mm-on.mm-view-home #statsPane-master,
   #tab-master.mm-on.mm-view-home #statsPane-alias { display: none !important; }
   #tab-master.mm-on.mm-view-work:not(.mm-wtab-drift) #statsPane-master { display: none !important; }
-  #tab-master.mm-on.mm-view-work.mm-wtab-drift #statsPane-master > :not(#driftCard) { display: none !important; }
+  #tab-master.mm-on.mm-view-work.mm-wtab-drift #statsPane-master > :not(#driftCard):not(#mhTodo) { display: none !important; }
+  #tab-master.mm-on.mm-view-work.mm-wtab-drift #mhTodo .mh-todo-b > :not(#driftCard) { display: none !important; }
+  #tab-master.mm-on.mm-view-list #mhTodo { display: none !important; }
   #tab-master.mm-on.mm-view-list #driftCard,
   #tab-master.mm-on.mm-view-list .master-head,
   #tab-master.mm-on.mm-view-list .master-kpis,
@@ -47,7 +49,7 @@
   .mm-btn.is-primary { background: var(--accent, #2c455d); border-color: var(--accent, #2c455d); color: #fff; }
   .mm-btn.is-danger { background: #b3261e; border-color: #b3261e; color: #fff; }
   .mm-btn:disabled { opacity: .45; }
-  /* ゆらぎ（既存カードを作業画面に出す）：タップしやすく */
+  /* 表記ゆれ（既存カードを作業画面に出す）：タップしやすく */
   #tab-master.mm-wtab-drift #driftCard .drift-btn { min-height: 44px; }
   #tab-master.mm-wtab-drift #driftCard .drift-head { flex-wrap: wrap; }
   #tab-master.mm-on.mm-view-work.mm-wtab-drift #mmWork { padding-bottom: 0; }
@@ -92,10 +94,91 @@
   #mdDetailModal .mt-tab { flex: none; min-height: 44px; border-radius: 22px; white-space: nowrap; }
   #mdDetailModal .mt-body { padding-bottom: 72px; }
   #mdDetailModal .mt-foot { position: sticky; bottom: 0; z-index: 3; display: flex; gap: 8px; padding: 8px 12px; background: var(--surface, #fff); border-top: 1px solid var(--border, #ddd); }
-  #mdDetailModal .mt-foot button { min-height: 44px; flex: 1; }
+  #mdDetailModal .mt-foot button { min-height: 44px; flex: 1; white-space: nowrap; }
+  #mdDetailModal .mt-foot .master-detail-actions { flex: 1 1 auto; min-width: 0; }
   #mdDetailModal .cr-item, #mdDetailModal .cc-item, #mdDetailModal .mn-item { margin-bottom: 8px; padding: 10px; border: 1px solid var(--border, #ddd); border-radius: 10px; }
   #mdDetailModal .cr-item.cr-lv-strict { border-color: #8a5a2b; background: #f7efe6; }
   #mdDetailModal .cr-item.cr-lv-strict .cr-lv, #mdDetailModal .cr-item.cr-lv-strict b { color: #8a5a2b; }
   /* ⋯ メニュー（旧）の代わりに下のシートを使う */
   .master-ops-menu { display: none !important; }
+}
+
+/* ---- 名前の整理（表記ゆれ・未登録）のスマホ版：1 件＝1 カード・主ボタン 1 つ・44px（Design 29 ⑥） ---- */
+@media (max-width: 600px) {
+  #tab-master.mm-on.mm-view-fix #statsPane-master, #tab-master.mm-on.mm-view-fix #statsPane-alias { display: none !important; }
+  #tab-master.mm-on.mm-view-fix #mmBar .mm-fix { display: none; }
+  #tab-master.mm-on.mm-view-fix #statsPane-fix { display: block; padding: 8px 4px 96px; }
+  #tab-master.mm-on #statsPane-fix .fix-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -4px 10px; padding: 0 4px; }
+  #tab-master.mm-on #statsPane-fix .fix-chip { flex: 0 0 auto; min-height: 44px; }
+  #tab-master.mm-on #statsPane-fix .stats-nm-table tbody > tr { grid-template-columns: minmax(0, 1fr) auto; padding: 10px 12px; }
+  #tab-master.mm-on #statsPane-fix .stats-nm-table td.stats-chips-cell { padding-left: 0; }
+  #tab-master.mm-on #statsPane-fix .fh-tog { width: 44px; height: 44px; }
+  #tab-master.mm-on #statsPane-fix .fh-actions { flex-direction: column; align-items: stretch; }
+  #tab-master.mm-on #statsPane-fix .fh-canon { width: 100%; min-height: 44px; margin: 4px 0 0; }
+  #tab-master.mm-on #statsPane-fix .fh-main { min-height: 48px; width: 100%; }
+  #tab-master.mm-on #statsPane-fix .fh-more { min-height: 44px; width: 100%; }
+  #tab-master.mm-on #statsPane-fix .stats-nm-table tr.fh-more-on .stats-chip button,
+  #tab-master.mm-on #statsPane-fix .stats-nm-table tr.fh-more-on .stats-syn-merge-canon,
+  #tab-master.mm-on #statsPane-fix .stats-nm-table tr.fh-more-on .stats-syn-dissolve { min-height: 44px; }
+  /* お客様の整理の表は列（担当者・ステータス）が多く、スマホ幅だと横に伸びて「操作」が画面の外へ出ていた → 1 行＝1 枚のカードに並べ替える */
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) { display: block; border: 0; width: 100%; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) thead { display: none; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) tbody { display: block; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) tbody > tr { display: block; margin: 0 0 8px; padding: 10px 12px; border: 1px solid var(--border, #d9dee5); border-radius: 10px; background: var(--surface, #fff); }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) td { display: block; width: auto; max-width: 100%; border: 0; padding: 3px 0; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) td:nth-child(2)::before { content: "件数："; color: var(--text-muted, #5a6475); font-size: var(--text-xs, 12px); }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) td:nth-child(3)::before { content: "担当者："; color: var(--text-muted, #5a6475); font-size: var(--text-xs, 12px); }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) td:nth-child(4)::before { content: "ステータス："; color: var(--text-muted, #5a6475); font-size: var(--text-xs, 12px); }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) td:nth-child(5) { padding-top: 8px; border-top: 1px dashed var(--border, #d9dee5); margin-top: 4px; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) td:nth-child(5) button { min-height: 44px; margin: 3px 4px 3px 0; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) .stats-chip { flex-wrap: wrap; max-width: 100%; }
+  #tab-master.mm-on #statsPane-customer table.stats-table:not(.stats-nm-table) .stats-chip-text { min-width: 0; overflow-wrap: anywhere; }
+  .fh-undo { bottom: 136px; }   /* 下の 3 タブ（56px）と確認シートの上に出す */
+}
+
+/* ===== Design 42-4：マスター管理のスマホの残り ===== */
+/* 新規登録は下から出るシート（1 列・種別は丸いチップ・［登録する］は下に固定） */
+@media (max-width: 600px) {
+  #masterNewModal.mm-reg { align-items: flex-end !important; padding: 0 !important; }
+  #masterNewModal.mm-reg .md-modal.master-new-modal {
+    width: 100% !important; max-width: none !important; height: auto !important; max-height: 88vh; margin: 0 !important;
+    border-radius: 14px 14px 0 0 !important; display: flex; flex-direction: column;
+  }
+  #masterNewModal.mm-reg .md-modal-body { overflow: auto; flex: 1 1 auto; padding: 12px 16px !important; }
+  #masterNewModal.mm-reg .mm-reg-step { margin: 0 0 6px; font-size: 13px; font-weight: 700; color: #3a4a5c; }
+  #masterNewModal.mm-reg .mm-reg-kinds { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  #masterNewModal.mm-reg .mm-reg-kind {
+    min-height: 36px; padding: 0 14px; border: 1px solid #98a2b3; border-radius: 18px; background: var(--surface, #fff);
+    font-size: 14px; color: var(--text, #1d2433); cursor: pointer;
+  }
+  #masterNewModal.mm-reg .mm-reg-kind.is-on { background: #2f5fb3; border-color: #2f5fb3; color: #fff; font-weight: 700; }
+  #masterNewModal.mm-reg .mnr-kind { display: none !important; }   /* 種別の選択欄はチップに置き換え（値は同じ select に入る） */
+  #masterNewModal.mm-reg .mnr-top { display: block !important; margin-bottom: 12px; }
+  #masterNewModal.mm-reg #masterNewValue { min-height: 44px; font-size: 16px; }
+  #masterNewModal.mm-reg .mm-reg-more { border-top: 1px solid #e4e7ec; padding-top: 10px; margin-bottom: 10px; }
+  #masterNewModal.mm-reg .mm-reg-more > summary { min-height: 44px; display: flex; flex-direction: column; justify-content: center; font-size: 13px; font-weight: 700; color: #3a4a5c; cursor: pointer; }
+  #masterNewModal.mm-reg .mm-reg-more > summary small { font-weight: 400; font-size: 12px; color: #667085; }
+  #masterNewModal.mm-reg .master-new-foot { position: sticky; bottom: 0; background: var(--surface, #fff); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)) !important; flex-wrap: wrap; gap: 8px; }
+  #masterNewModal.mm-reg .master-new-foot .master-new-btn { flex: 1 1 100%; min-height: 44px; order: 3; font-size: 16px; }
+  #masterNewModal.mm-reg .master-new-foot .master-new-cancel { min-height: 44px; }
+}
+/* エイリアス是正は PC だけ：スマホでは案内のカードだけ */
+#tab-master .mm-alias-pc { display: none; }
+@media (max-width: 600px) {
+  #tab-master.mm-view-alias .mm-alias-pc {
+    display: block; margin: 12px; padding: 16px; border: 1px solid #d0d5dd; border-radius: 10px; background: var(--surface, #fff);
+  }
+  #tab-master.mm-view-alias .mm-alias-pc b { font-size: 16px; }
+  #tab-master.mm-view-alias .mm-alias-pc p { margin: 8px 0 0; font-size: 14px; line-height: 1.7; color: var(--text-sub, #475467); }
+  #tab-master.mm-view-alias #statsPane-alias { display: none !important; }
+}
+/* 先のお客様：カードの中にその場で（1 段だけ・左に細い線） */
+#tab-master .mm-nestlist { margin: 4px 0 6px; padding-left: 10px; border-left: 2px solid #d0d5dd; display: flex; flex-direction: column; gap: 2px; }
+#tab-master .mm-nestlist[hidden] { display: none; }
+#tab-master .mm-nest-i { display: flex; gap: 6px; align-items: baseline; min-height: 32px; font-size: 14px; }
+#tab-master .mm-nest-i span { font-size: 12px; color: #667085; }
+#tab-master .mm-nest-all { align-self: flex-start; min-height: 44px; border: 0; background: none; color: #2f5fb3; font-size: 13px; padding: 0; cursor: pointer; }
+@media (max-width: 600px) {
+  /* シートを開いている間は ❓ を隠す（［キャンセル］に重ねない） */
+  body:has(#masterNewModal.mm-reg) #fbQuickFab, body:has(#masterNewModal.mm-reg) #fbFabHint { display: none !important; }
 }

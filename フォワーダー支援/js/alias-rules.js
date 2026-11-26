@@ -1,4 +1,4 @@
-// エイリアスルール管理（ゆらぎ是正）
+// エイリアスルール管理（表記ゆれ是正）
 // ④ ルール登録 → ①② 一括置換（ローカル＋クラウド） → ③ 入力補完提供
 (function () {
   'use strict';
@@ -628,9 +628,9 @@
 
   // === レンダリング ===
 
-  function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   // onclick の JS 文字列リテラル用
-  function _ea(s)  { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+  function _ea(s)  { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   // HTML value="" 属性用（&#39; が正しい）
   function _eav(s) { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
@@ -651,7 +651,7 @@
       const fl = fieldLabel[_quickFill.field] || _quickFill.field;
       h += `<div class="ar-quick-section">
   <div class="ar-quick-header">
-    <span class="ar-quick-title">⚡ ゆらぎ是正ショートカット — <strong>${_esc(_quickFill.canonical)}</strong>（${fl}）</span>
+    <span class="ar-quick-title">⚡ 表記ゆれ是正ショートカット — <strong>${_esc(_quickFill.canonical)}</strong>（${fl}）</span>
     <button class="ar-quick-clear" onclick="arClearQuickFill()" title="クリア">✕</button>
   </div>
   ${_quickFill.field === 'customer' ? '<p class="ar-quick-desc" style="color:#a04a00">⚠ 社名が似ていても別の会社の場合があります（有限会社と株式会社、海外法人など）。1件ずつ確認して登録してください。</p>' : ''}
@@ -664,7 +664,7 @@
     <span class="ar-arrow-label">→</span>
     <span class="ar-to">${_esc(_quickFill.canonical)}</span>
     <button class="ar-quick-reg-btn" onclick="arQuickRegister(${idx})">＋ 登録</button>
-    <button class="ar-quick-excl-btn" onclick="arExcludeVariant(${idx})" title="別物として扱い、ゆらぎ判定から外す">除外</button>
+    <button class="ar-quick-excl-btn" onclick="arExcludeVariant(${idx})" title="別物として扱い、表記ゆれ判定から外す">除外</button>
   </div>`;
       });
       h += `  </div>
@@ -672,7 +672,7 @@
     } else if (_quickFill && _quickFill.nonCanonical.length === 0) {
       // 全バリアント登録済み
       h += `<div class="ar-quick-section ar-quick-done">
-  <span class="ar-quick-title">✅ <strong>${_esc(_quickFill.canonical)}</strong> グループの全ゆらぎを登録しました</span>
+  <span class="ar-quick-title">✅ <strong>${_esc(_quickFill.canonical)}</strong> グループの全表記ゆれを登録しました</span>
   <button class="ar-quick-clear" onclick="arClearQuickFill()">✕</button>
 </div>`;
     }
@@ -691,7 +691,7 @@
       <option value="un"${preField==='un'?' selected':''}>単位</option>
       <option value="port"${preField==='port'?' selected':''}>港</option>
     </select>
-    <input id="arFrom" class="ar-input" type="text" placeholder="古い表記（ゆらぎ）">
+    <input id="arFrom" class="ar-input" type="text" placeholder="古い表記ゆれ">
     <span class="ar-arrow-label">→</span>
     <input id="arTo"   class="ar-input" type="text" placeholder="マスター名（統一後）" value="${_eav(preTo)}">
     <button class="ar-add-btn" onclick="arSubmitForm()">登録</button>
@@ -718,7 +718,7 @@
         h += '</tbody></table></div>';
       });
     } else {
-      h += '<p class="ar-empty">ルールはまだありません。<br>各集計タブのゆらぎを確認してルールを登録してください。</p>';
+      h += '<p class="ar-empty">ルールはまだありません。<br>各集計タブの表記ゆれを確認してルールを登録してください。</p>';
     }
 
     // 一括置換
@@ -763,8 +763,8 @@
     if (excl.length > 0) {
       const fl = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', port: '港', customer: 'お客様', icd: 'ICD' };
       h += `<div class="ar-excl-section">
-  <h4 class="ar-section-title">🚫 ゆらぎ判定 除外リスト（${excl.length}件）</h4>
-  <p class="ar-excl-desc">以下の表記はゆらぎ判定から外れています（別物として扱います）。</p>
+  <h4 class="ar-section-title">🚫 表記ゆれ判定 除外リスト（${excl.length}件）</h4>
+  <p class="ar-excl-desc">以下の表記は表記ゆれ判定から外れています（別物として扱います）。</p>
   <table class="ar-table ar-excl-table"><thead><tr><th>種別</th><th>除外値</th><th></th></tr></thead><tbody>`;
       excl.forEach(e => {
         h += `<tr>
@@ -1059,6 +1059,9 @@
       input.title = input.dataset.titleOrig; delete input.dataset.titleOrig;
     }
   }
+
+  // 外部の画面（メール取込の確認画面など）から、品名などの欄に「マスターに無い」印を付け外しする
+  window.arMarkUnregistered = function (input, field) { if (input && field) _markUnregistered(input, field, !_canonicalFor(field, input.value)); };
 
   // 印は欄を確定（change）したときにだけ付け外ししていたため、あとからマスターに登録しても点線が残った。
   // 印が付いている欄だけ、マスターの変更のたびに判定し直す（新しく印を付けることはしない＝入力していない欄は触らない）
@@ -1771,6 +1774,7 @@
       { key: 'referrer',     label: '紹介元（誰から紹介されたか）', refer: true, placeholder: '例）○○商事の山田さん／株式会社○○（お客様・サブコンの名前が候補に出ます）' },
       { key: 'referralNote', label: '紹介の経緯・時期', placeholder: '例）2026-10 展示会で山田氏から紹介' },
       { key: 'contacts',     label: '担当者', contacts: true },
+      { key: 'sites',        label: '倉庫・配送先', sites: true },
       { key: 'location',     label: '所在地' },
       { key: 'mainGoods',    label: 'メイン商材' },
       { key: 'destCountry',  label: '仕向国/輸入国' },

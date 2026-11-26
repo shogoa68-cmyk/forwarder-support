@@ -87,6 +87,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const vis = sel => p.evaluate(s => { const e = document.querySelector(s); return !!e && !!(e.offsetWidth || e.offsetHeight) && getComputedStyle(e).display !== 'none'; }, sel);
 
   // 1) ダッシュボードの入口
+  if (await p.$('#dtMoreBtn')) await p.click('#dtMoreBtn');   // 上部の整理（dash-top）で「⋯」の中へ移った
   ok('ダッシュボードに「📝 自由入力で保管」ボタンがある', await vis('#qpDashboard .qpd-store'));
   await p.click('#qpDashboard .qpd-store'); await p.waitForTimeout(400);
   ok('保管専用表示でモーダルが開く（タイトル・お客様/件名欄あり）', await vis('#emailImportModal.open') && await vis('#eiS-customer') && /自由入力で保管/.test(await p.textContent('#eiTitle')));
@@ -126,11 +127,11 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => { window.__db.quote_presets.push({ id: 'plain1', name: '通常案件', status: '下書き中', customer: 'X社', data: { fields: { 'qf-ref': 'R1' }, rows: [{ _type: 'data', cells: [false, '', '', false, 'THC'] }] }, updated_at: new Date().toISOString(), owner_email: 's@example.com', created_by: 's@example.com' }); });
   await p.evaluate(() => window.cloudListPresets(true)); await p.waitForTimeout(800);
   const allN = await p.evaluate(() => document.querySelectorAll('#qpDashboard .qpd-card, #qpDashboard .cloud-card, #qpDashboard .qpd-row').length);
-  await p.click('#qpdStats .qpd-stat--pend'); await p.waitForTimeout(500);
+  await p.evaluate(() => document.querySelector('#qpdStats .qpd-stat--pend').click()); await p.waitForTimeout(500);
   const pendN = await p.evaluate(() => document.querySelectorAll('#qpDashboard .cloud-card, #qpDashboard .qpd-row').length);
   ok('「未取込」タイルで絞り込める（通常案件は除かれる）', pendN === 1 && allN >= 2, { allN, pendN });
   ok('通常案件には未取込の印が付かない', await p.evaluate(() => !window.eiPendingOf(window.__db.quote_presets[1].data)));
-  await p.click('#qpdStats .qpd-stat--pend'); await p.waitForTimeout(300);   // 絞り込みを戻す
+  await p.evaluate(() => document.querySelector('#qpdStats .qpd-stat--pend').click()); await p.waitForTimeout(300);   // 絞り込みを戻す
 
   // 5) 取り込む（バッジ → 案件を開く → 編集開始 → 解析画面）
   await p.evaluate(() => document.querySelector('#qpDashboard .cloud-pend-badge') && document.querySelector('#qpDashboard .cloud-pend-badge').click()); await p.waitForTimeout(1500);
@@ -162,7 +163,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('案件の明細・ステータス・お客様は変わらない', c6.status === '下書き中' && c6.customer === '株式会社テスト商事' && c6.data.rows.some(r => r._type === 'data' && /海上運賃/.test(String(r.cells[4] || ''))), { s: c6.status });
   ok('ダッシュボードのまま・確認ダイアログなし・モーダルは閉じる', await p.evaluate(() => document.getElementById('tab-quote-make').classList.contains('qp-dash')) && !(await vis('#emailImportModal.open')) && dlg.length === dl6, dlg.slice(dl6));
   await p.waitForTimeout(800);
-  ok('明細があっても、未取込の保管があれば一覧に「📩 未取込 1件」が出る', await vis('#qpdStats .qpd-stat--pend') && /未取込\s*1件/.test(await p.evaluate(() => (document.querySelector('#qpDashboard .cloud-pend-badge, #qpDashboard .qpd-pend-mark') || {}).textContent || '')));
+  ok('明細があっても、未取込の保管があれば一覧に「📩 未取込 1件」が出る', await vis('#dtBadges [data-dt-tile="pend"]') && /未取込\s*1件/.test(await p.evaluate(() => (document.querySelector('#qpDashboard .cloud-pend-badge, #qpDashboard .qpd-pend-mark') || {}).textContent || '')));
   ok('カードの「⋯」メニューに「📝 自由入力を追加」がある', await p.evaluate(() => !!document.querySelector('#qpDashboard .cloud-menu-item[onclick*="eiOpenStoreForCard"]')));
 
   // 7) 案件を開く → 保管欄（閲覧モードでも操作でき、必要なら編集を開始）

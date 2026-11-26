@@ -201,10 +201,15 @@
       html += `<div class="fl-verdict ${fclWin ? '' : 'is-lcl'}">
         現在の物量（${cargo.cbm.toFixed(2)} CBM）では
         <b>${fclWin ? 'FCL（' + _esc(r.now.fcl.name) + ' × ' + r.now.fcl.n + '）' : 'LCL'}</b> が
-        <b>${FMT(diff)}</b> 有利<br>
-        <span style="font-size:12px;color:#6a5a40">LCL ${FMT(l)} ／ FCL ${FMT(f)}（${_esc(r.now.fcl.name)} × ${r.now.fcl.n}）</span>
+        <b>${FMT(diff)}</b> 有利
+        <div class="fl-ans">
+          <div class="fl-ans-box${fclWin ? '' : ' is-win'}"><span>LCL${fclWin ? '' : ' <i>安い</i>'}</span><b>${FMT(l)}</b></div>
+          <div class="fl-ans-box${fclWin ? ' is-win' : ''}"><span>FCL（${_esc(r.now.fcl.name)} × ${r.now.fcl.n}）${fclWin ? ' <i>安い</i>' : ''}</span><b>${FMT(f)}</b></div>
+        </div>
       </div>`;
-    }
+      window._flStatus = 'CBM ' + cargo.cbm.toFixed(1) + ' · <b>' + (fclWin ? 'FCL' : 'LCL') + ' が ' + FMT(diff) + ' 安い</b>';
+      html = html + '<div class="fl-mk-row"><button type="button" class="qrc-btn-pri" onclick="createFclLclPatterns()">FCL/LCL 比較案を作る</button></div>';
+    } else { window._flStatus = ''; }
     if (r.breakEvens.length) {
       html += '<ul class="fl-be">' + r.breakEvens.map(b => {
         if (b.kind === 'always') return `<li>${_esc(b.name)}：最低R/T でもすでに <b>FCL が安い</b></li>`;
@@ -223,6 +228,8 @@
       }).join('') + '</tbody></table>';
     html += '<div class="fl-note">※ 仕入ベースの目安です。FCL は種別ごとに単独手配（20\'と40\'の組み合わせは考慮しません）。R/T は容積と重量の大きい方で、物量を変えるときは現在の比重を保ちます。為替は画面の換算レートを使用しています。</div>';
     box.innerHTML = html;
+    const ed = $('flEdit'), has = !!(r.now && isFinite(r.now.lcl) && r.now.fcl); if (ed) { if (!has) ed.open = true; else if (!window._flHad) ed.open = false; } window._flHad = has;
+    if (window.qrcRefresh) window.qrcRefresh();
   };
 
   document.addEventListener('DOMContentLoaded', () => { try { window.renderFclLcl(); } catch (e) {} });

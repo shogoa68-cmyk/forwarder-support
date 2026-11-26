@@ -1,7 +1,7 @@
 // マスター管理のスマホ版（Design 案A「今日やること」・2026-11・第1〜3回）。
 // 〜600px のときだけ、既存の #tab-master（#statsPane-master／#statsPane-alias）の上に薄い表示層を足す。PC は変えない。
 // 既存の DOM・id・onclick は残し、CSS（css/master-mobile.css）で出し分ける（統計のスマホ版 js/stats-mobile.js と同じ方針）。
-//  ・第1回：今日やること（承認待ち／ゆらぎ／マスター一覧）＋作業画面（承認・却下の理由シート／ゆらぎは既存カードを作業画面に出す）
+//  ・第1回：今日やること（承認待ち／表記ゆれ／マスター一覧）＋作業画面（承認・却下の理由シート／表記ゆれは既存カードを作業画面に出す）
 //  ・第2回：一覧（検索→種別チップ→「絞り込み・並び順」シート／カードは「詳細」と「⋯」だけ／印は 3 つまで）
 //  ・第3回：詳細は全画面（CSS のみ・master-tabs.js のタブをそのまま使う）
 // 却下の理由は保存しない（確認のための入力のみ・SQL なし）。
@@ -25,6 +25,10 @@
     const work = document.createElement('div'); work.id = 'mmWork'; work.className = 'mm-work';
     (tabs || r.firstElementChild).after(bar); bar.after(home); home.after(work);
     bar.addEventListener('click', e => { if (e.target.closest('#mmBack')) show('home'); else if (e.target.closest('#mmFix')) { show('alias'); } });
+    // Design 42-4：エイリアス是正（多くの案件を書き換える画面）は PC だけ。スマホでは案内のカードだけ出す
+    const an = document.createElement('div'); an.id = 'mmAliasPc'; an.className = 'mm-alias-pc';
+    an.innerHTML = '<b>🔧 表記の是正</b><p>古い表記をまとめて直す画面は、PC で開いてください（多くの案件を書き換えるため）。</p>';
+    work.after(an);
     home.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
     work.addEventListener('click', onWorkClick);
     built = true;
@@ -33,18 +37,18 @@
   function show(v) {
     view = v; const r = root(); if (!r) return;
     r.classList.toggle('mm-on', mobile());
-    ['home', 'work', 'list', 'alias'].forEach(k => r.classList.toggle('mm-view-' + k, mobile() && v === k));
+    ['home', 'work', 'list', 'alias', 'fix'].forEach(k => r.classList.toggle('mm-view-' + k, mobile() && v === k));
     r.classList.toggle('mm-wtab-drift', mobile() && v === 'work' && wtab === 'drift');
-    const cur = $('mmCur'); if (cur) cur.textContent = { home: '', work: wtab === 'drift' ? 'ゆらぎ' : '承認待ち', list: 'マスター一覧', alias: 'エイリアス是正' }[v] || '';
+    const cur = $('mmCur'); if (cur) cur.textContent = { home: '', work: wtab === 'drift' ? '表記ゆれ' : '承認待ち', list: 'マスター一覧', alias: 'エイリアス是正', fix: '名前の整理' }[v] || '';
     if (mobile() && typeof window.masterSetPane === 'function') {
-      if (v === 'alias') window.masterSetPane('alias'); else if (v !== 'home' && !$('statsPane-master').classList.contains('is-active')) window.masterSetPane('master');
+      if (v === 'alias') window.masterSetPane('alias'); else if (v === 'fix') window.masterSetPane('fix'); else if (v !== 'home' && !$('statsPane-master').classList.contains('is-active')) window.masterSetPane('master');
     }
     if (v === 'home') renderHome(); if (v === 'work') renderWork();
     if (v === 'work' && wtab === 'drift') openDriftSecs();
     try { window.scrollTo({ top: 0 }); } catch (e) {}
   }
   function go(k) {
-    if (k === 'req') { wtab = 'req'; show('work'); } else if (k === 'drift') { wtab = 'drift'; show('work'); } else if (k === 'list') show('list'); else if (k === 'mine') { wtab = 'req'; show('work'); }
+    if (k === 'req') { wtab = 'req'; show('work'); } else if (k === 'drift') { wtab = 'drift'; show('work'); } else if (k === 'list') show('list'); else if (k === 'fix') show('fix'); else if (k === 'mine') { wtab = 'req'; show('work'); }
   }
 
   function act(go, icon, title, sub, tone) {
@@ -56,17 +60,20 @@
     let s = '<p class="mm-lead">今日やること</p>';
     if (i.approvalOn && i.admin) s += act('req', '📨', '承認待ち ' + i.pending.length + ' 件', i.pending.length ? 'マスター登録・別名の申請を確認します' : '承認待ちの申請はありません', i.pending.length ? 'warn' : '');
     else if (i.approvalOn && i.mine.length) s += '<button type="button" class="mm-myreq" data-go="mine">📨 申請中 ' + i.mine.length + ' 件 ›</button>';
-    s += act('drift', '🔍', 'ゆらぎチェック ' + (d.review + d.human) + ' 件', nd ? '表記ゆれの確認が必要です' + (d.auto ? '（自動で別名にできるもの ' + d.auto + ' 件）' : '') : '確認が必要なゆらぎはありません', d.review + d.human ? 'warn' : '');
+    if (i.admin) s += act('drift', '🔍', '表記ゆれチェック ' + (d.review + d.human) + ' 件', nd ? '表記ゆれの確認が必要です' + (d.auto ? '（自動で別名にできるもの ' + d.auto + ' 件）' : '') : '確認が必要な表記ゆれはありません', d.review + d.human ? 'warn' : '');
+    let nf = null; try { nf = typeof window.statsTodaySummary === 'function' ? window.statsTodaySummary({ names: true }) : null; } catch (e) {}
+    const nfN = nf ? (nf.blur || 0) + (nf.unorg || 0) : 0;
+    s += act('fix', '🧹', '名前の整理' + (nfN ? ' ' + nfN + ' 件' : ''), nfN ? '表記ゆれ・未登録の名前を 1 件ずつ整えます' : '整理が必要な名前は見つかっていません', nfN ? 'warn' : '');
     s += act('list', '🗂', 'マスター一覧', '検索・絞り込み・詳細の確認');
     h.innerHTML = s;
   }
 
-  // ---- 作業画面（承認待ち／ゆらぎ）----
+  // ---- 作業画面（承認待ち／表記ゆれ）----
   function renderWork() {
     const w = $('mmWork'); if (!w) return;
     const i = info(), d = drift();
     const tab = (k, l) => '<button type="button" class="mm-wt' + (wtab === k ? ' is-on' : '') + '" data-wt="' + k + '">' + l + '</button>';
-    let s = '<div class="mm-wtabs">' + tab('req', (i.admin ? '承認待ち ' + i.pending.length : '申請中 ' + i.mine.length)) + tab('drift', 'ゆらぎ ' + (d.review + d.human)) + '</div>';
+    let s = '<div class="mm-wtabs">' + tab('req', (i.admin ? '承認待ち ' + i.pending.length : '申請中 ' + i.mine.length)) + (i.admin ? tab('drift', '表記ゆれ ' + (d.review + d.human)) : '') + '</div>';
     if (wtab === 'req') {
       const list = i.admin ? i.pending : i.mine;
       if (!list.length) s += '<p class="mm-empty">' + (i.admin ? '承認待ちの申請はありません。' : '申請中のものはありません。') + '</p>';
@@ -76,7 +83,7 @@
           : '<div class="mm-card-b"><button type="button" class="mm-btn" data-cancel="' + esc(r.id) + '">取り消す</button></div>') + '</div>').join('');
     }
     w.innerHTML = s;
-    const cur = $('mmCur'); if (cur) cur.textContent = wtab === 'drift' ? 'ゆらぎ' : (i.admin ? '承認待ち' : '申請中');
+    const cur = $('mmCur'); if (cur) cur.textContent = wtab === 'drift' ? '表記ゆれ' : (i.admin ? '承認待ち' : '申請中');
     root().classList.toggle('mm-wtab-drift', mobile() && view === 'work' && wtab === 'drift');
   }
   function openDriftSecs() { document.querySelectorAll('#driftCard details.drift-sec').forEach(d => { d.open = true; }); }
@@ -122,6 +129,7 @@
   }
   function closeSheet() { const w = $('mmSheet'); if (w) w.remove(); document.body.classList.remove('sm-sheet-open'); }
   function toast(msg) {
+    if (typeof window.quoteShowToast === 'function') { window.quoteShowToast(msg, 'info', 4000); return; }   // 通知は 1 か所（画面の上）
     const o = document.querySelector('.mm-toast'); if (o) o.remove(); clearTimeout(undoT);
     const t = document.createElement('div'); t.className = 'sm-undo mm-toast'; t.innerHTML = '<span>' + esc(msg) + '</span>';
     document.body.appendChild(t); undoT = setTimeout(() => t.remove(), 4000);
@@ -152,9 +160,58 @@
         if (marks.length > 3) { marks.slice(3).forEach(m => m.classList.add('mm-hide')); const mo = document.createElement('span'); mo.className = 'mm-more'; mo.textContent = '他 ' + (marks.length - 3); nm.appendChild(mo); }
       }
       const nest = tr.querySelector(':scope > td.master-nest-cell');
-      if (nest) { const n = nest.querySelectorAll('tbody > tr').length; const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'mm-nestbtn'; bt.textContent = '🔗 先のお客様 ' + n + '社を見る ›'; bt.addEventListener('click', () => nest.classList.toggle('mm-nest-open')); nest.prepend(bt); }
+      if (nest) nestList(nest);
     });
   }
+  // Design 42-4：先のお客様は「🔗 先のお客様 N社 ▾」でカードの中にその場で開く（1 段だけ・名前 · 案件数・3 社まで）
+  function nestList(nest) {
+    const kids = [...nest.querySelectorAll(':scope > table.master-nest > tbody > tr, :scope table.master-nest > tbody > tr')]
+      .filter((tr, k, a) => a.indexOf(tr) === k && tr.dataset.mvalue && tr.closest('td.master-nest-cell') === nest);
+    const n = kids.length;
+    const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'mm-nestbtn'; bt.setAttribute('aria-expanded', 'false');
+    bt.textContent = '🔗 先のお客様 ' + n + '社 ▾';
+    const box = document.createElement('div'); box.className = 'mm-nestlist'; box.hidden = true;
+    const cnt = v => { const c = typeof window.statsCasesCount === 'function' ? window.statsCasesCount('customer', v) : null; return c == null ? '' : ' · ' + c + '件'; };
+    const draw = () => {
+      box.innerHTML = kids.slice(0, 3).map(tr => '<div class="mm-nest-i"><b>' + esc(tr.dataset.mvalue) + '</b><span>' + esc(cnt(tr.dataset.mvalue)) + '</span></div>').join('')
+        + (n > 3 ? '<button type="button" class="mm-nest-all">すべて見る（' + n + '社） ›</button>' : '');
+    };
+    bt.addEventListener('click', () => {
+      const open = box.hidden; box.hidden = !open; bt.setAttribute('aria-expanded', open ? 'true' : 'false');
+      bt.textContent = '🔗 先のお客様 ' + n + '社 ' + (open ? '▴' : '▾');
+      if (open) draw(); else nest.classList.remove('mm-nest-open');
+    });
+    box.addEventListener('click', e => { if (e.target.closest('.mm-nest-all')) { nest.classList.add('mm-nest-open'); box.hidden = true; } });
+    nest.prepend(box); nest.prepend(bt);
+  }
+
+  // Design 42-4：新規登録は下から出るシート（種別は丸いチップ・名前・詳細は畳む・［登録する］は下に固定）
+  function decorateRegister(m) {
+    if (!mobile() || !m || m.dataset.mmReg) return;
+    m.dataset.mmReg = '1'; m.classList.add('mm-reg');
+    const sel = m.querySelector('#masterNewField'), top = m.querySelector('.mnr-top'), fields = m.querySelector('#masterNewFields');
+    if (sel && top) {
+      const chips = document.createElement('div'); chips.className = 'mm-reg-kinds'; chips.setAttribute('role', 'radiogroup'); chips.setAttribute('aria-label', '種別');
+      const paint = () => chips.querySelectorAll('button').forEach(b => { const on = b.dataset.v === sel.value; b.classList.toggle('is-on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+      [...sel.options].forEach(o => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'mm-reg-kind'; b.dataset.v = o.value; b.setAttribute('role', 'radio'); b.textContent = o.textContent.replace(/（.*$/, '');
+        b.addEventListener('click', () => { sel.value = o.value; sel.dispatchEvent(new Event('change', { bubbles: true })); paint(); });
+        chips.appendChild(b);
+      });
+      const lab = document.createElement('p'); lab.className = 'mm-reg-step'; lab.textContent = '① 種別';
+      top.parentNode.insertBefore(lab, top); top.parentNode.insertBefore(chips, top);
+      sel.addEventListener('change', paint); paint();
+      const nl = top.querySelector('.mnr-name'); if (nl && nl.firstChild && nl.firstChild.nodeType === 3) nl.firstChild.textContent = '② 名前 ＊';
+    }
+    if (fields) {
+      const d = document.createElement('details'); d.className = 'mm-reg-more';
+      d.innerHTML = '<summary>③ 詳細（任意）<small>別名・ふりがな・国・担当など（種別で中身が変わります）</small></summary>';
+      fields.parentNode.insertBefore(d, fields); d.appendChild(fields);
+    }
+    const btn = m.querySelector('.master-new-btn'); if (btn && /^登録$/.test(btn.textContent.trim())) btn.textContent = '登録する';
+  }
+  new MutationObserver(ms => { ms.forEach(x => x.addedNodes.forEach(n => { if (n.id === 'masterNewModal') decorateRegister(n); })); }).observe(document.body, { childList: true });
+
   function filterSheet(rows) {
     const h = rows.map(row => {
       const lab = (row.querySelector('.master-type-chips-label') || {}).textContent || '';

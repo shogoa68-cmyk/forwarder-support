@@ -198,7 +198,7 @@
     const mkRow = (label, value, unit, key, targetUnit) => {
       const matchCount = Array.from(quoteRows).filter(tr => {
         const id = tr.id.replace('row-', '');
-        return document.getElementById(`un-${id}`)?.value === targetUnit;
+        return _unitMatches(document.getElementById(`un-${id}`)?.value, key, targetUnit);
       }).length;
       const badge = matchCount > 0
         ? `<span style="font-size:12px;color:#27ae60;margin-left:4px;">（単位「${targetUnit}」の行 ${matchCount}件）</span>`
@@ -220,6 +220,11 @@
 
   // 各キーに対応する単位文字列
   const REFLECT_UNIT_MAP = { rt: 'R/T', cw: 'CW', cbm: 'CBM', kg: 'kg', pcs: 'pcs' };
+  // 行の単位が反映先の単位か（表記ゆれ R/T・RT・W/M・C/W・m³・KGS なども同じ単位として扱う）
+  function _unitMatches(v, key, targetUnit) {
+    const k = (typeof window.quoteUnitKind === 'function') ? window.quoteUnitKind(v) : null;
+    return k ? k === key : v === targetUnit;
+  }
 
   function doReflect(key, value) {
     const targetUnit = REFLECT_UNIT_MAP[key];
@@ -227,7 +232,7 @@
     document.querySelectorAll('#tableBody tr').forEach(tr => {
       const id   = tr.id.replace('row-', '');
       const unEl = document.getElementById(`un-${id}`);
-      if (!unEl || unEl.value !== targetUnit) return;
+      if (!unEl || !_unitMatches(unEl.value, key, targetUnit)) return;
       const qtyEl = document.getElementById(`pq-${id}`);
       if (qtyEl) {
         qtyEl.value = value;

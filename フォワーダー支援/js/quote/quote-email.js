@@ -60,7 +60,7 @@
     const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
     const issuer = loadIssuer();
 
-    let taxableSub = 0, exemptSub = 0, taxSum = 0, hasFx = false;
+    let taxableSub = 0, exemptSub = 0, taxSum = 0, hasFx = false, costFxOnly = false;
     let taxableSubHi = 0, exemptSubHi = 0, taxSumHi = 0, hasRange = false;   // 幅（〜）のある行を上限で数えた合計（下限＝上記）
     const zones = [];
     let zoneSum = 0, zoneSumHi = 0;
@@ -89,7 +89,8 @@
       const sub = minAmt(qty * price, r.bpmin);   // ミニマム（最低料金）があれば、それを下回らない
       const jpy = isActual ? 0 : Math.ceil(toJPYx(sub, r.bc || 'JPY'));
       if (!isActual && !isCond && !isRef) {
-        if (r.bc && r.bc !== 'JPY') hasFx = true;
+        if (r.bc && r.bc !== 'JPY') hasFx = true;                                   // 請求が外貨
+        else if (r.pc && r.pc !== 'JPY') costFxOnly = true;                         // 仕入だけ外貨・請求は円
         const rgA = (typeof rowRangeAmt === 'function') ? rowRangeAmt(qty, price, r.bphi, r.bpmin) : null;   // 幅（売単価〜上限）
         const jpyHi = rgA ? Math.ceil(toJPYx(rgA.hi, r.bc || 'JPY')) : jpy;
         if (rgA) hasRange = true;
@@ -105,9 +106,9 @@
       if (r.name || sub || isActual || isCond || isRef) {
         curItems.push({
           name: r.name || '', qty, unit: r.un || '', ccy: r.bc || 'JPY',
-          price, minText: (() => { const rg = (typeof rowRange === 'function') ? rowRange(price, r.bphi) : null; return rg ? fmtNum(rg.lo, r.bc) + '〜' + fmtNum(rg.hi, r.bc) + ' ' + (r.bc || 'JPY') + (r.un ? '/' + r.un : '') : null; })() || ((minPriceText(price, r.bpmin, r.bc || 'JPY', r.un || '', qty) || '')) || null, amount: sub, note: r.note || '', taxed: !!r.taxed, cat: r.cat || '',
+          price, minText: (() => { const rg = (typeof rowRange === 'function') ? rowRange(price, r.bphi) : null; return rg ? fmtNum(rg.lo, r.bc) + '〜' + fmtNum(rg.hi, r.bc) + ' ' + (r.bc || 'JPY') + (r.un ? '/' + r.un : '') : null; })() || ((minPriceText(price, r.bpmin, r.bc || 'JPY', r.un || '', qty) || '')) || null, amount: sub, note: ''   /* 行の備考は社内用（御見積書と同じく客先向けのメールには出さない） */, taxed: !!r.taxed && (r.bc || 'JPY') === 'JPY', cat: r.cat || '',
           pt: (r.pt || '').trim(),   // パターン（スポット/年間契約 等）。小見出しに使う
-          actual: isActual, cond: isCond, ref: isRef, estimate: !!r._estimate,
+          actual: isActual, cond: isCond, ref: isRef, estimate: !!r._estimate, insInv: r.insInv || null,
         });
       }
     });
@@ -152,8 +153,11 @@
     const remarkMentionsFx = [...cleanRemarks, ...globalRemarkLines]
       .some(t => /為替|外貨|USD|EUR|GBP|CNY|サーチャージ/.test(t));
     const notes = [];
-    if (hasFx && !remarkMentionsFx) {
-      notes.push('海上運賃・サーチャージは外貨建て仕入・JPY建て請求のため、為替レートにより請求金額が変動します。');
+    // 為替の注記は、請求が外貨か（＝その通貨で請求）・仕入だけが外貨か（＝円で請求・為替で改定あり）で文を分ける。
+    // 以前は請求が外貨のときに「外貨建て仕入・JPY建て請求」と出ていて、実際と逆のことを言っていた。
+    if (!remarkMentionsFx) {
+      if (hasFx) notes.push('外貨建ての項目は記載の通貨でのご請求となります。円換算額は参考値です。');
+      if (costFxOnly) notes.push('一部の項目は外貨建ての原価を基に円で算出しているため、為替の変動により改定する場合があります。');
     }
     cleanRemarks.forEach(t => notes.push(t));
     globalRemarkLines.forEach(t => notes.push(t));
@@ -264,7 +268,8 @@
   function _itemLabel(it) {
     return (it.taxed ? '*' : '') + it.name
       + (it.cond ? '（発生時のみ）' : '')
-      + (it.ref  ? '（参考）' : '');
+      + (it.ref  ? '（参考）' : '')
+      + (it.insInv && typeof window.insInvoiceText === 'function' ? '（' + window.insInvoiceText(it.insInv, false) + '）' : '');
   }
 
   // 明細行は「項目名 | 通貨 | 単価 | 単位」をパイプで区切って並べる。
@@ -282,7 +287,6 @@
           const price = it.actual ? '実費' : (it.estimate ? '約' : '') + (it.minText || fmtNum(it.price, it.ccy));
           // ミニマムの行は単価の文字に通貨・単位が入っている（Min. $28.00 or $0.15/kg）ので重ねて出さない
           out.push('  ' + [_itemLabel(it), it.minText ? '' : ccy, price, it.minText ? '' : it.unit].filter(Boolean).join(' | '));
-          if (it.note) out.push('    ※' + it.note);
         });
       });
     });

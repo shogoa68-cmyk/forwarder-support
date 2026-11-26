@@ -108,57 +108,35 @@ const http = require('http'), fs = require('fs'), path = require('path');
     };
   }, id);
 
+  const badge = (p, id) => p.evaluate(id => { const el = [...document.querySelectorAll('#qpdListWrap .cloud-card')].find(c => c.querySelector('.cloud-card-links[data-lid="' + id + '"]')); const b = el && el.querySelector('.cloud-card-links .cloud-link-badge'); return b ? b.textContent.replace(/\s+/g, ' ').trim() : ''; }, id);
   // カードの並び（上から）：{id, sub, ml}＝案件 id・サブ（インデント付き）か・左の余白(px)
   const order = p => p.evaluate(() => [...document.querySelectorAll('#qpdListWrap .cloud-card')].map(c => ({ id: c.querySelector('.cloud-card-links').dataset.lid, sub: c.classList.contains('is-sub'), ml: parseFloat(getComputedStyle(c).marginLeft) })));
 
   // ===== ダッシュボードのツリー =====
   {
     const { ctx, p, errs } = await open();
-    const c1 = await card(p, 'P1');
-    ok('メインのカードに「🌳 サブ案件（3）」（孫も数える）と「🔗 関連案件（1）」', c1 && c1.head.join('|') === '🌳 サブ案件（3）|🔗 関連案件（1）', c1);
-    // サブはメインの直下に、深さぶん右へインデントして並ぶ（P1 → S3・S1 → S1 の下に S2）
+    // Design 42-7：入れ子・字下げ・「↳ サブ」はやめ、メイン／サブ／関連を「🔗 関連 N件」の札 1 つに
+    const openList = id => p.evaluate(id => { const el = [...document.querySelectorAll('#qpdListWrap .cloud-card')].find(c => c.querySelector('.cloud-card-links[data-lid="' + id + '"]')); const b = el.querySelector('.cloud-link-badge'); b.click(); }, id);
+    ok('メインのカードは「🔗 関連 4件」（サブ・孫・ただの関連をまとめる）', /🔗 関連 4件/.test(await badge(p, 'P1')), await badge(p, 'P1'));
     const od = await order(p);
-    ok('サブは必ずメインの直下に並ぶ（Z・Y・X・PEER の次に P1・S3・S1・S2）', od.map(x => x.id).join() === 'Z,Y,X,PEER,P1,S3,S1,S2', od.map(x => x.id).join());
-    const ml = id => od.find(x => x.id === id).ml;
-    ok('サブは右にインデント（メイン 0 ＜ サブ ＜ サブのサブ）', ml('P1') === 0 && ml('S3') > 0 && ml('S1') === ml('S3') && ml('S2') > ml('S1'), od);
-    ok('サブのカードに is-sub が付き、メインと単独のカードには付かない', od.filter(x => x.sub).map(x => x.id).sort().join() === 'S1,S2,S3', od);
-    ok('メインのカードのサブ欄は、下のカードに出ているサブを重ねて出さない（件数とメモだけ）', c1 && c1.treeRoot.length === 0 && c1.headNote.join() === '下のカードに表示', c1);
-    ok('ただの関連 PEER は関連案件のリストに出る', c1 && c1.peers.join() === '案件PEER', c1);
-    ok('関連付けの理由が出る（関連案件の「代替案」はメインのカード・サブの「追加分」はサブ S1 のカードの「↳ サブ」行）', c1 && c1.notes.join() === '📝 代替案' && (await card(p, 'S1')).parentLine.includes('追加分'), [c1 && c1.notes, (await card(p, 'S1')).parentLine]);
-    const s1 = await card(p, 'S1');
-    ok('サブ S1 のカードに「↳ サブ」とメイン P1 の行', s1 && s1.parentLine.includes('↳ サブ') && s1.parentLine.includes('案件P1'), s1);
-    ok('S1 のカードにも「サブ案件（1）」（S2 は下のカードに表示）', s1 && s1.head[0] === '🌳 サブ案件（1）' && s1.headNote.join() === '下のカードに表示', s1);
-    const s2 = await card(p, 'S2');
-    ok('孫 S2 のカードは S1 のサブ', s2 && s2.parentLine.includes('案件S1'), s2);
-    const xy = await card(p, 'X');
-    ok('ただの関連だけのカード X：ツリー無し・親行無し・関連1件', xy && xy.parentLine === '' && xy.treeRoot.length === 0 && xy.peers.join() === '案件Y', xy);
+    ok('メイン／サブの並び替えはしない（更新順のまま）', od.map(x => x.id).join() === 'Z,Y,X,PEER,S3,S2,S1,P1', od.map(x => x.id).join());
+    ok('字下げ（is-sub）はしない', od.every(x => !x.sub && x.ml === 0), od);
+    ok('「↳ サブ：○○」は出さない', (await card(p, 'S1')).parentLine === '');
+    await openList('P1'); await p.waitForTimeout(150);
+    const c1 = await card(p, 'P1');
+    ok('札を押すと一覧が開き、サブ・孫・関連が並ぶ（関連付けの理由も出る）', c1 && ['案件S3', '案件S1', '案件S2', '案件PEER'].every(n => c1.peers.includes(n)) && c1.notes.includes('📝 代替案'), c1);
+    ok('サブ S1 のカードは「🔗 関連 2件」（メイン P1・サブ S2）', /🔗 関連 2件/.test(await badge(p, 'S1')), await badge(p, 'S1'));
+    ok('ただの関連だけのカード X は「🔗 関連 1件」', /🔗 関連 1件/.test(await badge(p, 'X')));
     const z = await card(p, 'Z');
-    ok('関連の無いカード Z は空', z && z.parentLine === '' && z.head.length === 0, z);
+    ok('関連の無いカード Z は空', z && z.parentLine === '' && z.peers.length === 0 && !(await badge(p, 'Z')), z);
     if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'link-tree-dash.png') }).catch(() => {});
 
-    // ---- 位置づけの切替 ----
-    // PEER を P1 のサブにする（P1 カードの関連案件の select）
-    await p.evaluate(() => {
-      const el = [...document.querySelectorAll('#qpdListWrap .cloud-card')].find(c => c.querySelector('.cloud-card-links[data-lid="P1"]'));
-      const row = [...el.querySelectorAll('.cloud-clink-list .cloud-clink-wrap')][0];
-      const sel = row.querySelector('select.clink-role'); sel.value = 'sub'; sel.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    await p.waitForTimeout(1200);
-    ok('関連→サブに切替：P1 のサブが 4 件になり、関連案件の欄は消える', await (async () => { const c = await card(p, 'P1'); return c && c.head.join('|') === '🌳 サブ案件（4）' && c.peers.length === 0; })(), await card(p, 'P1'));
+    // ---- 位置づけ（データの関数は残す。画面の切替は出さない）----
+    await p.evaluate(() => cloudSetLinkRole('l4', 'P1', 'sub')); await p.waitForTimeout(600);
     ok('DB：l4 の parent_id が P1', await p.evaluate(() => window.__db.quote_preset_links.find(l => l.id === 'l4').parent_id === 'P1'));
-    // サブ S3 をただの関連に戻す
-    await p.evaluate(() => {
-      const el = [...document.querySelectorAll('#qpdListWrap .cloud-card')].find(c => c.querySelector('.cloud-card-links[data-lid="S3"]'));
-      const sel = el.querySelector('.cloud-card-parentline select.clink-role'); sel.value = 'none'; sel.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    await p.waitForTimeout(1200);
-    ok('サブ→関連に戻す：l3 の parent_id が空・P1 の関連案件に S3', await (async () => { const c = await card(p, 'P1'); return (await p.evaluate(() => window.__db.quote_preset_links.find(l => l.id === 'l3').parent_id)) === null && c.peers.join() === '案件S3'; })(), await card(p, 'P1'));
-    // メインとサブの入れ替え（S1 のカードで、メイン P1 を「サブ」にする）＝向きが逆になるだけで循環ではない
-    await p.evaluate(() => {
-      const el = [...document.querySelectorAll('#qpdListWrap .cloud-card')].find(c => c.querySelector('.cloud-card-links[data-lid="S1"]'));
-      const sel = el.querySelector('.cloud-card-parentline select.clink-role'); sel.value = 'sub'; sel.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    await p.waitForTimeout(1200);
+    await p.evaluate(() => cloudSetLinkRole('l3', 'P1', 'none')); await p.waitForTimeout(600);
+    ok('サブ→関連に戻す：l3 の parent_id が空', await p.evaluate(() => window.__db.quote_preset_links.find(l => l.id === 'l3').parent_id) === null);
+    await p.evaluate(() => cloudSetLinkRole('l1', 'S1', 'sub')); await p.waitForTimeout(600);
     ok('メイン⇄サブの入れ替え：l1 の parent_id が S1 に変わる', await p.evaluate(() => window.__db.quote_preset_links.find(l => l.id === 'l1').parent_id === 'S1'));
     await p.evaluate(() => cloudSetLinkRole('l1', 'P1', 'sub'));   // 元に戻す（P1 がメイン）
     // 循環：P1→S1→S2 の鎖があるとき、S2 を P1 の「メイン」にする（P1—S2 の関連を足してから）は輪になるので拒否
@@ -182,7 +160,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('バーに「メイン：」（最初に選んだ Z）と「サブ 1件」', await p.evaluate(() => { const t = document.getElementById('qpdLinkBar').textContent; return t.includes('メイン') && t.includes('サブ'); }), await p.evaluate(() => document.getElementById('qpdLinkBar').textContent));
     await p.evaluate(() => cloudLinkSelected()); await p.waitForTimeout(1500);
     ok('Z がメイン・PEER がサブとして関連付く（DB）', await p.evaluate(() => { const l = window.__db.quote_preset_links.find(x => [x.preset_a, x.preset_b].sort().join() === 'PEER,Z'); return l && l.parent_id === 'Z'; }));
-    ok('PEER の関連付けは P1 とのものと合わせ、PEER は Z のサブ＋P1 とは関連（1 サブ 1 メイン・l4 は peer なので可）', await (async () => { const c = await card(p, 'Z'); return c && c.head.join('|').includes('サブ案件（1）'); })(), await card(p, 'Z'));
+    ok('Z のカードは「🔗 関連 1件」（メイン／サブも関連の札にまとめる）', /🔗 関連 1件/.test(await badge(p, 'Z')), await badge(p, 'Z'));
     ok('ページエラーなし', errs.length === 0, errs);
     await ctx.close();
   }
@@ -208,19 +186,17 @@ const http = require('http'), fs = require('fs'), path = require('path');
       if (!sec) return null;
       return {
         groups: [...sec.querySelectorAll('.sq-links-group-title')].map(x => x.textContent.trim()),
-        root: [...sec.querySelectorAll('.sq-link-tree--root > .sq-link-tree-node > .sq-link-item .sq-link-name')].map(x => x.textContent),
-        nested: [...sec.querySelectorAll('.sq-link-tree .sq-link-tree .sq-link-name')].map(x => x.textContent),
+        names: [...sec.querySelectorAll('.sq-link-name')].map(x => x.textContent),
         roles: [...sec.querySelectorAll('select.sq-link-role')].map(x => x.value).join(),
         title: sec.querySelector('.sq-links-title').textContent,
       };
     });
     let pn = await panel();
-    ok('編集画面：サブ案件ツリー（S1・S3・孫 S2）と関連案件のグループ', pn && pn.groups.join('|') === '🌳 サブ案件（3）|🔗 関連案件（1）' && pn.root.sort().join() === '案件S1,案件S3' && pn.nested.join() === '案件S2', pn);
-    ok('位置づけの選択（関連／サブ／メイン）が各件にある', pn && pn.roles.split(',').length === 4, pn);
+    ok('編集画面：メイン／サブの組も「関連」として 1 つの一覧（S1・S3・孫 S2・PEER）', pn && pn.groups.length === 0 && /関連付けた案件（4）/.test(pn.title) && ['案件S1', '案件S3', '案件S2', '案件PEER'].every(n => pn.names.includes(n)), pn);
     // メイン側から開いた S1 では、メイン P1 が「👑 この案件のメイン」に出る
     await p.evaluate(() => { window.quoteCloudLoadedId = () => 'S1'; return window.sqOnActivate(); }); await p.waitForTimeout(800);
     pn = await panel();
-    ok('S1 を開くと「👑 この案件のメイン」に P1・サブに S2', pn && pn.groups.join('|') === '👑 この案件のメイン|🌳 サブ案件（1）', pn);
+    ok('S1 を開くと、P1 と S2 が関連の一覧に並ぶ（2 件）', pn && /関連付けた案件（2）/.test(pn.title) && pn.names.includes('案件P1') && pn.names.includes('案件S2'), pn);
     // 追加時にサブ指定：Z を P1 のサブにする
     await p.evaluate(() => { window.quoteCloudLoadedId = () => 'P1'; return window.sqOnActivate(); }); await p.waitForTimeout(800);
     await p.evaluate(() => { sqToggleLinkSearch(); }); 
@@ -230,10 +206,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => { const b = [...document.querySelectorAll('.sq-link-result')].find(x => x.textContent.includes('案件Z')); b && b.click(); }); await p.waitForTimeout(300);
     ok('理由バーに「ただ関連付ける／サブにする／メインにする」の選択', await p.evaluate(() => [...document.querySelectorAll('input[name="sqLinkRole"]')].map(x => x.value).join() === 'none,sub,main'));
     await p.evaluate(() => { document.querySelector('input[name="sqLinkRole"][value="sub"]').click(); return sqConfirmPendingLink(); }); await p.waitForTimeout(1200);
-    ok('「この案件のサブにする」で追加：DB の parent_id が P1・パネルのサブが 4 件', await p.evaluate(() => { const l = window.__db.quote_preset_links.find(x => [x.preset_a, x.preset_b].sort().join() === 'P1,Z'); return l && l.parent_id === 'P1'; }) && (await panel()).groups[0] === '🌳 サブ案件（4）', await panel());
+    ok('「この案件のサブにする」で追加：DB の parent_id が P1・パネルのサブが 4 件', await p.evaluate(() => { const l = window.__db.quote_preset_links.find(x => [x.preset_a, x.preset_b].sort().join() === 'P1,Z'); return l && l.parent_id === 'P1'; }) && /関連付けた案件（5）/.test((await panel()).title), await panel());
     // 位置づけ切替：パネルの Z を「関連」に戻す
-    await p.evaluate(() => { const it = [...document.querySelectorAll('.sq-link-tree--root > .sq-link-tree-node')].find(n => n.textContent.includes('案件Z')); const sel = it.querySelector('select.sq-link-role'); sel.value = 'none'; sel.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(1200);
-    ok('パネルで「関連」へ切替：parent_id が空・サブは 3 件に戻る', await p.evaluate(() => { const l = window.__db.quote_preset_links.find(x => [x.preset_a, x.preset_b].sort().join() === 'P1,Z'); return l && l.parent_id === null; }) && (await panel()).groups.join('|').startsWith('🌳 サブ案件（3）'), await panel());
+    await p.evaluate(() => { const l = window.__db.quote_preset_links.find(x => [x.preset_a, x.preset_b].sort().join() === 'P1,Z'); return cloudSetLinkRole(l.id, 'P1', 'none'); }); await p.waitForTimeout(1200);
+    ok('「関連」へ戻す（データの関数）：parent_id が空', await p.evaluate(() => { const l = window.__db.quote_preset_links.find(x => [x.preset_a, x.preset_b].sort().join() === 'P1,Z'); return l && l.parent_id === null; }), await panel());
     if (process.env.OUT) { await p.screenshot({ path: path.join(process.env.OUT, 'link-tree-panel.png') }).catch(() => {}); }
     ok('ページエラーなし', errs.length === 0, errs);
     await ctx.close();
@@ -243,53 +219,23 @@ const http = require('http'), fs = require('fs'), path = require('path');
   {
     const { ctx, p, errs } = await open({ noParentCol: true });
     const c1 = await card(p, 'P1');
-    ok('列が無くても、関連付けは従来どおり「関連案件」として出る（サブ欄なし）', c1 && c1.head.join('|') === '🔗 関連案件（2）' && c1.peers.sort().join() === '案件PEER,案件S1' || (c1 && c1.peers.length >= 2), c1);
+    ok('列が無くても、関連付けは「🔗 関連 N件」として出る', /🔗 関連 [2-9]件/.test(await badge(p, 'P1')), await badge(p, 'P1'));
     const toasts = [];
     await p.evaluate(() => { window.__toasts = []; const o = window.quoteShowToast; window.quoteShowToast = function (m) { window.__toasts.push(m); return o && o.apply(this, arguments); }; });
-    await p.evaluate(() => {
-      const el = [...document.querySelectorAll('#qpdListWrap .cloud-card')].find(c => c.querySelector('.cloud-card-links[data-lid="P1"]'));
-      const sel = el.querySelector('.cloud-clink-list select.clink-role'); sel.value = 'sub'; sel.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    await p.evaluate(() => { const l = window.__db.quote_preset_links.find(x => [x.preset_a, x.preset_b].includes('P1')); return cloudSetLinkRole(l.id, 'P1', 'sub'); });
     await p.waitForTimeout(1000);
     ok('メイン／サブを選ぶと SQL 実行の案内が出る', (await p.evaluate(() => window.__toasts)).some(m => /quote-preset-links-hierarchy\.sql/.test(m)), await p.evaluate(() => window.__toasts));
     ok('ページエラーなし', errs.length === 0, errs);
     await ctx.close();
   }
 
-  // ===== 並びと見せ方（ページ送り・リスト表示・サブが見えていないとき・取得の競合）=====
-  {
-    // ページ送り：メインが 10 件目に来ても、サブは家族ごと続けて出す（途中で切らない）
-    const { ctx, p, errs } = await open({ fillers: 5 });
-    const od = await order(p);
-    ok('ページ送りの境目でも家族を切らない（10 件の上限でも、P1 とそのサブ 3 件まで 13 件出る）', od.length === 13 && od[9].id === 'P1' && od.slice(10).map(x => x.id).join() === 'S3,S1,S2', od.map(x => x.id));
-    ok('「さらに読み込む」は出ない（全部出ているため）', await p.evaluate(() => !document.querySelector('#qpdListWrap .qpd-load-more')));
-    await ctx.close();
-  }
+  // ===== 並びと見せ方（Design 42-7：メイン／サブの並び替え・字下げ・印はしない）=====
   {
     const { ctx, p, errs } = await open();
-    // リスト表示：同じ並び・インデント・印（サブ「↳」／メイン「👑 サブ N」）
     await p.evaluate(() => window.qpdSetView('list')); await p.waitForTimeout(600);
-    const rows = await p.evaluate(() => [...document.querySelectorAll('#qpdListWrap .qpd-row')].map(r => ({ t: r.querySelector('.qpd-row-title').textContent.replace(/\s+/g, ' ').trim(), sub: r.classList.contains('qpd-row--sub'), pad: parseFloat(getComputedStyle(r.querySelector('.qpd-row-title')).paddingLeft), mark: !!r.querySelector('.qpd-sub-mark'), main: (r.querySelector('.qpd-main-mark') || {}).textContent || '' })));
-    ok('リスト表示でも、サブはメインの直下（Z・Y・X・PEER の次に P1・S3・S1・S2）', rows.map(r => r.t.replace(/👑.*$/, '').replace(/^↳/, '')).join() === 'R-Z,R-Y,R-X,R-PEER,R-P1,R-S3,R-S1,R-S2', rows.map(r => r.t));
-    ok('リスト表示：サブの行に「↳」とインデント・サブのサブはさらに右', rows.filter(r => r.sub).length === 3 && rows.filter(r => r.mark).length === 3 && Math.max(...rows.map(r => r.pad)) > Math.min(...rows.filter(r => r.sub).map(r => r.pad)), rows);
-    ok('リスト表示：メイン P1 に「👑 サブ 2」、S1 に「👑 サブ 1」', rows.some(r => /👑 サブ 2/.test(r.main)) && rows.some(r => /👑 サブ 1/.test(r.main)), rows.map(r => r.main));
+    const rows = await p.evaluate(() => [...document.querySelectorAll('#qpdListWrap .qpd-row')].map(r => ({ t: r.querySelector('.qpd-row-title').textContent.replace(/\s+/g, ' ').trim(), sub: r.classList.contains('qpd-row--sub'), mark: !!r.querySelector('.qpd-sub-mark, .qpd-main-mark') })));
+    ok('リスト表示：更新順のまま・サブの印（↳・👑）や字下げは出さない', rows.map(r => r.t).join() === 'R-Z,R-Y,R-X,R-PEER,R-S3,R-S2,R-S1,R-P1' && rows.every(r => !r.sub && !r.mark), rows);
     await p.evaluate(() => window.qpdSetView('card')); await p.waitForTimeout(600);
-    // サブが見えていないとき（検索でメインだけに絞る）は、メインのカードの中にサブをツリーで残す
-    await p.evaluate(() => { const i = document.getElementById('qpdSearch'); i.value = 'P1'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await p.waitForTimeout(900);
-    const c1 = await card(p, 'P1');
-    ok('絞り込みでサブが出ていないときは、メインのカードの中にサブのツリー（S1・S3・孫 S2）が残る', c1 && c1.treeRoot.sort().join() === '案件S1,案件S3' && c1.nested.join() === '案件S2' && c1.headNote.length === 0, c1);
-    ok('そのときサブのカードは出ない', (await order(p)).map(x => x.id).join() === 'P1');
-    await ctx.close();
-  }
-  {
-    // 取得の競合：関連付けの変更の途中で古い取得結果が戻っても、メインのカードがサブを失わない
-    const { ctx, p, errs } = await open();
-    await p.evaluate(() => { window.__db.quote_preset_links.push({ id: 'lz', preset_a: 'Z', preset_b: 'Y', parent_id: 'Z', note: '', created_by: 'me@x.com' }); });
-    await p.evaluate(() => cloudSetLinkRole('lz', 'Z', 'sub'));   // 既存の関連を更新（_invalidateDashLinks が走る）
-    await p.waitForTimeout(300);
-    await p.evaluate(() => cloudListPresets()); await p.waitForTimeout(1800);
-    const zc = await card(p, 'Z'), od = await order(p), zi = od.findIndex(x => x.id === 'Z');
-    ok('関連付けを変えた直後に一覧を取り直しても、メイン Z のカードにサブ欄が出て、直下に Y が並ぶ', zc && zc.head[0] === '🌳 サブ案件（1）' && od[zi + 1] && od[zi + 1].id === 'Y' && od[zi + 1].sub, [zc, od.map(x => x.id)]);
     ok('ページエラーなし', errs.length === 0, errs);
     await ctx.close();
   }
@@ -298,6 +244,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   {
     const { ctx, p, errs } = await open();
     ok('詳細表示のカードに「🌱 サブ作成」ボタンがある', await p.evaluate(() => document.querySelectorAll('#qpdListWrap .cloud-card .btn-preset-sub').length === 8));
+    ok('サブ案件の廃止：新しく作る入口（🌱 サブ作成・位置づけの切替・一括のメイン指定）は画面に出さない（データと関数は残す）', await p.evaluate(() => { const vis = e => !!e && getComputedStyle(e).display !== 'none'; return ![...document.querySelectorAll('#qpdListWrap .btn-preset-sub, select.clink-role')].some(vis) && !vis(document.getElementById('qpdLinkBarRole')); }));
     ok('「⋯」メニュー（かんたん表示用）にも「サブ案件を作成」がある', await p.evaluate(() => [...document.querySelectorAll('#qpdListWrap .cloud-card .cloud-menu-item')].some(b => b.textContent.includes('サブ案件を作成'))));
     const before = await p.evaluate(() => window.__db.quote_presets.length);
     await p.evaluate(() => document.querySelector('#qpdListWrap .cloud-card:has(.cloud-card-links[data-lid="Z"]) .btn-preset-sub').click());
@@ -311,16 +258,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('コピー元 Z がメイン（parent_id＝Z）としてサブに関連付く', r.parent === 'Z', r);
     ok('サブ作成の番号は、メインの番号の末尾に (A) を付けたもの（R-Z → R-Z(A)）で、列 ref にも入る', r.ref === 'R-Z(A)' && await p.evaluate(() => window.__db.quote_presets.find(x => x.name === '案件Z のサブ').ref === 'R-Z(A)'), r);
     ok('サブには代替わり（copiedFrom）を付けない', r.hasCopied === false, r);
-    const zc = await card(p, 'Z');
-    const zod = await order(p), zi = zod.findIndex(x => x.id === 'Z');
-    ok('ダッシュボード：Z のカードに「🌳 サブ案件（1）」、直下にサブのカード（インデント付き）', zc && zc.head.join('|') === '🌳 サブ案件（1）' && zod[zi + 1] && zod[zi + 1].sub && zod[zi + 1].ml > 0, [zc, zod]);
+    ok('ダッシュボード：Z のカードは「🔗 関連 1件」（字下げはしない）', /🔗 関連 1件/.test(await badge(p, 'Z')) && (await order(p)).every(x => !x.sub), await badge(p, 'Z'));
     // 同じ案件でもう一度 → 「のサブ_2」で 2 件目
     await p.evaluate(() => document.querySelector('#qpdListWrap .cloud-card:has(.cloud-card-links[data-lid="Z"]) .btn-preset-sub').click());
     await p.waitForTimeout(1800);
-    const zc2 = await card(p, 'Z');
-    const zod2 = await order(p), zi2 = zod2.findIndex(x => x.id === 'Z');
+
     ok('もう一度作ると番号は (B)（R-Z(B)）になる', await p.evaluate(() => window.__db.quote_presets.find(x => x.name === '案件Z のサブ_2').data.fields['qf-ref'] === 'R-Z(B)'), await p.evaluate(() => window.__db.quote_presets.find(x => x.name === '案件Z のサブ_2').data.fields['qf-ref']));
-    ok('もう一度作ると、名前が重ならず（_2）サブが 2 件になり、どちらもメインの直下に並ぶ', zc2 && zc2.head.join('|') === '🌳 サブ案件（2）' && zod2[zi2 + 1].sub && zod2[zi2 + 2].sub && !zod2[zi2 + 3].sub, [zc2, zod2.map(x => x.id + (x.sub ? '*' : ''))]);
+    ok('もう一度作ると、名前が重ならず（_2）、Z の関連が 2 件になる', /🔗 関連 2件/.test(await badge(p, 'Z')), await badge(p, 'Z'));
     // サブの上でもさらにサブを作れる（孫）
     ok('ページエラーなし', errs.length === 0, errs);
     await ctx.close();
@@ -350,8 +294,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('サブのコピー：確認は出ず、コピーも同じメイン（P1）のサブとして付く', !(await dialog()) && (await lk('案件S3 のコピー')).parent === '案件P1', await lk('案件S3 のコピー'));
     const refOf = name => p.evaluate(n => { const q = window.__db.quote_presets.find(x => x.name === n); return q && q.data.fields['qf-ref']; }, name);
     ok('サブのコピー（兄弟）の番号も、メインの番号 + (A)（R-P1(A)）', (await refOf('案件S3 のコピー')) === 'R-P1(A)', await refOf('案件S3 のコピー'));
-    const c1 = await card(p, 'P1');
-    ok('メインのカードのサブが 1 件増える（S1・S3・S3のコピー＋孫 S2）', c1 && c1.head[0] === '🌳 サブ案件（4）', c1 && c1.head);
+    ok('メインのカードの関連が 1 件増える（S1・S3・S3のコピー＋孫 S2＋PEER）', /🔗 関連 5件/.test(await badge(p, 'P1')), await badge(p, 'P1'));
 
     // 3) メイン P1 をコピー → 確認画面（サブのツリー）。S3 のチェックを外し、S1 を残して OK
     await clickCopy('P1'); await p.waitForTimeout(600);
@@ -371,8 +314,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('孫（S2）もコピーされ、S1 のコピーのサブとして付く（ツリーごと）', s2c && s2c.parent === '案件S1 のコピー', s2c);
     ok('メインと一緒にコピーしたサブの番号は、コピーしたメインの番号 + (英字)：S1 のコピー＝R-P1(B)（A は兄弟のコピーで使用済み）・孫 S2 のコピー＝R-P1(B)(A)', (await refOf('案件S1 のコピー')) === 'R-P1(B)' && (await refOf('案件S2 のコピー')) === 'R-P1(B)(A)', [await refOf('案件S1 のコピー'), await refOf('案件S2 のコピー')]);
     ok('チェックを外したサブ（S3）はコピーされない', !(await p.evaluate(() => window.__db.quote_presets.some(x => x.name === '案件S3 のコピー_2'))), s3c);
-    const od3 = await order(p), pi = od3.findIndex(x => x.id === 'P1');
-    ok('元のメイン P1 のサブは変わらない（P1 の直下に S3・S1 が並ぶ）', pi >= 0 && od3[pi + 1].id === 'S3' && od3[pi + 2].id === 'S1', od3.map(x => x.id));
+    ok('元のメイン P1 のサブ（DB）は変わらない（S1・S3 は P1 のサブのまま）', await p.evaluate(() => ['S1', 'S3'].every(id => window.__db.quote_preset_links.some(l => [l.preset_a, l.preset_b].includes(id) && [l.preset_a, l.preset_b].includes('P1') && l.parent_id === 'P1'))));
 
     // 4) やめる → 何も作られない
     const n1 = await p.evaluate(() => window.__db.quote_presets.length);

@@ -37,6 +37,10 @@
   let _siTagSel      = new Set();   // 右カラム：案件タグチップの選択状態（空 = 全タグ・複数選択可）
   let _siTagExpanded = false;       // タグチップの折りたたみ状態（false = 使用件数上位のみ表示）
   let _siTagChipList = [];          // 直近描画したタグチップの並び（クリックはインデックス経由）
+  // 「入力中のサブコン」で絞り込む（明細テーブルのサブコン見出しの［🕘 過去の明細］・入力中の行に合わせる）。
+  // 名前は表記ゆれ・別名を代表名にそろえて照合する（_svKey）。
+  let _siFocus  = '';                // 絞り込み中のサブコン名（空＝絞り込まない）
+  let _siFollow = (function () { try { return localStorage.getItem('siFollow_v1') !== '0'; } catch (e) { return true; } })();
   let _siShowAll = false;       // 右カラム：ON=全過去案件、OFF=現案件のサブコン/条件に合致するもののみ
   let _siRawPresets = null;     // 直近取得した全プリセット（トグル切替時に再取得しないためのキャッシュ）
 
@@ -53,6 +57,42 @@
     if (!terms.length) return true;
     const nm = sc.name.toLowerCase();
     return terms.every(t => nm.includes(t)) || sc.items.some(it => _itemMatches(it, terms));
+  }
+
+  // サブコン名の照合キー（別名・表記ゆれは代表名にそろえ、空白・大文字小文字・全角半角を無視）
+  function _svKey(n) {
+    let v = String(n == null ? '' : n).trim();
+    if (!v) return '';
+    if (typeof window.nameCanon === 'function') { try { v = window.nameCanon('sv', v) || v; } catch (e) {} }
+    try { v = v.normalize('NFKC'); } catch (e) {}
+    return v.toLowerCase().replace(/[\s　]+/g, '');
+  }
+  // 会社名の検索に使う文字（名前・代表名・別名・ふりがな・英語名）。「SEA」で「株式会社シーブリッジ」に当たるように
+  const _svHayCache = new Map();
+  function _svHay(name) {
+    if (_svHayCache.has(name)) return _svHayCache.get(name);
+    const parts = [name];
+    try {
+      const vs = typeof window.nameVariants === 'function' ? window.nameVariants('sv', name) : [];
+      vs.forEach(v => parts.push(v));
+      const canon = typeof window.nameCanon === 'function' ? window.nameCanon('sv', name) : name;
+      const md = typeof window.mdGetCanon === 'function' ? window.mdGetCanon('sv', canon) : (typeof window.mdGet === 'function' ? window.mdGet('sv', canon) : null);
+      const d = (md && md.details) || {};
+      if (d.furigana) parts.push(d.furigana);
+      if (d.enName) parts.push(d.enName);
+    } catch (e) {}
+    let hay = parts.join(' ');
+    try { hay = hay.normalize('NFKC'); } catch (e) {}
+    hay = hay.toLowerCase();
+    // カタカナもひらがなで当たるように（ふりがなはひらがな・入力はカタカナのことがある）
+    hay += ' ' + hay.replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+    _svHayCache.set(name, hay);
+    return hay;
+  }
+  function _svNameHit(name, terms) {
+    if (!terms.length) return false;
+    const hay = _svHay(name);
+    return terms.every(t => { let x = t; try { x = x.normalize('NFKC'); } catch (e) {} return hay.includes(x.toLowerCase()); });
   }
 
   function _db()   { return (window.quoteCloudClient && window.quoteCloudClient()) || window.SupabaseClient || null; }
@@ -175,10 +215,20 @@
   // ---------- 取得 ----------
   // tags 列（タグ絞り込み用）込みで取得し、列が未マイグレーションの環境では
   // 落ちずに tags 無しへフォールバックする。
+  // 全案件の本体（data）つきの取得は通信量が大きいので、5 分間は同じ結果を使い回す
+  // （パネルを開き直すたびに全件を取り直していた＝Free プランの転送量が超過した原因の 1 つ）。
+  // 他の人が直前に保存した案件は、最大 5 分遅れて反映される。
+  const _ALL_PRESETS_TTL = 5 * 60 * 1000;
+  let _allPresetsCache = null;   // { at, uid, res }
   async function _fetchAllPresets(db) {
+    const uid = _user() || '';   // _user() はメールアドレス（ログインの人が変わったら使い回さない）
+    if (_allPresetsCache && _allPresetsCache.uid === uid && Date.now() - _allPresetsCache.at < _ALL_PRESETS_TTL) {
+      return _allPresetsCache.res;
+    }
     const BASE = 'id,name,customer,person,status,transport_mode,pol,pod,data,updated_at';
     let res = await db.from('quote_presets').select(BASE + ',tags');
     if (res.error) res = await db.from('quote_presets').select(BASE);
+    if (!res.error) _allPresetsCache = { at: Date.now(), uid, res };
     return res;
   }
 
@@ -453,13 +503,15 @@
   function _siFilteredList() {
     const terms = _terms(document.getElementById('siSubconSearch')?.value || '');
     const out = [];
+    const fk = _siFocus ? _svKey(_siFocus) : '';
     _siSubcons.forEach(sc => {
+      if (fk && _svKey(sc.name) !== fk) return;
       if (_siSvSel.size && !_siSvSel.has(sc.name)) return;
       // サブコン名チップで明示的に選んだ会社は「会社名がヒットした」のと同じ扱いにする。
       // 検索欄にカタカナ会社名とは一致しない文字（ローマ字表記など）が残ったままだと、
       // せっかくチップで選んだ会社の明細（＝料金）まで全滅してしまうため。
       const svPicked = _siSvSel.has(sc.name);
-      const nameHit = svPicked || (terms.length > 0 && terms.every(t => sc.name.toLowerCase().includes(t)));
+      const nameHit = svPicked || _svNameHit(sc.name, terms);
       let items = sc.items.map((it, ii) => Object.assign({ _ii: ii }, it));
       if (_siCatSel.size) items = items.filter(it => _siCatSel.has(it.cat || ''));
       // タグ絞り込み：明細1件は複数の過去案件から集計されるため、選択したタグの
@@ -516,7 +568,7 @@
     let counts = _siSubcons.map(sc => ({ name: sc.name, count: sc.items.length }));
     counts.sort((a, b) => b.count - a.count);
     const terms = _terms(document.getElementById('siSubconSearch')?.value || '');
-    if (terms.length) counts = counts.filter(c => terms.every(t => c.name.toLowerCase().includes(t)));
+    if (terms.length) counts = counts.filter(c => _svNameHit(c.name, terms));
     _siSvChipList = counts;
     if (!counts.length) {
       box.innerHTML = terms.length ? '<span class="si-sv-chip-empty">該当する会社がありません</span>' : '';
@@ -613,12 +665,23 @@
   function renderSubconSidePanel() {
     const wrap = document.getElementById('siListWrap');
     if (!wrap) return;
+    _svHayCache.clear();   // マスター（別名・ふりがな・英語名）の変更を拾うため、描くたびに作り直す
+    if (_siFollow && !_siFocus && _lastSv) _siFocus = _lastSv;   // 入力中の行のサブコンに合わせる
     renderSiCatChips();
     renderSiSvChips();
     renderSiTagChips();
+    _renderSiFocusBar();
     const terms = _terms(document.getElementById('siSubconSearch')?.value || '');
-    const filtering = terms.length > 0 || _siCatSel.size > 0 || _siSvSel.size > 0 || _siTagSel.size > 0;
+    const filtering = terms.length > 0 || _siCatSel.size > 0 || _siSvSel.size > 0 || _siTagSel.size > 0 || !!_siFocus;
     const list = _siFilteredList();
+    if (!list.length && _siFocus) {
+      wrap.innerHTML = '<div class="preset-empty">「' + _esc(_siFocus) + '」の過去の明細は見つかりませんでした' +
+        '<br><small style="color:#98a2b3;">この会社の明細を入れて案件を保存すると、ここに出ます。' +
+        (_siCatSel.size || _siTagSel.size || terms.length ? 'カテゴリ・タグ・検索の絞り込みも確認してください。' : '') + '</small>' +
+        '<br><button type="button" class="si-focus-clear-btn" onclick="siClearFocus()">すべてのサブコンを見る</button></div>';
+      if (typeof window.qrcRefresh === 'function') window.qrcRefresh();
+      return;
+    }
     if (!list.length) {
       wrap.innerHTML = '<div class="preset-empty">' + (filtering ? '該当する費用行がありません' :
         'サブコン情報のある案件がまだありません<br><small style="color:#bbb;">明細の「サブコン」欄に会社名を入れて案件を保存すると自動で集約されます</small>') + '</div>';
@@ -725,7 +788,7 @@
     const rows = typeof window.collectAllRows === 'function' ? window.collectAllRows() : [];
     return new Set(
       rows.filter(r => r._type === 'data' && (r.sv || '').trim())
-          .map(r => r.sv.trim().toLowerCase())
+          .map(r => _svKey(r.sv))
     );
   }
 
@@ -736,7 +799,7 @@
     // ① 登録サブコンがある → そのサブコン名に合致する集計のみ返す
     if (svSet.size > 0) {
       const all = _aggregate(allPresets);
-      return all.filter(sc => svSet.has(sc.name.toLowerCase()));
+      return all.filter(sc => svSet.has(_svKey(sc.name)));
     }
 
     // ② 登録サブコンが0件 → 方向・POL/POD フィルタにフォールバック
@@ -775,6 +838,7 @@
     document.querySelectorAll('#siPanel .si-tab').forEach(b => b.classList.toggle('is-active', b.dataset.sitab === tab));
     document.querySelectorAll('#siPanel .si-pane').forEach(p => { p.style.display = p.id === 'siPane-' + tab ? '' : 'none'; });
     if (tab === 'current') renderCurrentQuoteSubconPanel();
+    if (tab === 'past' && _siRawPresets) renderSubconSidePanel();
   }
 
   // 現在の見積テーブルをサブコン×パターン別に集計
@@ -861,7 +925,7 @@
     if (!wrap) return;
     const groups = _collectCurrentQuoteBySubcon();
     if (!groups.length) {
-      wrap.innerHTML = '<div class="preset-empty">費用テーブルにサブコン情報のある行がありません<br><small style="color:#bbb;">各行の「サブコン」欄に会社名を入力してください</small></div>';
+      wrap.innerHTML = '<div class="qrc-empty preset-empty"><b>サブコンの行がありません</b><span>各行の「サブコン」欄に会社名を入力すると、ここに会社ごとにまとまります。</span><button type="button" class="qrc-btn-sub" onclick="siSetTab(\'past\')">過去の案件から探す</button></div><div hidden><small style="color:#bbb;">各行の「サブコン」欄に会社名を入力してください</small></div>';
       return;
     }
     wrap.innerHTML = groups.map(function(g, gi) {
@@ -890,6 +954,7 @@
       return '<div class="sic-card" data-gi="' + gi + '">' +
         '<div class="sic-head">' +
           '<span class="sic-sv">' + _esc(g.sv) + '</span>' +
+          (function () { const r0 = ptGroups.reduce(function (a, p) { return a.concat(p.rows); }, []).find(function (r) { return r.cat; }); return r0 ? '<span class="sic-role">' + _esc(ROLE[r0.cat] || r0.cat) + '</span>' : ''; })() +
           '<span class="sic-total">' +
             '仕入 ' + _fmtMoney(g.costTotal, 'JPY') + (mixed ? '※' : '') +
             '  売 ' + _fmtMoney(g.sellTotal, 'JPY') + (mixed ? '※' : '') +
@@ -897,7 +962,7 @@
         '</div>' +
         '<div class="sic-body">' + ptsHtml + '</div>' +
         '<div class="sic-foot">' +
-          '<button class="sic-copy-btn" onclick="siCopyGroup(' + gi + ')" title="この会社分をテキストでコピー">📋 コピー</button>' +
+          '<button class="sic-copy-btn" onclick="siCopyGroup(' + gi + ')" title="この会社分をテキストでコピー">📋 ' + _esc(g.sv) + 'の行を文字でコピー</button>' +
         '</div>' +
         '</div>';
     }).join('');
@@ -946,7 +1011,10 @@
   // _siShowAll に応じて表示対象を切替（再取得はしない・キャッシュから再集計のみ）
   function _applySiScope() {
     if (!_siRawPresets) return;
-    _siSubcons = _siShowAll ? _aggregate(_siRawPresets) : _buildSiSubcons(_siRawPresets);
+    // 「過去案件」なので、いま開いている案件そのもの（保存済みの分）は除く（その明細は「現案件」のペインにある）
+    const curId = typeof window.cloudLoadedId === 'function' ? window.cloudLoadedId() : null;
+    const src = curId ? _siRawPresets.filter(p => String(p.id) !== String(curId)) : _siRawPresets;
+    _siSubcons = _siShowAll ? _aggregate(src) : _buildSiSubcons(src);
     renderSubconSidePanel();
   }
 
@@ -1031,7 +1099,89 @@
   });
 
 
+  // ========== 入力中のサブコンの過去の明細（明細テーブルから呼ぶ） ==========
+  function _renderSiFocusBar() {
+    const bar = document.querySelector('#siPane-past .si-search-bar');
+    if (!bar) return;
+    let el = document.getElementById('siFocusBar');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'siFocusBar';
+      el.className = 'si-focus-bar';
+      bar.insertBefore(el, bar.firstChild);
+    }
+    el.innerHTML =
+      (_siFocus
+        ? '<span class="si-focus-chip" title="このサブコンの過去の明細だけを出しています">🎯 <b>' + _esc(_siFocus) + '</b> の過去の明細' +
+          '<button type="button" class="si-focus-x" onclick="siClearFocus()" title="絞り込みを外して、すべてのサブコンを見る" aria-label="絞り込みを外す">✕</button></span>'
+        : '') +
+      '<label class="si-follow" title="ON：明細テーブルで入力している行のサブコンに、自動で絞り込みを合わせます">' +
+        '<input type="checkbox" id="siFollowChk"' + (_siFollow ? ' checked' : '') + ' onchange="siSetFollow(this.checked)"> 入力中のサブコンに合わせる</label>';
+  }
+  // サブコン名を指定して、右パネル「サブコン」の過去案件で絞り込む（パネルが閉じていれば開く）
+  function siFocusSubcon(name, opts) {
+    const nm = String(name || '').trim();
+    opts = opts || {};
+    if (!nm) return;
+    const changed = _svKey(nm) !== _svKey(_siFocus);
+    _siFocus = nm;
+    if (changed || opts.reset) {
+      // 名前で探していた文字・会社のチップは外す（入力中のサブコンに置き換える）
+      const q = document.getElementById('siSubconSearch'); if (q) q.value = '';
+      _siSvSel.clear();
+    }
+    if (opts.open !== false) {
+      if (typeof window.qrcOpen === 'function') window.qrcOpen('subcon');
+      siSetTab('past');
+    }
+    if (_siRawPresets) renderSubconSidePanel();
+    else if (typeof window.loadSubconPanel === 'function') window.loadSubconPanel();
+  }
+  function siClearFocus() {
+    _siFocus = '';
+    siSetFollow(false);
+    renderSubconSidePanel();
+  }
+  function siSetFollow(on) {
+    _siFollow = !!on;
+    try { localStorage.setItem('siFollow_v1', _siFollow ? '1' : '0'); } catch (e) {}
+    const c = document.getElementById('siFollowChk'); if (c) c.checked = _siFollow;
+    if (_siFollow) { if (_lastSv && _pastVisible()) siFocusSubcon(_lastSv, { open: false }); else _followFromActive(); }
+  }
+  // 過去案件のペインが見えているか
+  function _pastVisible() {
+    const pane = document.getElementById('siPane-past');
+    return !!(pane && pane.style.display !== 'none' && pane.getClientRects().length);
+  }
+  function _svOfRow(tr) {
+    if (!tr || tr.dataset.virtual || tr.dataset.catHeader) return '';
+    const inp = tr.querySelector('[data-field="sv"]');
+    return inp ? String(inp.value || '').trim() : '';
+  }
+  let _lastSv = '';   // 明細テーブルで最後に触った行のサブコン（パネルを開く前の分も覚えておく）
+  function _followTo(sv) {
+    if (sv) _lastSv = sv;
+    if (!_siFollow || !sv || !_pastVisible()) return;
+    if (_svKey(sv) === _svKey(_siFocus)) return;
+    siFocusSubcon(sv, { open: false });
+  }
+  function _followFromActive() {
+    const a = document.activeElement;
+    const tr = a && a.closest && a.closest('#tableBody tr');
+    _followTo(_svOfRow(tr));
+  }
+  // 入力中の行が変わったら（焦点が移った／サブコン欄を書き換えた）、そのサブコンに合わせる
+  document.addEventListener('focusin', function (e) {
+    const tr = e.target && e.target.closest && e.target.closest('#tableBody tr');
+    if (tr) _followTo(_svOfRow(tr));
+  });
+  document.addEventListener('change', function (e) {
+    const t = e.target;
+    if (t && t.matches && t.matches('#tableBody [data-field="sv"]')) _followTo(String(t.value || '').trim());
+  });
+
   Object.assign(window, {
+    siFocusSubcon, siClearFocus, siSetFollow,
     loadSubconModules, renderSubconList, subconInsert, subconFilter, switchRowInsertTab,
     renderSubconSidePanel, subconInsertFromPanel, loadSubconPanel, subconSidePanelFilter,
     siToggleCatChip, siClearCatChips, siToggleShowAll, siItemSrcPop,

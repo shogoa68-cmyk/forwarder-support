@@ -1,0 +1,17 @@
+/* 複数のブラウザのタブで使う（js/tab-sync.js）：見積は別のタブで開いています／右クリックの小さなメニュー */
+.qto-ov { position: fixed; inset: 0; z-index: 3000; background: rgba(16, 24, 40, .38); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.qto-box { background: var(--surface, #fff); color: var(--text, #1d2939); border-radius: 12px; box-shadow: 0 12px 40px rgba(16, 24, 40, .25); width: min(460px, 100%); padding: 20px 22px; font-size: var(--text-base, 14px); line-height: 1.7; }
+.qto-box h3 { margin: 0 0 10px; font-size: var(--text-lg, 16px); }
+.qto-box p { margin: 0 0 8px; }
+.qto-case b { word-break: break-all; }
+.qto-msg { color: #475467; font-size: var(--text-sm, 13px); }
+.qto-err { color: #9a4a06; background: #fdebd3; border-radius: 8px; padding: 8px 10px; font-size: var(--text-sm, 13px); }
+.qto-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.qto-btns button { min-height: 38px; padding: 0 16px; border-radius: 6px; border: 1px solid #98a2b3; background: #fff; color: #1d2939; font: inherit; cursor: pointer; }
+.qto-btns .qto-move { background: var(--accent, #2f5fb3); border-color: var(--accent, #2f5fb3); color: #fff; font-weight: 700; }
+.qto-btns .qto-move:disabled { opacity: .6; cursor: default; }
+.tab-ctx { position: fixed; z-index: 3001; background: var(--surface, #fff); border: 1px solid #d0d5dd; border-radius: 8px; box-shadow: 0 8px 24px rgba(16, 24, 40, .18); padding: 4px; min-width: 190px; }
+.tab-ctx button { display: block; width: 100%; text-align: left; min-height: 36px; padding: 0 12px; border: 0; background: none; border-radius: 6px; font: inherit; font-size: var(--text-sm, 13px); color: var(--text, #1d2939); cursor: pointer; }
+.tab-ctx button:hover, .tab-ctx button:focus-visible { background: #eef3fb; outline: none; }
+@media (max-width: 600px) { .qto-btns button { min-height: 44px; flex: 1; } }
+@media print { .qto-ov, .tab-ctx { display: none !important; } }

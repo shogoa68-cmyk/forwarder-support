@@ -23,6 +23,8 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
       ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   }
+  // onclick="f('…')" の中に入れるメール。' や \ を含んでも JS の文字列が壊れないよう、JS 用 → HTML 用の順でエスケープする
+  function _jsq(s) { return _esc(String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
   function _toast(msg, type, ms) {
     if (typeof quoteShowToast === 'function') quoteShowToast(msg, type, ms);
   }
@@ -51,16 +53,19 @@
     }
     const db = _db();
     if (!db) return;
+    let role = null;
     try {
       const { data, error } = await db.rpc('get_my_role');
-      _myRole = error ? null : (data || 'member');
-    } catch (e) { _myRole = null; }
+      role = error ? null : (data || 'member');
+    } catch (e) { role = null; }
+    if (_myEmail !== (user.email || null)) return;   // 待っている間にログアウト／別ユーザーへ切替：古い結果で上書きしない
+    _myRole = role;
     window._myRole = _myRole;
     // 発番ID（仮REF#の先頭2桁）を取得。RLSに依存せず本人のみ取得する RPC。
     try {
       const { data: mn } = await db.rpc('get_my_member_no');
-      window._myMemberNo = (mn == null ? null : Number(mn));
-    } catch (e) { window._myMemberNo = null; }
+      if (_myEmail === (user.email || null)) window._myMemberNo = (mn == null ? null : Number(mn));
+    } catch (e) { if (_myEmail === (user.email || null)) window._myMemberNo = null; }
     // 発番ID取得後、見積タブが新規（REF空）なら自動採番を再試行
     if (typeof window.maybeAutoFillRef === 'function') window.maybeAutoFillRef();
     // ログイン実績を記録：表示名未設定でも last_seen_at を打刻（「未ログイン」誤表示の解消）。
@@ -70,6 +75,8 @@
         { email: _myEmail, last_seen_at: new Date().toISOString() },
         { onConflict: 'email' });
     } catch (e) {}
+    // 待っている間にログアウト（や別ユーザーへの切替）があった古い呼び出しは、ここで捨てる（ログアウト後にお知らせ・管理ボタンが復活しないように）
+    if (_myEmail !== (user.email || null)) return;
     // 入口は管理者のみ
     if (btn) btn.hidden = (_myRole !== 'admin');
     // 📢 管理者からのお知らせを読み込む（管理者には「お知らせ」タブも出す）。ロールが分かったこの時点で呼ぶ
@@ -126,7 +133,7 @@
     const roleCtl = admin
       ? '<select class="um-role um-role--' + m.role + '" ' +
           (isSelf ? 'disabled title="自分のロールは変更できません" ' : 'title="ロールを変更" ') +
-          'onchange="umChangeRole(\'' + _esc(m.email) + '\', this.value)">' +
+          'onchange="umChangeRole(\'' + _jsq(m.email) + '\', this.value)">' +
           ['admin', 'member', 'viewer'].map(r =>
             '<option value="' + r + '"' + (r === m.role ? ' selected' : '') + '>' + ROLE_LABEL[r] + '</option>').join('') +
         '</select>'
@@ -135,18 +142,18 @@
 
     const delBtn = admin
       ? '<button class="um-del" ' + (isSelf ? 'disabled title="自分は削除できません"' : 'title="削除"') +
-          ' onclick="umDeleteMember(\'' + _esc(m.email) + '\')">✕</button>'
+          ' onclick="umDeleteMember(\'' + _jsq(m.email) + '\')">✕</button>'
       : '';
 
     // 発番IDバッジ：管理者はクリックで任意の番号に変更可。未割当なら「＋採番」。
     const memberNoCtl = (m.member_no != null)
       ? (admin
           ? '<button class="um-memberno um-memberno--edit" title="発番ID（仮REF#の先頭2桁）をクリックで変更" ' +
-              'onclick="umEditMemberNo(\'' + _esc(m.email) + '\')">#' + String(m.member_no).padStart(2, '0') + ' ✎</button>'
+              'onclick="umEditMemberNo(\'' + _jsq(m.email) + '\')">#' + String(m.member_no).padStart(2, '0') + ' ✎</button>'
           : '<span class="um-memberno" title="発番ID（仮REF#の先頭2桁）">#' + String(m.member_no).padStart(2, '0') + '</span>')
       : (admin
           ? '<button class="um-memberno um-memberno--empty" title="発番IDを割り当て" ' +
-              'onclick="umEditMemberNo(\'' + _esc(m.email) + '\')">＋採番</button>'
+              'onclick="umEditMemberNo(\'' + _jsq(m.email) + '\')">＋採番</button>'
           : '');
 
     return '<div class="um-card' + (isSelf ? ' is-self' : '') + (active ? '' : ' is-pending') + '">' +

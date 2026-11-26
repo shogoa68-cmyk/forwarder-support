@@ -83,7 +83,7 @@ const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '
 
  const names=()=>p.evaluate(()=>[...document.querySelectorAll('#wfMain .wf-row .wf-name b')].map(e=>e.textContent));
  const calls=()=>p.evaluate(()=>window.__calls.map(c=>c.join(':')));
- const upload=async(files)=>{const fc=p.waitForEvent('filechooser');await p.click('[data-act="upload"]');await (await fc).setFiles(files);};
+ const upload=async(files)=>{const fc=p.waitForEvent('filechooser');await p.click('.wf-btn[data-act="upload"]');await (await fc).setFiles(files);};
 
  await p.click('#catMoreBtn');await p.waitForTimeout(150);
  await p.click('.cat-btn[aria-controls="tab-workfolder"]');await p.waitForTimeout(900);
@@ -120,7 +120,7 @@ const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '
 
  await p.evaluate(()=>{window.__calls.length=0;});
  const bigPath=path.join(OUT,'大きい.zip');fs.writeFileSync(bigPath,Buffer.alloc(51*1048576,1));   // Playwright はメモリ上の 50MB 超を渡せないので実ファイルで
- const fcBig=p.waitForEvent('filechooser');await p.click('[data-act="upload"]');await (await fcBig).setFiles(bigPath);fs.unlinkSync(bigPath);
+ const fcBig=p.waitForEvent('filechooser');await p.click('.wf-btn[data-act="upload"]');await (await fcBig).setFiles(bigPath);fs.unlinkSync(bigPath);
  await p.waitForTimeout(900);
  ok('1 ファイルの上限（50MB）超は、予約もせずその場で断る',/上限/.test(await p.evaluate(()=>document.getElementById('wfUploads').textContent))&&!(await calls()).includes('rpc:wf_storage_reserve'),await calls());
 
@@ -143,7 +143,7 @@ const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '
  // ---- ダウンロード・プレビュー（保存領域から） ----
  await p.evaluate(()=>{window.__calls.length=0;window.__dlNames=[];const o=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(this.download)window.__dlNames.push(this.download);return o.apply(this,arguments);};});
  await p.click('.wf-row:has-text("見積書.pdf")');
- const dl=p.waitForEvent('download');await p.click('[data-act="download"]');await dl;
+ const dl=p.waitForEvent('download');await p.click('.wf-btn[data-act="download"]');await dl;
  ok('ダウンロードは保存領域から取得し、元のファイル名で保存する',(await calls()).some(c=>/^storage\.download:user-1\//.test(c))&&await p.evaluate(()=>window.__dlNames.join()==='見積書.pdf'),await calls());
  await p.dblclick('.wf-row:has-text("メモ.txt")');await p.waitForTimeout(600);
  ok('テキストはダブルクリックでプレビューできる',await p.evaluate(()=>/保存領域のテキスト/.test(document.querySelector('.wf-pv pre')?.textContent||'')),null);
@@ -163,7 +163,7 @@ const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '
  await p.click('.wf-row:has-text("途中.pdf")');await p.keyboard.press('Delete');await p.waitForTimeout(300);
  await p.click('[data-tree="trash"]');await p.waitForTimeout(250);
  await p.evaluate(()=>{window.__calls.length=0;});
- await p.click('.wf-row:has-text("メモ.txt")');await p.click('[data-act="purge"]');await p.waitForTimeout(250);
+ await p.click('.wf-row:has-text("メモ.txt")');await p.click('.wf-btn[data-act="purge"]');await p.waitForTimeout(250);
  await p.click('.confirm-dialog .btn-danger');await p.waitForTimeout(500);
  const pc=await calls();
  ok('完全削除は「中身の場所を調べる → 保存領域から削除 → 行を削除」の順',pc.indexOf('rpc:wf_my_tree')>=0&&pc.findIndex(c=>c.startsWith('storage.remove:'))>pc.indexOf('rpc:wf_my_tree')&&pc.indexOf('rpc:wf_my_delete')>pc.findIndex(c=>c.startsWith('storage.remove:')),pc);

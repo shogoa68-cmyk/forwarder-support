@@ -14,7 +14,22 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
   };
 
-  window.uiIsSimple = () => root.classList.contains('mode-simple');
+  window.uiIsSimple = () => false;   // かんたん表示は廃止（常に従来の「詳細」画面）。関数は呼び出し元のために残す
+  root.classList.remove('mode-simple');
+
+  // スマホ幅（〜600px）は常に詳細表示。保存値（fwd.uiMode）は変えず、PC に戻ったときはその値を使う
+  const phoneMq = window.matchMedia ? window.matchMedia('(max-width: 600px)') : null;
+  const isPhone = () => !!(phoneMq && phoneMq.matches);
+  function applyPhoneRule() {
+    const saved = ls.get(KEY) === 'simple';
+    const want = false;
+    if (root.classList.contains('mode-simple') === want) return;
+    root.classList.toggle('mode-simple', want);
+    syncSwitch();
+    if (typeof window.cloudRerenderDash === 'function') window.cloudRerenderDash();
+    if (typeof window.uiEditorRefresh === 'function') window.uiEditorRefresh();
+  }
+  if (phoneMq && phoneMq.addEventListener) phoneMq.addEventListener('change', applyPhoneRule);
 
   // ---- 切替 ----
   function syncSwitch() {
@@ -35,7 +50,7 @@
     m = (m === 'simple') ? 'simple' : 'detail';
     ls.set(KEY, m);
     ls.set(HINT, '1');                       // 自分で切り替えたら、初回の案内は不要
-    root.classList.toggle('mode-simple', m === 'simple');
+    root.classList.remove('mode-simple');   // 廃止：切り替えても詳細のまま
     dismissHint();
     uiCloseMenus();
     syncSwitch();
@@ -235,7 +250,7 @@
     $('qpHint').textContent = cur < 0 ? HINTS[5] : (cur === 0 ? (noName ? HINTS[0] : HINTS[1]) : HINTS[cur + 1]);
   }
   window.uiGuideGo = function (n) {
-    if (n === 4) { if (typeof window.openPreview === 'function') window.openPreview(); return; }
+    if (n === 4) { const f = window.openQuotePreview || window.openPreview; if (typeof f === 'function') f(); return; }
     const el = $({ 1: 'section-cond', 2: 'section-cargo', 3: 'section-table' }[n]);
     if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };

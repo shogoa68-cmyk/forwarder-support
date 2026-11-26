@@ -57,7 +57,11 @@
     const tabEl = document.querySelector('.tab-content.active');
     const cls = (document.documentElement.className || '').split(/\s+/).filter(c => /^(theme|mode)-/.test(c)).join(' ');
     const ver = ((document.querySelector('script[src*="app.js"]') || {}).src || '').match(/[?&]v=([^&]+)/);
+    // 見張り番（js/bug-recorder.js）で作った再現記録つきの報告だけ、記録の要約を context に添える
+    const fbBody = $('fbBody');
+    const rec = (window.__fbRecCtx && fbBody && fbBody.value.indexOf('【再現手順（自動記録）】') >= 0) ? window.__fbRecCtx : null;
     return {
+      ...(rec ? { recording: rec } : {}),
       tab: tabEl ? tabEl.id.replace(/^tab-/, '') : '',
       nav: ((document.querySelector('.cat-btn.active') || {}).textContent || '').trim().slice(0, 30),
       viewport: window.innerWidth + 'x' + window.innerHeight,
@@ -325,6 +329,7 @@
     return (err && (err.code === 'PGRST204' || err.code === '42703')) || /column .* (does not exist|of relation)|could not find the .* column|schema cache/i.test(m);
   }
   function fbAfterSubmit() {
+    window.__fbRecCtx = null;
     fbResetAttachments();
     if ($('fbTitle')) $('fbTitle').value = '';
     _setIdeaMode(false);
@@ -401,6 +406,7 @@
   function fbOpenQuick() {
     if (typeof window.openFeedback !== 'function') return;
     window.openFeedback('全体');
+    const recSw = $('fbBrecModeSw'); if (recSw) recSw.hidden = true;      // 見張り番の「処理の方法」は再現記録のときだけ（bug-recorder.js が出し直す）
     const secSel = $('fbSection'); if (secSel) secSel.value = 'わからない';     // 該当セクションは任意（開いていた画面は自動で記録される）
     const r = document.querySelector('#fbForm input[name="fbCategory"][value="バグ報告"]');
     if (r) { r.checked = true; const lab = r.closest('.fb-radio'); if (lab) { document.querySelectorAll('#fbForm .fb-radio').forEach(x => x.classList.remove('checked')); lab.classList.add('checked'); } }
@@ -864,26 +870,111 @@
   // ================================================================
   // 5. 常駐ボタン
   // ================================================================
+  // 右下の常駐は「❓ 困ったとき」1 つだけ（Design 34 案B）。押すとカードが開き、ご意見の入口をまとめて置く。
+  //   カードの中身：🐞 不具合・ご意見を送る（従来の 🐞 の動作＝写真・録画つきの送信）／📋 送った報告の状況／💡 アイデア／📣 改修予定
+  //   後ろの 3 つは、ヘッダーにあったリンクを要素ごと移すだけ（id・onclick・バッジの更新はそのまま）。
   function mountFab() {
     if ($('fbQuickFab')) return;
     const b = document.createElement('button');
     b.id = 'fbQuickFab';
     b.type = 'button';
     b.className = 'fb-quick-fab';
-    b.title = '不具合を見つけたら、すぐ報告（スクリーンショット・録画も添付できます）';
-    b.setAttribute('aria-label', '不具合を報告');
-    b.textContent = '🐞';
-    b.addEventListener('click', fbOpenQuick);
+    b.title = '困ったとき（不具合・ご意見・アイデア・改修予定）';
+    b.setAttribute('aria-label', '困ったとき（不具合・ご意見・アイデア・改修予定）');
+    b.setAttribute('aria-haspopup', 'true');
+    b.setAttribute('aria-expanded', 'false');
+    b.setAttribute('aria-controls', 'fbHelpCard');
+    b.textContent = '❓';
+    b.addEventListener('click', e => { e.stopPropagation(); toggleHelpCard(); });
     document.body.appendChild(b);
+    buildHelpCard();
   }
+  function buildHelpCard() {
+    if ($('fbHelpCard')) return;
+    const c = document.createElement('div');
+    c.id = 'fbHelpCard'; c.className = 'fb-help-card'; c.setAttribute('role', 'menu'); c.hidden = true;
+    c.innerHTML = '<p class="fbhc-title">困ったとき</p>';
+    // 1 行目：用語を調べる（全画面から用語の説明ドロワーを開く＝Design 35）／2 行目：この画面の使い方（いまのタブの「このタブの使い方」を開く）
+    const gl = document.createElement('button');
+    gl.type = 'button'; gl.id = 'fbHelpGloss'; gl.className = 'fbhc-item fbhc-strong'; gl.setAttribute('role', 'menuitem');
+    gl.textContent = '📖 用語を調べる';
+    gl.addEventListener('click', () => { closeHelpCard(); if (typeof window.openQuoteGlossary === 'function') window.openQuoteGlossary(); });
+    c.appendChild(gl);
+    const use = document.createElement('button');
+    use.type = 'button'; use.id = 'fbHelpUse'; use.className = 'fbhc-item'; use.setAttribute('role', 'menuitem');
+    use.textContent = '🧭 この画面の使い方';
+    use.addEventListener('click', () => {
+      const el = _tabHelpEl(); if (!el) return;
+      closeHelpCard();
+      el.style.display = ''; el.open = true;
+      setTimeout(() => window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 120, behavior: 'smooth' }), 30);
+    });
+    c.appendChild(use);
+    const send = document.createElement('button');
+    send.type = 'button'; send.id = 'fbHelpSend'; send.className = 'fbhc-item'; send.setAttribute('role', 'menuitem');
+    send.textContent = '🐞 不具合・ご意見を送る';
+    send.addEventListener('click', () => { closeHelpCard(); fbOpenQuick(); });
+    c.appendChild(send);
+    // 不具合の再現を記録する「見張り番」（js/bug-recorder.js・Ctrl+Shift+L でも開始／終了）
+    const rec = document.createElement('button');
+    rec.type = 'button'; rec.id = 'fbHelpRec'; rec.className = 'fbhc-item'; rec.setAttribute('role', 'menuitem');
+    rec.textContent = '🔴 不具合の再現を記録する（Ctrl+Shift+L）';
+    rec.addEventListener('click', () => { closeHelpCard(); if (typeof window.bugRecToggle === 'function') window.bugRecToggle(); });
+    c.appendChild(rec);
+    const header = document.querySelector('.header');
+    const rename = (a, text) => { const n = a && Array.prototype.find.call(a.childNodes, x => x.nodeType === 3); if (n) n.nodeValue = text; };
+    const bug = $('hdrBugReportsBtn'), idea = $('hdrIdeasBtn');
+    const road = header && header.querySelector(':scope > a.hdr-roadmap:not(.hdr-bugreports):not(.hdr-ideas):not(.hdr-design)');
+    rename(bug, '📋 送った報告の状況を見る'); rename(idea, '💡 アイデアを送る・見る'); rename(road, '📣 改修予定を見る');
+    [bug, idea, road].forEach(a => { if (a) { a.classList.add('fbhc-item'); a.setAttribute('role', 'menuitem'); c.appendChild(a); } });
+    c.addEventListener('click', e => { if (e.target.closest('.fbhc-item')) closeHelpCard(); });
+    document.body.appendChild(c);
+  }
+  // いま見ているタブの「このタブの使い方」（details.tab-help）。無ければ null
+  function _tabHelpEl() {
+    const t = document.querySelector('.tab-content.active');
+    return t ? t.querySelector('details.tab-help') : null;
+  }
+  function _syncHelpUse() {
+    const b = $('fbHelpUse'); if (!b) return;
+    const has = !!_tabHelpEl();
+    b.classList.toggle('is-off', !has); b.setAttribute('aria-disabled', has ? 'false' : 'true');
+    b.title = has ? '' : 'この画面には使い方の説明がありません';
+  }
+  function _helpPlace() {
+    const c = $('fbHelpCard'), f = $('fbQuickFab');
+    if (!c || !f || c.hidden) return;
+    const r = f.getBoundingClientRect();
+    c.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+    c.style.bottom = Math.max(8, window.innerHeight - r.top + 8) + 'px';
+  }
+  function openHelpCard() {
+    const c = $('fbHelpCard'), f = $('fbQuickFab'); if (!c || !f) return;
+    fbHintHide(true);                                  // 「？」を押した＝気づいた
+    c.hidden = false; f.setAttribute('aria-expanded', 'true'); _syncHelpUse(); _helpPlace();
+  }
+  function closeHelpCard() {
+    const c = $('fbHelpCard'), f = $('fbQuickFab');
+    if (c) c.hidden = true; if (f) f.setAttribute('aria-expanded', 'false');
+  }
+  function toggleHelpCard() { const c = $('fbHelpCard'); if (c && c.hidden) openHelpCard(); else closeHelpCard(); }
+  document.addEventListener('click', e => {
+    const c = $('fbHelpCard');
+    if (!c || c.hidden) return;
+    if (!e.target.isConnected) return;               // 押した部品が（吹き出しのように）クリックの途中で消えた場合は「外側」とみなさない
+    if (!(e.target.closest && e.target.closest('#fbHelpCard, #fbQuickFab'))) closeHelpCard();
+  });
+  document.addEventListener('keydown', e => { const c = $('fbHelpCard'); if (e.key === 'Escape' && c && !c.hidden) { closeHelpCard(); const f = $('fbQuickFab'); if (f) f.focus(); } });
+  window.addEventListener('resize', _helpPlace);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountFab); else mountFab();
+  window.fbHelpOpen = openHelpCard; window.fbHelpClose = closeHelpCard;
 
-  // ---------- 初めての人に気づいてもらう合図（吹き出し＋ボタンの波紋） ----------
-  //   ・読み込みの約 4 秒後に、🐞 の左へ吹き出し「不具合・ご意見はここから」を出し、ボタンに波紋を出す。
-  //   ・🐞 または吹き出しを押した（＝気づいた）／✕ を押したら、以後ずっと出さない（localStorage fbFabHintDone_v1）。
-  //   ・気づかれなければ、最大 3 回まで（fbFabHintN_v1）。1 回は 14 秒で自動的にしまう（次回の表示でまた出る）。
-  //   ・入力中・ほかの画面（モーダル）を開いているときは出さず、8 秒後に様子を見る。動きは視差効果を減らす設定では止める。
-  const HINT_DONE = 'fbFabHintDone_v1', HINT_N = 'fbFabHintN_v1', HINT_MAX = 3, HINT_SHOW_MS = 14000;
+  // ---------- 初めての人に気づいてもらう合図（小さな吹き出し 1 つだけ・最大 1 回） ----------
+  //   ・読み込みの約 4 秒後に、「？」の真上へ吹き出し「困ったときは「？」から」を出す（波紋・揺れはやめた＝Design 34）。
+  //   ・「？」か吹き出しを押した／✕ を押した→以後ずっと出さない（localStorage fbFabHintDone_v1）。約 8 秒で自動的に消える。
+  //   ・出すのは 1 回だけ（fbFabHintN_v1 が 1 以上なら出さない）。見積入力の画面では出さない（作業の邪魔になるため）。
+  //   ・ボタンや入力欄に重なるときは出さない（その回は数えない）。入力中・モーダル表示中は 8 秒後に様子を見る。
+  const HINT_DONE = 'fbFabHintDone_v1', HINT_N = 'fbFabHintN_v1', HINT_MAX = 1, HINT_SHOW_MS = 8000;
   let _hintEl = null, _hintTimer = 0, _hintPosTimer = 0;
   const _ls = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -893,8 +984,8 @@
     const f = $('fbQuickFab');
     if (!_hintEl || !f) return;
     const r = f.getBoundingClientRect();
-    _hintEl.style.right = Math.max(8, window.innerWidth - r.left + 12) + 'px';
-    _hintEl.style.bottom = Math.max(8, window.innerHeight - r.bottom - 2) + 'px';
+    _hintEl.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+    _hintEl.style.bottom = Math.max(8, window.innerHeight - r.top + 12) + 'px';
   }
   function fbHintHide(done) {
     clearTimeout(_hintTimer); clearInterval(_hintPosTimer);
@@ -907,6 +998,19 @@
     if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return true;
     return !!document.querySelector('#fbOverlay.open, #previewOverlay.open');
   }
+  // 見積入力の画面（ダッシュボードではない）を開いているか
+  function _onEditor() { return !!document.querySelector('#tab-quote-make.active') && !document.body.classList.contains('qp-dash-active'); }
+  // 吹き出しの下に、押せる部品（ボタン・リンク・入力欄）が隠れていないか
+  function _hintCovers() {
+    if (!_hintEl) return false;
+    const r = _hintEl.getBoundingClientRect();
+    const pts = [[.1, .2], [.5, .2], [.9, .2], [.1, .8], [.5, .8], [.9, .8]];
+    return pts.some(([fx, fy]) => {
+      const x = r.left + r.width * fx, y = r.top + r.height * fy;
+      return document.elementsFromPoint(x, y).some(el => el !== _hintEl && !_hintEl.contains(el) && el.id !== 'fbQuickFab' &&
+        el.closest && el.closest('button, a, input, select, textarea, [role="button"]'));
+    });
+  }
   function fbHintShow(force) {
     const f = $('fbQuickFab');
     if (!f || f.hidden || _hintEl) return;
@@ -914,8 +1018,7 @@
       if (_ls.get(HINT_DONE) === '1') return;
       const n = parseInt(_ls.get(HINT_N) || '0', 10) || 0;
       if (n >= HINT_MAX) return;
-      if (document.hidden || _hintBusy()) { setTimeout(() => fbHintShow(false), 8000); return; }
-      _ls.set(HINT_N, String(n + 1));
+      if (document.hidden || _hintBusy() || _onEditor()) { setTimeout(() => fbHintShow(false), 8000); return; }
     }
     const el = document.createElement('div');
     el.id = 'fbFabHint';
@@ -923,20 +1026,23 @@
     el.setAttribute('role', 'status');
     el.innerHTML =
       '<button type="button" class="fbh-main" data-act="open">' +
-        '<b>🐞 不具合・ご意見はここから</b>' +
-        '<span>画面の写真・録画も添えて送れます</span>' +
+        '<b>困ったときは「？」から</b>' +
+        '<span>1回だけ出ます</span>' +
       '</button>' +
       '<button type="button" class="fbh-x" data-act="close" aria-label="このヒントを閉じる">✕</button>';
     el.addEventListener('click', e => {
       const b = e.target.closest('[data-act]');
       if (!b) return;
       if (b.dataset.act === 'close') { fbHintHide(true); return; }
-      fbHintHide(true); fbOpenQuick();
+      fbHintHide(true); openHelpCard();
     });
     document.body.appendChild(el);
     _hintEl = el;
-    f.classList.add('fb-hint-pulse');
     _hintPlace();
+    if (!force && _hintCovers()) { fbHintHide(false); return; }      // 重なるなら出さない（回数は数えない）
+    // Design 42-4：通知（トースト）が出ている間は出さない（回数は数えない）
+    if (!force && document.querySelector('#toast-container > .toast')) { fbHintHide(false); return; }
+    if (!force) _ls.set(HINT_N, String(HINT_MAX));
     _hintPosTimer = setInterval(_hintPlace, 500);     // 全体リマークの引き出し等でボタンの位置が動いても追従
     _hintTimer = setTimeout(() => fbHintHide(false), HINT_SHOW_MS);
   }

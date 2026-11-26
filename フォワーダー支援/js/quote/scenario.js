@@ -64,7 +64,7 @@
              <span class="ud-count" title="この単位・数量の行数">${g.ids.length}行</span>
            </div>`;
         }).join('')
-      : '<p class="ud-empty">単位が設定された明細行がありません。<br>明細行の「単位」欄を入力すると、ここに一覧表示されます。</p>';
+      : '<div class="qrc-empty ud-empty"><b>数量を変えられる行がありません</b><span>明細行の「単位」欄を入力すると、ここに一覧表示されます。</span></div>';
 
     panel.classList.toggle('sc-panel--collapsed', _udCollapsed);
     panel.innerHTML =
@@ -83,7 +83,7 @@
          </div>` : ''}
          <div class="ud-list">${listHtml}</div>
          <button class="ud-refresh" type="button" onclick="udRefresh()" title="明細から単位を再取得">🔄 再読み込み</button>
-         <button class="sc-open-btn" type="button" onclick="udApplyAll()" ${groups.length ? '' : 'disabled'}>✅ 一括反映</button>
+         <button class="sc-open-btn" type="button" onclick="udApplyAll()" ${groups.length ? '' : 'disabled'}>${(() => { const n = groups.filter(g => !_udIsExcluded(g.unit + _UD_KEY_SEP + g.qty)).reduce((a, g) => a + g.ids.length, 0); return n ? n + ' 行を変更' : '一括反映'; })()}</button>
        </div>`;
 
     // 物量情報（旧「輸送」メニューから統合）を数量パネル内に描画
@@ -132,6 +132,12 @@
     rowEl.classList.toggle('ud-row--excluded', !chk.checked);
     const inp = rowEl.querySelector('.ud-qty-in');
     if (inp) inp.disabled = !chk.checked;
+    // 下の主ボタン「N 行を変更」の N を、対象（チェックのある単位）の行数に合わせる
+    const btn = document.querySelector('#scPanel .sc-open-btn');
+    if (btn && !btn.disabled) {
+      let n = 0; document.querySelectorAll('#scPanel .ud-row:not(.ud-row--excluded)').forEach(r => { try { n += JSON.parse(r.dataset.ids || '[]').length; } catch (e) {} });
+      btn.textContent = n ? n + ' 行を変更' : '一括反映';
+    }
   }
 
   // すべて選択／すべて解除
@@ -181,7 +187,7 @@
 
     // 一括変更後：ユーザーに尋ねて印刷（プレビュー）モーダルを開く
     if (window.confirm(`${unitsChanged}単位・計${rowsChanged}行の数量を一括変更しました。\n印刷プレビューを開きますか？`)) {
-      if (typeof openPreview === 'function') openPreview();
+      if (typeof window.openQuotePreview === 'function') window.openQuotePreview();
       else if (typeof window.openPreview === 'function') window.openPreview();
       else window.print();
     } else if (typeof quoteShowToast === 'function') {

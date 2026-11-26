@@ -320,6 +320,9 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
    チップの下に「日時」「名前」の 2 行（11px）を置く。列が狭い（108px）ので、はみ出す分は「…」で省略する（全文は title）。 */
 #tab-quote-make #quoteTable > tbody > tr.row-input-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-sub { height: 20px; line-height: 20px; margin-bottom: 1px; }
 #tab-quote-make #quoteTable > tbody > tr.row-input-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-state { height: 22px; }
+#tab-quote-make #quoteTable > tbody > tr.row-src-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-sub { height: 20px; line-height: 20px; margin-bottom: 1px; }
+#tab-quote-make #quoteTable > tbody > tr.row-src-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-state { height: 22px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo.is-src { color: #3a5f86; font-style: italic; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo {
   margin: 1px 0 0; font-size: 11px; line-height: 12px; text-align: right; color: var(--color-neutral-700, #5d5d60);
 }
@@ -337,3 +340,87 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 #qpDashboard .qpd-tools-row { gap: var(--sp-12); }
 #qpDashboard .qpd-tag-quickfilter { margin-top: var(--sp-4); }
 #qpDashboard .qpd-tag-chips { gap: var(--sp-6); margin-top: var(--sp-4); }
+
+/* ダッシュボードの文字サイズは 5 段（12／13／14／16／18px）にそろえる（2026-11）。
+   Industry は Design の元ファイルの文字トークン（--fs-9〜--fs-18＝9〜18px の 14 段）へ戻すため、ダッシュボードでは
+   10〜22px に散らばって落差が大きかった。ダッシュボード内だけ、現行の tokens.css と同じ対応（--text-* の 5 段）で上書きする
+   （スマホ幅は --text-* が 1 段上がるので自動で追従）。 */
+#qpDashboard {
+  --fs-9: var(--text-xs); --fs-9-5: var(--text-xs); --fs-10: var(--text-xs); --fs-10-5: var(--text-xs);
+  --fs-11: var(--text-xs); --fs-11-5: var(--text-xs); --fs-12: var(--text-xs); --fs-12-5: var(--text-xs);
+  --fs-13: var(--text-sm); --fs-13-5: var(--text-sm); --fs-14: var(--text-base); --fs-15: var(--text-base);
+  --fs-16: var(--text-lg); --fs-18: var(--text-xl);
+}
+/* 統計タイルの数字（22px→18px）。生成される Industry 版は Design の元の 22px へ戻すため、ここで打ち消す */
+#tab-quote-make #qpDashboard .qpd-stat-n { font-size: var(--text-xl); }
+/* 案件カードのお客様名（23px→18px）。同上 */
+#tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-cust { font-size: var(--text-xl); }
+
+/* 保険料の計算（保険カテゴリの行）：「その他 ▾」の中では、入力欄をほかのグループ（%・MIN）と同じ幅にして 1 行に並べる（以前は欄が全幅に伸びて縦に積まれた） */
+#tab-quote-make #quoteTable > tbody > tr.row-ins-mode:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; width: 100%; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-lbl { display: none; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-ctrl { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group select { height: 32px; text-align: right; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-v { width: 170px !important; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group select.ins-c { width: 84px !important; text-align: left; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-k { width: 70px !important; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-r { width: 90px !important; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-x, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-u { font-size: var(--text-sm, 13px); color: var(--text-md); }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-hint { flex-basis: 100%; font-size: var(--text-xs, 12px); }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group input.ins-m { width: 70px !important; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-mg { display: inline-flex; align-items: center; gap: 6px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .ins-group .ins-mg-lbl { font-size: var(--text-sm, 13px); font-weight: 700; color: #1a7f6e; }
+
+/* 出力前の確認ガイド：琥珀色の「次の箇所へ」「現在の番号」が白文字でコントラスト不足（2.8:1）、✕ も薄い灰（2.2:1）。
+   生成される Industry 版は Design の元の値（白文字／--gray-lt）へ戻すため、ここで打ち消す */
+#tab-quote-make .pv-wg-btn-next, #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num { color: #2b1d00; }
+#tab-quote-make .pv-wg-close { color: #666; }
+
+/* マスター管理：件数バッジ・「＋ 別名」・別名の ✕ のコントラスト（Design の元の値は 2.6〜3.7 で読みにくい） */
+html.theme-industry .master-filter-chip.is-active .master-filter-count { background: rgba(0,0,0,.3); color: #fff; }
+html.theme-industry .master-filter-count { color: var(--text); }
+html.theme-industry .stats-master-abbrev-add { color: var(--text-muted); }
+html.theme-industry .ua-chip-del { color: var(--text-muted); }
+
+/* === リンク系画面（サイバーポート・不具合報告）の白文字ボタン／アクセント文字のコントラスト補正（2026-11・点検第4弾）
+   Industry のアクセント #5980a6 は白地・白文字で 3.7〜4.2:1 と AA（4.5）に届かないため、この 2 画面だけ少し濃い青にする */
+#tab-cptest .cpt-btn.is-primary.is-primary,
+#tab-bugreports .fbr-btn-primary,
+#tab-bugreports .fbr-chip.is-on,
+#tab-bugreports .fbr-mode.is-on .fbr-mode-n { background: #4a6d91; border-color: #4a6d91; }
+#tab-cptest .cpt-btn.is-g.is-g,
+#tab-cptest .cpt-chip.is-now.is-now,
+#tab-cptest .cpt-gb.cpt-gb[aria-pressed="true"],
+#tab-bugreports .fbr-mode.is-on { color: #3e5f82; }
+
+/* BOOKMARK：未確認の ✓ が背景と 2.3:1 でほぼ読めなかったのを補正（2026-11・点検第4弾） */
+.bm-verify.bm-verify-0 { color: #6b6e73; }
+
+/* 「その他」メニュー内タブの崩れ直し（2026-11・Industry は Design の元の値へ戻すため、ここで打ち消す）
+   ①諸チャージの上部ボタンが狭い画面で 1 文字幅に潰れる→折り返す ②1 行の検索欄が大画面で 1500px 超に伸びる→640px まで
+   ③「データなし」の薄い文字（コントラスト不足）を読める濃さに */
+.lc-topbar-right { flex-wrap: wrap; min-width: 0; }
+.lc-topbar-right > *, .lc-topbar-right .lc-add-btn, .lc-topbar-right .lc-variant-btn { white-space: nowrap; }
+.lookup-form input[type="text"] { max-width: 640px; }
+.lc-empty, .rn-empty { color: #6f5f50; }
+/* 入力確認ガイド（#pvWarnGuide）は付箋（z-index 9100）より上に出す。Design の元の値（1200）だと付箋に隠れて「このまま出力」を押せない */
+#tab-quote-make .pv-warn-guide { z-index: 9200; }
+
+/* Ctrl+K の一覧は背の低い画面で下が切れないよう、画面の高さに合わせて縮める（Design の元の値は 340px 固定） */
+#tab-quote-make #cmdList { max-height: max(120px, min(340px, calc(100vh - 240px))); }
+
+/* 統計タブ：空の案内・グループ見出しの横の数字が薄くて読みにくい（3.2〜3.7:1）ので濃くする（Industry は元デザインの薄い色へ戻されるため） */
+#tab-stats .stats-empty, #tab-stats .stats-empty small { color: #5a6475; }
+#tab-stats .stats-sv-detail-meta, #tab-stats .stats-sv-detail-meta .sd-margin-pos, #tab-stats .stats-sv-detail-meta .sd-margin-neg { color: #5a6475; }
+
+/* 御見積書の設定パネル・プレビュー左の見出し：薄くて読みにくい補足文字（3.2〜3.9:1）を濃く／明るくする（Industry は元デザインの値へ戻されるため） */
+html.theme-industry-doc #quoteDocOverlay .qd-panel-s, html.theme-industry-doc #quoteDocOverlay .qd-fg label, html.theme-industry-doc #quoteDocOverlay .qd-inp .qd-ext, html.theme-industry-doc #quoteDocOverlay .qd-inp.qd-static, html.theme-industry-doc #quoteDocOverlay .qd-toggle-l small { color: #c3cdd9; }
+#tab-quote-make .pv-rail-h3 { color: #5a6475; }
+
+/* === Industry のアクセント色を #5980a6 → #3f6590 に（2026-11・ユーザー選択「案B」）
+   元の #5980a6 は白文字で 4.15:1・淡い青の帯の上で 3.8:1 と、読みやすさの目安 4.5:1 に届かなかった。#3f6590 は 6.04:1／5.54:1。
+   色を決めている変数 --accent を 1 か所で差し替える（青いボタン・選択中の印・リンクが一度に変わる）。
+   元デザインの tokens.css は「そのまま保管」の方針なので、ここ（手書きの補正）で上書きする。 */
+html.theme-industry { --accent: #3f6590; }
+/* 御見積書の設定パネルの「PDF出力（印刷）」ボタン（御見積書用の別の生成 CSS）も同じ色にそろえる */
+html.theme-industry-doc #quoteDocOverlay #qdPrint, html.theme-industry-doc #quoteDocOverlay .qd-print { background: #3f6590; }

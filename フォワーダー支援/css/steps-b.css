@@ -1,0 +1,215 @@
+/* ==========================================================================
+   見積入力（新画面）ステップ①②③⑤ の「左右 2 列」（Design 46〜48 回答・案B・2026-11）
+   js/quote/steps-b.js が #tab-quote-make に .sb-on（と、広い画面では .sb-two）を付けたときだけ効く。
+   ========================================================================== */
+#sbAside { display: none; }
+html.editor-v2 #tab-quote-make.sb-on:not(.qp-dash):is([data-e2="1"], [data-e2="2"], [data-e2="3"], [data-e2="5"]) #sbAside:not([hidden]) { display: block; }
+
+/* ---- 2 列（本文が広いとき） ---- */
+html.editor-v2 #tab-quote-make.sb-on.sb-two:not(.qp-dash):is([data-e2="1"], [data-e2="2"], [data-e2="3"], [data-e2="5"]) .quote-main { position: relative; padding-right: 296px; box-sizing: border-box; }
+html.editor-v2 #tab-quote-make.sb-on.sb-two:not(.qp-dash) #sbAside { position: absolute; top: 0; right: 0; bottom: 0; width: 280px; padding-left: 16px; border-left: 1px solid var(--border, #e2e6ec); box-sizing: border-box; }
+html.editor-v2 #tab-quote-make.sb-on.sb-two:not(.qp-dash) #sbAside .sb-in { position: sticky; top: calc(var(--nav-cat-h, 56px) + 48px + 8px); }
+html.editor-v2 #tab-quote-make.sb-on.sb-two:not(.qp-dash):is([data-e2="1"], [data-e2="2"], [data-e2="3"], [data-e2="5"]) .quote-main > .condition-section,
+html.editor-v2 #tab-quote-make.sb-on.sb-two:not(.qp-dash):is([data-e2="1"], [data-e2="2"], [data-e2="3"], [data-e2="5"]) #e2Nav { max-width: none !important; }
+/* 1 列（狭い画面）：右の列は左の下 */
+html.editor-v2 #tab-quote-make.sb-on:not(.sb-two):not(.qp-dash) #sbAside { margin: 18px 0 4px; padding-top: 4px; border-top: 1px solid var(--border, #e2e6ec); }
+
+/* ---- 右の列：見出しと行 ---- */
+#sbAside .sb-h { margin: 6px 0 4px; font-size: var(--text-sm, 13px); font-weight: 700; color: var(--text-sub, #5a6475); }
+#sbAside .sb-row { border-bottom: 1px solid var(--border, #e9ecf1); }
+#sbAside .sb-row[hidden] { display: none; }
+#sbAside .sb-rh { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 4px; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; color: var(--text, #1d2939); }
+#sbAside .sb-rh:hover { background: var(--surface-2, #f6f8fb); }
+#sbAside .sb-rh:focus-visible { outline: 2px solid var(--accent, #2f5fb3); outline-offset: -2px; }
+#sbAside .sb-l { flex: 0 0 78px; font-style: normal; font-size: var(--text-xs, 12px); color: var(--text-sub, #5a6475); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#sbAside .sb-v { flex: 1 1 auto; min-width: 0; font-weight: 400; font-size: var(--text-sm, 13px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#sbAside .sb-v.is-muted { color: #8a94a6; }
+#sbAside .sb-op { flex: 0 0 auto; font-style: normal; font-size: var(--text-sm, 13px); color: var(--accent, #2f5fb3); min-width: 14px; text-align: right; }
+#sbAside .sb-op.sb-sw { width: 30px; height: 18px; border-radius: 9px; background: #d0d5dd; position: relative; }
+#sbAside .sb-op.sb-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .12s; }
+#sbAside .sb-op.sb-sw.is-on { background: var(--accent, #2f5fb3); }
+#sbAside .sb-op.sb-sw.is-on::after { left: 14px; }
+#sbAside .sb-row.is-open { background: #fbfcfd; }
+#sbAside .sb-row.is-open > .sb-rh { font-weight: 700; }
+#sbAside .sb-rb { padding: 4px 4px 12px; font-size: var(--text-sm, 13px); }
+#sbAside .sb-rb[hidden] { display: none !important; }
+#sbAside .sb-row[data-tone="rule"] { background: #fff8e1; border-radius: 6px; margin-bottom: 4px; border-bottom: 0; }
+#sbAside .sb-row[data-tone="warn"] .sb-v { color: #b42318; font-weight: 700; }
+/* 行の中に移した欄（もとの見た目の余計な枠・余白を消して、280px に収める） */
+#sbAside .sb-rb .e2-other, #sbAside .sb-rb .ci-cell, #sbAside .sb-rb #ciDuePanel, #sbAside .sb-rb #ciRelPanel, #sbAside .sb-rb #crBanner { display: block !important; }
+#sbAside .sb-rb .quote-field { margin: 0; }
+#sbAside .sb-rb .quote-field > label { display: none; }
+#sbAside .sb-rb input:not([type=checkbox]):not([type=radio]):not([type=hidden]), #sbAside .sb-rb select { width: 100% !important; max-width: 100%; height: 36px; box-sizing: border-box; }
+#sbAside .sb-rb textarea { width: 100% !important; box-sizing: border-box; min-height: 96px; }
+#sbAside .sb-rb .ci-recv-row, #sbAside .sb-rb .qf-valid-until-row, #sbAside .sb-rb .qf-tags-add-row, #sbAside .sb-rb .qf-inq-row { display: flex; flex-wrap: wrap; gap: 6px; }
+#sbAside .sb-rb .ci-recv-row > input[type=date] { flex: 1 1 140px; width: auto !important; }
+#sbAside .sb-rb .ci-recv-row > input[type=time] { flex: 0 0 104px; width: 104px !important; }
+#sbAside .sb-rb .qf-valid-until-row > input { flex: 1 1 140px; width: auto !important; }
+#sbAside .sb-rb .ci-valid-menu { position: static; display: flex; flex-direction: column; gap: 4px; margin-top: 6px; box-shadow: none; border: 0; padding: 0; background: none; }
+#sbAside .sb-rb .ci-valid-menu[hidden] { display: none; }
+#sbAside .sb-rb .qf-status-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+#sbAside .sb-rb .qf-status-btns > .qf-status-btn { display: inline-flex !important; }
+#sbAside .sb-rb .qf-status-btns > #ciStatusMore { display: none !important; }
+#sbAside .sb-rb .cond-prim-group { display: flex !important; flex-direction: column; align-items: stretch; gap: 6px; padding: 0; border: 0; background: none; }
+#sbAside .sb-rb .cond-prim-group .cond-prim-label { display: none; }
+#sbAside .sb-rb .cond-prim-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+#sbAside .sb-rb .cg-panel, #sbAside .sb-rb .cond-rate-card { margin: 0; max-width: 100%; }
+#sbAside .sb-rb .haz-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+#sbAside .sb-rb .hazmat-detail .hz-grid, #sbAside .sb-rb .hazmat-detail [class*="grid"] { grid-template-columns: 1fr !important; }
+#sbAside .sb-rb .remark-cargo-row { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+#sbAside .sb-rb .remark-cargo-row > label { display: none; }
+#sbAside .sb-rb .remark-img-hint { display: block; margin-top: 4px; font-size: var(--text-xs, 12px); color: var(--text-sub, #5a6475); }
+#sbAside .sb-rb #qf-scope { min-height: 96px; }
+
+/* ---- ⑤ 出力する（右の列の下・sticky の中） ---- */
+html.editor-v2 #tab-quote-make.sb-on[data-e2="5"] #sbAside #e2Out { display: block; margin: 16px 0 8px; padding: 14px; border: 1px solid #bcd0ee; border-radius: 8px; background: #f1f6fd; max-width: none !important; }
+#sbAside #e2Out .e2o-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#sbAside #e2Out .e2o-btns > button { width: 100%; margin: 0; padding: 0 6px; white-space: nowrap; font-size: var(--text-sm, 13px); }
+#sbAside #e2Out .e2o-pdf { grid-column: 1 / -1; order: -1; min-height: 40px; background: var(--accent-dk, #2c455d) !important; border-color: var(--accent-dk, #2c455d) !important; color: #fff !important; font-weight: 700; }
+#sbAside #e2Out .e2o-edit:not([hidden]) { grid-column: 1 / -1; order: -2; }
+#sbAside #e2Out .e2o-save { display: none !important; }
+#sbAside #e2Out .e2o-warn { margin: 6px 0; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="5"] #e2Nav #e2Next { visibility: hidden; }
+
+/* ---- 共通：消すもの ---- */
+html.editor-v2 #tab-quote-make.sb-on:is([data-e2="1"], [data-e2="2"], [data-e2="3"], [data-e2="5"]) :is(#section-ref, #section-cond, #section-cargo, #section-volume, #section-remark) > .section-toggle-head { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on #e2Chips2, html.editor-v2 #tab-quote-make.sb-on #e2Chips3 { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on .quote-main .hint-q { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on #e2Head > span:not(#sbSub) { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on #e2Head #sbSub { font-size: var(--text-xs, 12px); color: #667085; }
+html.editor-v2 #tab-quote-make.sb-on #e2Head #sbHeadMore { margin-left: auto; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-auto { padding: 0; border: 0; background: none !important; color: #8a94a6 !important; font-weight: 400; font-size: var(--text-xs, 12px); }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-auto::before { content: "（"; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-auto::after { content: "）"; }
+#tab-quote-make .sb-note { margin-left: 8px; font-size: var(--text-xs, 12px); font-weight: 400; color: #8a94a6; }
+#tab-quote-make .sb-link { margin-left: auto; padding: 0 2px; border: 0; background: none; font: inherit; font-size: var(--text-xs, 12px); color: var(--accent, #2f5fb3); cursor: pointer; white-space: nowrap; }
+#tab-quote-make .sb-link:hover { text-decoration: underline; }
+#tab-quote-make .sb-btn { height: 32px; padding: 0 12px; border: 1px solid #98a2b3; border-radius: 6px; background: var(--surface, #fff); font: inherit; font-size: var(--text-sm, 13px); color: var(--text, #1d2939); cursor: pointer; white-space: nowrap; }
+#tab-quote-make .sb-btn:hover { background: var(--surface-2, #f6f8fb); }
+#tab-quote-make .sb-btn.sb-more { width: 32px; padding: 0; font-weight: 700; }
+
+/* ---- メニュー ---- */
+.sb-menu { position: fixed; z-index: 1400; min-width: 220px; max-width: 320px; padding: 6px; border: 1px solid var(--border, #d0d5dd); border-radius: 8px; background: var(--surface, #fff); box-shadow: 0 8px 24px rgba(16, 24, 40, .18); }
+.sb-menu .sb-mi { display: block; width: 100%; min-height: 34px; padding: 0 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: var(--text-sm, 13px); text-align: left; color: var(--text, #1d2939); cursor: pointer; }
+.sb-menu .sb-mi:hover, .sb-menu .sb-mi:focus-visible { background: var(--surface-2, #eef3fb); outline: none; }
+.sb-menu .sb-mi.is-danger { color: #b42318; }
+.sb-menu .sb-menu-sep { height: 1px; margin: 4px 2px; background: var(--border, #e4e7ec); }
+
+/* ======================= ① 基本 ======================= */
+html.editor-v2 #tab-quote-make.sb-on[data-e2="1"] #section-ref :is(.ci-head, .ci-dates, .ci-more-block, .ci-status-block) { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="1"] :is(#e2MoreBtn, #ciRelBtn, #ciDueBtn, #section-scope, #section-ref > #refBody > .section-desc, #section-ref > #refBody > span) { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-first .ci-grid { display: flex !important; flex-direction: column; gap: 14px; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-first .ci-grid > .ci-cell-cust { order: 1; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-first .ci-grid > .ci-cell-person { order: 2; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-first .ci-grid > .ci-cell-case { order: 3; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-first .ci-grid > .ci-cell-ref { order: 4; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-first .ci-grid > .ci-cell-recv { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-cell .quote-field > label { display: flex; align-items: center; gap: 4px; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref #qf-person { width: 300px; max-width: 100%; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .qf-ref-row { width: 300px; max-width: 100%; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .qf-ref-row.ci-ref-locked #qf-ref { border: 1px dashed #b4bcc8 !important; background: #f8f9fb !important; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref label #ciRefEdit,
+html.editor-v2 #tab-quote-make.sb-on #section-ref label #qfCustomerDetailBtn { margin-left: auto; height: auto !important; min-height: 0 !important; padding: 0 2px !important; border: 0 !important; background: none !important; box-shadow: none !important; font-size: var(--text-xs, 12px) !important; font-weight: 400; color: var(--accent, #2f5fb3) !important; cursor: pointer; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref label #qfCustomerDetailBtn[hidden] { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-memo-btn.ig-in-label { margin-left: auto !important; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-memo-btn .memo-label { display: none; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-memo-btn.sb-has-memo::after { content: "あり"; margin-left: 2px; font-weight: 700; color: #8a5a00; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-layout { display: block !important; }
+
+/* ======================= ② ルート ======================= */
+html.editor-v2 #tab-quote-make.sb-on[data-e2="2"] #zone2Card > .zone-card-header { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="2"] :is(#z2CarrierOptBtn, #z2CarrierLinks, #z2PortCountryNote, #cfCrumbs) { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="2"] .zone-card.zone-off { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="2"] #zone2Card { border: 0 !important; background: none !important; box-shadow: none !important; padding: 0 !important; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="2"] #zone2Card .zone2-inputs { padding: 4px 0 0 !important; background: none !important; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="2"] #zoneBuilder { gap: 12px; }
+#tab-quote-make .sb-field-head { display: flex; align-items: center; gap: 8px; margin: 14px 0 4px; }
+#tab-quote-make .sb-field-head label { font-size: var(--text-sm, 13px); font-weight: 700; color: var(--text, #1d2939); }
+html.editor-v2 #tab-quote-make.sb-on #z2Carrier { max-width: 340px; }
+#tab-quote-make .sb-country-note { margin: 6px 0 0; font-size: var(--text-xs, 12px); color: #5a6475; }
+#tab-quote-make .sb-country-note[hidden] { display: none; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="4"] .zone-preset-section { display: flex; margin: 0 0 10px; }
+
+/* ======================= ③ 貨物・物量 ======================= */
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] :is(.ig-clear-row, #cargoKindBtn, #cargoTaxBtn, #cargoLawBtn, #e2PackBtn, #cargoBody > .cond-sub > .cond-sub-label, .cc-cat-tabs, .cd-reflect-btn, .cd-derived-note) { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] #section-volume .cond-field--cargo-detail > label { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] #section-volume :is(.cd-pattern-add-btn, .cd-pattern-mode-wrap) { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] #section-volume .cargo-detail-actions > :not(:first-child) { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] #section-volume .cargo-detail-actions > :first-child { border: 0; background: none; color: var(--accent, #2f5fb3); padding: 0 2px; box-shadow: none; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] #cond-hs { max-width: 240px; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] [data-field-id="container-type"] > label { display: inline-flex; align-items: baseline; font-size: var(--text-base, 14px); font-weight: 700; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] [data-field-id="container-type"] { display: flex; flex-wrap: wrap; align-items: baseline; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] [data-field-id="container-type"] > .multi-entry { flex: 1 1 100%; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] .cc-chip.sb-has { border-color: var(--accent, #2f5fb3) !important; box-shadow: inset 0 0 0 1px var(--accent, #2f5fb3); }
+#tab-quote-make .sb-pack-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; width: 100%; min-height: 40px; margin: 14px 0 4px; padding: 6px 2px; border: 0; border-top: 1px solid var(--border, #e4e7ec); background: none; font: inherit; text-align: left; cursor: pointer; color: var(--text, #1d2939); }
+#tab-quote-make .sb-pack-head > b { font-size: var(--text-base, 14px); }
+#tab-quote-make .sb-pack-head .sb-note { margin-left: 0; }
+#tab-quote-make .sb-pack-head .sb-pack-tog { font-size: var(--text-sm, 13px); color: var(--accent, #2f5fb3); }
+#tab-quote-make .sb-pack-head .sb-pack-tot { margin-left: auto; font-size: var(--text-sm, 13px); color: var(--text-sub, #5a6475); font-variant-numeric: tabular-nums; }
+#tab-quote-make .sb-pack-head.is-static { cursor: default; }
+html.editor-v2 #tab-quote-make.sb-on:not([data-e2="3"]) .sb-pack-head { display: none; }
+html.editor-v2 #tab-quote-make.sb-on .cargo-detail-derived td > .cd-metric { display: inline-flex; align-items: baseline; gap: 4px; margin-right: 16px; vertical-align: middle; }
+html.editor-v2 #tab-quote-make.sb-on .cargo-detail-derived td > #sbPackMore { float: right; margin-left: 6px; }
+html.editor-v2 #tab-quote-make.sb-on .cargo-detail-derived td > #sbReflect { float: right; }
+
+/* ======================= ⑤ リマーク ======================= */
+html.editor-v2 #tab-quote-make.sb-on[data-e2="5"] #remarkBody { position: relative; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="5"] #remarkBody > .section-desc { display: none !important; }
+#tab-quote-make .sb-rm-head { order: 2 !important; display: flex; align-items: center; gap: 10px; margin: 2px 0 8px; }
+#tab-quote-make .sb-rm-head > div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 8px; flex: 1 1 auto; min-width: 0; }
+#tab-quote-make .sb-rm-head b { font-size: var(--text-base, 14px); }
+#tab-quote-make .sb-rm-head .sb-note { margin-left: 0; }
+#tab-quote-make .sb-rm-panel { order: 2 !important; position: absolute; z-index: 60; top: 44px; right: 0; width: 560px; max-width: 100%; max-height: 60vh; overflow: auto; padding: 10px 12px 12px; border: 1px solid var(--border, #d0d5dd); border-radius: 10px; background: var(--surface, #fff); box-shadow: 0 10px 28px rgba(16, 24, 40, .2); box-sizing: border-box; }
+#tab-quote-make .sb-rm-panel[hidden] { display: none !important; }
+#tab-quote-make .sb-rmp-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+#tab-quote-make .sb-rmp-x { width: 32px; height: 32px; border: 0; background: none; font-size: 16px; cursor: pointer; color: var(--text-sub, #5a6475); }
+#tab-quote-make .sb-rm-panel .rm-tab.sb-zero { display: none !important; }
+#tab-quote-make .sb-rm-panel #remarkTabs { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 4px; margin-bottom: 8px; }
+#tab-quote-make .sb-rm-panel #presetBtns { display: grid !important; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 !important; border: 0 !important; background: none !important; }
+#tab-quote-make .sb-rm-panel #presetBtns > .preset-btn { display: none; }
+#tab-quote-make .sb-rm-panel #presetBtns > .preset-btn.rt-on { display: flex; align-items: center; min-height: 34px; margin: 0; text-align: left; justify-content: flex-start; }
+#tab-quote-make .sb-rm-panel #presetBtns > .preset-btn.active { background: #eef3fb !important; border-color: #bcd0ee !important; }
+#tab-quote-make .sb-rm-panel #presetBtns > .preset-btn.active::after { content: "✓"; margin-left: auto; color: var(--accent, #2f5fb3); font-weight: 700; }
+#tab-quote-make .sb-rm-panel #presetBtns > .preset-tier-label { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="5"] #remarkTextarea { min-height: 120px; resize: vertical; }
+#tab-quote-make .sb-rm-chips { order: 5 !important; display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; }
+#tab-quote-make .sb-rm-chips[hidden] { display: none !important; }
+#tab-quote-make .sb-chip { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border-radius: 13px; background: #eef3fb; color: #1d3f7a; font-size: var(--text-xs, 12px); }
+#tab-quote-make .sb-chip button { width: 22px; height: 22px; border: 0; border-radius: 50%; background: none; color: inherit; cursor: pointer; }
+#tab-quote-make .sb-chip button:hover { background: #d9e5f7; }
+
+/* ======================= スマホ ======================= */
+@media (max-width: 600px) {
+  #sbAside .sb-rh { min-height: 44px; }
+  #tab-quote-make .sb-btn { height: 44px; }
+  #tab-quote-make .sb-btn.sb-more { width: 44px; }
+  .sb-menu .sb-mi { min-height: 44px; }
+  html.editor-v2 #tab-quote-make.sb-on #section-ref #qf-person, html.editor-v2 #tab-quote-make.sb-on #section-ref .qf-ref-row { width: 100%; }
+  html.editor-v2 #tab-quote-make.sb-on #z2Carrier, html.editor-v2 #tab-quote-make.sb-on #cond-hs { max-width: none; }
+  #tab-quote-make .sb-rm-panel { position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto; max-width: none; height: 70vh; max-height: 70vh; border-radius: 14px 14px 0 0; z-index: 1350; }
+  #tab-quote-make .sb-rm-panel #presetBtns > .preset-btn.rt-on { min-height: 44px; }
+  #tab-quote-make .sb-rm-panel #presetBtns { grid-template-columns: 1fr; }
+  html.editor-v2 #tab-quote-make.sb-on[data-e2="5"] #sbAside #e2Out { display: none !important; }
+  html.editor-v2 #tab-quote-make.sb-on #e2Next { font-size: 0 !important; }
+  html.editor-v2 #tab-quote-make.sb-on #e2Next::after { content: "次へ →"; font-size: var(--text-base, 14px); }
+  html.editor-v2 #tab-quote-make.sb-on #e2Steps button:not(.is-on) b { display: none; }
+  html.editor-v2 #tab-quote-make.sb-on [data-field-id="container-type"] .container-chip-grid { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
+  html.editor-v2 #tab-quote-make.sb-on [data-field-id="container-type"] .cc-step { min-width: 44px; min-height: 44px; }
+}
+
+/* ---- 調整（1 回目の確認で直したもの） ---- */
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-cell-ref:has(.qf-ref-row.ci-ref-locked) label #ciRefEdit { display: inline-flex !important; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-cell-ref:not(:has(.qf-ref-row.ci-ref-locked)) label #ciRefEdit { display: none !important; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] [data-field-id="container-type"] { display: block !important; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] [data-field-id="container-type"] > #sbCcCat { float: right; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] #volumeCondGrid > #sbPackHead { grid-column: 1 / -1; }
+html.editor-v2 #tab-quote-make.sb-on[data-e2="3"] #volumeCondGrid { grid-template-columns: 1fr !important; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .ci-cell-ref:has(.ci-ref-locked) > .quote-field > label::after { content: none !important; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .qf-ref-row { position: relative; }
+html.editor-v2 #tab-quote-make.sb-on #section-ref .qf-ref-row.ci-ref-locked::after { content: "（自動）"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: var(--text-xs, 12px); color: #8a94a6; pointer-events: none; }
+@media (max-width: 600px) {
+  html.editor-v2 #tab-quote-make.sb-on #e2Steps { display: flex !important; }
+  html.editor-v2 #tab-quote-make.sb-on #e2Steps > button { flex: 1 1 0; min-width: 0; }
+  html.editor-v2 #tab-quote-make.sb-on #e2Steps > button.is-on { flex: 2.6 1 0; }
+  html.editor-v2 #tab-quote-make.sb-on #e2Steps > button.is-on b { white-space: nowrap; }
+}

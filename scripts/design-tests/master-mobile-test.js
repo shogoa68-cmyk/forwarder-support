@@ -143,8 +143,14 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '小タブ・一覧は隠れる', !(await vis(p, '#tab-master .stats-tabs')) && !(await vis(p, '#statsPane-master')));
     const home = await p.evaluate(() => document.getElementById('mmHome').innerText.replace(/\s+/g, ' '));
     if (role === 'admin') ok(L + '承認待ち 2 件のカード', /承認待ち 2 件/.test(home), home); else ok(L + 'メンバーは「申請中 N件」の 1 行', /申請中 \d+ 件/.test(home) && !/承認待ち \d+ 件/.test(home), home);
-    ok(L + 'ゆらぎ・マスター一覧のカード', /ゆらぎチェック/.test(home) && /マスター一覧/.test(home), home);
+    if (role === 'admin') ok(L + '表記ゆれ・マスター一覧のカード', /表記ゆれチェック/.test(home) && /マスター一覧/.test(home), home); else ok(L + 'メンバーには表記ゆれチェックを出さない（マスター一覧だけ）', !/表記ゆれ/.test(home) && /マスター一覧/.test(home), home);
     ok(L + '横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    ok(L + '[下タブ] 今日やること・マスター・分析の 3 つが下に出て、いまは「今日やること」', await p.evaluate(() => { const b = document.getElementById('ptBar'); if (!b || b.hidden) return false; const bt = [...b.querySelectorAll('button')]; return bt.length === 3 && b.getBoundingClientRect().bottom >= innerHeight - 1 && bt.every(x => x.getBoundingClientRect().height >= 44) && b.querySelector('.is-on').dataset.pt === 'todo'; }));
+    await p.evaluate(() => document.querySelector('#ptBar [data-pt="master"]').click()); await p.waitForTimeout(500);
+    ok(L + '[下タブ] 「マスター」でマスター一覧へ', await p.evaluate(() => document.getElementById('tab-master').classList.contains('mm-view-list') && document.querySelector('#ptBar .is-on').dataset.pt === 'master'));
+    await p.evaluate(() => document.querySelector('#ptBar [data-pt="stats"]').click()); await p.waitForTimeout(500);
+    ok(L + '[下タブ] 「分析」で統計の今日の確認へ（下タブは残る）', await p.evaluate(() => document.getElementById('tab-stats').classList.contains('active') && document.getElementById('tab-stats').classList.contains('sm-view-home') && document.querySelector('#ptBar .is-on').dataset.pt === 'stats'));
+    await p.evaluate(() => document.querySelector('#ptBar [data-pt="todo"]').click()); await p.waitForTimeout(500);
     if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'mm-home-' + role + '.png') });
     if (role === 'admin') {
       await p.click('#mmHome [data-go="req"]'); await p.waitForTimeout(500);
@@ -159,13 +165,14 @@ const http = require('http'), fs = require('fs'), path = require('path');
       await p.click('#mmSheet [data-go]'); await p.waitForTimeout(700);
       ok(L + '却下できた', await p.evaluate(() => window.__db.master_requests.find(x => x.id === 'q2').status === 'rejected'));
       await p.click('[data-ok="q1"]'); await p.waitForTimeout(700);
-      ok(L + '1 タップで承認・トースト', await p.evaluate(() => window.__db.master_requests.find(x => x.id === 'q1').status === 'approved' && !!document.querySelector('.mm-toast')));
+      ok(L + '1 タップで承認・トースト', await p.evaluate(() => window.__db.master_requests.find(x => x.id === 'q1').status === 'approved' && !!document.querySelector('#toast-container > .toast, .mm-toast')));
+      ok(L + '[42-4] 通知は画面の上（左右 12px）', await p.evaluate(() => { const t = document.querySelector('#toast-container > .toast'); if (!t) return false; const r = t.getBoundingClientRect(); return r.top < innerHeight / 2 && Math.abs(r.left - 12) <= 2 && Math.abs(innerWidth - r.right - 12) <= 2; }));
       await p.click('[data-wt="drift"]'); await p.waitForTimeout(600);
-      ok(L + 'ゆらぎ：既存カードが出る', await vis(p, '#driftCard') && !(await vis(p, '#statsPane-master .master-table')));
+      ok(L + '表記ゆれ：既存カードが出る', await vis(p, '#driftCard') && !(await vis(p, '#statsPane-master .master-table')));
       if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'mm-drift.png') });
     }
     await p.evaluate(() => mmShow('home')); await p.click('#mmHome [data-go="list"]'); await p.waitForTimeout(600);
-    ok(L + '一覧：検索・チップが見え、KPI・ゆらぎは隠れる', await vis(p, '#masterSearch') && await vis(p, '.master-filter-chips') && !(await vis(p, '#driftCard')) && !(await vis(p, '.master-kpis')));
+    ok(L + '一覧：検索・チップが見え、KPI・表記ゆれは隠れる', await vis(p, '#masterSearch') && await vis(p, '.master-filter-chips') && !(await vis(p, '#driftCard')) && !(await vis(p, '.master-kpis')));
     await p.click('.master-filter-chip:has-text("サブコン")'); await p.waitForTimeout(400);
     if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'mm-list-' + role + '.png'), fullPage: true });
     const tr = await p.$('#statsPane-master table.master-grid > tbody > tr:not(.master-tag-group-row)');
@@ -177,6 +184,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
       const det = await p.$('#statsPane-master table.master-grid > tbody > tr:not(.master-tag-group-row) td.ops button:not(.master-ops-more)');
       if (det) { await det.click(); await p.waitForTimeout(800); const full = await p.evaluate(() => { const m = document.querySelector('#mdDetailModal .md-modal'); if (!m) return null; const r = m.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), innerWidth, innerHeight]; }); ok(L + '詳細は全画面', !!full && full[0] === full[2] && full[1] === full[3], full); ok(L + '保存バーが見える', await vis(p, '#mdDetailModal .mt-foot')); if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'mm-detail-' + role + '.png') }); }
     }
+    // ===== Design 42-4 =====
+    await p.evaluate(() => { const d = document.getElementById('mdDetailModal'); if (d) window.statsCloseMasterDetail && window.statsCloseMasterDetail(); });
+    await p.evaluate(() => window.statsMasterToggleRegister()); await p.waitForTimeout(300);
+    const reg = await p.evaluate(() => { const m = document.querySelector('#masterNewModal .md-modal'); if (!m) return null; const r = m.getBoundingClientRect(); const ch = [...document.querySelectorAll('#masterNewModal .mm-reg-kind')]; return { bottom: Math.round(r.bottom), w: Math.round(r.width), h: ch.map(c => Math.round(c.getBoundingClientRect().height)), n: ch.length, more: !!document.querySelector('#masterNewModal details.mm-reg-more #masterNewFields'), name: Math.round(document.getElementById('masterNewValue').getBoundingClientRect().height), btn: document.querySelector('#masterNewModal .master-new-btn').textContent }; });
+    ok(L + '[42-4] 新規登録は下から出るシート（幅いっぱい・下端）', reg && reg.bottom >= 844 - 2 && reg.w >= 388, reg);
+    ok(L + '[42-4] 種別は丸いチップ（36px）・名前は 44px・詳細は畳む', reg && reg.n >= 5 && reg.h.every(x => x >= 36) && reg.name >= 44 && reg.more, reg);
+    if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'mm-register-' + role + '.png') });
+    await p.evaluate(() => document.querySelectorAll('#masterNewModal .mm-reg-kind')[1].click());
+    ok(L + '[42-4] チップを押すと種別（select）が変わる', await p.evaluate(() => document.getElementById('masterNewField').value === document.querySelectorAll('#masterNewModal .mm-reg-kind')[1].dataset.v && document.querySelectorAll('#masterNewModal .mm-reg-kind')[1].classList.contains('is-on')));
+    await p.evaluate(() => window.statsMasterCloseRegister());
+    await p.evaluate(() => mmShow('alias')); await p.waitForTimeout(300);
+    ok(L + '[42-4] エイリアス是正はスマホでは案内のカードだけ', await vis(p, '#mmAliasPc') && !(await vis(p, '#statsPane-alias')));
+    await p.evaluate(() => mmShow('home'));
+    const cf = await p.evaluate(async () => { const pr = window.statsMasterRemove('sv', 'テスト運送'); await new Promise(r => setTimeout(r, 200)); const d = document.querySelector('.confirm-dialog'); const t = d ? d.innerText : ''; const ok = d && d.querySelector('.btn-danger') ? d.querySelector('.btn-danger').textContent : ''; const c = d && d.querySelector('.btn-cancel'); if (c) c.click(); await pr; return { t, ok }; });
+    ok(L + '[42-4] 解除の確認に件数・「表記はそのまま残ります」・［解除する］', /をマスターから解除しますか/.test(cf.t) && /この名前を使っている案件：\d+ 件/.test(cf.t) && /そのまま残ります/.test(cf.t) && cf.ok === '解除する', cf);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

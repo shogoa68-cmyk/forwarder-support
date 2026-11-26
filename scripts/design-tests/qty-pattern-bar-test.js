@@ -7,9 +7,9 @@ const OUT=process.env.OUT||require('os').tmpdir()+'/design-tests-out';fs.mkdirSy
 const run=async(p)=>{
  const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify(x)));
  const bar=()=>p.evaluate(()=>{const b=document.getElementById('qtyPatternBar');const h=document.getElementById('hdQtyPat');const tab=document.getElementById('tab-quote-make');const r=b.getBoundingClientRect();return {hidden:b.hidden,shown:b.offsetParent!==null,chips:[...b.querySelectorAll('.qpat-chip')].map(c=>({t:c.textContent.trim(),on:c.classList.contains('is-active')})),hd:h&&!h.hidden?h.textContent:'',qpat:tab.dataset.qpat||'',need:(b.querySelector('.qpat-need')||{}).textContent||'',legend:!!b.querySelector('.qpat-legend'),top:Math.round(r.top)};});
- // パターンが 1 つ：出ない
+ // パターンが 1 つ：タブ（1 つ）と「＋」だけ出す（案を足す入口）。列見出し・要確認・凡例は出さない
  let b0=await bar();
- ok('数量パターンが 1 つだけのときは、切替バーを出さない',b0.hidden&&!b0.shown&&b0.hd===''&&b0.qpat==='',b0);
+ ok('数量パターンが 1 つだけのときは、タブが 1 つと「＋」だけ出る（列見出し・要確認・凡例は出ない）',!b0.hidden&&b0.shown&&b0.chips.length===1&&b0.hd===''&&b0.qpat===''&&!b0.need&&!b0.legend,b0);
  // FCL案／LCL案を作る
  await p.evaluate(()=>{setTransport('fcl');window.createFclLclPatterns();});await p.waitForTimeout(600);
  let b1=await bar();

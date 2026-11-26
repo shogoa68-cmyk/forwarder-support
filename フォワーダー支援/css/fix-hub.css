@@ -1,0 +1,44 @@
+/* 🔧 名前の整理：名寄せの表を 1 行（名前・件数・状態）に畳み、開くと表記の一覧と主ボタン 1 つ（Design 29 案B ①b・js/fix-hub.js） */
+#statsPane-fix .stats-nm-table { display: block; border: 0; }
+#statsPane-fix .stats-nm-table thead { display: none; }
+#statsPane-fix .stats-nm-table tbody { display: block; }
+#statsPane-fix .stats-nm-table tbody > tr { display: grid; grid-template-columns: minmax(0, 1fr) 130px; align-items: center; gap: 0 12px; border: 1px solid var(--border, #d9dee5); border-radius: 10px; background: var(--surface, #fff); margin-bottom: 8px; padding: 6px 12px; }
+#statsPane-fix .stats-nm-table td { display: block; border: 0; padding: 4px 0; }
+#statsPane-fix .stats-nm-table td.stats-chips-cell { grid-column: 1 / -1; display: none; padding: 8px 0 10px 28px; border-top: 1px dashed var(--border, #d9dee5); }
+#statsPane-fix .stats-nm-table tr.fh-open td.stats-chips-cell { display: block; }
+#statsPane-fix .stats-nm-table td.stats-val { font-size: var(--text-base, 14px); cursor: pointer; }
+#statsPane-fix .fh-tog { width: 24px; height: 24px; margin-right: 6px; border: 0; background: none; color: var(--text-muted, #667); cursor: pointer; font-size: var(--text-xs, 12px); }
+#statsPane-fix .fh-st { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: var(--text-xs, 12px); font-weight: 700; white-space: nowrap; }
+#statsPane-fix .fh-st-ok { background: #e3f4e8; color: #1d6a3a; }
+#statsPane-fix .fh-st-new { background: #e4ecfb; color: #24467a; }
+/* 開いたときの操作 */
+#statsPane-fix .fh-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 10px; }
+#statsPane-fix .fh-canon-l { font-size: var(--text-sm, 13px); color: var(--text-muted, #556); }
+#statsPane-fix .fh-canon { min-height: 36px; margin-left: 4px; font: inherit; }
+#statsPane-fix .fh-main { min-height: 40px; padding: 0 18px; border: 0; border-radius: 8px; background: var(--accent, #2c455d); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+#statsPane-fix .fh-more { min-height: 36px; padding: 0 12px; border: 1px solid var(--border, #c8cfd9); border-radius: 8px; background: var(--surface, #fff); font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; }
+/* 細かい操作（☆登録・→別名にする・≠別物 など）は［⋯ その他］の中だけ */
+#statsPane-fix .stats-nm-table tr:not(.fh-more-on) .stats-chip button,
+#statsPane-fix .stats-nm-table tr:not(.fh-more-on) .stats-syn-merge-canon,
+#statsPane-fix .stats-nm-table tr:not(.fh-more-on) .stats-syn-dissolve { display: none !important; }
+/* 実行後のバー（元に戻す） */
+.fh-undo { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 1300; display: flex; align-items: center; gap: 14px; max-width: calc(100vw - 24px); padding: 10px 16px; border-radius: 10px; background: #1f2d3d; color: #fff; font-size: var(--text-sm, 13px); box-shadow: 0 8px 24px rgba(0, 0, 0, .3); }
+.fh-undo button { min-height: 32px; padding: 0 12px; border: 1px solid rgba(255, 255, 255, .5); border-radius: 6px; background: none; color: #fff; font: inherit; cursor: pointer; }
+.fh-undo .fh-undo-x { border: 0; padding: 0 6px; }
+
+/* ===== Design 42-5：スマホの ☆ は 1 つ（押すと下から 2 択） ===== */
+#statsPane-fix .fh-star1 { display: none; }
+@media (max-width: 600px) {
+  #statsPane-fix .stats-nm-table tr.fh-more-on .stats-chip:has(.fh-star1) .stats-vote-btn,
+  #statsPane-fix .stats-nm-table tr.fh-more-on .stats-chip:has(.fh-star1) .stats-syn-star { display: none !important; }
+  #statsPane-fix .stats-nm-table tr.fh-more-on .fh-star1 {
+    display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border: 1px solid #98a2b3; border-radius: 8px;
+    background: var(--surface, #fff); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+}
+#fhStarSheet .fh-star-opts { display: flex; flex-direction: column; gap: 8px; padding: 4px 16px 16px; }
+#fhStarSheet .fh-star-opt { min-height: 44px; text-align: left; padding: 0 14px; border: 1px solid #d0d5dd; border-radius: 8px; background: var(--surface, #fff); font-size: 15px; cursor: pointer; }
+#fhStarSheet .fh-star-opt { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 14px; min-height: 56px; }
+#fhStarSheet .fh-star-opt b { font-size: 15px; }
+#fhStarSheet .fh-star-opt small { font-size: 12px; color: #667085; font-weight: 400; line-height: 1.5; }
+#fhStarSheet .fh-star-opt:disabled { opacity: .65; cursor: not-allowed; background: var(--surface-2, #f2f4f7); }

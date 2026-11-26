@@ -193,6 +193,11 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleIcMode = toggleIcMode;
+  // 貿易条件の値を（イベントなしで）差し替えたあと、全行の適用（貿易条件・表示条件）だけ判定し直す（案ごとの貿易条件で出力するときに使う）
+  window.rowRefreshIncoterms = function () {
+    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => { syncIcUi(tr.id.replace('row-', '')); syncCnUi(tr.id.replace('row-', '')); });
+    recomputeRowValidity();   // 行の「適用期間外／貿易条件外／表示条件外」の印（dataset.outRange）を引き直す
+  };
   // 見積の貿易条件を変えたら、全行の適用を判定し直す
   document.addEventListener('change', e => {
     if (e.target && e.target.id === 'cond-incoterms') {
@@ -213,6 +218,8 @@
     const items = [
       { k: 'qty', label: 'この行の数量', kind: 'num', unit: '' },
       { k: 'pcs', label: '総個数', kind: 'num', unit: '個' },
+      { k: 'kg', label: '総重量（出荷全体）', kind: 'num', unit: 'KGS' },
+      { k: 'cbm', label: '総容積（出荷全体）', kind: 'num', unit: 'M3' },
       { k: 'cnt', label: 'コンテナ本数（合計）', kind: 'num', unit: '本' },
     ];
     const seen = new Set();
@@ -239,10 +246,17 @@
   // 条件に使う「いまの値」。null＝まだ分からない（判定できない）
   function _cnCurrent(k, id) {
     const m = (typeof window.getCargoMetrics === 'function') ? window.getCargoMetrics() : {};
+    // LCL・航空・国内に切り替えたあとは、前に入れたコンテナの本数を「0 本」として判定する（FCL 用の行が残らないように）
+    const notFcl = (typeof window.quoteIsFcl === 'function') && window.quoteIsFcl() === false;
+    if (notFcl && (k === 'cnt' || k.startsWith('cnt:'))) return 0;
     const entries = (typeof window.getContainerEntries === 'function') ? window.getContainerEntries() : [];
     const num = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
-    if (k === 'qty') { const p = document.getElementById(`pq-${id}`)?.value, b = document.getElementById(`bq-${id}`)?.value; return num(p !== '' && p != null ? p : b); }   // 画面の数量欄（pq）。bq は連動する読み取り用
+    // 数量の欄が空なら「まだ分からない」（以前は数量の写し bq の 0 を読み、条件外として合計から黙って外していた）
+    if (k === 'qty') { const p = document.getElementById(`pq-${id}`)?.value; return (p === '' || p == null) ? null : num(p); }
     if (k === 'pcs') return (m.qty > 0) ? m.qty : null;
+    // 総重量・総容積：物量情報（荷姿・貨物明細の合計）。未入力（0）は判定できない。小数の誤差を丸める（KGS は 2 桁・M3 は 3 桁）
+    if (k === 'kg') return (m.kg > 0) ? Math.round(m.kg * 100) / 100 : null;
+    if (k === 'cbm') return (m.cbm > 0) ? Math.round(m.cbm * 1000) / 1000 : null;
     if (k === 'cnt') return entries.length ? entries.reduce((a, e) => a + e.count, 0) : null;
     if (k.startsWith('cnt:')) { if (!entries.length) return null; const e = entries.find(x => x.type === k.slice(4)); return e ? e.count : 0; }
     if (k === 'mode') { const v = (document.getElementById('cond-mode')?.value || '').trim(); return v || null; }
@@ -592,6 +606,12 @@
             });
           }
         });
+        // 統合中の行は塊（統合先＋統合元）ごと動かす
+        expanded.slice().forEach(r => {
+          if (r.dataset.type) return;
+          _unitNodes(r).forEach(n => { if (!addedIds.has(n.id)) { expanded.push(n); addedIds.add(n.id); } });
+        });
+        expanded.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1);
         dragSrcRows = expanded;
       } else {
         dragSrcRows = [tr];   // 小計・リマーク行は常に単独
@@ -838,13 +858,29 @@
       if (chk) chk.checked = false;   // 統合後は選択状態を解除（選択ツールバーの誤操作防止）
     });
 
+    childTrs.forEach(_mergeSnap);
+    // 統合元は統合先の直後にまとめ、サブコン・パターンも統合先に合わせる（統合中は 1 つの塊として動くため）
+    let alignedSv = false;
+    {
+      const psv = document.getElementById('sv-' + parentId)?.value || '', ppt = document.getElementById('pt-' + parentId)?.value || '';
+      let anchorNode = parentTr;
+      getChildRemarks(parentId).forEach(c => { anchorNode = c; });
+      childTrs.forEach(tr => {
+        const cid = tr.id.replace('row-', '');
+        const sEl = document.getElementById('sv-' + cid), tEl = document.getElementById('pt-' + cid);
+        if (sEl && (sEl.value || '') !== psv) { sEl.value = psv; alignedSv = true; }
+        if (tEl && (tEl.value || '') !== ppt) { tEl.value = ppt; alignedSv = true; }
+        [tr, ...getChildRemarks(cid)].forEach(n => { anchorNode.insertAdjacentElement('afterend', n); anchorNode = n; });
+      });
+      if (typeof renderSubconGroups === 'function') renderSubconGroups();
+    }
     refreshMergeBadges();
     updateTotals();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof quoteShowToast === 'function') {
       const label = (document.getElementById('nm-' + parentId)?.value || '').trim() || '（無題）';
       const warn = fxMissing ? '\n⚠️ 為替レート未取得の通貨があり、合算額がずれている可能性があります。確認してください' : '';
-      quoteShowToast('🔗 ' + childTrs.length + ' 行を「' + label + '」へ統合しました' + warn, fxMissing ? 'warn' : 'success', fxMissing ? 6000 : 3500);
+      quoteShowToast('🔗 ' + childTrs.length + ' 行を「' + label + '」へ統合しました（解除するまで 1 つの塊として動きます）' + (alignedSv ? '\n統合元のサブコン・パターンは統合先に合わせました' : '') + warn, fxMissing ? 'warn' : 'success', fxMissing ? 6000 : 3500);
     }
   }
   window.mergeSelectedRows = mergeSelectedRows;
@@ -854,6 +890,7 @@
   function unmergeRow(rowId) {
     const tr = document.getElementById('row-' + String(rowId).replace(/^row-/, ''));
     if (!tr || !tr.dataset.mergedInto) return;
+    _mergeSubtractChild(tr);   // 統合先の合計から、この行の分を差し引く
     delete tr.dataset.mergedInto;
     delete tr.dataset.hideQuote;
     tr.classList.remove('row-hidden-quote', 'row-merged-child');
@@ -945,6 +982,103 @@
   }
   window.refreshMergeBadges = refreshMergeBadges;
 
+  // ========== 統合元の金額を変えたら、統合先へも反映する（連動・2026-11） ==========
+  // 統合先の仕入・乗せ幅は「統合先＋統合元」の合計。統合元の数量・単価・通貨・乗せ幅・MINを変えると、
+  // 変える前後の差（円換算せず統合先の通貨へ換算）を統合先の仕入単価・乗せ幅へ足し引きする。
+  // 差分方式なので、統合後に統合先を手で直していても、その調整は消えない。
+  // 変える前の値は「入力欄に焦点が入った時点」（focusin）と統合した時点で、統合元の行に控える（dataset.mergeContrib）。
+  function _mergeContribOf(tr) {
+    const id = tr.id.replace('row-', '');
+    const pq = val('pq-' + id), pp = val('pp-' + id), bq = val('bq-' + id), bp = val('bp-' + id);
+    return {
+      cost: applyRowMin(pq * pp, id, 'cost'),
+      bill: applyRowMin(bq * bp, id, 'sell'),
+      pc: document.getElementById('pc-' + id)?.value || 'JPY',
+      bc: document.getElementById('bc-' + id)?.value || 'JPY',
+    };
+  }
+  function _mergeSnap(tr) {
+    try { tr.dataset.mergeContrib = JSON.stringify(_mergeContribOf(tr)); } catch (e) {}
+  }
+  function _mergeConv(amount, from, to) {
+    if (from === to) return amount;
+    const a = from === 'JPY' ? 1 : toJPY(1, from), b = to === 'JPY' ? 1 : toJPY(1, to);
+    if (!(a > 0) || !(b > 0) || isNaN(a) || isNaN(b)) return NaN;
+    return amount * a / b;
+  }
+  function syncMergedParent(childTr) {
+    if (!childTr || !childTr.dataset.mergedInto) return;
+    let old; try { old = JSON.parse(childTr.dataset.mergeContrib || 'null'); } catch (e) { old = null; }
+    const now = _mergeContribOf(childTr);
+    if (!old) { childTr.dataset.mergeContrib = JSON.stringify(now); return; }
+    if (old.cost === now.cost && old.bill === now.bill && old.pc === now.pc && old.bc === now.bc) return;
+    return _mergeApplyDelta(childTr, old, now);
+  }
+  // 統合元の寄与が old → now に変わった分（now が 0 なら取り除く）を統合先の仕入単価・乗せ幅へ反映する
+  function _mergeApplyDelta(childTr, old, now) {
+    const parentTr = Array.from(document.querySelectorAll('#tableBody tr[id^="row-"]'))
+      .find(t => !t.dataset.type && (document.getElementById('uid-' + t.id.replace('row-', ''))?.value || t.id.replace('row-', '')) === childTr.dataset.mergedInto);
+    if (!parentTr) return;
+    const pid = parentTr.id.replace('row-', '');
+    const pcEl = document.getElementById('pc-' + pid), bcEl = document.getElementById('bc-' + pid);
+    const ppEl = document.getElementById('pp-' + pid), mkEl = document.getElementById('mk-' + pid);
+    if (!pcEl || !ppEl || !mkEl) return;
+    const pCcy = pcEl.value || 'JPY', bCcy = (bcEl && bcEl.value) || pCcy;
+    if (parentTr.dataset.bcIndep || pCcy !== bCcy) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 統合先の仕入・売の通貨が別になっているため、統合先へは自動で反映しませんでした', 'warn', 4500);
+      childTr.dataset.mergeContrib = JSON.stringify(now);
+      return;
+    }
+    const costD = _mergeConv(now.cost, now.pc, pCcy) - _mergeConv(old.cost, old.pc, pCcy);
+    const billD = _mergeConv(now.bill, now.bc, pCcy) - _mergeConv(old.bill, old.bc, pCcy);
+    if (isNaN(costD) || isNaN(billD)) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 為替レートが未取得の通貨があるため、統合先へは反映できませんでした', 'warn', 4500);
+      return;
+    }
+    const pq = val('pq-' + pid) || 1;
+    const rnd = v => pCcy === 'JPY' ? Math.round(v) : Math.round(v * 100) / 100;
+    ppEl.value = rnd(val('pp-' + pid) + costD / pq);
+    mkEl.value = rnd(val('mk-' + pid) + (billD - costD) / pq);
+    onPay(pid);
+    childTr.dataset.mergeContrib = JSON.stringify(now);
+    updateTotals();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  // 統合解除：その統合元が統合先の合計へ足していた分を、統合先から差し引く（統合先の手調整は残る）
+  function _mergeSubtractChild(childTr) {
+    let old; try { old = JSON.parse(childTr.dataset.mergeContrib || 'null'); } catch (e) { old = null; }
+    if (!old) old = _mergeContribOf(childTr);
+    const r = _mergeApplyDelta(childTr, old, { cost: 0, bill: 0, pc: old.pc, bc: old.bc });
+    delete childTr.dataset.mergeContrib;
+    return r;
+  }
+  window.syncMergedParent = syncMergedParent;
+  (function wireMergeSync() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody || tbody.dataset.mergeSyncWired) return;
+    tbody.dataset.mergeSyncWired = '1';
+    const childOf = e => { const tr = e.target && e.target.closest && e.target.closest('tr[id^="row-"]'); return tr && tr.dataset.mergedInto ? tr : null; };
+    tbody.addEventListener('focusin', e => { const tr = childOf(e); if (tr) _mergeSnap(tr); });
+    const run = e => { const tr = childOf(e); if (tr) syncMergedParent(tr); };
+    tbody.addEventListener('input', run);
+    tbody.addEventListener('change', run);
+    // 統合中の行のサブコン・パターンを変えたら、塊の全員に合わせる（別グループに分かれて塊が崩れないように）
+    tbody.addEventListener('change', e => {
+      const f = e.target && e.target.dataset && e.target.dataset.field;
+      if (f !== 'sv' && f !== 'pt') return;
+      const tr = e.target.closest('tr[id^="row-"]');
+      if (!tr || tr.dataset.type || !_mergeKeyOf(tr)) return;
+      const v = e.target.value;
+      let changed = false;
+      _unitNodes(tr).forEach(n => {
+        if (n.dataset.type || n === tr) return;
+        const el = document.getElementById(f + '-' + n.id.replace('row-', ''));
+        if (el && el.value !== v) { el.value = v; changed = true; }
+      });
+      if (changed && typeof renderSubconGroups === 'function') renderSubconGroups();
+    });
+  })();
+
   // 明細行を同一グループ内で並べ替え（右カラム ジャンプタブのドラッグ用）。
   // グループ跨ぎ（サブコン/パターンが異なる移動）はテーブル本体のドラッグと同じく禁止し false を返す。
   // 同一グループ（サブコン正規化キー＋パターン内側キー）に属するかを判定。
@@ -965,10 +1099,12 @@
     const tgt = document.getElementById('row-' + String(targetRowId).replace(/^row-/, ''));
     if (!src || !tgt || src === tgt) return false;
     if (!canMoveTableRowWithinGroup(srcRowId, targetRowId)) return false;
-    // src に付随する子リマーク行も一緒に運ぶ。挿入位置は tgt の前／後。
+    // src に付随する子リマーク行（統合中なら統合先・統合元の塊ごと）も一緒に運ぶ。挿入位置は tgt（の塊）の前／後。
     // （仮想行スキップは不要：renderSubconGroups が直後に仮想行を再構築するため）
-    const block = [src, ...getChildRemarks(src.id.replace('row-', ''))];
-    const anchor = placeAfter ? tgt.nextSibling : tgt;
+    const block = _unitNodes(src);
+    if (block.includes(tgt)) return false;
+    const tgtUnit = _unitNodes(tgt);
+    const anchor = placeAfter ? tgtUnit[tgtUnit.length - 1].nextSibling : tgtUnit[0];
     block.forEach(node => { tbody.insertBefore(node, anchor); });
     updateTotals();
     renderSubconGroups();
@@ -1038,6 +1174,29 @@
     return { at, by, name, when, text: [when, name].filter(Boolean).join(' ') };
   }
   window.rowDoneInfo = rowDoneInfo;
+  // 日時とユーザー（メール）を「11/13 14:05」「山田太郎」の形にする（類似案件のプレビューでも使う）
+  window.rowDoneFormat = function (at, by) {
+    const when = _doneWhen(at), name = _doneNameOf(by);
+    return { when, name, text: [when, name].filter(Boolean).join(' ') };
+  };
+  // 類似案件から行をインポートしたとき、引用元で「入力完了」が押されていた日時・ユーザー・案件名を、
+  // この行に「引用元の入力完了」として持つ（data-src-done-at／-by／-from）。この案件ではまだ確認していない行なので、
+  // 入力完了マーク自体は付けない。インポートした人が内容の鮮度（いつ確認された情報か）を判断するための情報。
+  // 自分で「入力完了」を押す（＝この案件で確認した）と、この記録は自分の記録に置き換わって消える。
+  function rowSrcDoneInfo(tr) {
+    if (!tr || !tr.dataset.srcDoneAt) return null;
+    const f = window.rowDoneFormat(tr.dataset.srcDoneAt, tr.dataset.srcDoneBy || '');
+    if (!f.when && !f.name) return null;
+    const from = tr.dataset.srcFrom || '';
+    return { at: tr.dataset.srcDoneAt, by: tr.dataset.srcDoneBy || '', from, when: f.when, name: f.name, text: f.text,
+             tip: '引用元の入力完了：' + f.text + (from ? '（案件「' + from + '」）' : '') + '\nこの案件ではまだ確認していません。内容を確かめて「入力完了」を押すと、この記録は自分の記録に置き換わります。' };
+  }
+  window.rowSrcDoneInfo = rowSrcDoneInfo;
+  function _clearSrcDone(tr) {
+    delete tr.dataset.srcDoneAt; delete tr.dataset.srcDoneBy; delete tr.dataset.srcFrom;
+    tr.classList.remove('row-src-done');
+  }
+  window.rowClearSrcDone = _clearSrcDone;
   // 完了ボタンの吹き出し（title）を、いまの状態に合わせる
   function _syncDoneBtn(tr) {
     const btn = tr && tr.querySelector('.row-done-btn');
@@ -1059,6 +1218,7 @@
       delete tr.dataset.done; delete tr.dataset.doneAt; delete tr.dataset.doneBy;
       tr.classList.remove('row-input-done');
     } else {
+      _clearSrcDone(tr);
       tr.dataset.done = '1';
       tr.dataset.doneAt = new Date().toISOString();
       const me = _doneMe();
@@ -1244,6 +1404,13 @@
       const reg = r.st === 'master';
       const detBtn = hdr.querySelector('.sv-hdr-detail');
       const bmBtn = hdr.querySelector('.sv-hdr-bm');
+      // マスター登録済みのサブコンだけ：このサブコンのメール（見積）を取り込む（読み取りルールはマスター詳細に保存）
+      const impBtn = hdr.querySelector('.sv-hdr-import');
+      if (impBtn) {
+        impBtn.hidden = !reg;
+        impBtn.dataset.canon = reg ? r.canon : '';
+        if (reg) impBtn.title = 'サブコン「' + r.canon + '」からのメール（見積）を取り込み、このサブコンの明細に追加します（読み取りルールを覚えさせられます）';
+      }
       if (detBtn) {
         detBtn.hidden = !reg;
         detBtn.dataset.canon = reg ? r.canon : '';
@@ -1256,6 +1423,14 @@
           if (!gEl) { gEl = document.createElement('span'); gEl.className = 'sv-hdr-group'; detBtn.after(gEl); }
           gEl.textContent = '🏢 ' + grp; gEl.title = '所属グループ：' + grp; gEl.hidden = false;
         } else if (gEl) gEl.hidden = true;
+        // 役割（マスターのサブコン種別：FCL CARRIER／通関／国内陸送など）を見出しに小さく出す（読み取り表示のみ・マスターの値）
+        const types = grec && grec.details && Array.isArray(grec.details.svTypes) ? grec.details.svTypes.map(t => String(t).trim()).filter(Boolean) : [];
+        let rEl = hdr.querySelector('.sv-hdr-role');
+        if (types.length) {
+          if (!rEl) { rEl = document.createElement('span'); rEl.className = 'sv-hdr-role'; (hdr.querySelector('.sv-hdr-group') || detBtn).after(rEl); }
+          rEl.textContent = types.slice(0, 2).join('・') + (types.length > 2 ? ' ほか' + (types.length - 2) : '');
+          rEl.title = 'サブコンの役割（マスターの種別）：' + types.join('・'); rEl.hidden = false;
+        } else if (rEl) rEl.hidden = true;
       }
       if (bmBtn) {
         const rec = reg && typeof window.mdGetCanon === 'function' ? window.mdGetCanon('sv', v) : null;
@@ -1470,6 +1645,32 @@
 
   function moveRow(tr, dir) {
     const tbody = document.getElementById('tableBody');
+    if (!tr.dataset.type && tr.id) {   // 明細行：統合中の塊も 1 つの単位として動かす
+      const unit = _unitNodes(tr);
+      const rowOf = n => (n.dataset.type === 'remark' && n.dataset.parentId) ? document.getElementById('row-' + n.dataset.parentId) : n;
+      if (dir < 0) {
+        let prev = unit[0].previousElementSibling;
+        while (prev && unit.includes(prev)) prev = prev.previousElementSibling;
+        while (prev?.dataset?.virtual) prev = prev.previousElementSibling;
+        if (prev) {
+          const pu = _unitNodes(rowOf(prev) || prev);
+          const anchor = pu[0];
+          unit.forEach(n => tbody.insertBefore(n, anchor));
+        }
+      } else {
+        let next = unit[unit.length - 1].nextElementSibling;
+        while (next && unit.includes(next)) next = next.nextElementSibling;
+        while (next?.dataset?.virtual) next = next.nextElementSibling;
+        if (next) {
+          const nu = _unitNodes(rowOf(next) || next);
+          const anchor = unit[0];
+          nu.forEach(n => tbody.insertBefore(n, anchor));
+        }
+      }
+      updateTotals();
+      renderSubconGroups();
+      return;
+    }
     // 詳細行の場合は子リマーク（data-parent-id が一致するリマーク行）を連動させる
     const rowId = tr.dataset.type ? null : tr.id.replace('row-', '');
     const children = rowId ? getChildRemarks(rowId) : [];
@@ -1664,7 +1865,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi','ins'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -1867,7 +2068,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi','ins']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -1891,7 +2092,13 @@
     if (icBtn) icBtn.onclick = () => toggleIcMode(id);
     const cnBtn = frag.querySelector('.cn-mode-btn');
     if (cnBtn) cnBtn.onclick = () => toggleCnMode(id);
-    ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => calc(id); });
+    const insBtn = frag.querySelector('.ins-mode-btn');
+    if (insBtn) insBtn.onclick = () => toggleInsMode(id);
+    { const g = frag.querySelector('.ins-group');
+      if (g) { g.querySelectorAll('.ins-v,.ins-k,.ins-r,.ins-m').forEach(e => { e.oninput = () => _calcIns(id); });
+      g.querySelectorAll('.ins-iv').forEach(e => { e.onchange = () => { _calcIns(id); }; });
+               const c = g.querySelector('.ins-c'); if (c) { c.innerHTML = curOpts(initCur); c.onchange = () => _calcIns(id); } } }
+    ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => { calc(id); _recalcPctDependents(id); }; });   // 売の最低料金が変わると、この行を基準にした % 行も変わる
     const rangeBtn = frag.querySelector('.range-mode-btn');
     if (rangeBtn) rangeBtn.onclick = () => toggleRangeMode(id);
     { const el = q('bphi'); if (el) el.oninput = () => calc(id); }   // 幅（売単価の上限）
@@ -1911,6 +2118,10 @@
     if (pprateEl) pprateEl.oninput = () => _calcPct(id);
     const ppbaseEl = frag.querySelector('[data-field="ppbase"]');
     if (ppbaseEl) ppbaseEl.oninput = () => _calcPct(id);
+    const pickBtn = frag.querySelector('.ppref-pick');
+    if (pickBtn) pickBtn.onclick = e => { e.stopPropagation(); pprefStartPick(id); };
+    const whereBtn = frag.querySelector('.ppref-where-go');
+    if (whereBtn) whereBtn.onclick = e => { e.stopPropagation(); pprefShowRef(id); };
     const pprefSelEl = frag.querySelector('.w-ppref');
     if (pprefSelEl) {
       pprefSelEl.id = `pprefsel-${id}`;
@@ -1935,13 +2146,15 @@
     if (initSv) q('sv').value = initSv;
 
     // Event handlers
-    q('cat').onchange  = () => { onCatChange(id); updateTotals(); };  // 期間外判定・合計を即反映
+    q('cat').onchange  = () => { onCatChange(id); updateTotals(); _insAutoOn(id); };  // 期間外判定・合計を即反映
     // ユーザーが課税チェックを直接操作したら、以後はマスターの既定課税区分による自動追従をしない
     q('tx').onchange   = () => { const r = document.getElementById(`row-${id}`); if (r) r.dataset.txUserSet = '1'; toggleTax(id); };
     q('tx').onkeydown  = e  => { if (e.key === 'Enter') { e.preventDefault(); e.target.checked = !e.target.checked; const r = document.getElementById(`row-${id}`); if (r) r.dataset.txUserSet = '1'; toggleTax(id); } };
     q('nm').oninput    = () => checkUnfilled(id);
-    q('pq').oninput    = () => { _recordPatternQty(id); onPay(id); };
-    q('pc').onchange   = () => onPay(id);
+    // 他の行を基準にした % 行は、基準額がこの行の数量・仕入通貨しだいで変わる（参照行の金額 ÷ この行の数量・通貨換算）ため計算し直す
+    const _isRefPct = () => !!document.getElementById(`ppref-${id}`)?.value && document.getElementById(`row-${id}`)?.classList.contains('row-pct-mode');
+    q('pq').oninput    = () => { _recordPatternQty(id); if (_isRefPct()) _calcPct(id); else onPay(id); };
+    q('pc').onchange   = () => { if (_isRefPct()) _calcPct(id); else if (document.getElementById(`row-${id}`)?.classList.contains('row-ins-mode')) _calcIns(id); else onPay(id); };
     q('pp').oninput    = () => {
       if (_isSellMode(id)) { _calcFromSell(id); _recalcPctDependents(id); return; }   // 売値ベース：仕入入力→乗せ幅を算出
       onPay(id);
@@ -2131,6 +2344,7 @@
       }
       _updateBpBaseHint(id);
       calc(id);
+      _recalcPctDependents(id);   // この行を基準にした % 行は、売通貨が変わると換算も変わる
     }
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
@@ -2203,6 +2417,21 @@
     // 独立モードなら仕入単価を売通貨へ換算し 10 単位で切り捨てた値。
     // 売値ベースモードでは売単価そのものが入力値のため上書きしない
     if (bpEl && !_isSellMode(id)) bpEl.value = _addPrice(parseFloat(bpEl.dataset.base) || 0, mk);
+    // PROFIT SHARE：代理店へ仕入の金額（最低料金を含む）を返す扱い。売には数字を入れない（売単価 0・売の小計 0）
+    // → 行の利益は −仕入（例：−EUR 40）で、社内利益（PS込み）から差し引く。売値ベースの入力値は toggleProfitShare が控えて戻す
+    // 仕入が 0 で乗せ幅（売）に金額がある PS の行は「代理店から受け取る」＝売をそのままプラスで計上する
+    {
+      const trP = document.getElementById(`row-${id}`);
+      if (bpEl && psPayMode(id)) {
+        if (trP && _isSellMode(id) && trP.dataset.psPrevBp == null && (parseFloat(bpEl.value) || 0)) trP.dataset.psPrevBp = bpEl.value;
+        bpEl.value = 0;
+      } else if (bpEl && trP && trP.dataset.psPrevBp != null && _isSellMode(id)) {
+        // 仕入を 0 にした（受け取る側に変わった）・PS を外した：控えた売単価を戻し、乗せ幅を算出し直す
+        bpEl.value = trP.dataset.psPrevBp; delete trP.dataset.psPrevBp;
+        const mkEl = document.getElementById(`mk-${id}`), pcv = document.getElementById(`pc-${id}`)?.value || 'JPY';
+        if (mkEl) { const raw = val(`bp-${id}`) - val(`pp-${id}`); mkEl.value = pcv === 'JPY' ? Math.round(raw) : Math.round(raw * 100) / 100; }
+      }
+    }
     const bp = val(`bp-${id}`);
     const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
     const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
@@ -2214,6 +2443,7 @@
       const trM = document.getElementById(`row-${id}`);
       syncIcUi(id);   // 適用する貿易条件の見た目（復元した行・貿易条件を変えた直後も）
       syncCnUi(id);   // 表示条件の見た目・判定の説明
+      syncInsUi(id);  // 保険料の計算の見た目・説明
       const hasMin = (parseFloat(document.getElementById(`ppmin-${id}`)?.value) || 0) > 0 ||
                      (parseFloat(document.getElementById(`bpmin-${id}`)?.value) || 0) > 0;
       if (trM) {
@@ -2346,24 +2576,35 @@
     // その場合は円換算後の差額のみを正として表示し、無意味な生の差は出さない。
     const ccyMismatch = pc !== bc;
     const isFx = canFx && (bc !== 'JPY' || pc !== 'JPY') && (subtotal || profit);
-    if (ccyMismatch && canFx) {
+    // 仕入側だけミニマム（最低料金）が入っていて、売値側のミニマムが空の行（PROFIT SHARE など売が未確定のもの）：
+    // 売の小計（数量×売単価）と仕入のミニマムを引き算しても意味のある利益にならない（数量しだいで赤字に見える）ため、
+    // 利益・粗利率は計算せず「—」にする。仕入のミニマムは従来どおり仕入側に効く（costAmt）。合計・診断など他の集計は従来どおり
+    const _ppminV = parseFloat(document.getElementById(`ppmin-${id}`)?.value) || 0;
+    const _bpminV = parseFloat(document.getElementById(`bpmin-${id}`)?.value) || 0;
+    const noProfitCalc = _ppminV > 0 && !(_bpminV > 0) && document.getElementById(`ps-${id}`)?.value !== '1';   // PS の行は −仕入 をそのまま利益に出す
+    if (trEl0) { if (noProfitCalc) trEl0.dataset.noProfit = '1'; else delete trEl0.dataset.noProfit; }
+    if (noProfitCalc) {
+      pr.innerHTML = '<div class="pr-main">—</div>';
+      pr.className = 'profit-cell profit-zero';
+      pr.title = '仕入側だけミニマムが設定されていて、売値側のミニマムが空のため、利益・粗利率は計算しません';
+    } else if (ccyMismatch && canFx) {
       const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(costAmt, pc));
       const jpySub = toJPY(subtotal, bc);
       // 粗利率（Industry のみ表示）は 3 段目に分ける（2 段目は 1 行で、並べると換算の注記が切れるため）
       const rate = jpySub > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (jpyProfit / jpySub * 100).toFixed(1) + '%</small></div>' : '';
       pr.innerHTML = '<div class="pr-main">≈¥' + fmt(jpyProfit) + '</div>' +
         '<div class="pr-sub"><small class="jpy-conv-hint" title="仕入（' + pc + '）と売（' + bc + '）の通貨が異なるため、円換算後の差額のみを表示しています">円換算後</small></div>' + rate;
-      pr.className = `profit-cell ${pClass(jpyProfit)}`;
+      pr.className = `profit-cell ${pClass(jpyProfit)}`; pr.title = '';
     } else if (isFx) {
       const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(costAmt, pc));
       const rate = subtotal > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (profit / subtotal * 100).toFixed(1) + '%</small></div>' : '';
       pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div><div class="pr-sub"><small class="jpy-conv-hint">(≈¥' + fmt(jpyProfit) + ')</small></div>' + rate;
-      pr.className = `profit-cell ${pClass(profit)}`;
+      pr.className = `profit-cell ${pClass(profit)}`; pr.title = '';
     } else {
       // 粗利率（Industry のみ表示。classic は .pr-rate を CSS で隠す）
       const rate = subtotal > 0 ? ' <small class="pr-rate">粗利 ' + (profit / subtotal * 100).toFixed(1) + '%</small>' : '';
       pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div>' + (rate ? '<div class="pr-sub">' + rate + '</div>' : '');
-      pr.className = `profit-cell ${pClass(profit)}`;
+      pr.className = `profit-cell ${pClass(profit)}`; pr.title = '';
     }
     window._rowStateRefresh?.(trEl0);
     scheduleUpdateTotals();
@@ -2408,7 +2649,12 @@
     if (!psEl) return;
     psEl.value = psEl.value === '1' ? '' : '1';
     if (psEl.value === '1') _clearRowFlagsExcept(id, 'ps');
+    // 売値ベースの行は売単価が手入力のため、PS の間は控えておき、外したときに戻す（連動の行は calc が仕入＋乗せ幅で作り直す）
+    const tr = document.getElementById(`row-${id}`), bpEl = document.getElementById(`bp-${id}`);
+    if (tr && bpEl && _isSellMode(id) && psEl.value !== '1' && tr.dataset.psPrevBp != null) { bpEl.value = tr.dataset.psPrevBp; delete tr.dataset.psPrevBp; }   // 控えるのは calc（返す側のとき）
+    if (psEl.value !== '1' && _isSellMode(id)) _calcFromSell(id);   // 乗せ幅を戻した売単価から算出し直す
     calc(id);
+    _recalcPctDependents(id);
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleProfitShare = toggleProfitShare;
@@ -2484,9 +2730,193 @@
   window.toggleRangeMode = toggleRangeMode;
 
   // ========== % 計算モード ==========
+  // ========== 保険料の計算（保険カテゴリの行・2026-11） ==========
+  // 保険料 ＝ 貨物価額（インボイス金額・通貨を選べる）× 保険価額率（既定 110%）× 保険料率（%）
+  // 結果をこの行の仕入単価（pp・仕入通貨）に入れる。売単価は従来どおり 仕入＋乗せ幅。最低保険料は仕入の MIN（ppmin）。
+  // 入力値は行の隠し欄 ins-<id> に JSON {v:貨物価額, c:通貨, k:保険価額率, r:料率} で持つ（保存・複製・貼り付けは他の欄と同じ）。
+  function rowInsGet(id) {
+    const raw = document.getElementById(`ins-${id}`)?.value || '';
+    if (!raw) return null;
+    try { const o = JSON.parse(raw); return (o && typeof o === 'object') ? o : null; } catch (e) { return null; }
+  }
+  window.rowInsGet = rowInsGet;
+  // 御見積書に表記する「インボイス価格」（保険料の計算がONで、貨物価額が入っていて、表記がONの行だけ）。{ c:通貨, v:金額 } か null
+  function rowInsInvoice(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr || !tr.classList.contains('row-ins-mode')) return null;
+    const o = rowInsGet(id);
+    if (!o || o.iv === 0 || o.iv === '0' || o.iv === false) return null;
+    const v = parseFloat(o.v);
+    if (!(v > 0)) return null;
+    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    return { c: o.c || pc, v };
+  }
+  window.rowInsInvoice = rowInsInvoice;
+  // 表記の文面：「インボイス価格 5,000,000円として」「インボイス価格 USD 50,000として」／英語「Based on invoice value of USD 50,000」
+  window.insInvoiceText = function (inv, en) {
+    if (!inv) return '';
+    const n = (inv.c === 'JPY' ? Math.round(inv.v) : Math.round(inv.v * 100) / 100)
+      .toLocaleString(en ? 'en-US' : 'ja-JP', { maximumFractionDigits: inv.c === 'JPY' ? 0 : 2 });
+    if (en) return `Based on invoice value of ${inv.c} ${n}`;
+    return inv.c === 'JPY' ? `インボイス価格 ${n}円として` : `インボイス価格 ${inv.c} ${n}として`;
+  };
+  function _insRoundPremium(x, ccy) {
+    // 保険料は 1 円（外貨は小数 2 桁）の端数を切り上げる（計算タブの「保険料計算」と同じ慣行）
+    return ccy === 'JPY' ? Math.ceil(x - 1e-9) : Math.ceil(x * 100 - 1e-9) / 100;
+  }
+  // 計算：{ insured（保険価額・貨物価額の通貨）, premium（仕入通貨）, premSrc（貨物価額の通貨のままの保険料）, ok, reason }
+  function _insCompute(id) {
+    const o = rowInsGet(id) || {};
+    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    const v = parseFloat(o.v), r = parseFloat(o.r);
+    const k = (o.k === '' || o.k === undefined || o.k === null) ? 110 : parseFloat(o.k);
+    const c = o.c || pc;
+    if (!(v > 0) || !(r > 0) || !(k > 0)) return { ok: false, reason: 'incomplete', c, pc, v, k, r };
+    const insured = v * k / 100;
+    const premSrc = insured * r / 100;
+    const conv = _convCur(premSrc, c, pc);
+    if (!isFinite(conv)) return { ok: false, reason: 'fx', c, pc, v, k, r, insured, premSrc };
+    const premium = _insRoundPremium(conv, pc);
+    // マージン方式：実際の保険料＝売、マージン（保険料の m%）＝乗せ幅、仕入＝保険料−マージン。m が空・0 なら従来どおり（仕入＝保険料）
+    const m = Math.min(Math.max(parseFloat(o.m) || 0, 0), 100);
+    const margin = m > 0 ? (pc === 'JPY' ? Math.round(premium * m / 100) : Math.round(premium * m) / 100) : 0;
+    const cost = (m > 0) ? Math.round((premium - margin) * 100) / 100 : premium;
+    return { ok: true, c, pc, v, k, r, m, insured, premSrc, premium, margin, cost };
+  }
+  function _insFmt(x, ccy) {
+    const n = ccy === 'JPY' ? Math.round(x) : Math.round(x * 100) / 100;
+    return n.toLocaleString('ja-JP', { maximumFractionDigits: ccy === 'JPY' ? 0 : 2 });
+  }
+  function _insReadUi(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return null;
+    const g = sel => tr.querySelector(sel);
+    const o = { v: g('.ins-v')?.value ?? '', c: g('.ins-c')?.value || '', k: g('.ins-k')?.value ?? '', r: g('.ins-r')?.value ?? '', m: g('.ins-m')?.value ?? '', iv: g('.ins-iv')?.checked === false ? 0 : 1 };
+    const el = document.getElementById(`ins-${id}`);
+    if (el) el.value = JSON.stringify(o);
+    return o;
+  }
+  // 入力のたびに計算して仕入単価に入れる（入力が足りないあいだは仕入単価を上書きしない）
+  function _calcIns(id) {
+    _insReadUi(id);
+    const res = _insCompute(id);
+    if (res.ok) {
+      const ppEl = document.getElementById(`pp-${id}`);
+      if (ppEl) ppEl.value = res.cost;
+      { const mkEl = document.getElementById(`mk-${id}`);
+        if (mkEl) {
+          if (res.m > 0) mkEl.value = res.margin;   // マージン方式：乗せ幅も自動
+          else if (mkEl.dataset.insLocked === '1') mkEl.value = 0;   // マージン率を 0 に戻した：自動で入れていた乗せ幅も外す（仕入＝保険料に戻るのに、前の乗せ幅が残って売が膨らむのを防ぐ）
+        } }
+      onPay(id);     // calc → syncInsUi（説明を更新）
+    } else {
+      syncInsUi(id);
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.rowInsCalc = _calcIns;
+  // 行の見た目（ボタンの ON/OFF・仕入単価の読み取り専用・説明）を値に合わせる。復元・複製・値の変更のたびに呼ばれる（軽い処理・値は計算しない）
+  function syncInsUi(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const o = rowInsGet(id);
+    if (o) tr.classList.add('row-ins-mode');
+    const on = tr.classList.contains('row-ins-mode');
+    tr.querySelector('.ins-mode-btn')?.classList.toggle('is-on', on);
+    const ppEl = document.getElementById(`pp-${id}`);
+    if (ppEl) {
+      const lock = on && !tr.classList.contains('row-pct-mode');
+      if (ppEl.dataset.insLocked === '1' && !lock) { ppEl.readOnly = false; ppEl.setAttribute('data-col', '4'); delete ppEl.dataset.insLocked; }
+      if (lock) { ppEl.readOnly = true; ppEl.removeAttribute('data-col'); ppEl.dataset.insLocked = '1'; }
+    }
+    // マージン方式（マージン率が入っているあいだ）は乗せ幅も計算結果なので読み取り専用にする。外れたら元に戻す
+    {
+      const mkEl = document.getElementById(`mk-${id}`);
+      if (mkEl) {
+        const lockMk = on && (parseFloat((o || {}).m) || 0) > 0;
+        if (lockMk) { mkEl.readOnly = true; mkEl.dataset.insLocked = '1'; }
+        else if (mkEl.dataset.insLocked === '1') { mkEl.readOnly = false; delete mkEl.dataset.insLocked; }
+      }
+    }
+    if (!on) return;
+    const g = sel => tr.querySelector(sel);
+    // 復元した行：保存された値を入力欄へ（入力中の欄は触らない）
+    if (o && !tr._insFilled) {
+      const set = (sel, v) => { const e = g(sel); if (e && v !== undefined && v !== null && document.activeElement !== e) e.value = v; };
+      set('.ins-v', o.v); set('.ins-k', (o.k === '' || o.k === undefined) ? 110 : o.k); set('.ins-r', o.r); set('.ins-m', o.m);
+      { const iv = g('.ins-iv'); if (iv) iv.checked = !(o.iv === 0 || o.iv === '0' || o.iv === false); }   // 見積書にインボイス価格を表記（保存値が無い旧データは ON）
+      const c = g('.ins-c'); if (c && o.c) { if (![...c.options].some(op => op.value === o.c)) c.add(new Option(o.c, o.c)); c.value = o.c; }
+      tr._insFilled = true;
+    }
+    const hint = g('.ins-hint');
+    if (hint) {
+      const res = _insCompute(id);
+      let txt = '', warn = false;
+      if (res.ok) {
+        txt = `保険価額 ${res.c} ${_insFmt(res.insured, res.c)}（貨物価額 ${_insFmt(res.v, res.c)} × ${res.k}%）→ 保険料 ${res.c} ${_insFmt(res.premSrc, res.c)}（${res.r}%）`;
+        if (res.c !== res.pc) txt += ` ≈ ${res.pc} ${_insFmt(res.premium, res.pc)}`;
+        txt += res.m > 0
+          ? `　→ 売 ${res.pc} ${_insFmt(res.premium, res.pc)}／マージン ${res.m}% ${res.pc} ${_insFmt(res.margin, res.pc)}／仕入 ${res.pc} ${_insFmt(res.cost, res.pc)}`
+          : '　→ 仕入単価に反映';
+      } else if (res.reason === 'fx') { txt = '⚠ 為替レートが未取得のため通貨を換算できません（仕入単価は変えていません）'; warn = true; }
+      else { txt = '貨物価額と保険料率を入れると、保険料を仕入単価に自動で入れます（解除は「🛡️ 保険料」をもう一度押す）'; }
+      if (hint.textContent !== txt) hint.textContent = txt;
+      hint.classList.toggle('is-warn', warn);
+    }
+  }
+  window.syncInsUi = syncInsUi;
+  function toggleInsMode(id, force) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const on = (force === undefined) ? !tr.classList.contains('row-ins-mode') : !!force;
+    if (on === tr.classList.contains('row-ins-mode')) return;
+    if (on && (tr.classList.contains('row-pct-mode') || _isSellMode(id))) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('「%」または「売値ベース」がONのため、保険料の計算は使えません。先に解除してください', 'warning');
+      return;
+    }
+    tr.classList.toggle('row-ins-mode', on);
+    const el = document.getElementById(`ins-${id}`);
+    if (!on) {
+      if (el) el.value = '';
+      delete tr._insFilled;
+    } else {
+      // 通貨は仕入通貨を初期値に。保険価額率は 110%
+      const c = tr.querySelector('.ins-c');
+      if (c && !c.value) c.value = document.getElementById(`pc-${id}`)?.value || 'JPY';
+      const k = tr.querySelector('.ins-k'); if (k && k.value === '') k.value = 110;
+      const mg = tr.querySelector('.ins-m'); if (mg && mg.value === '') mg.value = 10;   // マージン率の初期値（実際の保険料の 10%）
+      _insReadUi(id);
+      tr._insFilled = true;
+    }
+    syncInsUi(id);
+    if (on) {
+      if (window.rowDetailToggle && !tr.querySelector('.ins-group')?.offsetParent) window.rowDetailToggle(tr, true);
+      setTimeout(() => { const v = tr.querySelector('.ins-v'); if (v && v.offsetParent) v.focus(); }, 0);
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleInsMode = toggleInsMode;
+  // 保険料カテゴリを選んだとき（手で変えたときだけ・復元では呼ばない）：仕入単価が未入力で、他のモードを使っていなければ保険料の計算を ON にして入力欄を出す
+  function _insAutoOn(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr || document.getElementById(`cat-${id}`)?.value !== 'insurance') return;
+    if (tr.classList.contains('row-ins-mode') || tr.classList.contains('row-pct-mode') || _isSellMode(id)) return;
+    if ((parseFloat(document.getElementById(`pp-${id}`)?.value) || 0) > 0) return;
+    toggleInsMode(id, true);
+  }
+  // 為替レートを変えたとき・仕入通貨を変えたとき、保険料の行を計算し直す（入力が揃っている行だけ）
+  function recalcInsRows() {
+    document.querySelectorAll('#tableBody tr.row-ins-mode[id^="row-"]:not([data-virtual])').forEach(tr => {
+      const rid = tr.id.replace('row-', '');
+      if (_insCompute(rid).ok) _calcIns(rid); else syncInsUi(rid);
+    });
+  }
+  window.recalcInsRows = recalcInsRows;
+
   function togglePctMode(id) {
     const tr = document.getElementById(`row-${id}`);
     if (!tr) return;
+    if (!tr.classList.contains('row-pct-mode') && tr.classList.contains('row-ins-mode')) { if (typeof quoteShowToast === 'function') quoteShowToast('「保険料の計算」がONのため、%計算は使えません。先に解除してください', 'warning'); return; }
     const on = !tr.classList.contains('row-pct-mode');
     _setPctModeUI(id, on);
     const ppmode = document.getElementById(`ppmode-${id}`);
@@ -2529,6 +2959,23 @@
     if (!on && ppbaseEl2) ppbaseEl2.readOnly = false;
   }
 
+  // 参照行（「○○の ○%」の ○○）の金額を、この行の 1 単位あたりの基準額にして返す（この行の仕入通貨建て）。
+  //   参照行の小計（数量×売単価。ミニマムがあれば適用後）を、この行の数量で割る。
+  //   ・この行の数量が参照行の数量と同じなら、従来どおり「参照行の売単価」と同じ値（1 単位あたりの % ）
+  //   ・この行が 1 件（JOB・AWB など）で参照行が 500 C/W なら、参照行の「金額」そのものが基準（A/F の 5% など）
+  //   以前は参照行の売単価（1.95 EUR）をそのまま円として 5% にし、0.0975 円→0 円になっていた（数量も通貨も無視）。
+  //   通貨が違うときは、この行の仕入通貨へ換算する（為替が未取得で換算できないときは null）
+  function _pctRefBase(id, refId) {
+    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    const refBc = document.getElementById(`bc-${refId}`)?.value || 'JPY';
+    const refQty = val(`bq-${refId}`) || val(`pq-${refId}`);
+    const refAmt = applyRowMin(refQty * val(`bp-${refId}`), refId, 'sell');
+    const myQty = val(`pq-${id}`);
+    const per = refAmt / (myQty > 0 ? myQty : 1);
+    const conv = _convCur(per, refBc, pc);
+    return isFinite(conv) ? conv : null;
+  }
+
   function _calcPct(id) {
     const rate = val(`pprate-${id}`);
     const pprefUid = document.getElementById(`ppref-${id}`)?.value;
@@ -2536,9 +2983,10 @@
     if (pprefUid) {
       const refId = _findRowIdByUid(pprefUid);
       if (refId !== null) {
-        base = val(`bp-${refId}`);   // 参照行の売値（売単価）を基準額とする
+        base = _pctRefBase(id, refId);
+        if (base === null) return;   // 為替が未取得で換算できない：仕入単価を 0 などで上書きしない
         const ppbaseEl = document.getElementById(`ppbase-${id}`);
-        if (ppbaseEl) { ppbaseEl.value = base; ppbaseEl.readOnly = true; }
+        if (ppbaseEl) { ppbaseEl.value = Math.round(base * 100) / 100; ppbaseEl.readOnly = true; }
       } else {
         base = val(`ppbase-${id}`);
       }
@@ -2552,6 +3000,14 @@
     if (ppEl) ppEl.value = computed;
     onPay(id);
   }
+  // 為替レートを変えたとき、他の行を基準にしている % 行を計算し直す（外から呼ぶ）
+  window.recalcPctRows = function () {
+    recalcInsRows();   // 保険料の行（貨物価額の通貨 → 仕入通貨）も為替の変更に追従
+    document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-virtual])').forEach(tr => {
+      const rid = tr.id.replace('row-', '');
+      if (document.getElementById(`ppref-${rid}`)?.value && tr.classList.contains('row-pct-mode')) _calcPct(rid);
+    });
+  };
 
   // 保存データ復元時に conditions.js から呼び出す
   function _restorePctMode(id) {
@@ -2626,6 +3082,7 @@
     const modeEl = document.getElementById(`ppmode-${id}`);
     if (!tr || !modeEl) return;
     const toast = (m, t) => { if (typeof quoteShowToast === 'function') quoteShowToast(m, t || 'info', 4500); };
+    if (!_isSellMode(id) && tr.classList.contains('row-ins-mode')) { toast('「保険料の計算」がONのため、売値ベースは使えません。先に解除してください', 'warning'); return; }
     if (_isSellMode(id)) {
       const ppEl = document.getElementById(`pp-${id}`);
       const mkEl = document.getElementById(`mk-${id}`);
@@ -2676,6 +3133,151 @@
     return null;
   }
 
+  // 参照行の見分けやすい名前：「品名（サブコン／パターン）」＝同じ品名が複数あっても区別できる
+  function _pprefLabel(rowId) {
+    const nm = document.getElementById(`nm-${rowId}`)?.value?.trim() || `行 ${rowId}`;
+    const sv = document.getElementById(`sv-${rowId}`)?.value?.trim() || '', pt = document.getElementById(`pt-${rowId}`)?.value?.trim() || '';
+    const where = [sv, pt].filter(Boolean).join('／');
+    return where ? `${nm}（${where}）` : nm;
+  }
+  // 参照先の表示（行の中の「参照：…」と 📍 ボタン）を更新
+  function _syncPprefWhere(id) {
+    const tr = document.getElementById(`row-${id}`);
+    const box = tr && tr.querySelector('.ppref-where');
+    if (!box) return;
+    const uid = document.getElementById(`ppref-${id}`)?.value || '';
+    const refId = uid ? _findRowIdByUid(uid) : null;
+    const txt = box.querySelector('.ppref-where-txt');
+    if (!uid) { box.hidden = true; if (txt) txt.textContent = ''; return; }
+    box.hidden = false;
+    if (txt) txt.textContent = refId ? '参照：' + _pprefLabel(refId) : '参照先の行が見つかりません';
+    box.classList.toggle('is-missing', !refId);
+  }
+  function _flashRow(tr) {
+    if (!tr) return;
+    try { tr.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+    tr.classList.remove('ppref-flash'); void tr.offsetWidth; tr.classList.add('ppref-flash');
+    setTimeout(() => tr.classList.remove('ppref-flash'), 2200);
+  }
+  // ％の基準として他の行から指定されている行に「％の参照元」の印を出す（品名の下）
+  let _pctRefRaf = 0;
+  function refreshPctRefBadges() {
+    _pctRefRaf = 0;
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr[id^="row-"]')).filter(t => !t.dataset.type && !t.dataset.virtual);
+    const users = {};   // 参照元 uid → それを基準にしている行の id 一覧
+    rows.forEach(t => {
+      const id = t.id.replace('row-', '');
+      const ref = document.getElementById('ppref-' + id)?.value;
+      if (ref && t.classList.contains('row-pct-mode')) (users[ref] = users[ref] || []).push(id);
+    });
+    rows.forEach(t => {
+      const id = t.id.replace('row-', '');
+      const nmEl = document.getElementById('nm-' + id);
+      if (!nmEl) return;
+      let badge = t.querySelector('.row-pctref-badge');
+      const uid = document.getElementById('uid-' + id)?.value;
+      const list = (uid && users[uid]) || [];
+      t.classList.toggle('is-pct-ref', list.length > 0);
+      if (!list.length) { if (badge) badge.remove(); return; }
+      if (!badge) {
+        badge = document.createElement('button');
+        badge.type = 'button';
+        badge.className = 'row-pctref-badge';
+        const anchor = t.querySelector('.row-merge-badge') || nmEl;
+        anchor.insertAdjacentElement('afterend', badge);
+        badge.addEventListener('click', e => {
+          e.stopPropagation();
+          (badge._users || []).forEach((uid2, i) => { const r = document.getElementById('row-' + uid2); if (r) { if (i === 0) r.scrollIntoView({ block: 'center', behavior: 'smooth' }); r.classList.remove('ppref-flash'); void r.offsetWidth; r.classList.add('ppref-flash'); setTimeout(() => r.classList.remove('ppref-flash'), 2200); } });
+        });
+      }
+      badge._users = list;
+      badge.textContent = '％の参照元 ×' + list.length;
+      badge.title = 'この行は、次の行の％の基準額として使われています（押すと表で光らせます）：\n' + list.map(i => '・' + _pprefLabel(i)).join('\n');
+    });
+  }
+  function schedulePctRefBadges() { if (!_pctRefRaf) _pctRefRaf = requestAnimationFrame(refreshPctRefBadges); }
+  window.refreshPctRefBadges = refreshPctRefBadges;
+  (function wirePctRefBadges() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody || tbody.dataset.pctRefWired) return;
+    tbody.dataset.pctRefWired = '1';
+    tbody.addEventListener('change', schedulePctRefBadges);
+    tbody.addEventListener('input', e => { const f = e.target && e.target.dataset && e.target.dataset.field; if (f === 'nm' || f === 'sv' || f === 'pt') schedulePctRefBadges(); });
+    tbody.addEventListener('click', schedulePctRefBadges);   // ％ボタン・削除など
+    new MutationObserver(schedulePctRefBadges).observe(tbody, { childList: true });
+    setTimeout(schedulePctRefBadges, 0);
+  })();
+
+  function pprefShowRef(id) {
+    const uid = document.getElementById(`ppref-${id}`)?.value || '';
+    const refId = uid ? _findRowIdByUid(uid) : null;
+    if (!refId) { if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 参照先の行が見つかりません', 'warn', 2500); return; }
+    const tr = document.getElementById('row-' + refId);
+    if (tr && tr.offsetParent === null && typeof expandAllGroups === 'function') { try { expandAllGroups(); } catch (e) {} }
+    _flashRow(document.getElementById('row-' + refId));
+  }
+  window.pprefShowRef = pprefShowRef;
+
+  // 明細テーブルの行を直接クリックして、％の基準にする行を選ぶ
+  let _pprefPick = null;
+  function pprefEndPick() {
+    if (!_pprefPick) return;
+    const { onClick, onKey, banner } = _pprefPick;
+    document.removeEventListener('click', onClick, true);
+    document.removeEventListener('keydown', onKey, true);
+    document.body.classList.remove('ppref-picking');
+    document.querySelectorAll('#tableBody tr.ppref-cand, #tableBody tr.ppref-self').forEach(r => r.classList.remove('ppref-cand', 'ppref-self'));
+    if (banner) banner.remove();
+    _pprefPick = null;
+  }
+  function pprefStartPick(id) {
+    if (_pprefPick) pprefEndPick();
+    const selfTr = document.getElementById(`row-${id}`);
+    if (!selfTr) return;
+    // 統合元の行は統合先の中身なので選べない
+    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(r => {
+      if (r.dataset.type || r.dataset.virtual) return;
+      if (r === selfTr) r.classList.add('ppref-self');
+      else if (!r.dataset.mergedInto) r.classList.add('ppref-cand');
+    });
+    document.body.classList.add('ppref-picking');
+    const banner = document.createElement('div');
+    banner.id = 'pprefBanner';
+    banner.innerHTML = '<span>🎯 「' + String(_pprefLabel(id)).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])) + '」の％の基準にする明細行を、表の中でクリックしてください</span><button type="button" class="ppref-cancel">やめる（Esc）</button>';
+    (document.getElementById('tab-quote-make') || document.body).appendChild(banner);
+    banner.querySelector('.ppref-cancel').onclick = () => pprefEndPick();
+    const onClick = e => {
+      if (e.target.closest && e.target.closest('#pprefBanner')) return;
+      const tr = e.target.closest && e.target.closest('#tableBody tr[id^="row-"]');
+      if (!tr || tr.dataset.type || tr.dataset.virtual) return;   // 表の外・見出し行などは通常の操作のまま
+      e.preventDefault(); e.stopPropagation();
+      if (tr === selfTr) { if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 自分自身は基準にできません。ほかの行を選んでください', 'warn', 2500); return; }
+      if (tr.dataset.mergedInto) { if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 統合元の行は選べません（統合先の行を選んでください）', 'warn', 3000); return; }
+      const rid = tr.id.replace('row-', '');
+      const uid = document.getElementById(`uid-${rid}`)?.value;
+      if (!uid) return;
+      if (document.getElementById(`ppref-${rid}`)?.value === document.getElementById(`uid-${id}`)?.value) {
+        if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ その行はこの行を基準にしているため選べません（循環になります）', 'warn', 3500);
+        return;
+      }
+      const hid = document.getElementById(`ppref-${id}`);
+      if (hid) hid.value = uid;
+      pprefEndPick();
+      _populatePprefSelect(id);
+      _onPprefChange(id);
+      if (typeof quoteShowToast === 'function') quoteShowToast('🎯 基準を「' + _pprefLabel(rid) + '」にしました', 'success', 3000);
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); pprefEndPick(); } };
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('keydown', onKey, true);
+    _pprefPick = { onClick, onKey, banner };
+  }
+  window.pprefStartPick = pprefStartPick;
+  window.pprefEndPick = pprefEndPick;
+
   function _populatePprefSelect(id) {
     const sel = document.getElementById(`pprefsel-${id}`);
     const hid = document.getElementById(`ppref-${id}`);
@@ -2688,15 +3290,16 @@
       if (rowId === String(id)) return;
       const uid = tr.querySelector('[data-field="uid"]')?.value;
       if (!uid) return;
-      const nm = document.getElementById(`nm-${rowId}`)?.value?.trim() || `行 ${rowId}`;
       const opt = document.createElement('option');
       opt.value = uid;
-      opt.textContent = nm;
+      opt.textContent = _pprefLabel(rowId);
       sel.appendChild(opt);
     });
     sel.value = savedUid;
     const ppbaseEl = document.getElementById(`ppbase-${id}`);
     if (ppbaseEl) ppbaseEl.readOnly = !!sel.value;
+    _syncPprefWhere(id);
+    schedulePctRefBadges();
   }
   window._populatePprefSelect = _populatePprefSelect;
 
@@ -2704,7 +3307,9 @@
     const pprefUid = document.getElementById(`ppref-${id}`)?.value;
     const ppbaseEl = document.getElementById(`ppbase-${id}`);
     if (ppbaseEl) ppbaseEl.readOnly = !!pprefUid;
+    _syncPprefWhere(id);
     _calcPct(id);
+    schedulePctRefBadges();
   }
 
   function _recalcPctDependents(changedId) {
@@ -2850,7 +3455,9 @@
         const mk = (window.SharedCalc ? SharedCalc.grossMarginPct(internalBill, totCostJPY + psCostJPY) : 0);
         const revEl = document.getElementById('tot-ps-rev');
         const prEl  = document.getElementById('tot-ps-profit');
-        if (revEl) revEl.textContent = '¥' + fmt(Math.round(psBillJPY));
+        if (revEl) { const n = Math.round(psBillJPY - psCostJPY); revEl.textContent = (n < 0 ? '−' : n > 0 ? '＋' : '') + '¥' + fmt(Math.abs(n)); }   // 代理店へ返す＝マイナス／代理店から受け取る＝プラス
+        const lblEl = document.getElementById('tot-ps-label');
+        if (lblEl) lblEl.textContent = psCostJPY && psBillJPY ? 'PS（代理店との精算）' : psCostJPY ? 'PS（代理店へ返す）' : 'PS（代理店から受け取る）';
         if (prEl) {
           prEl.innerHTML = '¥' + fmt(Math.round(internalProfit)) + `<small class="tot-margin">粗利 ${mk.toFixed(1)}%</small>`;
           prEl.className = `profit-cell pr-cell ${pClass(internalProfit)}`;
@@ -2984,6 +3591,33 @@
 
   // 明細行 id の直後に続く「子リマーク行」を順に返す。
   // data-parent-id が id に一致するリマーク行のみ対象（連続している間だけ）。
+  // ========== 統合中の行は「ブロック」で動く（統合を解除するまで・2026-11） ==========
+  // 統合先（親）と統合元（子）とそれぞれのリマーク行を 1 つの塊として扱う。
+  // どの行を動かしても（ドラッグ・▲▼・右パネルのドラッグ）塊ごと動く。
+  function _mergeKeyOf(row) {
+    if (!row || row.dataset.type || !row.id) return '';
+    if (row.dataset.mergedInto) return row.dataset.mergedInto;
+    const id = row.id.replace('row-', '');
+    const uid = document.getElementById('uid-' + id)?.value || id;
+    return document.querySelector('#tableBody tr[data-merged-into="' + (window.CSS && CSS.escape ? CSS.escape(uid) : uid) + '"]') ? uid : '';
+  }
+  function _unitNodes(row) {
+    if (!row) return [];
+    if (row.dataset.type || !row.id) return [row];
+    const key = _mergeKeyOf(row);
+    const rows = key
+      ? Array.from(document.querySelectorAll('#tableBody tr[id^="row-"]')).filter(r => {
+          if (r.dataset.type || r.dataset.virtual) return false;
+          if (r.dataset.mergedInto === key) return true;
+          return (document.getElementById('uid-' + r.id.replace('row-', ''))?.value || r.id.replace('row-', '')) === key && !r.dataset.mergedInto;
+        })
+      : [row];
+    const nodes = [];
+    rows.forEach(r => { nodes.push(r); getChildRemarks(r.id.replace('row-', '')).forEach(c => nodes.push(c)); });
+    return nodes;
+  }
+  window._mergeUnitNodes = _unitNodes;
+
   function getChildRemarks(parentId) {
     const result = [];
     const parentRow = document.getElementById(`row-${parentId}`);
@@ -3391,6 +4025,107 @@
     }
   }
   window.duplicatePatternGroup = duplicatePatternGroup;
+
+  // ===== サブコン別明細をまるごと複製（見出しの「📋 複製」） =====
+  // サブコン別グループは明細行のサブコン欄で決まるため、同じ名前のまま複製すると同じグループに合流してしまう。
+  // そこで複製先のサブコン名を聞き、複製した明細のサブコン欄をその名前にして、元のグループの直後に置く。
+  // パターン名・子リマーク行・サブコン別／パターン別の注記はそのまま引き継ぐ（客先表示名は元の会社の名前なので引き継がない）。
+  // 入力完了の記録は引き継がない（duplicateRow と同じ＝この行はまだ確認していない）。
+  function _dupSubconName(svKey, label) {
+    const base = label || 'サブコン';
+    const used = new Set(_realRows().map(tr => subconNormKey(_rowSubcon(tr) ?? '')).filter(Boolean));
+    let n = 2, cand = `${base}（コピー）`;
+    while (used.has(subconNormKey(cand))) cand = `${base}（コピー${n++}）`;
+    return cand;
+  }
+  function duplicateSubconGroup(svKey, newName) {
+    const name = String(newName || '').trim();
+    if (!name) { if (typeof quoteShowToast === 'function') quoteShowToast('複製先のサブコン名を入力してください', 'warn'); return null; }
+    const newKey = subconNormKey(name);
+    if (newKey === svKey) { if (typeof quoteShowToast === 'function') quoteShowToast('元と同じサブコン名には複製できません（同じ枠に合流してしまいます）。別の名前を入れてください', 'warn', 4000); return null; }
+    const srcIds = _groupMemberRows(svKey, '').map(tr => tr.id.replace('row-', ''));
+    if (!srcIds.length) return null;
+    const merge = _realRows().some(tr => subconNormKey(_rowSubcon(tr) ?? '') === newKey);
+    const savedScrollY = window.scrollY;
+
+    // 元のグループの最後（子リマーク行を含む）の後ろへ、複製した行を順に並べる
+    const lastSrcId = srcIds[srcIds.length - 1];
+    const lastKids = getChildRemarks(lastSrcId);
+    let tail = lastKids.length ? lastKids[lastKids.length - 1] : document.getElementById(`row-${lastSrcId}`);
+    const newIds = [];
+    srcIds.forEach(srcId => {
+      const newId = duplicateRow(srcId);
+      newIds.push(newId);
+      const nr = document.getElementById(`row-${newId}`);
+      if (!nr || !tail) return;
+      [nr, ...getChildRemarks(newId)].forEach(node => { tail.parentNode.insertBefore(node, tail.nextSibling); tail = node; });
+      const svEl = document.getElementById(`sv-${newId}`);
+      if (svEl) svEl.value = name;
+    });
+
+    // サブコン別・パターン別の注記を引き継ぐ（複製先にまだ無いときだけ）
+    if (svKey !== _UNSET_KEY) Object.keys(_subconRemark).forEach(k => {
+      const m = k === svKey ? '' : (k.startsWith(svKey + '||') ? k.slice(svKey.length) : null);
+      if (m === null) return;
+      const dst = newKey + m;
+      if (!_subconRemark[dst]) _subconRemark[dst] = Object.assign({}, _subconRemark[k]);
+    });
+
+    renderSubconGroups();
+    window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+    if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
+    if (typeof updateTotals === 'function') updateTotals();
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    if (typeof quoteShowToast === 'function') {
+      quoteShowToast('📋 「' + (svKey === _UNSET_KEY ? '（サブコン未設定）' : (_rowSubcon(document.getElementById('row-' + srcIds[0])) || svKey)) + '」の明細 ' + newIds.length + ' 行を「' + name + '」として複製しました' +
+        (merge ? '（同じ名前の既存の枠に合流しました）' : ''), 'success', 4000);
+    }
+    const newHdr = Array.from(document.querySelectorAll('#tableBody tr.subcon-group-header')).find(h => h.dataset.svKey === newKey);
+    if (newHdr) {
+      newHdr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      newHdr.classList.add('grp-flash');
+      setTimeout(() => newHdr.classList.remove('grp-flash'), 1200);
+    }
+    return newIds;
+  }
+  // 「📋 複製」：複製先のサブコン名を小さな吹き出しで聞く（初期値は「○○（コピー）」・全選択なので、そのまま打てば置き換わる）
+  function openDupSubconGroup(svKey, label, anchor) {
+    document.getElementById('sfPop')?.remove();
+    const cnt = _groupMemberRows(svKey, '').length;
+    const pop = document.createElement('div');
+    pop.id = 'sfPop'; pop.className = 'sf-pop sf-pop-dup'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'サブコン別明細を複製');
+    pop.innerHTML =
+      '<div class="sf-pop-t">「' + _escHdr(label || '（サブコン未設定）') + '」の明細を複製</div>' +
+      '<div class="sf-pop-d">明細 ' + cnt + ' 行をまるごとコピーして、新しいサブコンの枠をつくります。複製先のサブコン名を入れてください（あとから見出しや各行で変えられます）。</div>' +
+      '<div class="sf-pop-row"><input type="text" class="sf-pop-in" list="svSuggestions" autocomplete="off" maxlength="40" placeholder="複製先のサブコン名（例：別の船会社）">' +
+      '<button type="button" class="sf-pop-ok">複製する</button></div>';
+    document.body.appendChild(pop);
+    const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: 24, top: 100, bottom: 120 };
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+    { const h = pop.offsetHeight, vh = window.innerHeight;
+      let top = r.bottom + 6;
+      if (top + h > vh - 8) top = (r.top - h - 6 >= 8) ? r.top - h - 6 : Math.max(8, vh - h - 8);
+      pop.style.top = Math.max(8, Math.min(top, vh - h - 8)) + 'px'; }   // ボタンが画面外でも、吹き出しは画面内に出す
+    const inp = pop.querySelector('.sf-pop-in');
+    inp.value = _dupSubconName(svKey, label);
+    const close = () => { pop.remove(); document.removeEventListener('pointerdown', onOut, true); document.removeEventListener('keydown', onKey, true); };
+    const ok = () => {
+      const v = inp.value.trim();
+      if (!v) { inp.focus(); return; }
+      if (subconNormKey(v) === svKey) { duplicateSubconGroup(svKey, v); inp.focus(); inp.select(); return; }
+      close(); duplicateSubconGroup(svKey, v);
+    };
+    const onOut = e => { if (!pop.contains(e.target) && e.target !== anchor) close(); };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    pop.querySelector('.sf-pop-ok').addEventListener('click', ok);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); ok(); } });
+    setTimeout(() => { document.addEventListener('pointerdown', onOut, true); document.addEventListener('keydown', onKey, true); }, 0);
+    inp.focus(); inp.select();
+  }
+  window.duplicateSubconGroup = duplicateSubconGroup;
+  window.openDupSubconGroup = openDupSubconGroup;
 
 
   // ===== パターン入力：幹線輸送の航路チップ（POL→via→POD、サブコン=キャリア除く）をサジェスト =====
@@ -3959,15 +4694,18 @@
             // 設定済みのときは名前の右に「→ 客先表示名」を出す（これもクリックで変更）。入力欄は編集中だけ出す
             `<span class="subcon-group-label subcon-alias-trigger" role="button" tabindex="0" title="クリックで客先表示名を設定・変更（客先向けの出力で、このサブコンの小計に出る名前。空欄ならサブコン名のまま）">📦 ${_escHdr(label)}</span>` +
             `<span class="subcon-alias-view subcon-alias-trigger" role="button" tabindex="0" hidden title="客先向けの出力に出る名前。クリックで変更"></span>` +
-            `<input type="text" class="subcon-alias-input" hidden placeholder="客先表示名（空欄＝サブコン名のまま）" value="${_escAttr(_subconAlias[key] || '')}" />` +
+            `<input type="text" class="subcon-alias-input" hidden placeholder="客先表示名（空欄＝御見積書にサブコン名を出さない）" value="${_escAttr(_subconAlias[key] || '')}" />` +
             `<span class="subcon-group-count">${count} 行</span>` +
             `<button type="button" class="sv-master-chip" hidden></button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-detail" hidden>📇 詳細</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-bm" hidden>🔖 BOOKMARK</button>` +
+            `<button type="button" class="sv-hdr-btn sv-hdr-import" hidden>📥 取り込み</button>` +
+            `<button type="button" class="sv-hdr-btn sv-hdr-past"${key === _UNSET_KEY ? ' hidden' : ''} title="このサブコンの過去の明細（ほかの案件で使った費用の行）を右のパネルに出します。そこから選んで挿入できます">🕘 過去の明細</button>` +
+            `<button type="button" class="sv-hdr-btn sv-hdr-dup" title="このサブコンの明細をまるごと複製して、別のサブコン名の枠をつくります（例：別の船会社で同じ明細の見積をつくる）">📋 複製</button>` +
             // 客先表示名・サブコン別リマークの入力は、この見出しの行内に置く（以前はグループ末尾の小計行にあった）
             `<span class="hdr-notes">` +
               `<span class="hdr-note hdr-note-remark" title="このサブコンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF）にも表示されます。">` +
-                `<i>📝 サブコン別リマーク</i>` +
+                `<i>📝 このサブコンへの注記</i>` +
                 `<input type="text" class="subcon-remark-input" placeholder="このサブコンへの注記（任意）" value="${_escAttr((_subconRemark[key] || {}).text || '')}" />` +
                 `<button type="button" class="subcon-remark-toggle${(_subconRemark[key] || { show: true }).show ? ' is-shown' : ''}" ` +
                   `title="${(_subconRemark[key] || { show: true }).show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する'}">` +
@@ -3975,11 +4713,12 @@
               `</span>` +
             `</span>` +
             `<span class="subcon-group-sum"></span>` +
+            `<span class="subcon-group-cm"></span>` +
             `<button type="button" class="subcon-group-excl${excluded ? ' is-excluded' : ''}" ` +
               `title="見積もりへの含める/除外を切り替え">${excluded ? '含む' : '除外'}</button>` +
             `<button type="button" class="subcon-group-add-btn" ` +
               `data-sv="${_escAttr(key === _UNSET_KEY ? '' : label)}" ` +
-              `title="${_escAttr(label)} に行を追加">＋</button>` +
+              `title="${_escAttr(label)} に明細（費用の行）を追加">＋ 明細を追加</button>` +
             `<button type="button" class="subcon-group-sort-btn" title="このグループ内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
             `</div>` +
           `</td>`;
@@ -3999,6 +4738,19 @@
           e.stopPropagation();
           const canon = e.currentTarget.dataset.canon || label;
           if (canon && typeof window.mdShowDetailPopup === 'function') window.mdShowDetailPopup('sv', canon);
+        });
+        hdr.querySelector('.sv-hdr-import').addEventListener('click', e => {
+          e.stopPropagation();
+          const canon = e.currentTarget.dataset.canon;
+          if (canon && typeof window.openImportChooser === 'function') window.openImportChooser(canon);
+        });
+        hdr.querySelector('.sv-hdr-past').addEventListener('click', e => {
+          e.stopPropagation();
+          if (typeof window.siFocusSubcon === 'function') window.siFocusSubcon(label, { reset: true });
+        });
+        hdr.querySelector('.sv-hdr-dup').addEventListener('click', e => {
+          e.stopPropagation();
+          openDupSubconGroup(key, key === _UNSET_KEY ? '' : label, e.currentTarget);
         });
         hdr.querySelector('.sv-hdr-bm').addEventListener('click', e => {
           e.stopPropagation();
@@ -4219,7 +4971,7 @@
               const _ptNotesHtml = !_ptHasNotes ? '' :
                 `<span class="hdr-notes hdr-notes--pt">` +
                   `<span class="hdr-note hdr-note-remark" title="このパターンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF・メール）にも表示されます。">` +
-                    `<i>📝 パターン別リマーク</i>` +
+                    `<i>📝 このパターンへの注記</i>` +
                     `<input type="text" class="subcon-remark-input" placeholder="このパターンへの注記（任意）" value="${_escAttr(_remarkObj.text || '')}" />` +
                     `<button type="button" class="subcon-remark-toggle${_remarkObj.show ? ' is-shown' : ''}" ` +
                       `title="${_remarkObj.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する'}">` +
@@ -4320,6 +5072,7 @@
       window.refreshAllRowSvChips();   // サブコン見出しの「サブコン未登録」の印・明細行の「サブコン詳細」
     } finally {
       _inGroupRender = false;
+      try { updateFrameHint(); } catch (e) {}
       // DOM 再構築後にスクロール位置を復元（パターン変更時のページトップへの強制移動を防ぐ）
       // 比較のために window.scrollY を読み直すと再び強制レイアウトが走るため、
       // スクロールしている場合だけ無条件に戻す（0 のときは何もしない＝初回読込は無コスト）
@@ -4638,6 +5391,7 @@
     const flushSc = () => {
       const ttl = scMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
       if (scSumEl) { const s = Math.round(scSell); scSumEl.textContent = s ? rgYen(scSell, scSell + scHi, scMixed ? '※' : '') : ''; _wbrRange(scSumEl); scSumEl.title = ttl; }
+      if (scSumEl) { const cm = scSumEl.parentNode && scSumEl.parentNode.querySelector('.subcon-group-cm'); if (cm) { const sl = Math.round(scSell), t = sl ? '仕入 ¥' + fmt(Math.round(scCost)) + '・粗利 ' + ((scSell - scCost) / scSell * 100).toFixed(1) + '%' + (scMixed ? '※' : '') : ''; if (cm.textContent !== t) cm.textContent = t; } }
       if (scSubRow) writeSub(scSubRow, scSell, scCost, scMixed, scHi);
     };
     const resetPt = () => { ptSell = 0; ptCost = 0; ptMixed = false; ptHi = 0; };
@@ -4699,6 +5453,7 @@
     });
     flushCat();
     flushSc();
+    if (typeof window.gbSync === 'function') window.gbSync();   // 見出しの金額のまとまり（Design 43・新画面）を写す
   }
 
   function _escHdr(s) {
@@ -4749,7 +5504,179 @@
     }
     renderSubconGroups();
     setTimeout(() => document.getElementById(`nm-${newId}`)?.focus(), 40);
+    return newId;
   }
+  // ===== サブコンの「枠」を先につくる（その中へ明細を入れ子で入力する流れ） =====
+  // サブコン別グループは明細行のサブコン欄から作られる仮想の見出しなので、枠＝最初の 1 行にサブコン名を入れたもの。
+  // 未入力で空の行（サブコン・品名・金額が空）があればそれを使い、無ければ新しい行を作る。
+  // すでに同名のサブコンがあるときは、そのグループの末尾へ明細行を足す。
+  function _isBlankRow(tr) {
+    const id = tr.id.replace('row-', '');
+    const g = f => (document.getElementById(`${f}-${id}`)?.value || '').trim();
+    return !g('sv') && !g('nm') && !(parseFloat(g('pp')) || 0) && !(parseFloat(g('bp')) || 0) && !g('pt');
+  }
+  // opts.cat＝新しくつくった行に入れるカテゴリ（ルートのサブコンから足すとき。カテゴリが空の行だけ）
+  function addSubconFrame(name, opts) {
+    const sv = String(name || '').trim();
+    if (!sv) { if (typeof quoteShowToast === 'function') quoteShowToast('サブコン名を入力してください', 'warn'); return null; }
+    const tbody = document.getElementById('tableBody');
+    const real = Array.from(tbody.querySelectorAll('tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
+    const exists = real.some(tr => subconNormKey(_rowSubcon(tr) ?? '') === subconNormKey(sv));
+    const blank = exists ? null : real.find(_isBlankRow);
+    // 空の行を使うときはカテゴリが空のときだけ、新しくつくった行（直前の行のカテゴリを引き継いでいる）は入れ替える
+    const setCat = (id, force) => {
+      const cat = opts && opts.cat, el = id && document.getElementById(`cat-${id}`);
+      if (!cat || !el || (el.value && !force) || ![...el.options].some(o => o.value === cat)) return;
+      el.value = cat; if (typeof onCatChange === 'function') onCatChange(id);
+    };
+    if (blank) {
+      const id = blank.id.replace('row-', '');
+      const svEl = document.getElementById(`sv-${id}`);
+      if (svEl) { svEl.value = sv; svEl.dispatchEvent(new Event('change', { bubbles: true })); }
+      if (!exists) setCat(id);
+      renderSubconGroups();
+      setTimeout(() => document.getElementById(`nm-${id}`)?.focus(), 40);
+      return id;
+    }
+    const nid = addRowToSubconGroup(sv, '');
+    if (!exists && nid) { setCat(nid, true); renderSubconGroups(); }
+    return nid || true;
+  }
+  // ② ルートで入力したサブコン（conditions.js routeSubcons）のうち、表にまだ枠が無いもの／あるもの
+  function _routeSvState() {
+    const list = (typeof window.routeSubcons === 'function') ? window.routeSubcons() : [];
+    const have = new Set(_realRows().map(tr => subconNormKey(_rowSubcon(tr) ?? '')).filter(Boolean));
+    return list.map(x => Object.assign({}, x, { added: have.has(subconNormKey(x.name)) }));
+  }
+  // 候補のボタン群（明細が無いときの案内と「＋ サブコンを追加」の吹き出しで共用）
+  const _sfEsc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function _routeSvHtml() {
+    const st = _routeSvState();
+    if (!st.length) return '';
+    const left = st.filter(x => !x.added);
+    return '<div class="sf-rt"><div class="sf-rt-h">ルートで入力したサブコンから選ぶ' +
+      (left.length >= 2 ? `<button type="button" class="sf-rt-all">ルートのサブコンをすべて追加（${left.length}社）</button>` : '') + '</div>' +
+      '<div class="sf-rt-list">' + st.map((x, i) =>
+        `<button type="button" class="sf-rt-chip${x.added ? ' is-added' : ''}" data-i="${i}"${x.added ? ' disabled title="すでに表に枠があります"' : ` title="「${_sfEsc(x.name)}」の枠をつくる"`}>` +
+        `<span class="sf-rt-side sf-rt-${x.side}">${x.sideLabel}</span><span class="sf-rt-name">${_sfEsc(x.name)}</span>` +
+        (x.added ? '<span class="sf-rt-ok">✓ 追加済み</span>' : '<span class="sf-rt-plus">＋</span>') + '</button>').join('') +
+      '</div></div>';
+  }
+  function _wireRouteSv(root, after) {
+    const st = _routeSvState();
+    root.querySelectorAll('.sf-rt-chip:not(.is-added)').forEach(b => b.addEventListener('click', () => {
+      const x = st[+b.dataset.i]; if (!x) return;
+      if (after) after();
+      addSubconFrame(x.name, { cat: x.cat });
+    }));
+    const all = root.querySelector('.sf-rt-all');
+    if (all) all.addEventListener('click', () => {
+      const left = st.filter(x => !x.added);
+      if (after) after();
+      let first = null;
+      left.forEach(x => { const id = addSubconFrame(x.name, { cat: x.cat }); if (!first && id && id !== true) first = id; });
+      if (first) setTimeout(() => document.getElementById(`nm-${first}`)?.focus(), 60);
+      if (typeof quoteShowToast === 'function') quoteShowToast(`✅ ルートのサブコン ${left.length} 社の枠をつくりました`, 'success');
+    });
+  }
+  // 「＋ サブコンを追加」：名前の入力（サブコンのマスター候補つき）を小さな吹き出しで出す
+  function openAddSubconFrame(anchor) {
+    document.getElementById('sfPop')?.remove();
+    const pop = document.createElement('div');
+    pop.id = 'sfPop'; pop.className = 'sf-pop'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'サブコンを追加');
+    pop.innerHTML =
+      '<div class="sf-pop-t">サブコンを追加</div>' +
+      '<div class="sf-pop-d">先にサブコン（費用の取引先）の枠をつくり、その中に明細（運賃・THCなど）を入力します。</div>' +
+      '<div class="sf-pop-row"><input type="text" class="sf-pop-in" list="svSuggestions" autocomplete="off" maxlength="40" placeholder="サブコン名（例：○○運輸）">' +
+      '<button type="button" class="sf-pop-ok">追加</button></div>' +
+      _routeSvHtml() +
+      '<button type="button" class="sf-pop-none">サブコンを決めずに明細を追加</button>';
+    document.body.appendChild(pop);
+    const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: 24, bottom: 120 };
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+    { // ボタンの下に出す。下に入りきらなければ上へ、それでも収まらなければ画面内に寄せる
+      const h = pop.offsetHeight, vh = window.innerHeight;
+      let top = r.bottom + 6;
+      if (top + h > vh - 8) top = (r.top - h - 6 >= 8) ? r.top - h - 6 : Math.max(8, vh - h - 8);
+      pop.style.top = top + 'px';
+    }
+    const inp = pop.querySelector('.sf-pop-in');
+    const close = () => { pop.remove(); document.removeEventListener('pointerdown', onOut, true); document.removeEventListener('keydown', onKey, true); };
+    const ok = () => { const v = inp.value.trim(); if (!v) { inp.focus(); return; } close(); addSubconFrame(v); };
+    const onOut = e => { if (!pop.contains(e.target) && e.target !== anchor && !(anchor && anchor.contains && anchor.contains(e.target))) close(); };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    pop.querySelector('.sf-pop-ok').addEventListener('click', ok);
+    pop.querySelector('.sf-pop-none').addEventListener('click', () => { close(); addRowWithoutSubcon(); });
+    _wireRouteSv(pop, close);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); ok(); } });
+    setTimeout(() => { document.addEventListener('pointerdown', onOut, true); document.addEventListener('keydown', onKey, true); }, 0);
+    inp.focus();
+  }
+  // 明細がまだ 1 行も無い（＝最初の空の 1 行だけ）の間は、空の行と「（サブコン未設定）」の見出しを出さず、
+  // 表の位置に案内（［＋ サブコンを追加］／サブコンを決めずに明細を追加）を 1 つだけ出す。
+  // 「サブコンを決めずに明細を追加」を選んだら、その空の行に印（data-sf-show）を付けて表示する。
+  function _realRows() {
+    return Array.from(document.querySelectorAll('#tableBody tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
+  }
+  // 自動テスト（navigator.webdriver）では、最初の空の行へ直接入力する既存の試験のため従来どおり行を出す
+  // （localStorage 'fwd.sfEmpty'='1' で有効にして試験する。新画面の既定と同じ扱い）
+  function _sfEmptyOn() {
+    try { if (navigator.webdriver) return localStorage.getItem('fwd.sfEmpty') === '1'; } catch (e) {}
+    return true;
+  }
+  function _isEmptyTable() {
+    if (!_sfEmptyOn()) return false;
+    const tb = document.getElementById('tableBody'); if (!tb) return false;
+    if (tb.querySelector('tr[data-type]')) return false;               // 小計行・リマーク行がある
+    const real = _realRows();
+    if (real.length > 1) return false;
+    if (real.length === 1 && (!_isBlankRow(real[0]) || real[0].dataset.sfShow)) return false;
+    if (tb.contains(document.activeElement)) return false;            // 入力中の行は隠さない
+    return true;
+  }
+  // 「サブコンを決めずに明細を追加」：空の行があればそれを出す（無ければ 1 行足す）
+  function addRowWithoutSubcon() {
+    let tr = _isEmptyTable() ? _realRows()[0] : null;
+    if (!tr) {
+      addRow();   // addRow は末尾行のサブコンを引き継ぐので、サブコン未設定に戻す
+      const all = _realRows(); tr = all[all.length - 1];
+      const id0 = tr && tr.id.replace('row-', '');
+      const svEl = id0 && document.getElementById(`sv-${id0}`); if (svEl) svEl.value = '';
+    }
+    if (!tr) return null;
+    tr.dataset.sfShow = '1';
+    renderSubconGroups();
+    const id = tr.id.replace('row-', '');
+    setTimeout(() => document.getElementById(`nm-${id}`)?.focus(), 40);
+    if (document.body.classList.contains('mc-on') && window.mcSheetOpen) setTimeout(() => window.mcSheetOpen(tr.id), 60);
+    return id;
+  }
+  function updateFrameHint() {
+    const wrap = document.getElementById('tableWrap'); if (!wrap) return;
+    let h = document.getElementById('sfHint');
+    const empty = _isEmptyTable();
+    wrap.classList.toggle('sf-empty', empty);
+    if (!empty) { if (h) h.hidden = true; return; }
+    if (!h) {
+      h = document.createElement('div'); h.id = 'sfHint'; h.className = 'sf-hint sf-empty-card';
+      const sw = document.getElementById('mcHost') || document.getElementById('tableScrollWrap');
+      if (sw && sw.parentNode) sw.parentNode.insertBefore(h, sw); else wrap.appendChild(h);
+    }
+    // ルートのサブコンは開くたびに入力が変わり得るので、出すたびに描き直す
+    h.innerHTML = '<div class="sf-e-t">まだ明細がありません</div>' +
+      '<div class="sf-e-d"><b>① サブコン（費用の取引先）を追加</b>して枠をつくり、<b>② その枠の中に明細（運賃・THC など）を入力</b>します。</div>' +
+      _routeSvHtml() +
+      '<button type="button" class="sf-hint-btn">＋ サブコンを追加</button>' +
+      '<button type="button" class="sf-e-none">サブコンを決めずに明細を追加</button>';
+    h.querySelector('.sf-hint-btn').addEventListener('click', e => openAddSubconFrame(e.currentTarget));
+    h.querySelector('.sf-e-none').addEventListener('click', () => addRowWithoutSubcon());
+    _wireRouteSv(h);
+    h.hidden = false;
+  }
+  window.addSubconFrame = addSubconFrame;
+  window.openAddSubconFrame = openAddSubconFrame;
+  window.updateFrameHint = updateFrameHint;
+  window.addRowWithoutSubcon = addRowWithoutSubcon;
   // 明細行を別ブランチ（サブコン/パターン）末尾へコピー（元行は残す）。newId を返す
   function copyRowToSubconGroup(srcRowId, sv, pt) {
     const sid = String(srcRowId).replace('row-', '');
@@ -4885,7 +5812,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi','ins'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -4905,7 +5832,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','ri','es','vf','vt','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi','ins'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });
@@ -5029,3 +5956,30 @@
     if (typeof quoteShowToast === 'function')
       quoteShowToast('✅ ローカルチャージ ' + charges.length + '件を追加しました', 'success');
   };
+
+// ---- 行の操作（👁 🔍 ✓ ➕ 📋 🗑）：どれかを押したら、操作の吹き出しをすぐ閉じる ----
+// 以前は、押したあともカーソルが行の上にあるあいだ出たままで、続けて押し間違えやすかった。
+// 押した行のハンドル欄に .acts-dismissed を付けて隠し（css/button-layout.css）、カーソルが離れる／ほかの場所を押すと外す。
+(function () {
+  if (window.__rowActsDismissInit) return; window.__rowActsDismissInit = true;
+  const clear = (except) => document.querySelectorAll('td.handle-cell.acts-dismissed').forEach(c => { if (c !== except) c.classList.remove('acts-dismissed'); });
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('#tab-quote-make .row-acts button');
+    if (!b) return;
+    const cell = b.closest('td.handle-cell'); if (!cell) return;
+    cell.classList.add('acts-dismissed');
+    try { b.blur(); } catch (er) {}   // 押したボタンに焦点が残ると、焦点つきの行として吹き出しが出続ける
+  }, true);
+  // カーソルがハンドル欄から出たら元に戻す（次にホバーしたときにまた出る）
+  document.addEventListener('mouseout', e => {
+    const cell = e.target.closest && e.target.closest('td.handle-cell.acts-dismissed');
+    if (!cell) return;
+    if (e.relatedTarget && cell.contains(e.relatedTarget)) return;
+    cell.classList.remove('acts-dismissed');
+  });
+  // タッチ端末はカーソルが無いので、ほかの場所を押したときに外す
+  document.addEventListener('pointerdown', e => {
+    const cell = e.target.closest && e.target.closest('td.handle-cell');
+    clear(cell);
+  }, true);
+})();

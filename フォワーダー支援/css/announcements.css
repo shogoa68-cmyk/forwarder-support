@@ -14,10 +14,10 @@
 .ann-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
 .ann-tag { font-size: var(--fs-12, 12px); font-weight: 700; padding: 1px 8px; border-radius: 999px; background: rgba(0,0,0,.08); }
 .ann-title { font-size: var(--fs-14, 14px); }
-.ann-meta { font-size: var(--fs-12, 12px); opacity: .7; }
+.ann-meta { font-size: var(--fs-12, 12px); opacity: .85; }
 .ann-body { margin-top: 4px; font-size: var(--fs-13, 13px); line-height: var(--lh-body, 1.7); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 12em; overflow-y: auto; }
 .ann-body a { color: inherit; text-decoration: underline; }
-.ann-x { flex: none; border: 0; background: transparent; color: inherit; opacity: .6; font-size: 14px; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.ann-x { flex: none; border: 0; background: transparent; color: inherit; opacity: .85; font-size: 14px; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
 .ann-x:hover { opacity: 1; background: rgba(0,0,0,.08); }
 .ann-toggle { align-self: flex-end; border: 0; background: transparent; color: var(--text-muted, #777); font: inherit; font-size: var(--fs-12, 12px); cursor: pointer; text-decoration: underline; padding: 0 4px; }
 
@@ -56,7 +56,7 @@ textarea.ann-in { width: 100%; resize: vertical; }
 .upd-msg { flex: 1; min-width: 0; font-size: var(--fs-13, 13px); line-height: var(--lh-body, 1.7); }
 .upd-msg b { display: block; font-size: var(--fs-14, 14px); }
 .upd-btns { flex: none; display: flex; gap: var(--sp-6, 6px); }
-.upd-go { border: 0; background: #b07a10; color: #fff; font: inherit; font-size: var(--fs-13, 13px); font-weight: 700; padding: var(--sp-6, 6px) var(--sp-14, 14px); border-radius: var(--r-6, 6px); cursor: pointer; }
-.upd-go:hover { background: #946509; }
+.upd-go { border: 0; background: #8f5f00; color: #fff; font: inherit; font-size: var(--fs-13, 13px); font-weight: 700; padding: var(--sp-6, 6px) var(--sp-14, 14px); border-radius: var(--r-6, 6px); cursor: pointer; }
+.upd-go:hover { background: #774e00; }
 .upd-later { border: 1px solid #d9b873; background: transparent; color: inherit; font: inherit; font-size: var(--fs-13, 13px); padding: var(--sp-6, 6px) var(--sp-12, 12px); border-radius: var(--r-6, 6px); cursor: pointer; }
 @media (max-width: 600px) { .upd-bar { flex-wrap: wrap; } .upd-btns { width: 100%; } .upd-go, .upd-later { flex: 1; padding-top: 10px; padding-bottom: 10px; } }

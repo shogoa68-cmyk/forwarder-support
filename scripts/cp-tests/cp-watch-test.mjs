@@ -246,5 +246,44 @@ ok(calls.some(([p]) => p === '/API/v2/ColinsViewers/GetImportVessels/JPTYO'), '�
   eq([sm.saveErrors, saved.length], [1, 1], '1 件の保存失敗で、残りの案件の確認を止めない');
 }
 
+// ============ 手がかりの自動補完（取引番号 → B/L・コンテナ） ============
+{
+  const tTr = (o = {}) => Object.assign({ preset_id: 'p-tr', source: 'trade', trade_no: 'IMP2611411-01', direction: 'import', bl_no: null, booking_no: null, container_nos: [], snapshot: null, consecutive_errors: 0 }, o);
+  eq(W.needsKeys(tTr()), true, '取引の追跡で B/L が空なら取り直す');
+  eq(W.needsKeys(tTr({ bl_no: 'BL9' })), false, 'B/L があれば取り直さない（呼び出しを増やさない）');
+  eq(W.needsKeys(tTr({ direction: 'export', booking_no: 'BK9' })), false, '輸出はブッキング番号があれば取り直さない');
+  eq(W.needsKeys(Object.assign(tTr(), { source: 'case' })), false, '見積の案件の追跡は対象外');
+  eq([...W.scanContainers({ a: [{ containerNo: 'msku 1234567' }, 'x'], b: { c: 'ABCD1234567' } })].sort(), ['ABCD1234567', 'MSKU1234567'], '応答の形が分からなくてもコンテナ番号を拾う');
+  calls.length = 0; saved.length = 0;
+  const h = (p, q) => {
+    if (p === '/API/v2/Trades/Search') return [{ tradeNo: 'IMP2611411-00' }, { tradeNo: 'IMP2611411-01', blNo: 'bl 777', tradeType: 'Import' }];
+    if (p.startsWith('/API/v2/Trades/GetContainers/')) return [{ container: { containerNo: 'MSKU7654321' } }];
+    if (p.endsWith('ImportContainers')) return q.blNoList && q.blNoList[0] === 'BL777' ? [impC()] : [];
+    if (p.includes('Vessels/')) return [];
+    throw new Error('想定外: ' + p);
+  };
+  let sm = await W.runWatchBatch(mkDeps([tTr()], h), 5);
+  const s1 = saved[0];
+  eq(s1.keys, { bl_no: 'BL777', booking_no: null, container_nos: ['MSKU7654321'] }, '取引から B/L とコンテナ番号を取り直す（取引番号が一致するものだけ）');
+  eq([s1.status, s1.ok], ['ok', true], '取り直した B/L でそのまま確認する');
+  ok(calls.some(([p, q]) => p === '/API/v2/ColinsViewers/GetImportContainers' && q.blNoList[0] === 'BL777'), 'COLINS は取り直した B/L で探す');
+  ok(calls.every(([p]) => L.matchAllowed(p) !== null), '取引の照会も許可リストの範囲');
+  eq(calls.filter(([p]) => p.includes('/Trades/')).length, 2, '取引の照会は 1 件につき 2 回まで');
+  // 取引にまだ何も載っていない → 失敗ではなく「待ち」
+  saved.length = 0;
+  sm = await W.runWatchBatch(mkDeps([tTr({ trade_no: 'IMP2611999-00' })], (p) => (p === '/API/v2/Trades/Search' ? [{ tradeNo: 'IMP2611999-00' }] : [])), 5);
+  eq([saved[0].status, saved[0].ok, sm.failed, sm.nodata], ['nodata', true, 0, 1], '手がかりがまだ無い取引は「待ち」（失敗に数えない）');
+  ok(/まだ登録されていません/.test(saved[0].state_note || ''), '待ちの理由を残す');
+  eq(saved[0].keys, undefined, '何も取れなければ手がかりは書き換えない');
+  // 取引の照会が失敗しても、いまのコンテナ番号で確認を続ける
+  saved.length = 0;
+  sm = await W.runWatchBatch(mkDeps([tTr({ container_nos: ['ABCD1234567'] })], (p) => { if (p.includes('/Trades/')) throw new Error('down'); return p.endsWith('ImportContainers') ? [impC()] : []; }), 5);
+  eq([saved[0].status, saved[0].keys], ['ok', undefined], '取引が取れなくても、いまの手がかりで確認を続ける');
+  // 変わらなければ書き換えない
+  saved.length = 0;
+  await W.runWatchBatch(mkDeps([tTr({ container_nos: ['MSKU7654321'] })], (p, q) => (p === '/API/v2/Trades/Search' ? [{ tradeNo: 'IMP2611411-01' }] : p.includes('GetContainers') ? [{ containerNo: 'MSKU7654321' }] : p.endsWith('ImportContainers') ? [impC()] : [])), 5);
+  eq(saved[0].keys, undefined, '取り直しても同じなら書き換えない');
+}
+
 console.log(`\n動静の自動確認 試験：${pass} 件合格 / ${failN} 件失敗`);
 process.exit(failN ? 1 : 0);

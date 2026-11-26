@@ -199,6 +199,22 @@
     }
   }
 
+  // 他の取込（見積メール取込のPDF入口）からも使う：PDFファイル → 行（セルの配列）。失敗・文字なしは { error } を返す
+  async function pkiExtractPdfLines(file) {
+    if (typeof window.pdfjsLib === 'undefined') return { error: 'PDF解析ライブラリの読み込みに失敗しました。時間をおいて再度お試しください' };
+    try {
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + pdfjsLib.version + '/pdf.worker.min.js';
+      }
+      const pdfDoc = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+      const lines = await _pdfExtractLines(pdfDoc);
+      if (!lines.length) return { error: 'このPDFから文字を取り出せませんでした。画像（スキャン）のPDFの可能性があります（現時点では画像PDFは非対応です）' };
+      return { lines };
+    } catch (err) {
+      return { error: 'PDFの解析に失敗しました：' + (err && err.message ? err.message : String(err)) };
+    }
+  }
+
   function _headerLabel(i) {
     if (_headerIdx >= 0 && _lines[_headerIdx][i]) return _lines[_headerIdx][i];
     return '列' + (i + 1);
@@ -225,6 +241,9 @@
   function _rebuildEntries() {
     const dataLines = _lines.filter((_, i) => i !== _headerIdx);
     _entries = dataLines.map(row => {
+      // 合計行（TOTAL・合計・小計 など）は梱包ではないので取り込まない（取り込むと CBM・重量が二重に数えられる）
+      const first = (row.find(c => c && String(c).trim()) || '').trim();
+      if (/^(?:grand\s*|sub\s*-?\s*)?total\b|^(?:合計|総計|小計|計)(?:[\s:：]|$)/i.test(first)) return null;
       const e = { pkg: '', qty: 1, l: '', w: '', h: '', kg: '', stack: '可', _checked: true };
       let any = false;
       _colMap.forEach((field, i) => {
@@ -317,6 +336,6 @@
   }
 
   Object.assign(window, {
-    openPackingImport, closePackingImport, pkiParse, pkiHandlePdfFile, pkiOnColMapChange, pkiToggleAll, pkiToggleEntry, pkiUpdateEntry, pkiInsertRows,
+    openPackingImport, closePackingImport, pkiParse, pkiHandlePdfFile, pkiExtractPdfLines, pkiOnColMapChange, pkiToggleAll, pkiToggleEntry, pkiUpdateEntry, pkiInsertRows,
   });
 })();

@@ -2365,6 +2365,10 @@
    "css": false,
    "html": false
   },
+  "cp-route-chk": {
+   "css": false,
+   "html": false
+  },
   "cp-row": {
    "css": false,
    "html": false
@@ -2886,6 +2890,10 @@
    "html": false
   },
   "is-shown": {
+   "css": true,
+   "html": false
+  },
+  "is-src": {
    "css": true,
    "html": false
   },
@@ -3819,6 +3827,10 @@
   },
   "row-sell-mode": {
    "css": false,
+   "html": false
+  },
+  "row-src-done": {
+   "css": true,
    "html": false
   },
   "row-unfilled": {
@@ -5263,6 +5275,10 @@
    "html": false,
    "js": true
   },
+  "ridx": {
+   "html": false,
+   "js": true
+  },
   "row": {
    "html": false,
    "js": true
@@ -5312,6 +5328,18 @@
    "js": true
   },
   "sort-bound": {
+   "html": false,
+   "js": true
+  },
+  "src-done-at": {
+   "html": false,
+   "js": true
+  },
+  "src-done-by": {
+   "html": false,
+   "js": true
+  },
+  "src-from": {
    "html": false,
    "js": true
   },

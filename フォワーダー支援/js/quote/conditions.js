@@ -52,7 +52,8 @@
 
   function getConditions() {
     const g = id => document.getElementById(id)?.value.trim() || '';
-    const _isFcl = _currentTransport !== 'air' && _currentSeaSub === 'fcl';
+    // 「国内手配のみ」に切り替えても、前の海上の種別（fcl）が残るため、国内・航空はどちらも FCL ではない
+    const _isFcl = _currentTransport !== 'air' && _currentTransport !== 'domestic' && _currentSeaSub === 'fcl';
     // コンテナ：複数エントリ対応（未登録なら単体エディタ値にフォールバック）
     let container = '';
     if (_isFcl) {
@@ -116,8 +117,21 @@
   const REVISION_DIFF_FIELDS = ['nm', 'bq', 'un', 'bc', 'bp', 'nt'];
   const REVISION_FIELD_LABELS = { nm: '品名', bq: '数量', un: '単位', bc: '通貨', bp: '単価', nt: '備考' };
 
+  // 客先向け出力（見積書）に出る行の uid の集合。見積書に出さない行（👁 非表示・PROFIT SHARE・適用期間外・
+  // 除外したグループ）は入らない。判定は出力と同じ collectAllRows の _hideQuote に揃える。取れないときは null。
+  function _revClientUids() {
+    if (typeof window.collectAllRows !== 'function') return null;
+    try {
+      const set = new Set();
+      window.collectAllRows().forEach(r => { if (r && r._type === 'data' && !r._hideQuote && r.uid) set.add(r.uid); });
+      return set;
+    } catch (e) { return null; }
+  }
+
   // 現在の明細行（uid を持つ通常データ行のみ）を、差分対象フィールドだけ抜き出してスナップショット。
+  // 見積書に出さない行には h:1 を付ける（差分では「お客様に見えていない行」として扱う）。
   window.buildRevisionSnapshot = function () {
+    const shown = _revClientUids();
     const rows = [];
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
       if (tr.dataset.virtual || tr.dataset.type) return;   // 仮想見出し・小計/リマーク行は対象外
@@ -128,12 +142,14 @@
       REVISION_DIFF_FIELDS.forEach(f => {
         row[f] = document.getElementById(f + '-' + id)?.value ?? '';
       });
+      if (shown && !shown.has(uid)) row.h = 1;
       rows.push(row);
     });
     return {
       ts: new Date().toISOString(),
       total: (document.getElementById('tot-subtotal')?.textContent || '').trim(),
       rows,
+      hv: shown ? 1 : 0,   // 1＝見積書に出さない行に h:1 を記録した（古いスナップショットには無い）
     };
   };
 
@@ -173,8 +189,14 @@
     const baseline = window.getRevisionBaseline();
     if (!baseline || !Array.isArray(baseline.rows) || !baseline.rows.length) return null;
     const current = window.buildRevisionSnapshot();
-    const baseByUid = new Map(baseline.rows.map(r => [r.uid, r]));
-    const curByUid  = new Map(current.rows.map(r => [r.uid, r]));
+    // 見積書に出さない行（h:1）は「お客様に見えていない行」として差分から外す。
+    // 前回は出していて今回出さない行は「削除」、前回出していなくて今回出す行は「追加」に見える。
+    // 古いスナップショット（h を記録していない）は、今回出さない行を「削除」と言わずに黙って外す。
+    const curHidden = new Set(current.rows.filter(r => r.h).map(r => r.uid));
+    const baseRows = baseline.rows.filter(r => !r.h && (baseline.hv || !curHidden.has(r.uid)));
+    const curRows  = current.rows.filter(r => !r.h);
+    const baseByUid = new Map(baseRows.map(r => [r.uid, r]));
+    const curByUid  = new Map(curRows.map(r => [r.uid, r]));
     const isChecked = (id) => document.getElementById(id)?.checked !== false; // 未設定は既定で表示する
     const showAdded   = isChecked('qf-revision-show-added');
     const showRemoved = isChecked('qf-revision-show-removed');
@@ -183,9 +205,9 @@
     const showTotal   = isChecked('qf-revision-show-total');
 
     const added = [], removed = [], changed = [];
-    if (showAdded)   current.rows.forEach(r => { if (!baseByUid.has(r.uid)) added.push(r); });
-    if (showRemoved) baseline.rows.forEach(r => { if (!curByUid.has(r.uid)) removed.push(r); });
-    baseline.rows.forEach(b => {
+    if (showAdded)   curRows.forEach(r => { if (!baseByUid.has(r.uid)) added.push(r); });
+    if (showRemoved) baseRows.forEach(r => { if (!curByUid.has(r.uid)) removed.push(r); });   // 消した行・今回から見積書に出さなくなった行
+    baseRows.forEach(b => {
       const c = curByUid.get(b.uid);
       if (!c) return;
       const fields = [];
@@ -270,7 +292,7 @@
   // _applyCells が undefined セルをスキップするため互換。順序は末尾以外変更しないこと。
   // 注意：'lu'（行ごとの最終更新日）は 2026-11 に廃止（入力完了の「日時・ユーザー名」に置き換え）。保存データの cells は位置で持つため、
   //       枠（'lu'）は外さない（外すと後ろの項目がずれる）。画面に入力欄はなく、読み込んでも無視される（_applyCells は欄が無ければ飛ばす）。
-  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin','ic','cn','bphi'];
+  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin','ic','cn','bphi','ins'];
 
   function _applyCells(tr, cells) {
     // cells[0] = 選択チェック、cells[1..] = ROW_CELL_FIELDS 順（DOM 列順に依存しない）
@@ -552,6 +574,7 @@
         if (typeof window.rowSyncDoneBtn === 'function') window.rowSyncDoneBtn(tr);
         else { const db = tr.querySelector('.row-done-btn'); if (db) { db.classList.add('is-on'); db.title = '入力完了（クリックで解除）'; } }
       }
+      else _applySrcDone(tr, row);   // 入力完了ではない行に残っている「引用元の入力完了」の記録
       // 港ペア（子グループキー）を復元
       // 旧データの港ペアはパターンへ統合（パターン未設定時のみ移行）
       if (row.portPair) { const ptEl = tr.querySelector('[data-field="pt"]'); if (ptEl && !ptEl.value) ptEl.value = row.portPair; }
@@ -635,6 +658,17 @@
           }).join('');
           return `<tr><th>${_cdEsc(s.label)}</th><td>${items}</td></tr>`;
         }
+        if (s.sites) {
+          const list = Array.isArray(raw) ? raw.filter(c => c && (c.name || c.address)) : [];
+          if (!list.length) return '';
+          const items = list.map(c => `<div class="cd-contact-item"><b>${_cdEsc(c.name || '（名称未入力）')}</b>` +
+            (c.kind ? `<span class="cd-contact-meta cd-contact-dept">${_cdEsc(c.kind)}</span>` : '') +
+            (c.address ? `<span class="cd-contact-meta cd-contact-loc">📍 ${_cdEsc(c.address)}</span>` : '') +
+            ([c.contact, c.phone].filter(Boolean).length ? `<span class="cd-contact-meta">${_cdEsc([c.contact, c.phone].filter(Boolean).join(' / '))}</span>` : '') +
+            (c.terms ? `<span class="cd-contact-meta">受入：${_cdEsc(c.terms)}</span>` : '') +
+            (c.note ? `<span class="cd-contact-meta">${_cdEsc(c.note)}</span>` : '') + `</div>`).join('');
+          return `<tr><th>${_cdEsc(s.label)}</th><td>${items}</td></tr>`;
+        }
         if (s.children) {
           const kids = typeof window.mdViaChildren === 'function' ? window.mdViaChildren(value) : [];
           if (!kids.length) return '';
@@ -707,6 +741,7 @@
     if (value && typeof window.statsJumpToMaster === 'function') {
       window.statsJumpToMaster(field, value, true);
     } else {
+      if (typeof window.statsMarkMasterReturn === 'function') window.statsMarkMasterReturn();
       const catBtn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
       if (typeof window.switchCategory === 'function' && catBtn) window.switchCategory('master', catBtn);
       if (typeof window.masterSetPane === 'function') window.masterSetPane('master');
@@ -832,6 +867,7 @@
       _fxRates = { ...DEFAULT_FX_RATES, ...data.fxSnapshot.rates };
       saveFxRates();
       if (data.fxSnapshot.ts) localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, data.fxSnapshot.ts);
+      if (typeof setFxManual === 'function') setFxManual(data.fxSnapshot.manual || {});   // 保存時に手入力だった通貨（旧データは無し＝取得した値）
     }
     _rebuildTable(data);
     _restoreUiState(data.fields);
@@ -849,6 +885,7 @@
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
     if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
+    if (typeof window.qmfSync === 'function') window.qmfSync();
     if (typeof window.ciSync === 'function') window.ciSync();
     if (typeof window.cfSync === 'function') window.cfSync();
     if (typeof window.htSync === 'function') window.htSync();
@@ -1143,6 +1180,19 @@
     const src = document.getElementById('qf-memo');
     const fta = document.getElementById('qf-memo-float-ta');
 
+    // 付箋は「管理番号入力」セクションの中に書かれているため、そのままだと新画面でステップを切り替えたとき（セクションごと隠れる）や、
+    // セクションを畳んだときに一緒に消える。見積タブ直下へ移し、どのステップでも・畳んでいても表示する。
+    // （ダッシュボード・ほかのタブでは出さない＝css/quote.css の `#tab-quote-make.qp-dash > #qfMemoFloat`）
+    {
+      const fl0 = document.getElementById('qfMemoFloat'), tab0 = document.getElementById('tab-quote-make');
+      if (fl0 && tab0 && fl0.parentElement !== tab0) tab0.appendChild(fl0);
+    }
+    // 案件を開く・新規にするとき、開いている付箋の中身も新しい案件のメモに合わせる
+    window.qmfSync = function () {
+      const fl = document.getElementById('qfMemoFloat');
+      if (fl && !fl.hasAttribute('hidden') && fta && src) fta.value = src.value;
+    };
+
     // #qf-memo → float 同期（float が開いているときのみ）
     if (src) {
       src.addEventListener('input', () => {
@@ -1198,6 +1248,16 @@
       });
     }
 
+    // 画面の幅・高さが小さくなったとき（ウィンドウを縮める・スマホを横向きにする）、ドラッグで動かした付箋が画面外に残って
+    // 閉じるボタンまで押せなくならないよう、画面の中へ引き戻す（ドラッグ前＝CSS の位置のままなら何もしない）
+    window.addEventListener('resize', () => {
+      const f = document.getElementById('qfMemoFloat');
+      if (!f || f.hasAttribute('hidden') || !f.style.left) return;
+      const w = f.offsetWidth || 80, h = f.offsetHeight || 40;
+      f.style.left = Math.max(0, Math.min(window.innerWidth  - w, parseFloat(f.style.left) || 0)) + 'px';
+      f.style.top  = Math.max(0, Math.min(window.innerHeight - h, parseFloat(f.style.top)  || 0)) + 'px';
+    });
+
     // IntersectionObserver：メモ欄が画面外に出たら自動表示（メモ欄を画面から隠した今は使わない。付箋は右下の「案件名・社内メモ」ボタンで開く。
     //   開く度に勝手に出てきて「消せない」ように見えるため、自動表示は廃止）
     const memoField = null;
@@ -1218,6 +1278,10 @@
   window._initMemoFloat = _initMemoFloat;
 
   function gatherAllData() {
+    // 物量パターンの紐付け（数量・表示/非表示・除外・航路）は、数量欄の入力などで「メモリ上」だけ更新される。
+    // 保存の直前に必ず隠し項目（cond-packing-patterns）へ書き出す（これが古いまま保存されると、開き直したときに
+    // 古い紐付けの数量が書き戻され、「一括変更した数量が元に戻る」不具合になる）
+    try { if (typeof _syncPackingPatternsData === 'function') _syncPackingPatternsData(); } catch (e) {}
     // フォーム値
     const fields = {};
     document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
@@ -1256,6 +1320,11 @@
         if (tr.dataset.doneAt) rowObj.doneAt = tr.dataset.doneAt;
         if (tr.dataset.doneBy) rowObj.doneBy = tr.dataset.doneBy;
       }
+      else if (tr.dataset.srcDoneAt) {                                // 引用元の入力完了（類似案件からインポートした行・この案件では未確認）
+        rowObj.srcDoneAt = tr.dataset.srcDoneAt;
+        if (tr.dataset.srcDoneBy) rowObj.srcDoneBy = tr.dataset.srcDoneBy;
+        if (tr.dataset.srcFrom) rowObj.srcFrom = tr.dataset.srcFrom;
+      }
       if (tr.dataset.portPair) rowObj.portPair = tr.dataset.portPair; // 港ペア（子グループ）
       rows.push(rowObj);
     });
@@ -1266,7 +1335,7 @@
              subconRemarks: (typeof getSubconRemarks === 'function' ? getSubconRemarks() : {}),
              groupNotes: (typeof getSubconGroupNotes === 'function' ? getSubconGroupNotes() : {}),
              groupDisplayState: (typeof getGroupDisplayState === 'function' ? getGroupDisplayState() : {}),
-             fxSnapshot: { rates: { ..._fxRates }, ts: localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED) || null },
+             fxSnapshot: { rates: { ..._fxRates }, ts: localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED) || null, manual: (typeof getFxManual === 'function' ? getFxManual() : {}) },
              ...(_loadedCopiedFrom ? { copiedFrom: _loadedCopiedFrom } : {}) };
   }
 
@@ -1329,8 +1398,9 @@
       const seen1 = new Set();
       const addZ1 = (svList) => {
         (svList.length ? svList : ['']).forEach(sv => {
-          if (seen1.has(sv)) return;
-          seen1.add(sv);
+          const k1 = (typeof subconNormKey === 'function') ? subconNormKey(sv) : sv;   // 表記ゆれ（全角・半角など）は 1 社
+          if (seen1.has(k1)) return;
+          seen1.add(k1);
           items.push({ cat: 'domestic', name: '', note: '', sv });
         });
       };
@@ -1368,8 +1438,9 @@
       const seen3 = new Set();
       const addZ3 = (svList) => {
         (svList.length ? svList : ['']).forEach(sv => {
-          if (seen3.has(sv)) return;
-          seen3.add(sv);
+          const k3 = (typeof subconNormKey === 'function') ? subconNormKey(sv) : sv;   // 表記ゆれ（全角・半角など）は 1 社
+          if (seen3.has(k3)) return;
+          seen3.add(k3);
           items.push({ cat: 'overseas', name: '', note: '', sv });
         });
       };
@@ -1391,6 +1462,35 @@
     return items;
   }
 
+  // ルート（出発地側・幹線輸送・到着地側）で入力したサブコン名の一覧（費用入力で枠をつくる候補に使う）。
+  // [{name, side:'origin'|'main'|'dest', sideLabel, cat}]。同じ会社（表記ゆれも）は最初の 1 つだけ。
+  window.routeSubcons = function () {
+    const out = [], seen = new Set();
+    const norm = v => (typeof subconNormKey === 'function') ? subconNormKey(v) : String(v || '').trim().toLowerCase();
+    const add = (name, side, sideLabel, cat) => {
+      const v = String(name || '').trim(); if (!v) return;
+      const k = norm(v); if (!k || seen.has(k)) return;
+      seen.add(k); out.push({ name: v, side, sideLabel, cat });
+    };
+    const zone = (on, defArea, pieces, side, label, cat) => {
+      if (!on) return;
+      _getAllScValues(defArea).forEach(v => add(v, side, label, cat));
+      pieces.forEach(([pid, area]) => { if (document.getElementById(pid)?.checked) _getAllScValues(area).forEach(v => add(v, side, label, cat)); });
+    };
+    zone(_zone1On, 'z1DefaultScArea', [['piece-pickup', 'sc-pickup'], ['piece-wh-origin', 'sc-wh-origin'], ['piece-customs-e', 'sc-customs-e']], 'origin', '出発地側', 'domestic');
+    const act = _routeEntries.filter(r => r.enabled !== false);
+    if (act.length) {
+      act.forEach(r => {
+        add(r.carrier, 'main', '幹線輸送', 'ocean');
+        (Array.isArray(r.segs) ? r.segs : []).forEach(x => x && add(x.carrier, 'main', '幹線輸送', 'ocean'));
+      });
+    } else if (!_routeEntries.length) {
+      add(document.getElementById('z2Carrier')?.value, 'main', '幹線輸送', 'ocean');
+    }
+    zone(_zone3On, 'z3DefaultScArea', [['piece-customs-i', 'sc-customs-i'], ['piece-wh-dest', 'sc-wh-dest'], ['piece-deliver', 'sc-deliver']], 'dest', '到着地側', 'overseas');
+    return out;
+  };
+
   function applyZoneBasedPreset() {
     const items = _buildZonePresetItems();
     if (!items.length) {
@@ -1398,9 +1498,17 @@
       return;
     }
 
-    const existing = document.querySelectorAll('#tableBody tr').length;
+    // 明細がまだ無い（最初の空の 1 行だけ）ときは、確認なしでその空の行と置き換える
+    const _real = Array.from(document.querySelectorAll('#tableBody tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
+    const _blankOnly = !document.querySelector('#tableBody tr[data-type]') && _real.length <= 1 && _real.every(tr => {
+      const id0 = tr.id.replace('row-', '');
+      const g = f => (document.getElementById(`${f}-${id0}`)?.value || '').trim();
+      return !g('sv') && !g('nm') && !(parseFloat(g('pp')) || 0) && !(parseFloat(g('bp')) || 0) && !g('pt');
+    });
+    if (_blankOnly) _real.forEach(tr => tr.remove());
+    const existing = _blankOnly ? 0 : _real.length;
     if (existing > 0) {
-      if (!confirm(`テーブルに ${existing} 行あります。末尾にサブコン/航路別の空行 ${items.length} 行を追記しますか？\n（置換したい場合は一旦リセットしてから再実行してください）`)) return;
+      if (!confirm(`テーブルに ${existing} 行あります。末尾にルートのサブコン別の枠（空の明細 ${items.length} 行）を足しますか？\n（入れ替えたいときは、先に表をリセットしてから実行してください）`)) return;
     }
 
     let lastCur = 'JPY';
@@ -1414,8 +1522,8 @@
       const tr = document.createElement('tr');
       tr.id = 'row-' + id;
       tr.replaceChildren(buildRowHTML(id, item.cat, lastCur));
-      if (item.pp) { const ptEl = document.getElementById('pt-' + id); if (ptEl) ptEl.value = item.pp; }  // 航路名をパターン（サブコン内の入れ子キー）に
       tbody.appendChild(tr);
+      if (item.pp) { const ptEl = document.getElementById('pt-' + id); if (ptEl) ptEl.value = item.pp; }  // 航路名をパターン（サブコン内の入れ子キー）に（行を表へ入れてから探す）
       const nmEl = document.getElementById('nm-'  + id); if (nmEl) nmEl.value = item.name;
       const ntEl = document.getElementById('nt-'  + id); if (ntEl) ntEl.value = item.note || '';
       const svEl = document.getElementById('sv-'  + id); if (svEl) svEl.value = item.sv   || '';
@@ -1426,7 +1534,7 @@
 
     if (typeof renderSubconGroups === 'function') renderSubconGroups();  // 航路＝パターンの入れ子グループを描画
     updateTotals();
-    quoteShowToast('✅ ゾーン構成プリセット適用完了（サブコン/航路別 ' + items.length + '行）', 'success');
+    quoteShowToast('✅ ルートのサブコン別に明細の枠をつくりました（' + items.length + '行）', 'success');
   }
 
   // ========== 方向・輸送モード プライマリセレクター ==========
@@ -2055,9 +2163,15 @@
   // アクティブ index と全パターン分のスナップショットをまとめて書き出すだけでよい。
   // 輸送モード（FCL/LCL）を持つパターンは、コンテナの種類・本数もパターンごとに記憶する
   // （FCL案は20'GP×1、LCL案はコンテナなし、のように切替で入れ替えるため）
+  let _qpatSwitching = false;   // 案を切り替えている間は、画面の貿易条件を「切替先の案の値」として控えない（切替先の値を反映する前に上書きしてしまうため）
   function _syncActivePatternContainers() {
     const act = _packingPatterns[_packingActiveIdx];
-    if (act && act.mode) act.containers = (_containerEntries || []).map(e => ({ ...e }));
+    if (act && (act.mode === 'fcl' || act.mode === 'lcl')) act.containers = (_containerEntries || []).map(e => ({ ...e }));
+    // 貿易条件（インコタームズ）も案ごとに持つ：複数の案があるとき、いまの案に現在の値を控える（保存の直前・案の切替の直前に呼ばれる）
+    if (act && _packingPatterns.length >= 2 && !_qpatSwitching) {
+      const inco = document.getElementById('cond-incoterms');
+      if (inco) act.incoterms = inco.value;
+    }
   }
 
   function _syncPackingPatternsData() {
@@ -2068,7 +2182,8 @@
   }
 
   function _renderPackingPatternTabs() {
-    renderQtyPatternBar();   // 見積もりテーブルの上の切替（編集中のパターンの表示）も合わせて更新
+    renderQtyPatternBar();
+    const _allBtn = document.getElementById('cdCopyAllBtn'); if (_allBtn) _allBtn.style.display = _packingPatterns.length > 1 ? '' : 'none';   // 全パターンのコピーは複数あるときだけ   // 見積もりテーブルの上の切替（編集中のパターンの表示）も合わせて更新
     const wrap = document.getElementById('cdPatternTabs');
     if (!wrap) return;
     // パターンが1件だけ（かつ無名）なら、まだ複数パターンを使っていない案件なので
@@ -2096,29 +2211,45 @@
 
   // アクティブなパターンの輸送モード（FCL/LCL）指定と、FCL/LCL比較案のワンクリック作成
   function _patternModeControlsHtml() {
-    if (_currentTransport === 'air' || _currentTransport === 'domestic') return '';
+    if (_currentTransport === 'domestic') return '';
     const act = _packingPatterns[_packingActiveIdx] || {};
     const anyMode = _packingPatterns.some(pt => pt.mode);
     const sel = `<label class="cd-pattern-mode-wrap" title="このパターンを開いたとき、輸送モード（FCL/LCL）・コンテナ指定を自動で切り替えます。「FCL案」「LCL案」を並べて比較・併記したいときに指定します">` +
       `<span>輸送モード</span><select class="cd-pattern-mode-sel" onchange="setPackingPatternMode(this.value)">` +
       `<option value=""${act.mode ? '' : ' selected'}>指定なし</option>` +
       `<option value="fcl"${act.mode === 'fcl' ? ' selected' : ''}>FCL</option>` +
-      `<option value="lcl"${act.mode === 'lcl' ? ' selected' : ''}>LCL</option></select></label>`;
+      `<option value="lcl"${act.mode === 'lcl' ? ' selected' : ''}>LCL</option>` +
+      `<option value="air"${act.mode === 'air' ? ' selected' : ''}>AIR</option></select></label>`;
     const mk = anyMode ? '' :
       `<button type="button" class="cd-pattern-add-btn cd-pattern-fcllcl-btn" onclick="createFclLclPatterns()" title="今の内容を土台に「FCL案」「LCL案」の2パターンを作ります。LCL案では航路（NVOCC）や費用行を切り替えて、両案を比較・お客様へ併記できます">🆚 FCL/LCL比較案を作成</button>`;
     return mk + sel;
   }
 
-  // パターンの輸送モードを反映（モード切替＋コンテナ指定の入れ替え）
+  // パターンの輸送モードを反映（モード切替＋コンテナ指定の入れ替え）。FCL／LCL／AIR に対応（国内手配のみの案件では何もしない）
   function _applyPatternMode(i) {
     const pat = _packingPatterns[i];
     if (!pat || !pat.mode) return;
-    if (_currentTransport === 'air' || _currentTransport === 'domestic') return;
-    if (_currentTransport !== 'sea' || _currentSeaSub !== pat.mode) setTransport(pat.mode);
-    if (pat.mode === 'lcl') _containerEntries = Array.isArray(pat.containers) ? pat.containers.map(e => ({ ...e })) : [];
-    else if (Array.isArray(pat.containers)) _containerEntries = pat.containers.map(e => ({ ...e }));
+    if (_currentTransport === 'domestic') return;
+    if (pat.mode === 'air') {
+      if (_currentTransport !== 'air') setTransport('air');
+      _containerEntries = [];   // 航空はコンテナを使わない
+    } else {
+      if (_currentTransport !== 'sea' || _currentSeaSub !== pat.mode) setTransport(pat.mode);
+      if (pat.mode === 'lcl') _containerEntries = Array.isArray(pat.containers) ? pat.containers.map(e => ({ ...e })) : [];
+      else if (Array.isArray(pat.containers)) _containerEntries = pat.containers.map(e => ({ ...e }));
+    }
     _renderContainerEntries();
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
+  }
+
+  // 案ごとの貿易条件を反映（値を持つ案だけ。持っていない案は、いまの値のまま触らない）。change を発火して行の「適用する貿易条件」・ヒント・要約も追従させる
+  function _applyPatternIncoterms(i) {
+    const pat = _packingPatterns[i];
+    const sel = document.getElementById('cond-incoterms');
+    if (!pat || !sel || pat.incoterms === undefined || pat.incoterms === null) return;
+    if (sel.value === pat.incoterms) return;
+    sel.value = pat.incoterms;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   // ===== パターン併記出力（御見積書に FCL案／LCL案 を並べる） =====
@@ -2131,7 +2262,8 @@
     if (flag === '0' || _packingPatterns.length < 2) return null;
     const cands = _packingPatterns.map((pt, i) => ({ pt, i })).filter(({ pt }) => pt.showInQuote !== false);
     if (cands.length < 2) return null;
-    if (flag !== '1' && !(cands.some(c => c.pt.mode === 'fcl') && cands.some(c => c.pt.mode === 'lcl'))) return null;
+    // 自動：輸送モード（FCL／LCL／AIR）が異なる案が 2 つ以上あるときだけ併記する
+    if (flag !== '1' && new Set(cands.map(c => c.pt.mode).filter(Boolean)).size < 2) return null;
     return cands.map(({ pt, i }) => ({ idx: i, name: pt.name || `パターン${i + 1}`, mode: pt.mode || '' }));
   };
 
@@ -2146,20 +2278,33 @@
       cont: _containerEntries, mode: sel ? sel.value : '', routes: (_routeEntries || []).map(r => r.enabled),
       view: window._outputPatternView,
     };
+    const incoSel = document.getElementById('cond-incoterms');
+    const savedInco = incoSel ? incoSel.value : '';
+    let incoSwapped = false;
     try {
       _packingActiveIdx = i;
       _packingEntries = pat.entries;
-      if (pat.mode && _currentTransport !== 'air' && _currentTransport !== 'domestic') {
+      if (pat.mode === 'air' && _currentTransport !== 'domestic') {
+        _currentTransport = 'air';
+        if (sel) sel.value = '航空（AIR）';
+        _containerEntries = [];
+      } else if (pat.mode && _currentTransport !== 'domestic') {
         _currentTransport = 'sea';
         _currentSeaSub = pat.mode;
         const LABELS = { fcl: '海上（FCL）', lcl: '海上（LCL）' };
         if (sel) sel.value = LABELS[pat.mode];
         _containerEntries = pat.mode === 'lcl' ? [] : (Array.isArray(pat.containers) ? pat.containers : _containerEntries);
       }
+      // 案ごとの貿易条件：行の「適用する貿易条件」の判定も、その案の値で引き直す（イベントは出さず、行の判定だけ更新）
+      if (incoSel && pat.incoterms !== undefined && pat.incoterms !== null && pat.incoterms !== incoSel.value) {
+        incoSel.value = pat.incoterms; incoSwapped = true;
+        if (typeof window.rowRefreshIncoterms === 'function') window.rowRefreshIncoterms();
+      }
       const links = pat.routeLinks || {};
       (_routeEntries || []).forEach(r => {
         if (r.rid && Object.prototype.hasOwnProperty.call(links, r.rid)) r.enabled = !!links[r.rid];
       });
+      if (typeof window.routesNormalize === 'function') window.routesNormalize();   // 採用は 1 本だけ（Design 42-3）
       window._outputPatternView = i;
       return fn();
     } finally {
@@ -2168,15 +2313,16 @@
       _currentTransport = saved.transport; _currentSeaSub = saved.sub; _containerEntries = saved.cont;
       if (sel) sel.value = saved.mode;
       (_routeEntries || []).forEach((r, k) => { r.enabled = saved.routes[k]; });
+      if (incoSwapped && incoSel) { incoSel.value = savedInco; if (typeof window.rowRefreshIncoterms === 'function') window.rowRefreshIncoterms(); }
     }
   };
 
   window.setPackingPatternMode = function (mode) {
     const pat = _packingPatterns[_packingActiveIdx];
     if (!pat) return;
-    mode = (mode === 'fcl' || mode === 'lcl') ? mode : '';
+    mode = (mode === 'fcl' || mode === 'lcl' || mode === 'air') ? mode : '';
     pat.mode = mode || undefined;
-    if (!mode) delete pat.containers;
+    if (!mode || mode === 'air') delete pat.containers;
     else pat.containers = (_containerEntries || []).map(e => ({ ...e }));
     if (mode) _applyPatternMode(_packingActiveIdx);
     _renderPackingPatternTabs();
@@ -2209,6 +2355,7 @@
       groupExcludeLinks: { ...(src.groupExcludeLinks || {}) },
       routeLinks: { ...(src.routeLinks || {}) },
       mode: otherMode,
+      incoterms: src.incoterms,
       containers: otherMode === 'lcl' ? [] : (src.containers || []).map(e => ({ ...e })),
     };
     _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);
@@ -2225,7 +2372,11 @@
     _syncActivePatternContainers();   // 離れるパターンのコンテナ指定を確定
     _packingActiveIdx = i;
     _packingEntries = _packingPatterns[i].entries;
-    _applyPatternMode(i);             // FCL/LCL 指定があれば輸送モード・コンテナを切替
+    _qpatSwitching = true;
+    try {
+      _applyPatternIncoterms(i);        // 案ごとの貿易条件
+      _applyPatternMode(i);             // FCL/LCL/AIR 指定があれば輸送モード・コンテナを切替
+    } finally { _qpatSwitching = false; }
     _renderPackingEntries();
     _applyPatternQtyLinks(i);
     _applyPatternRouteLinks(i);
@@ -2318,24 +2469,196 @@
     const hd  = document.getElementById('hdQtyPat');
     if (!bar) return;
     const multi = _packingPatterns.length >= 2;
-    bar.hidden = !multi;
+    bar.hidden = false;   // 1 つだけのときも常に出す（「＋」から案を足せる入口）
     const act = _packingPatterns[_packingActiveIdx] || {};
     const label = p => p.name || `パターン${_packingPatterns.indexOf(p) + 1}`;
-    if (tab) tab.dataset.qpat = multi ? (act.mode === 'fcl' || act.mode === 'lcl' ? act.mode : 'other') : '';
-    if (hd) { hd.hidden = !multi; hd.textContent = multi ? label(act) : ''; hd.title = multi ? '編集中の数量パターン：' + label(act) : ''; }
-    if (!multi) { bar.innerHTML = ''; return; }
-    const chips = _packingPatterns.map((pt, i) => {
+    const modeOf = p => (p && (p.mode === 'fcl' || p.mode === 'lcl' || p.mode === 'air')) ? p.mode : '';
+    if (tab) tab.dataset.qpat = multi ? (modeOf(act) || 'other') : '';
+    if (hd) { hd.hidden = !multi; hd.textContent = multi ? label(act) : ''; hd.title = multi ? '編集中のパターン：' + label(act) : ''; }
+    // ブラウザのタブのように並べる（名前のダブルクリックで改名・ドラッグで並べ替え・× で削除・「＋」で追加）
+    const tabs = _packingPatterns.map((pt, i) => {
       const on = i === _packingActiveIdx;
-      const mode = pt.mode === 'fcl' || pt.mode === 'lcl' ? pt.mode : '';
-      return `<button type="button" class="qpat-chip${on ? ' is-active' : ''}${mode ? ' is-' + mode : ''}" aria-pressed="${on}" onclick="switchPackingPattern(${i})" ` +
-        `title="${_escMulti(label(pt))}（${on ? '編集中の数量パターン' : 'クリックでこのパターンに切り替えて編集'}）">` +
-        (mode ? `<span class="qpat-mode">${mode.toUpperCase()}</span>` : '') + `<span class="qpat-name">${_escMulti(label(pt))}</span></button>`;
+      const mode = modeOf(pt);
+      const shown = pt.showInQuote !== false;   // 「見積書に出さない」を明示したときだけ印を付ける
+      return `<div class="qpat-chip${on ? ' is-active' : ''}${mode ? ' is-' + mode : ''}${shown ? '' : ' is-hidden-from-quote'}" role="tab" aria-selected="${on}" tabindex="0" draggable="true" data-i="${i}" ` +
+        `onclick="switchPackingPattern(${i})" ondblclick="qpatRename(${i}, event)" ` +
+        `ondragstart="qpatDragStart(event, ${i})" ondragover="qpatDragOver(event)" ondrop="qpatDrop(event, ${i})" ondragend="qpatDragEnd()" ` +
+        `onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchPackingPattern(${i});}" ` +
+        `title="${_escMulti(label(pt))}（${on ? '編集中・ダブルクリックで名前を変更・ドラッグで並べ替え' : 'クリックで切り替え'}）${shown ? '' : '／見積書には出さない設定'}">` +
+        (mode ? `<span class="qpat-mode">${mode.toUpperCase()}</span>` : '') +
+        `<span class="qpat-name">${_escMulti(label(pt))}</span>` +
+        (on ? `<button type="button" class="qpat-more" aria-label="この案のメニュー" onclick="event.stopPropagation();qpatMenu(this, ${i})" title="この案のメニュー（名前・モード・複製・見積書への表示・削除）">⋯</button>` : '') +
+        (multi ? `<button type="button" class="qpat-x" aria-label="この案を削除" onclick="event.stopPropagation();removePackingPattern(${i})" title="この案を削除">×</button>` : '') +
+        `</div>`;
     }).join('');
     const need = document.querySelectorAll('#tableBody .pq-pattern-needs-check').length;
-    bar.innerHTML = `<span class="qpat-lbl" title="見積もりテーブルの数量は、パターンごとに記憶されます。枠線の見方：緑＝このパターン専用の数量／橙＝他のパターンだけに設定あり">📦 数量パターン</span>${chips}` +
-      (need ? `<button type="button" class="qpat-need" onclick="jumpToQtyNeedsCheck()" title="他のパターンでは数量が設定されているのに、このパターンでは未設定の行（値は自動では変わらないので、必要なら入れ直してください）。クリックで最初の行へ">⚠ 要確認 ${need} 行</button>` : '') +
-      `<span class="qpat-legend"><i class="qpat-sw is-linked"></i>このパターン専用の数量<i class="qpat-sw is-check"></i>他のパターンだけに設定あり</span>`;
+    bar.innerHTML = `<div class="qpat-tabs" role="tablist" aria-label="案（パターン）">${tabs}` +
+      `<button type="button" class="qpat-add" onclick="qpatAddMenu(this)" aria-label="パターンを追加" title="パターンを追加（FCL案・LCL案・AIR案・現在の案のコピー・空の案）">＋</button></div>` +
+      (multi && need ? `<button type="button" class="qpat-need" onclick="jumpToQtyNeedsCheck()" title="他の案では数量が設定されているのに、この案では未設定の行（値は自動では変わりません）。クリックで最初の行へ移動します">⚠ 要確認 ${need} 行</button>` : '') +
+      (multi ? `<span class="qpat-legend"><i class="qpat-sw is-linked"></i>この案専用の数量<i class="qpat-sw is-check"></i>他の案だけに設定あり</span>` : '');
+    // 編集中のタブが見切れないように、横スクロールを合わせる（ページ自体はスクロールさせない）
+    [bar, bar.querySelector('.qpat-tabs')].forEach(sc => {
+      const on = sc && bar.querySelector('.qpat-chip.is-active');
+      if (!on || sc.scrollWidth <= sc.clientWidth + 1) return;
+      const a = on.getBoundingClientRect(), c = sc.getBoundingClientRect();
+      if (a.right > c.right) sc.scrollLeft += a.right - c.right + 8;
+      else if (a.left < c.left) sc.scrollLeft -= c.left - a.left + 8;
+    });
   }
+
+  // ----- 案のタブ操作（名前変更・並べ替え・追加・メニュー） -----
+  function _qpatClosePop() { const el = document.getElementById('qpatPop'); if (el) el.remove(); document.removeEventListener('mousedown', _qpatOutside, true); document.removeEventListener('keydown', _qpatEsc, true); }
+  function _qpatOutside(e) { const el = document.getElementById('qpatPop'); if (el && !el.contains(e.target)) _qpatClosePop(); }
+  function _qpatEsc(e) { if (e.key === 'Escape') _qpatClosePop(); }
+  function _qpatOpenPop(anchor, html) {
+    _qpatClosePop();
+    const pop = document.createElement('div');
+    pop.id = 'qpatPop'; pop.className = 'qpat-pop'; pop.setAttribute('role', 'menu');
+    pop.innerHTML = html;
+    document.body.appendChild(pop);
+    const r = anchor.getBoundingClientRect();
+    pop.style.top = Math.round(r.bottom + 4) + 'px';
+    pop.style.left = Math.max(8, Math.min(Math.round(r.left), window.innerWidth - pop.offsetWidth - 8)) + 'px';
+    setTimeout(() => { document.addEventListener('mousedown', _qpatOutside, true); document.addEventListener('keydown', _qpatEsc, true); }, 0);
+    pop.addEventListener('click', e => { if (e.target.closest('[data-qpat-act]')) setTimeout(_qpatClosePop, 0); });
+  }
+  window.qpatAddMenu = function (anchor) {
+    const item = (act, ico, t, d) => `<button type="button" role="menuitem" class="qpat-pop-item" data-qpat-act="${act}" onclick="qpatAddAct('${act}')"><b>${ico} ${t}</b><small>${d}</small></button>`;
+    _qpatOpenPop(anchor,
+      `<div class="qpat-pop-h">案を追加</div>` +
+      item('fcl', '🚢', 'FCL案', '今の内容をコピーして、海上（FCL）の案にする') +
+      item('lcl', '📦', 'LCL案', '今の内容をコピーして、海上（LCL）の案にする') +
+      item('air', '✈️', 'AIR案', '今の内容をコピーして、航空（AIR）の案にする') +
+      `<div class="qpat-pop-sep"></div>` +
+      item('copy', '⧉', '今の案をコピー', '名前を付けて、そのままコピー（モードも引き継ぐ）') +
+      item('blank', '＋', '空の案', '荷姿が空の新しい案（数量・表示は今のものを引き継ぐ）'));
+  };
+  window.qpatAddAct = function (act) {
+    if (act === 'copy') return window.duplicatePackingPattern();
+    if (act === 'blank') return window.addPackingPattern();
+    return window.addModePattern(act);
+  };
+  // 今の案をコピーして、輸送モードを指定した新しい案（FCL案／LCL案／AIR案）を作り、その案へ切り替える
+  window.addModePattern = function (mode) {
+    if (mode !== 'fcl' && mode !== 'lcl' && mode !== 'air') return;
+    _syncActivePatternContainers();
+    _packingPatterns.forEach((pt, i) => { if (!pt.name) pt.name = `パターン${i + 1}`; });
+    const src = _packingPatterns[_packingActiveIdx];
+    _snapshotAllQtyIntoPattern(_packingActiveIdx);
+    // 元の案にモードが無ければ、いまの輸送モードを元の案のモードとして控える（片方だけモードが無い状態にしない）
+    if (!src.mode && _currentTransport !== 'domestic') {
+      src.mode = _currentTransport === 'air' ? 'air' : (_currentSeaSub === 'lcl' ? 'lcl' : 'fcl');
+      if (src.mode !== 'air') src.containers = (_containerEntries || []).map(e => ({ ...e }));
+      if (/^パターン\d+$/.test(src.name) && _packingPatterns.length === 1) src.name = src.mode.toUpperCase() + '案';
+    }
+    const base = mode.toUpperCase() + '案';
+    let nm = base, k = 2;
+    while (_packingPatterns.some(pt => pt.name === nm)) nm = base + k++;
+    const cloned = {
+      name: nm,
+      entries: (src.entries || []).map(e => ({ ...e })),
+      showInQuote: src.showInQuote,
+      qtyLinks: { ...(src.qtyLinks || {}) },
+      excludedUnits: [...(src.excludedUnits || [])],
+      hideLinks: { ...(src.hideLinks || {}) },
+      groupExcludeLinks: { ...(src.groupExcludeLinks || {}) },
+      routeLinks: { ...(src.routeLinks || {}) },
+      mode,
+      incoterms: src.incoterms,
+      containers: mode === 'fcl' ? (Array.isArray(src.containers) ? src.containers.map(e => ({ ...e })) : (_containerEntries || []).map(e => ({ ...e }))) : undefined,
+    };
+    _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);
+    _packingActiveIdx += 1;
+    _packingEntries = _packingPatterns[_packingActiveIdx].entries;
+    _qpatSwitching = true;
+    try { _applyPatternMode(_packingActiveIdx); } finally { _qpatSwitching = false; }
+    _renderPackingEntries();
+    _applyPatternQtyLinks(_packingActiveIdx);
+    _applyPatternRouteLinks(_packingActiveIdx);
+    _renderRouteEntries();
+    renderQtyPatternBar();
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast(`「${nm}」を追加しました。航路と費用行（表示/非表示・数量）をこの案に合わせて調整してください`, 'success', 3500);
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+  window.qpatMenu = function (anchor, i) {
+    const pt = _packingPatterns[i]; if (!pt) return;
+    const m = pt.mode || '';
+    const shown = _isPatternVisibleInQuote(pt, i);
+    const modeBtn = (v, t) => `<button type="button" role="menuitemradio" aria-checked="${m === v}" class="qpat-pop-item qpat-pop-mode${m === v ? ' is-on' : ''}" data-qpat-act="mode" onclick="qpatMenuAct('mode','${v}')">${m === v ? '✓ ' : ''}${t}</button>`;
+    const only1 = _packingPatterns.length <= 1;
+    _qpatOpenPop(anchor,
+      `<div class="qpat-pop-h">${_escMulti(pt.name || `パターン${i + 1}`)}</div>` +
+      `<button type="button" role="menuitem" class="qpat-pop-item" data-qpat-act="rename" onclick="qpatMenuAct('rename')"><b>✎ 名前を変更</b></button>` +
+      `<div class="qpat-pop-sub">輸送モード</div>` +
+      `<div class="qpat-pop-modes">${modeBtn('', '指定なし')}${modeBtn('fcl', 'FCL')}${modeBtn('lcl', 'LCL')}${modeBtn('air', 'AIR')}</div>` +
+      `<button type="button" role="menuitem" class="qpat-pop-item" data-qpat-act="dup" onclick="qpatMenuAct('dup')"><b>⧉ 複製</b></button>` +
+      `<button type="button" role="menuitem" class="qpat-pop-item" data-qpat-act="vis" onclick="qpatMenuAct('vis')"><b>${shown ? '🔒 見積書に出さない' : '👁 見積書に出す'}</b><small>画面の案としては残ります</small></button>` +
+      (only1 ? '' : `<div class="qpat-pop-sep"></div><button type="button" role="menuitem" class="qpat-pop-item is-danger" data-qpat-act="del" onclick="qpatMenuAct('del')"><b>🗑 この案を削除</b></button>`));
+    window._qpatMenuIdx = i;
+  };
+  window.qpatMenuAct = function (act, v) {
+    const i = window._qpatMenuIdx;
+    if (act === 'rename') return setTimeout(() => window.qpatRename(i), 0);
+    if (act === 'mode') return window.setPackingPatternMode(v);
+    if (act === 'dup') return window.duplicatePackingPattern();
+    if (act === 'vis') return window.togglePackingPatternVisibility(i);
+    if (act === 'del') return window.removePackingPattern(i);
+  };
+  // 名前をその場で変更（ダブルクリック／メニュー）：入力欄に置き換え、Enter か欄を離れると確定・Esc で取り消し
+  window.qpatRename = function (i, ev) {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    const chip = document.querySelector(`#qtyPatternBar .qpat-chip[data-i="${i}"]`);
+    const pt = _packingPatterns[i];
+    if (!chip || !pt) return;
+    const nameEl = chip.querySelector('.qpat-name');
+    if (!nameEl || chip.querySelector('.qpat-edit')) return;
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.className = 'qpat-edit'; inp.value = pt.name || `パターン${i + 1}`; inp.maxLength = 40;
+    chip.draggable = false;
+    nameEl.replaceWith(inp);
+    inp.focus(); inp.select();
+    let done = false;
+    const finish = ok => {
+      if (done) return; done = true;
+      if (ok) {
+        const v = inp.value.trim();
+        if (v) pt.name = v;
+        _renderPackingPatternTabs();
+        _syncPackingPatternsData();
+        if (typeof window.udRefresh === 'function') window.udRefresh();
+        if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+        if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+      } else renderQtyPatternBar();
+    };
+    inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); finish(true); } else if (e.key === 'Escape') { e.preventDefault(); finish(false); } });
+    inp.addEventListener('click', e => e.stopPropagation());
+    inp.addEventListener('dblclick', e => e.stopPropagation());
+    inp.addEventListener('blur', () => finish(true));
+  };
+  // ドラッグで並べ替え（中身はそのまま・順番だけ入れ替える。編集中の案は動かしても編集中のまま）
+  let _qpatDragFrom = -1;
+  window.qpatDragStart = function (ev, i) { _qpatDragFrom = i; try { ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain', String(i)); } catch (e) {} ev.currentTarget.classList.add('is-dragging'); };
+  window.qpatDragOver = function (ev) { if (_qpatDragFrom < 0) return; ev.preventDefault(); try { ev.dataTransfer.dropEffect = 'move'; } catch (e) {} };
+  window.qpatDragEnd = function () { _qpatDragFrom = -1; document.querySelectorAll('#qtyPatternBar .qpat-chip.is-dragging').forEach(c => c.classList.remove('is-dragging')); };
+  window.qpatDrop = function (ev, to) {
+    ev.preventDefault();
+    const from = _qpatDragFrom; _qpatDragFrom = -1;
+    if (from < 0 || from === to || !_packingPatterns[from] || !_packingPatterns[to]) { window.qpatDragEnd(); return; }
+    window.qpatReorder(from, to);
+  };
+  window.qpatReorder = function (from, to) {
+    const act = _packingPatterns[_packingActiveIdx];
+    const [mv] = _packingPatterns.splice(from, 1);
+    _packingPatterns.splice(to, 0, mv);
+    _packingActiveIdx = Math.max(0, _packingPatterns.indexOf(act));
+    _packingEntries = _packingPatterns[_packingActiveIdx].entries;
+    _renderPackingPatternTabs();
+    _syncPackingPatternsData();
+    if (typeof window.udRefresh === 'function') window.udRefresh();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
   window.renderQtyPatternBar = renderQtyPatternBar;
   // 数量パターンのバーは、画面が広いとき上部ツールバー（「⋯」の左の空き）に置き、狭い画面（ツールバーが static になる 680px 以下）では表の操作バーの先頭に戻す。
   // 要素は 1 つのまま移すだけ（id・中身の描画・onclick は不変）
@@ -2426,6 +2749,7 @@
     if (!pat) return;
     if (!pat.qtyLinks) pat.qtyLinks = {};
     if (!pat.hideLinks) pat.hideLinks = {};
+    { const inco = document.getElementById('cond-incoterms'); if (inco) pat.incoterms = inco.value; }   // 貿易条件も、この案の値として確定
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
       if (tr.dataset.type || tr.dataset.virtual) return;
       const id = tr.id.replace('row-', '');
@@ -2483,7 +2807,7 @@
     // これをしないと、複数パターンを使い始める前に入力した数量がどのパターンにも
     // 属さないまま扱われ、後で他パターンへ切替→戻すと値が引き継がれない不具合になる
     _snapshotAllQtyIntoPattern(_packingActiveIdx);
-    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {}, routeLinks: {} });
+    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {}, routeLinks: {}, incoterms: (document.getElementById('cond-incoterms') || {}).value });
     _packingActiveIdx = _packingPatterns.length - 1;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
@@ -2512,7 +2836,8 @@
       hideLinks: { ...(src.hideLinks || {}) },   // 見積書表示/非表示の紐付けも複製元を引き継ぐ
       groupExcludeLinks: { ...(src.groupExcludeLinks || {}) },   // サブコン・サブコン×パターン見出しの含む/除外も複製元を引き継ぐ
       routeLinks: { ...(src.routeLinks || {}) },   // 航路の有効/無効も複製元を引き継ぐ
-      mode: src.mode,                              // 輸送モード（FCL/LCL）・コンテナ指定も引き継ぐ
+      mode: src.mode,                              // 輸送モード（FCL/LCL/AIR）・コンテナ指定も引き継ぐ
+      incoterms: src.incoterms,                    // 貿易条件も引き継ぐ
       containers: Array.isArray(src.containers) ? src.containers.map(e => ({ ...e })) : undefined,
     };
     _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);   // 複製元の直後に挿入
@@ -2546,7 +2871,11 @@
     if (_packingActiveIdx >= _packingPatterns.length) _packingActiveIdx = _packingPatterns.length - 1;
     else if (i < _packingActiveIdx) _packingActiveIdx--;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
-    _applyPatternMode(_packingActiveIdx);
+    _qpatSwitching = true;
+    try {
+      _applyPatternIncoterms(_packingActiveIdx);
+      _applyPatternMode(_packingActiveIdx);
+    } finally { _qpatSwitching = false; }
     _renderPackingEntries();
     _applyPatternQtyLinks(_packingActiveIdx);   // 1件だけになった場合はハイライトを消す
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -2637,6 +2966,11 @@
   let _lastCargoMetrics = { cbm: 0, kg: 0, rt: 0, cw: 0, qty: 0 };
 
   // 行の「表示条件」が参照できるよう、コンテナの種別・本数を公開（[{type, count}]）
+  // いまの輸送モードが FCL か（コンテナの本数が意味を持つか）。モードが未設定なら null（分からない）
+  window.quoteIsFcl = function () {
+    if (!_currentTransport) return null;
+    return _currentTransport === 'sea' && _currentSeaSub === 'fcl';
+  };
   window.getContainerEntries = function () {
     return (_containerEntries || []).filter(e => e && e.type).map(e => ({ type: e.type, count: parseFloat(e.count) || 0 }));
   };
@@ -2786,6 +3120,76 @@
       return `【${name}】\n${treeLines.join('\n')}`;
     }).filter(Boolean);
     return blocks.join('\n\n');
+  };
+
+  // ===== 物量情報を「メール本文に貼り付けられるテキスト」にしてコピー =====
+  // 荷姿・貨物明細（荷姿 × 個数 × サイズ・重量・容積・段積み）＋合計（個数・CBM・重量）＋
+  // 輸送モードに応じた課金重量（LCL＝R/T・航空＝CW）＋コンテナ（種別×本数）。
+  // scope: 'active'＝いま編集中のパターンだけ／'all'＝すべてのパターン。
+  // 複数パターンのある案件は【パターン名】を前置きする。サイズ・重量が不明の案件はその旨だけ。
+  function _cargoCopyBlock(pt, mode) {
+    const rows = (pt.entries || []).filter(e => e && (e.pkg || e.l || e.w || e.h || e.kg));
+    if (!rows.length) return '';
+    const lines = rows.map(e => {
+      const parts = [e.pkg || '荷姿未設定', `${e.qty || 1}個`];
+      if ([e.l, e.w, e.h].every(x => parseFloat(x) > 0)) parts.push(`${e.l}×${e.w}×${e.h}cm`);
+      if (parseFloat(e.kg) > 0) parts.push(`${e.kg}kg/個`);
+      const c = _rowCbm(e);
+      if (c > 0) parts.push(`${c.toFixed(3)}CBM`);
+      if (e.stack === '不可') parts.push('段積み不可'); else if (e.stack === '可') parts.push('段積み可');
+      return '・' + parts.join('　');
+    });
+    const qty = rows.reduce((a, e) => a + (parseInt(e.qty, 10) || 0), 0);
+    const { kg, cbm, rt, cw } = _patternWeightCbm(pt.entries);
+    const tot = [];
+    if (qty > 0) tot.push(`${qty}個`);
+    if (cbm > 0) tot.push(`${cbm.toFixed(3)} CBM`);
+    if (kg > 0) tot.push(`${(+kg.toFixed(2)).toLocaleString()} kg`);
+    if (tot.length) lines.push('合計：' + tot.join('　'));
+    if (/LCL/i.test(mode) && (cbm > 0 || kg > 0)) lines.push(`R/T：${rt.toFixed(3)}`);
+    else if (/航空|AIR/i.test(mode) && cw > 0) {
+      const cwTxt = (typeof SharedCalc !== 'undefined' && SharedCalc.fmtCw) ? SharedCalc.fmtCw(cw) : String(Math.round(cw));
+      lines.push(`CW（課金重量）：${cwTxt} kg`);
+    }
+    return lines.join('\n');
+  }
+
+  window.getCargoCopyText = function (scope) {
+    const out = ['【物量情報】'];
+    const m = window.getCargoMetrics ? window.getCargoMetrics() : {};
+    if (m.container) out.push('コンテナ：' + m.container);
+    if (window.isCargoSizeUnknown()) {
+      const note = (document.getElementById('cond-cargo-unknown-note')?.value || '').trim();
+      out.push('サイズ・重量：不明（引き合い時点では未確定）' + (note ? '　' + note : ''));
+    } else {
+      const mode = document.getElementById('cond-mode')?.value || '';
+      const multi = (_packingPatterns || []).length > 1;
+      const list = scope === 'all' ? _packingPatterns.map((pt, i) => ({ pt, i })) : [{ pt: _packingPatterns[_packingActiveIdx], i: _packingActiveIdx }];
+      list.forEach(({ pt, i }) => {
+        if (!pt) return;
+        const body = _cargoCopyBlock(pt, mode);
+        if (!body) return;
+        out.push(multi ? `■${pt.name || `パターン${i + 1}`}\n${body}` : body);
+      });
+    }
+    return out.length > 1 ? out.join('\n') : '';
+  };
+
+  window.copyCargoText = function (scope) {
+    const text = window.getCargoCopyText(scope === 'all' ? 'all' : 'active');
+    const toast = (msg, type) => { if (typeof quoteShowToast === 'function') quoteShowToast(msg, type); };
+    if (!text) { toast('コピーできる物量情報がありません（荷姿・貨物明細を入力してください）', 'warning'); return; }
+    const done = () => toast('📋 物量情報をテキストでコピーしました（メール本文に貼り付けできます）', 'success');
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      ok ? done() : toast('コピーできませんでした', 'error');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
   };
 
   // 複数パターンを使っている案件で、現在アクティブなパターン名を返す（PDF等の出力
@@ -3047,7 +3451,8 @@
         hideLinks: (pt && pt.hideLinks && typeof pt.hideLinks === 'object') ? pt.hideLinks : {},
         groupExcludeLinks: (pt && pt.groupExcludeLinks && typeof pt.groupExcludeLinks === 'object') ? pt.groupExcludeLinks : {},
         routeLinks: (pt && pt.routeLinks && typeof pt.routeLinks === 'object') ? pt.routeLinks : {},
-        mode: (pt && (pt.mode === 'fcl' || pt.mode === 'lcl')) ? pt.mode : undefined,
+        mode: (pt && (pt.mode === 'fcl' || pt.mode === 'lcl' || pt.mode === 'air')) ? pt.mode : undefined,
+        incoterms: (pt && typeof pt.incoterms === 'string') ? pt.incoterms : undefined,
         containers: (pt && Array.isArray(pt.containers)) ? pt.containers : undefined,
       }));
       _packingActiveIdx = (Number.isInteger(restoredPt.activeIdx) && _packingPatterns[restoredPt.activeIdx]) ? restoredPt.activeIdx : 0;
@@ -3203,57 +3608,303 @@
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
 
+  // ルート案（2026-11）：航路に「案の名前」と「採用／不採用」の印を付ける（画面の整理用・見積書の出力・合計には影響しない）。
+  // plan＝案の名前（空＝案なし）／adopt＝''（検討中）・'adopt'（採用）・'reject'（不採用）
+  const _ADOPT_LABEL = { '': '検討中', adopt: '✓ 採用', reject: '✕ 不採用' };
+  function _planChip(r, i) {
+    const nm = String(r.plan || '').trim();
+    if (!nm) return `<button type="button" class="z2-route-plan is-none" onclick="editRoutePlan(${i})" title="この航路に「案」の名前を付ける（例：案1・FCL直行案）。複数の航路案を比べるときの整理用です（見積書の出力には影響しません）">＋案</button>`;
+    const ad = r.adopt === 'adopt' || r.adopt === 'reject' ? r.adopt : '';
+    return `<span class="z2-route-planwrap${ad ? ' is-' + ad : ''}">`
+      + `<button type="button" class="z2-route-plan" onclick="editRoutePlan(${i})" title="案の名前を変更（空にすると案なしに戻す）">${_escMulti(nm)}</button>`
+      + `<button type="button" class="z2-route-adopt" onclick="cycleRouteAdopt(${i})" title="クリックで 検討中 → 採用 → 不採用 を切り替え（印だけで、見積書・合計には影響しません）">${_ADOPT_LABEL[ad]}</button></span>`;
+  }
+  // 区間（2026-11）：航路ごとに「集荷／海上／航空／配送…」の区間を並べ、区間ごとのモード・キャリア・ETD・メモを控える（画面の整理用・見積書の出力や合計には影響しない）
+  const _SEG_MODES = ['集荷', '海上', '航空', '内航', '鉄道', '陸送', '配送', '通関', 'その他'];
+  function _segs(r) { return Array.isArray(r.segs) ? r.segs.filter(x => x && typeof x === 'object') : []; }
+  function _segChip(r, i) {
+    const sg = _segs(r);
+    if (!sg.length) return `<button type="button" class="z2-route-seg is-none" onclick="openRouteSegs(${i}, this)" title="この航路を区間（集荷・海上・配送など）に分けて、区間ごとのキャリア・ETD を控える（見積書の出力には影響しません）">＋区間</button>`;
+    const tip = sg.map((x, k) => (k + 1) + '. ' + [x.mode, x.carrier, x.etd ? 'ETD ' + x.etd : '', x.note].filter(Boolean).join(' / ')).join('\n');
+    const brief = sg.map(x => _escMulti(x.mode || '—') + (x.carrier ? ':' + _escMulti(x.carrier) : '')).join(' ▸ ');
+    return `<button type="button" class="z2-route-seg" onclick="openRouteSegs(${i}, this)" title="${_escMulti(tip)}">区間${sg.length}｜${brief}</button>`;
+  }
+  let _segPop = null;
+  function _closeSegPop() { if (_segPop) { _segPop.remove(); _segPop = null; } }
+  window.openRouteSegs = function (i, anchor) {
+    const r = _routeEntries[i]; if (!r) return;
+    _closeSegPop();
+    const pop = document.createElement('div'); pop.className = 'z2-seg-pop'; pop.dataset.routeIdx = String(i);
+    const rows = () => _segs(r).map((x, k) => `<div class="z2-seg-row" data-k="${k}">`
+      + `<select class="z2-seg-mode">${_SEG_MODES.map(m => `<option${m === (x.mode || '') ? ' selected' : ''}>${m}</option>`).join('')}</select>`
+      + `<input class="z2-seg-carrier" placeholder="キャリア・業者" value="${_escMulti(x.carrier || '')}" list="svSuggestions">`
+      + `<input class="z2-seg-etd" type="date" value="${_escMulti(x.etd || '')}" title="ETD（出発予定）">`
+      + `<input class="z2-seg-note" placeholder="メモ" value="${_escMulti(x.note || '')}">`
+      + `<button type="button" class="z2-seg-del" title="この区間を削除">✕</button></div>`).join('');
+    const draw = () => {
+      pop.innerHTML = `<div class="z2-seg-head"><b>区間</b><span>航路を区間に分けて控えます（見積書の出力には影響しません）</span><button type="button" class="z2-seg-x" title="閉じる">×</button></div>`
+        + `<div class="z2-seg-rows">${rows() || '<div class="z2-seg-empty">区間はまだありません</div>'}</div>`
+        + `<div class="z2-seg-foot"><button type="button" class="z2-seg-add">＋ 区間を追加</button></div>`;
+    };
+    const commit = () => {
+      r.segs = [...pop.querySelectorAll('.z2-seg-row')].map(row => ({ mode: row.querySelector('.z2-seg-mode').value, carrier: row.querySelector('.z2-seg-carrier').value.trim(), etd: row.querySelector('.z2-seg-etd').value, note: row.querySelector('.z2-seg-note').value.trim() }));
+      const data = document.getElementById('z2-routes-data'); if (data) data.value = JSON.stringify(_routeEntries);
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+      if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    };
+    draw();
+    pop.addEventListener('input', commit); pop.addEventListener('change', commit);
+    pop.addEventListener('click', e => {
+      if (e.target.closest('.z2-seg-x')) { commit(); _closeSegPop(); _renderRouteEntries(); return; }
+      if (e.target.closest('.z2-seg-add')) { commit(); r.segs = _segs(r).concat([{ mode: _segs(r).length ? '海上' : '集荷', carrier: '', etd: '', note: '' }]); draw(); return; }
+      const del = e.target.closest('.z2-seg-del');
+      if (del) { commit(); const k = +del.closest('.z2-seg-row').dataset.k; r.segs = _segs(r).filter((_, n) => n !== k); draw(); commit(); }
+    });
+    document.body.appendChild(pop); _segPop = pop;
+    const b = (anchor || document.getElementById('z2RouteList')).getBoundingClientRect();
+    pop.style.top = Math.min(window.innerHeight - 40, b.bottom + 6) + 'px'; pop.style.left = Math.max(8, Math.min(b.left, window.innerWidth - 560)) + 'px';
+    setTimeout(() => document.addEventListener('mousedown', function h(ev) { if (_segPop && !_segPop.contains(ev.target) && !(ev.target.closest && ev.target.closest('.z2-route-seg'))) { _closeSegPop(); _renderRouteEntries(); } if (!_segPop) document.removeEventListener('mousedown', h); }), 0);
+  };
+  window.editRoutePlan = function (i) {
+    const r = _routeEntries[i]; if (!r) return;
+    const v = prompt('この航路の「案」の名前（例：案1／FCL直行案）。空にすると案なしに戻ります。', r.plan || '');
+    if (v == null) return;
+    r.plan = v.trim(); if (!r.plan) r.adopt = '';
+    _renderRouteEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+
+
+  // ===== Design 42-3：航路の一覧はカード／「採用」1 つで見積書に出す航路を決める（2026-11） =====
+  // 採用＝enabled が true（かつ使用不可でない）。採用はグループに 1 本だけ（片道は全体で 1 本、往復は往路・復路で
+  // 1 本ずつ。往復で往路／復路の指定が無い航路は、従来どおり 1 本目＝往路・2 本目＝復路として 2 本まで）。
+  // r.adopt は表示用に同期（'adopt'＝採用・'reject'＝不採用・''＝未定）。物量パターンの航路の紐付け（routeLinks）は enabled のまま。
+  function _rAdopted(r) { return !!r && !r.ng && r.enabled !== false; }
+  function _rGroup(r) {
+    if (!dirIsRound(_currentDirection)) return 'one';
+    return r.leg === 'out' || r.leg === 'ret' ? r.leg : 'auto';
+  }
+  function _rGroupMax(g) { return g === 'auto' ? 2 : 1; }
+  // 各グループの採用を上限までに整える（上から順に残す）。1 本しかないときは自動で採用。戻り値＝変えたか
+  function _routesNormalize(list) {
+    list = list || _routeEntries;
+    let changed = false;
+    const cnt = {};
+    list.forEach(r => {
+      if (!_rAdopted(r)) return;
+      const g = _rGroup(r); cnt[g] = (cnt[g] || 0) + 1;
+      if (cnt[g] > _rGroupMax(g)) { r.enabled = false; changed = true; }
+    });
+    const live = list.filter(r => !r.ng && r.adopt !== 'reject');
+    if (list.length === 1 && live.length === 1 && !_rAdopted(live[0])) { live[0].enabled = true; changed = true; }
+    list.forEach(r => {
+      const a = _rAdopted(r) ? 'adopt' : (r.adopt === 'reject' ? 'reject' : '');
+      if ((r.adopt || '') !== a) { r.adopt = a; }
+    });
+    return changed;
+  }
+  window.routesNormalize = _routesNormalize;
+  function _routeSaved() {
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+  // この航路を採用にする（同じグループのほかの採用は未定に戻す）
+  window.adoptRoute = function (i) {
+    const r = _routeEntries[i]; if (!r) return;
+    const g = _rGroup(r), max = _rGroupMax(g);
+    r.enabled = true; r.ng = false; r.ngReason = ''; r.adopt = 'adopt';
+    const others = _routeEntries.map((x, k) => k).filter(k => k !== i && _rAdopted(_routeEntries[k]) && _rGroup(_routeEntries[k]) === g);
+    while (others.length > max - 1) {
+      const k = others.pop();
+      _routeEntries[k].enabled = false; _routeEntries[k].adopt = '';
+      _recordPatternRouteState(k);
+    }
+    _recordPatternRouteState(i);
+    _routesNormalize(); _renderRouteEntries(); _routeSaved(); _triggerCarrierBmFetch();
+  };
+  window.rejectRoute = function (i) {
+    const r = _routeEntries[i]; if (!r) return;
+    r.enabled = false; r.adopt = 'reject';
+    _recordPatternRouteState(i);
+    _routesNormalize(); _renderRouteEntries(); _routeSaved(); _triggerCarrierBmFetch();
+  };
+  window.unsetRoute = function (i) {
+    const r = _routeEntries[i]; if (!r) return;
+    r.enabled = false; r.adopt = '';
+    _recordPatternRouteState(i);
+    _routesNormalize(); _renderRouteEntries(); _routeSaved(); _triggerCarrierBmFetch();
+  };
+  // 互換：旧ボタン（✓）と同じ入口。採用 ⇔ 未定
+  window.cycleRouteAdopt = function (i) {
+    const r = _routeEntries[i]; if (!r) return;
+    if (_rAdopted(r)) window.rejectRoute(i); else if (r.adopt === 'reject') window.unsetRoute(i); else window.adoptRoute(i);
+  };
+
+  // ［⋯］のメニュー
+  let _rcMenu = null;
+  function _closeRcMenu() { if (_rcMenu) { _rcMenu.remove(); _rcMenu = null; } }
+  window.openRouteMenu = function (i, anchor) {
+    const r = _routeEntries[i]; if (!r) return;
+    if (_rcMenu && _rcMenu.dataset.i === String(i)) { _closeRcMenu(); return; }
+    _closeRcMenu();
+    const ad = _rAdopted(r), n = _routeEntries.length;
+    const items = [
+      { t: r.plan ? '案の名前を変える' : '案の名前を付ける', f: () => window.editRoutePlan(i) },
+      { t: _segs(r).length ? '区間を直す' : '区間を足す', f: () => window.openRouteSegs(i, anchor) },
+      ad ? { t: '未定に戻す（見積書に出さない）', f: () => window.unsetRoute(i) } : null,
+      r.ng ? null : (r.adopt === 'reject' ? { t: '未定に戻す', f: () => window.unsetRoute(i) } : { t: '不採用にする', f: () => window.rejectRoute(i) }),
+      { t: r.ng ? '使用不可を解除' : '使用不可にする', f: () => toggleRouteNg(i) },
+      r.ng ? { t: '理由を直す', f: () => editRouteNgReason(i) } : null,
+      '-',
+      i > 0 ? { t: '上へ', f: () => moveRouteEntry(i, -1) } : null,
+      i < n - 1 ? { t: '下へ', f: () => moveRouteEntry(i, 1) } : null,
+      '-',
+      { t: '削除', danger: true, f: () => removeRouteEntry(i) },
+    ].filter(Boolean);
+    const m = document.createElement('div'); m.className = 'z2-rc-menu'; m.setAttribute('role', 'menu'); m.dataset.i = String(i);
+    items.forEach((it, k) => {
+      if (it === '-') { if (k && items[k - 1] !== '-' && k < items.length - 1) { const h = document.createElement('div'); h.className = 'z2-rc-sep'; m.appendChild(h); } return; }
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem');
+      b.className = 'z2-rc-mi' + (it.danger ? ' is-danger' : ''); b.textContent = it.t;
+      b.addEventListener('click', () => { _closeRcMenu(); it.f(); });
+      m.appendChild(b);
+    });
+    document.body.appendChild(m); _rcMenu = m;
+    const rc = anchor.getBoundingClientRect();
+    m.style.top = Math.min(window.innerHeight - m.offsetHeight - 8, rc.bottom + 4) + 'px';
+    m.style.left = Math.max(8, Math.min(rc.right - m.offsetWidth, window.innerWidth - m.offsetWidth - 8)) + 'px';
+    const first = m.querySelector('button'); if (first) first.focus();
+    setTimeout(() => document.addEventListener('mousedown', function h(ev) { if (_rcMenu && !_rcMenu.contains(ev.target) && ev.target !== anchor) _closeRcMenu(); if (!_rcMenu) document.removeEventListener('mousedown', h); }), 0);
+  };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && _rcMenu) { e.stopImmediatePropagation(); _closeRcMenu(); } }, true);
+
+  // 入力欄（＝次の航路を足す欄）の出し方：航路が 1 本も無いときはそのまま。1 本以上あるときは畳み、
+  // ［＋ 航路を追加］／［✎ 直す］で、一覧の下（直すときはそのカードの場所）に点線の箱として開く
+  let _rlAdding = false, _rlEditIdx = null, _rlEditBackup = null;
+  function _rlBox() {
+    const card = document.getElementById('zone2Card');
+    const inputs = card && card.querySelector('.zone2-inputs');
+    const list = document.getElementById('z2RouteList');
+    if (!inputs || !list) return null;
+    let box = document.getElementById('z2RlBox');
+    if (!box) {
+      box = document.createElement('div'); box.id = 'z2RlBox'; box.className = 'z2-rl-box';
+      // 一覧・隠し項目・候補（datalist）以外の子を、まとめて箱に入れる（要素ごと・id は不変）
+      [...inputs.children].forEach(c => {
+        if (c === list || c.id === 'z2RlHead' || c.tagName === 'DATALIST' || (c.tagName === 'INPUT' && c.type === 'hidden')) return;
+        box.appendChild(c);
+      });
+      inputs.insertBefore(box, inputs.firstChild);
+      const head = document.createElement('div'); head.id = 'z2RlHead'; head.className = 'z2-rl-head'; head.hidden = true;
+      head.innerHTML = '<b class="z2-rl-ttl">航路</b><span class="z2-rl-sub"></span><span class="z2-rl-sp"></span>'
+        + '<button type="button" class="z2-rl-add" onclick="routeAddOpen()">＋ 航路を追加</button>';
+      inputs.insertBefore(head, list);
+      const foot = document.createElement('div'); foot.className = 'z2-rl-boxfoot';
+      foot.innerHTML = '<span class="z2-rl-boxttl"></span><span class="z2-rl-sp"></span><button type="button" class="z2-rl-cancel" onclick="routeAddCancel()">キャンセル</button>';
+      box.insertBefore(foot, box.firstChild);
+    }
+    return box;
+  }
+  window.routeAddOpen = function () {
+    if (_rlEditIdx != null) window.routeAddCancel();
+    _rlAdding = true; _renderRouteEntries(true);
+    const pol = document.getElementById('z2Pol'); if (pol) { pol.focus(); }
+  };
+  window.routeAddCancel = function () {
+    if (_rlEditIdx != null && _rlEditBackup) {
+      _restoreForm(_rlEditBackup.form);
+    }
+    _rlAdding = false; _rlEditIdx = null; _rlEditBackup = null;
+    _renderRouteEntries(true);
+    if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
+  };
+  const _FORM_IDS = ['z2Carrier', 'z2Service', 'z2CarrierRole', 'z2ActualCarrier', 'z2Pol', 'z2Via', 'z2Pod', 'z2Icd', 'z2Tt'];
+  function _readForm() { const o = {}; _FORM_IDS.forEach(id => { const e = document.getElementById(id); o[id] = e ? e.value : ''; }); return o; }
+  function _restoreForm(o) { _FORM_IDS.forEach(id => { const e = document.getElementById(id); if (e && o && id in o) e.value = o[id]; }); }
+  function _placeRlBox() {
+    const card = document.getElementById('zone2Card');
+    const list = document.getElementById('z2RouteList');
+    const box = _rlBox(); if (!card || !list || !box) return;
+    const has = _routeEntries.length > 0;
+    const open = !has || _rlAdding || _rlEditIdx != null;
+    card.classList.toggle('rl-has', has);
+    card.classList.toggle('rl-open', has && open);
+    box.hidden = !open;
+    const head = document.getElementById('z2RlHead');
+    if (head) {
+      head.hidden = !has;
+      const sub = head.querySelector('.z2-rl-sub');
+      const round = dirIsRound(_currentDirection);
+      if (sub) sub.textContent = _routeEntries.length + ' 本 ・ 見積書に出すのは「採用」の' + (round ? '航路（往路・復路で 1 本ずつ）' : ' 1 本');
+      const ab = head.querySelector('.z2-rl-add'); if (ab) ab.hidden = open;
+    }
+    const ttl = box.querySelector('.z2-rl-boxttl');
+    if (ttl) ttl.textContent = _rlEditIdx != null ? '航路を直す' : '航路を追加';
+    const add = box.querySelector('.z2-route-add');
+    if (add) {
+      if (!add.dataset.rlOrig) add.dataset.rlOrig = add.textContent;
+      add.textContent = has ? (_rlEditIdx != null ? 'この内容で直す' : 'この航路を登録') : add.dataset.rlOrig;
+    }
+    // 置き場所：直すときはそのカードの場所、追加は一覧の下、航路が無いときは一覧の上（今までどおり）
+    const inputs = list.parentNode;
+    if (_rlEditIdx != null) {
+      const slot = list.querySelector('.z2-rl-slot');
+      if (slot) slot.appendChild(box); else inputs.insertBefore(box, list.nextSibling);
+    } else if (has) {
+      if (box.parentNode !== inputs || box.previousElementSibling !== list) inputs.insertBefore(box, list.nextSibling);
+    } else if (box.parentNode !== inputs || inputs.firstElementChild !== box) inputs.insertBefore(box, inputs.firstChild);
+  }
+
+  function _routeCardHtml(r, i) {
+    const ng = !!r.ng, ad = _rAdopted(r), rej = !ad && r.adopt === 'reject';
+    const nm = String(r.plan || '').trim();
+    const ports = [r.pol, r.via, r.pod].map(x => String(x || '').trim());
+    const route = (ports[0] || ports[2]) ? [ports[0] || '—', ports[1], ports[2] || '—'].filter(Boolean).map(_escMulti).join(' → ') : 'ポート未設定';
+    const line = [r.carrier ? `<b class="z2-rc-car">${_escMulti(r.carrier)}</b>` : '', r.service ? _escMulti(r.service) : '', route, r.tt ? 'T/T ' + _escMulti(r.tt) : ''].filter(Boolean).join(' · ');
+    const extra = [];
+    const role = ROUTE_ROLE_LABELS[r.carrierRole] || '';
+    if (role) extra.push(_escMulti(role));
+    if (r.actualCarrier) extra.push('実運送人 ' + _escMulti(r.actualCarrier));
+    if (r.icd) extra.push('🚉 ' + _escMulti(r.icd));
+    const badge = ad ? '<span class="z2-rc-badge is-adopt">✓ 採用</span>' : rej ? '<span class="z2-rc-badge is-reject">不採用</span>' : '';
+    // Design 42r-4：使用不可＝赤い札＋2 行目の下に理由 1 行（空なら「理由：未入力」・押すと理由を直す）。採用にはできない
+    const ngTag = ng ? '<span class="z2-rc-badge is-ng">🚫 使用不可</span>' : '';
+    const ngWhy = ng ? `<button type="button" class="z2-rc-why${r.ngReason ? '' : ' is-empty'}" onclick="editRouteNgReason(${i})" title="使用不可の理由を直す">${r.ngReason ? '理由：' + _escMulti(r.ngReason) : '理由：未入力'}</button>` : '';
+    const sg = _segs(r);
+    const segHtml = sg.length
+      ? `<ol class="z2-rc-segs">${sg.map(x => `<li class="${/海上/.test(x.mode || '') ? 'is-sea' : ''}"><span class="z2-rc-sm">${_escMulti(x.mode || '—')}</span>${x.carrier ? `<span>${_escMulti(x.carrier)}</span>` : ''}${x.etd ? `<span>ETD ${_escMulti(x.etd)}</span>` : ''}${x.note ? `<span class="z2-rc-sn">${_escMulti(x.note)}</span>` : ''}</li>`).join('')}</ol>`
+      : `<button type="button" class="z2-rc-link z2-rc-segadd" onclick="openRouteSegs(${i}, this)">＋ 区間を足す</button>`;
+    const nameHtml = nm
+      ? `<b class="z2-rc-name">${_escMulti(nm)}</b>`
+      : `<span class="z2-rc-noname">案名なし</span><button type="button" class="z2-rc-link z2-rc-nameadd" onclick="editRoutePlan(${i})">＋ 名前</button>`;
+    const canAdopt = !ad && !ng;
+    const cls = 'z2-rcard' + (ad ? ' is-adopt' : '') + (rej ? ' is-reject' : '') + (ng ? ' is-ng' : '');
+    return `<div class="${cls}" data-i="${i}">`
+      + `<div class="z2-rc-head"><span class="z2-route-drag z2-rc-drag" title="ドラッグして並び替え">⠿</span>${nameHtml}${badge}${_legBtn(r, i)}${ngTag}<span class="z2-rl-sp"></span>`
+      + (canAdopt ? `<button type="button" class="z2-rc-link z2-rc-adopt" onclick="adoptRoute(${i})">採用にする</button>` : '')
+      + `<button type="button" class="z2-rc-edit" onclick="editRouteEntry(${i})">✎ 直す</button>`
+      + `<button type="button" class="z2-rc-more" onclick="openRouteMenu(${i}, this)" title="そのほかの操作" aria-haspopup="menu">⋯</button></div>`
+      + `<div class="z2-rc-line">${line}</div>` + ngWhy
+      + (extra.length ? `<div class="z2-rc-extra">${extra.join(' · ')}</div>` : '')
+      + segHtml + '</div>';
+  }
+
   // viewOnly=true：チップの再描画だけ行い、保存用の隠しフィールド（z2-routes-data）には書き込まない。
   // 案件を開く途中（フィールド復元後・航路の復元前）に呼ばれても、前の案件の航路で隠しフィールドを
   // 上書きして新しい案件へ混入させないため（setDirection から呼ぶときに使う）
   function _renderRouteEntries(viewOnly) {
     const data = document.getElementById('z2-routes-data');
+    if (!viewOnly) _routesNormalize();
     if (data && !viewOnly) data.value = JSON.stringify(_routeEntries);
     const list = document.getElementById('z2RouteList');
     if (!list) return;
-    if (!_routeEntries.length) { list.innerHTML = ''; return; }
-    list.innerHTML = _routeEntries.map((r, i) => {
-      const ng = !!r.ng;                       // 使用不可（候補から外すが記録は残す）
-      const on = !ng && r.enabled !== false;
-      const parts = [];
-      if (r.pol) parts.push(_escMulti(r.pol));
-      if (r.via) parts.push('<span class="z2-route-via">via:' + _escMulti(r.via) + '</span>');
-      if (r.pod) parts.push(_escMulti(r.pod));
-      if (r.icd) parts.push('<span class="z2-route-icd" title="ICD（インランドデポ）">🚉 ' + _escMulti(r.icd) + '</span>');
-      const route = parts.length ? parts.join(' → ') : 'ポート未設定';
-      const _roleLabel = ROUTE_ROLE_LABELS[r.carrierRole] || '';
-      const _roleChip  = _roleLabel ? `<span class="z2-route-role" title="契約先の役割">${_escMulti(_roleLabel)}</span>` : '';
-      const _actualChip = r.actualCarrier ? `<span class="z2-route-actual" title="実運送人（実際の船会社）">as ${_escMulti(r.actualCarrier)}</span>` : '';
-      // 理由が長いとチップからはみ出すので表示は省略し、全文は title に持たせる
-      const _ngTitle = '使用不可の理由を編集' + (r.ngReason ? '\n' + r.ngReason : '');
-      const _ngChip = ng
-        ? `<button type="button" class="z2-route-ngtag" onclick="editRouteNgReason(${i})" title="${_escMulti(_ngTitle)}">🚫 使用不可`
-          + (r.ngReason ? `<span class="z2-route-ngreason">：${_escMulti(r.ngReason)}</span>` : '')
-          + `</button>`
-        : '';
-      const _chipCls = ng ? ' z2-route-chip--ng' : (on ? '' : ' z2-route-chip--off');
-      const _atFirst = i === 0, _atLast = i === _routeEntries.length - 1;
-      // 物量パターンを複数使っている案件で、この航路の有効/無効がアクティブなパターンに
-      // 紐付け記録済みの場合はトグルに印を付ける（pq-pattern-linked と同じ考え方）
-      const _routeLinked = (_packingPatterns && _packingPatterns.length > 1 && r.rid) &&
-        Object.prototype.hasOwnProperty.call((_packingPatterns[_packingActiveIdx] && _packingPatterns[_packingActiveIdx].routeLinks) || {}, r.rid);
-      const _toggleTitle = (on ? '無効にする（一時停止）' : '有効にする') +
-        (_routeLinked ? '\n（この航路の有効/無効は現在のパターンに紐付けて記憶されています）' : '');
-      return `<span class="z2-route-chip${_chipCls}">`
-        + `<span class="z2-route-drag" title="ドラッグして並び替え">⠿</span>`
-        + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},-1)" ${_atFirst ? 'disabled' : ''} title="上へ移動">↑</button>`
-        + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},1)" ${_atLast ? 'disabled' : ''} title="下へ移動">↓</button>`
-        + `<button type="button" class="z2-route-toggle${_routeLinked ? ' route-pattern-linked' : ''}" onclick="toggleRouteEntry(${i})" title="${_escMulti(_toggleTitle)}">${on ? '✓' : '—'}</button>`
-        + _legBtn(r, i)
-        + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
-        + _roleChip + _actualChip + _ngChip
-        + (r.service ? `<span class="z2-route-service">${_escMulti(r.service)}</span>` : '')
-        + `<span class="z2-route-leg">${route}</span>`
-        + (r.tt ? `<span class="z2-route-tt" title="Transit Time（所要日数）">⏱️ ${_escMulti(r.tt)}</span>` : '')
-        + `<button type="button" class="z2-route-ng" onclick="toggleRouteNg(${i})" title="${ng ? '使用不可を解除する' : '使用不可として記録する（見積の対象外にするが、候補として検討した記録は残す）'}">🚫</button>`
-        + `<button type="button" class="z2-route-edit" onclick="editRouteEntry(${i})" title="編集（フォームに書き戻す）">✎</button>`
-        + `<button type="button" class="me-chip-del" onclick="removeRouteEntry(${i})" title="削除">×</button></span>`;
-    }).join('');
+    // 直す途中の箱が一覧の中にあるときは、描き直しで消えないよう先に外へ出す
+    const box = document.getElementById('z2RlBox');
+    if (box && list.contains(box)) list.parentNode.insertBefore(box, list.nextSibling);
+    _closeRcMenu();
+    list.innerHTML = _routeEntries.map((r, i) => (_rlEditIdx === i ? '<div class="z2-rl-slot"></div>' : _routeCardHtml(r, i))).join('');
+    _placeRlBox();
     if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
     // パターン入力の候補（ptSuggestions）に航路（POL→via→POD）を供給：表記揺れ防止
     const dl = document.getElementById('ptSuggestions');
@@ -3280,8 +3931,8 @@
     list.addEventListener('pointerdown', e => {
       const handle = e.target.closest('.z2-route-drag');
       if (!handle) return;
-      const chip = handle.closest('.z2-route-chip');
-      const chips = Array.from(list.children);
+      const chip = handle.closest('.z2-rcard');
+      const chips = Array.from(list.querySelectorAll(':scope > .z2-rcard, :scope > .z2-rl-slot'));
       const idx = chips.indexOf(chip);
       if (!chip || idx < 0) return;
       e.preventDefault();
@@ -3290,18 +3941,18 @@
       chip.classList.add('is-dragging');
       const onMove = ev => {
         const el = document.elementFromPoint(ev.clientX, ev.clientY);
-        const target = el && el.closest ? el.closest('.z2-route-chip') : null;
-        list.querySelectorAll('.z2-route-chip').forEach(c => c.classList.remove('drag-over-left', 'drag-over-right'));
+        const target = el && el.closest ? el.closest('.z2-rcard') : null;
+        list.querySelectorAll('.z2-rcard').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
         if (!target || target === chip) { _routeDragOverIdx = null; return; }
         const rect = target.getBoundingClientRect();
-        const after = ev.clientX >= rect.left + rect.width / 2;
-        target.classList.add(after ? 'drag-over-right' : 'drag-over-left');
-        const tIdx = Array.from(list.children).indexOf(target);
+        const after = ev.clientY >= rect.top + rect.height / 2;
+        target.classList.add(after ? 'drag-over-bottom' : 'drag-over-top');
+        const tIdx = Array.from(list.querySelectorAll(':scope > .z2-rcard, :scope > .z2-rl-slot')).indexOf(target);
         _routeDragOverIdx = after ? tIdx + 1 : tIdx;
       };
       const onUp = () => {
         document.removeEventListener('pointermove', onMove);
-        list.querySelectorAll('.z2-route-chip').forEach(c => c.classList.remove('drag-over-left', 'drag-over-right', 'is-dragging'));
+        list.querySelectorAll('.z2-rcard').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom', 'is-dragging'));
         if (_routeDragOverIdx !== null && _routeDragOverIdx !== _routeDragIdx) {
           let to = _routeDragOverIdx;
           const [moved] = _routeEntries.splice(_routeDragIdx, 1);
@@ -3333,15 +3984,37 @@
       return;
     }
     // carrier=契約先（ブッキング/支払先）、carrierRole=その役割、actualCarrier=実運送人（実際の船会社）
-    const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '', rid: null, leg: '' };
+    if (_rlEditIdx != null && _routeEntries[_rlEditIdx]) {
+      // ✎ 直す：その場で書き換える（採用・不採用・使用不可・案の名前・区間・往路／復路・rid はそのまま）
+      Object.assign(_routeEntries[_rlEditIdx], { carrier, service, carrierRole, actualCarrier, pol, via, pod, icd, tt });
+      _rlEditIdx = null; _rlEditBackup = null; _rlAdding = false;
+      _renderRouteEntries();
+      _clearCarrierFields();
+      _routeSaved(); _triggerCarrierBmFetch();
+      return;
+    }
+    const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '', rid: null, leg: '', plan: '', adopt: '', segs: [] };
     _pendingRouteFlags = null;
-    _routeEntries.push({ carrier, service, carrierRole, actualCarrier, pol, via, pod, icd, tt,
-                         enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason, rid: flags.rid || _newRouteId(), leg: flags.leg || '' });
+    // 新しい航路は、同じグループにまだ採用が無ければ採用、あれば未定（採用は 1 本だけ）
+    const _nr = { carrier, service, carrierRole, actualCarrier, pol, via, pod, icd, tt,
+                  enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason, rid: flags.rid || _newRouteId(), leg: flags.leg || '', plan: flags.plan || '', adopt: flags.adopt || '', segs: Array.isArray(flags.segs) ? flags.segs : [] };
+    if (_nr.enabled && !_nr.ng) {
+      const g = _rGroup(_nr);
+      if (_routeEntries.filter(x => _rAdopted(x) && _rGroup(x) === g).length >= _rGroupMax(g)) { _nr.enabled = false; _nr.adopt = ''; }
+    }
+    _routeEntries.push(_nr);
+    _rlAdding = false;
     if (flags.ng && typeof quoteShowToast === 'function') {
       quoteShowToast('🚫 使用不可の記録を引き継ぎました', 'info', 1800);
     }
     _renderRouteEntries();
-    // キャリア・サービス名・T/T・契約形態をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
+    _clearCarrierFields();
+    document.getElementById('z2Pol')?.focus();   // 欄の並び（POL → POD → キャリア）の先頭へ
+    _routeSaved();
+    _triggerCarrierBmFetch();
+  }
+  // キャリア・サービス名・T/T・契約形態をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
+  function _clearCarrierFields() {
     const carrierEl = document.getElementById('z2Carrier');
     if (carrierEl) { carrierEl.value = ''; }
     const serviceEl = document.getElementById('z2Service');
@@ -3353,13 +4026,10 @@
     const ttEl = document.getElementById('z2Tt');
     if (ttEl) { ttEl.value = ''; }
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
-    document.getElementById('z2Pol')?.focus();   // 欄の並び（POL → POD → キャリア）の先頭へ
-    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
-    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
-    _triggerCarrierBmFetch();
   }
 
   function removeRouteEntry(i) {
+    if (_rlEditIdx != null) window.routeAddCancel();
     _routeEntries.splice(i, 1);
     _renderRouteEntries();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -3380,20 +4050,11 @@
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
   window.moveRouteEntry = moveRouteEntry;
+  // 互換（旧「使う ✓」）：採用 ⇔ 未定
   function toggleRouteEntry(i) {
     const cur = _routeEntries[i];
     if (!cur) return;
-    // 有効化するときは「使用不可」も解除する（使えるようになった＝記録は不要）
-    const turnOn = cur.enabled === false || cur.ng;
-    _routeEntries[i] = Object.assign({}, cur, turnOn
-      ? { enabled: true, ng: false, ngReason: '' }
-      : { enabled: false });
-    // 物量パターンを複数使っている案件では、この有効/無効をアクティブなパターンに記憶する
-    // （パターンを切り替えると、切替先で最後に記録した状態へ自動で戻る）
-    _recordPatternRouteState(i);
-    _renderRouteEntries();
-    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
-    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    if (_rAdopted(cur)) window.unsetRoute(i); else window.adoptRoute(i);
   }
 
   // 使用不可の記録：チップを消さずに「候補として検討したが使えなかった」旨と理由を残す。
@@ -3402,11 +4063,13 @@
     const r = _routeEntries[i];
     if (!r) return;
     if (r.ng) {
-      _routeEntries[i] = Object.assign({}, r, { ng: false, ngReason: '', enabled: true });
+      _routeEntries[i] = Object.assign({}, r, { ng: false, ngReason: '', enabled: false, adopt: '' });
     } else {
       const reason = prompt(NG_REASON_HINT, r.ngReason || '');
       if (reason === null) return;   // キャンセル
-      _routeEntries[i] = Object.assign({}, r, { ng: true, ngReason: reason.trim(), enabled: false });
+      const wasAdopted = _rAdopted(r);
+      _routeEntries[i] = Object.assign({}, r, { ng: true, ngReason: reason.trim(), enabled: false, adopt: '' });
+      if (wasAdopted) { _recordPatternRouteState(i); if (typeof quoteShowToast === 'function') quoteShowToast('採用を外しました（使用不可のため）', 'info', 2600); }
     }
     _renderRouteEntries();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -3422,10 +4085,12 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
+  // ✎ 直す：そのカードの場所に入力の箱を開き、値を書き戻す（キャンセルで元の入力欄の内容に戻す）
   function editRouteEntry(i) {
     const r = _routeEntries[i];
     if (!r) return;
-    // フォームへ書き戻し
+    if (_rlEditIdx != null && _rlEditIdx !== i) window.routeAddCancel();
+    if (_rlEditIdx == null) _rlEditBackup = { form: _readForm() };
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
     set('z2Carrier', r.carrier);
     set('z2Service', r.service);
@@ -3436,22 +4101,52 @@
     set('z2Pod', r.pod);
     set('z2Icd', r.icd);
     set('z2Tt', r.tt);
-    // 契約形態パネルは常時表示のため展開処理は不要
-    // 無効・使用不可の状態・rid（パターン紐付けの識別子）は再登録時に引き継ぐ（✎ で消えてしまわないように）
-    _pendingRouteFlags = { enabled: r.enabled !== false && !r.ng, ng: !!r.ng, ngReason: r.ngReason || '', rid: r.rid, leg: r.leg || '' };
-    // エントリを削除して再描画
-    _routeEntries.splice(i, 1);
-    _renderRouteEntries();
+    _rlEditIdx = i; _rlAdding = false;
+    _renderRouteEntries(true);
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
     if (typeof window.icdRefresh === 'function') window.icdRefresh();
+    if (typeof window.rfOpenCarrier === 'function') window.rfOpenCarrier();
     document.getElementById('z2Pol')?.focus();   // 欄の並び（POL → POD → キャリア）の先頭へ
-    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
-    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
   window.toggleRouteEntry  = toggleRouteEntry;
   window.editRouteEntry    = editRouteEntry;
   window.toggleRouteNg     = toggleRouteNg;
   window.editRouteNgReason = editRouteNgReason;
+  // 類似案件のプレビューから、選んだ航路を現在の見積の航路へ追加する（cloud.js cpCopyRoutes から）。
+  // 同じ航路（キャリア・サービス・POL・経由・POD・ICD が一致）は重ねない。rid は新しく振り直し、
+  // 往路／復路の指定（leg）は引き継がない（往復の組み立てはコピー先の案件で決めるため）。
+  // 使用不可（ng）の記録は理由ごと引き継ぐ。戻り値＝{added, skipped}
+  window.appendRouteEntries = function (routes) {
+    const norm = s => String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' ');
+    const keyOf = r => [r.carrier, r.service, r.pol, r.via, r.pod, r.icd].map(norm).join('|');
+    const have = new Set(_routeEntries.map(keyOf));
+    let added = 0, skipped = 0;
+    (routes || []).forEach(src => {
+      if (!src) return;
+      const r = {
+        carrier: src.carrier || '', service: src.service || '',
+        carrierRole: src.carrierRole || '', actualCarrier: src.actualCarrier || '',
+        pol: src.pol || '', via: src.via || '', pod: src.pod || '', icd: src.icd || '', tt: src.tt || '',
+        enabled: src.ng ? false : src.enabled !== false, ng: !!src.ng, ngReason: src.ng ? (src.ngReason || '') : '',
+        rid: _newRouteId(), leg: ''
+      };
+      if (!r.carrier && !r.pol && !r.pod) return;
+      const k = keyOf(r);
+      if (have.has(k)) { skipped++; return; }
+      have.add(k);
+      _routeEntries.push(r);
+      added++;
+    });
+    if (added) {
+      _renderRouteEntries();
+      if (typeof window.icdRefresh === 'function') window.icdRefresh();
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+      if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+      _triggerCarrierBmFetch();
+    }
+    return { added, skipped };
+  };
+
   // 復元用
   function syncRouteEntries() {
     const data = document.getElementById('z2-routes-data');
@@ -3459,6 +4154,7 @@
     catch(e) { _routeEntries = []; }
     if (!Array.isArray(_routeEntries)) _routeEntries = [];
     _ensureRouteIds();   // 旧データ（rid 未保存）を補完
+    _rlAdding = false; _rlEditIdx = null; _rlEditBackup = null;
     _applyPatternRouteLinks(_packingActiveIdx);   // 読込時点のアクティブパターンの有効/無効を適用
     _renderRouteEntries();
   }
@@ -3893,6 +4589,15 @@
 
 
 
+// 行オブジェクトに残っている「引用元の入力完了」（srcDoneAt／srcDoneBy／srcFrom）を、行へ戻す
+function _applySrcDone(tr, row) {
+  if (!tr || !row || !row.srcDoneAt) return;
+  tr.dataset.srcDoneAt = row.srcDoneAt;
+  if (row.srcDoneBy) tr.dataset.srcDoneBy = row.srcDoneBy; else delete tr.dataset.srcDoneBy;
+  if (row.srcFrom) tr.dataset.srcFrom = row.srcFrom; else delete tr.dataset.srcFrom;
+  tr.classList.add('row-src-done');
+}
+
 // 選択した行オブジェクト配列を現在のテーブル末尾に追加する
 window.appendQuoteRows = function(rowObjects) {
   if (!rowObjects || !rowObjects.length) return 0;
@@ -3931,6 +4636,7 @@ window.appendQuoteRows = function(rowObjects) {
     addRow();
     const tr = tbody.lastElementChild;
     _applyCells(tr, cells);
+    _applySrcDone(tr, row);   // 類似案件からのインポート：引用元で入力完了が押されていた日時・ユーザー（入力完了マーク自体は付けない）
     regularTrs.push(tr);
     parentTr = tr;
   });
@@ -3949,9 +4655,10 @@ window.reflectToQuote = function(key) {
   }
   const round3 = v => String(Math.round(v * 1000) / 1000);
   const config = {
-    rt:  { value: m.rt > 0 ? Math.max(m.rt, 1) : m.rt, label: 'R/T',  fmt: round3,  units: ['RT', 'R/T'] },
-    cw:  { value: m.cw,  label: 'CW',   fmt: String,   units: ['KG', 'CW'] },
-    cbm: { value: m.cbm, label: 'CBM',  fmt: round3,  units: ['M3', 'CBM', 'M³'] },
+    // kinds：単位の表記ゆれ（R/T・RT・W/M・C/W・m³ など）は quoteUnitKind() で同じ単位として判定する
+    rt:  { value: m.rt > 0 ? Math.max(m.rt, 1) : m.rt, label: 'R/T',  fmt: round3,  units: ['RT', 'R/T', 'W/M'],        kinds: ['rt'] },
+    cw:  { value: m.cw,  label: 'CW',   fmt: String,   units: ['KG', 'CW', 'C/W'],                          kinds: ['cw', 'kg'] },
+    cbm: { value: m.cbm, label: 'CBM',  fmt: round3,  units: ['M3', 'CBM', 'M³'],                          kinds: ['cbm'] },
   };
   const cfg = config[key];
   if (!cfg || !cfg.value) {
@@ -3964,7 +4671,10 @@ window.reflectToQuote = function(key) {
   document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
     const id = tr.id.replace('row-', '');
     const unEl = document.getElementById('un-' + id);
-    if (!unEl || !targetsUpper.includes((unEl.value || '').trim().toUpperCase())) return;
+    if (!unEl) return;
+    const _uv = (unEl.value || '').trim();
+    const _kind = (typeof window.quoteUnitKind === 'function') ? window.quoteUnitKind(_uv) : null;
+    if (!(_kind ? cfg.kinds.includes(_kind) : targetsUpper.includes(_uv.toUpperCase()))) return;
     const pqEl = document.getElementById('pq-' + id);
     if (pqEl) {
       pqEl.value = displayVal;

@@ -174,6 +174,10 @@
   resize: both; overflow: hidden;
 }
 .qf-memo-float[hidden] { display: none; }
+/* 付箋は見積タブ直下に置く（js/quote/conditions.js _initMemoFloat）。ダッシュボードでは出さない */
+#tab-quote-make.qp-dash > #qfMemoFloat { display: none !important; }
+/* プレビュー（御見積書の表示）では出さない＝付箋はステップ①〜⑤の入力画面だけ */
+body:has(#previewOverlay.open) #qfMemoFloat, body:has(#previewOverlay.open) .qf-memo-fab { display: none !important; }
 .qf-memo-float-head {
   display: flex; align-items: center; gap: var(--sp-5);
   padding: var(--sp-6) var(--sp-8);
@@ -309,9 +313,10 @@
 }
 #tab-quote-make #srcAddBox .qf-attach-drop:hover { background: var(--accent-lt); border-color: #b8a98f; }
 #tab-quote-make #srcAddBox .qf-attach-drop.is-drag { background: #eef4e6; border-color: var(--green-leaf); }
-#tab-quote-make #srcAddBox .qf-attach-drop.is-disabled { opacity: .55; }
+/* 無効（未ログイン）でも案内の文字が読めるよう、全体を薄くせず背景とカーソルだけで無効を示す（opacity .55 だと 1.9:1 になった） */
+#tab-quote-make #srcAddBox .qf-attach-drop.is-disabled { background: var(--bg, #f2f2f2); cursor: not-allowed; }
 #tab-quote-make .qf-attach-hint { font-size: var(--fs-12); color: var(--text-muted); line-height: 1.7; }
-#tab-quote-make .qf-attach-hint small { color: var(--c-9a8a70); }
+#tab-quote-make .qf-attach-hint small { color: var(--text-muted); }
 #tab-quote-make .src-drop-ic { display: block; font-size: 22px; line-height: 1; margin-bottom: 8px; color: var(--text-muted); }
 #tab-quote-make .src-note { margin: 10px 4px 0; font-size: var(--fs-11-5); color: #8a5a00; background: #fff6e0; border-radius: var(--r-6); padding: 6px 10px; }
 #tab-quote-make .src-note[hidden] { display: none; }
@@ -1730,6 +1735,8 @@
 /* 客先モードでは pct-group 非表示（内部情報） */
 #tab-quote-make #quoteTable.customer-mode .pct-group { display: none !important; }
 /* プレビュー：都度請求の客先注記 */
+#tab-quote-make .pv-ins-inv { font-size: var(--text-xs); color: var(--text-md); margin-top: 2px; font-weight: 400; }
+#tab-quote-make .ins-group .ins-iv-wrap { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--text-md); cursor: pointer; white-space: nowrap; }
 #tab-quote-make .pv-cond-note { color: #8a5a00; font-size: var(--fs-10-5); font-weight: 700; margin-left: var(--sp-4); white-space: nowrap; }
 #tab-quote-make .pv-ref-note { color: #3a5a80; font-size: var(--fs-10-5); font-weight: 700; margin-left: var(--sp-4); white-space: nowrap; }
 /* 参考情報行の金額：括弧書き＋グレー（合計外の参考値であることを示す） */
@@ -1747,7 +1754,7 @@
   border: 1.5px solid #e6a817;
   border-radius: var(--r-10);
   box-shadow: 0 6px 28px rgba(0,0,0,0.20);
-  z-index: 1200;
+  z-index: 9200;   /* 付箋（9100）に隠れて「このまま出力」を押せなくならないよう、付箋より上 */
   font-size: var(--fs-13);
 }
 #tab-quote-make .pv-wg-header {
@@ -1770,7 +1777,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--gray-lt);
+  color: #666;
   font-size: var(--fs-14);
   padding: var(--sp-2) var(--sp-4);
   line-height: 1;
@@ -1817,7 +1824,7 @@
 }
 #tab-quote-make .pv-wg-item.is-current .pv-wg-item-num {
   background: #e6a817;
-  color: var(--surface);
+  color: #3d2700; /* 白文字は琥珀色の上でコントラスト不足（2.1:1）だった */
 }
 #tab-quote-make .pv-wg-footer {
   display: flex;
@@ -1837,7 +1844,7 @@
   cursor: pointer;
   transition: background 0.12s;
 }
-#tab-quote-make .pv-wg-btn-next { background: #e6a817; color: var(--surface); }
+#tab-quote-make .pv-wg-btn-next { background: #e6a817; color: #3d2700; }
 #tab-quote-make .pv-wg-btn-next:hover { background: #c77b00; }
 #tab-quote-make .pv-wg-btn-skip { background: var(--bg); color: #555; }
 #tab-quote-make .pv-wg-btn-skip:hover { background: #ddd8d0; }
@@ -2474,7 +2481,7 @@
 #tab-quote-make .cargo-detail-table .cd-stack { width: 62px; }
 #tab-quote-make .cargo-detail-table .cd-del { width: 30px; }
 #tab-quote-make .cargo-detail-table .cargo-detail-empty td {
-  color: #b0a085;
+  color: #7a6a4f;
   font-size: var(--fs-11);
   padding: var(--sp-10) var(--sp-6);
   background: var(--surface);
@@ -4118,7 +4125,7 @@
 #tab-quote-make .pv-rail-head { padding-bottom: var(--sp-4); }
 #tab-quote-make .pv-rail-grp { display: flex; flex-direction: column; gap: var(--sp-5); }
 #tab-quote-make .pv-rail-h3 {
-  font-size: var(--fs-11); color: #9a8f7a; letter-spacing: .06em; text-transform: uppercase;
+  font-size: var(--fs-11); color: #6f6552; letter-spacing: .06em; text-transform: uppercase;
   font-weight: 700; margin-bottom: var(--sp-4);
 }
 #tab-quote-make .pv-rail-seg { display: flex; flex-direction: column; gap: var(--sp-6); }
@@ -4460,6 +4467,13 @@
 #tab-quote-make .qm-banner { font-size: var(--fs-11-5); font-weight: 700; padding: var(--sp-3) var(--sp-11); border-radius: var(--r-pill); white-space: nowrap; }
 #tab-quote-make .qm-banner-view { background: var(--amber-94); border: 1px solid #e7c79a; color: #8a5a16; }
 #tab-quote-make .qm-banner-edit { background: var(--green-88); border: 1px solid #b6cf99; color: #3f6a2a; }
+/* 放置・編集権の解放のあとに残した「未保存の下書き」の帯（案件を開いたときだけ・cloud.js _draftBarShow） */
+#tab-quote-make .qm-draft-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12, 12px); flex-wrap: wrap; margin: var(--sp-6, 6px) 0; padding: var(--sp-8, 8px) var(--sp-14, 14px); background: var(--amber-94, #fdf3e1); border: 1px solid #e7c79a; border-radius: var(--r-8, 8px); color: #7a4d10; font-size: var(--text-sm, 13px); line-height: 1.6; }
+#tab-quote-make.qp-dash .qm-draft-bar { display: none; }
+#tab-quote-make .qm-draft-bar .qmd-warn { color: #b3261e; font-weight: 700; }
+#tab-quote-make .qm-draft-bar .qmd-btns { display: inline-flex; gap: var(--sp-8, 8px); }
+#tab-quote-make .qm-draft-bar button { min-height: 36px; padding: 0 var(--sp-14, 14px); border-radius: var(--r-8, 8px); border: 1px solid #c9a56a; background: #fff; color: #7a4d10; font: inherit; font-weight: 700; cursor: pointer; }
+#tab-quote-make .qm-draft-bar .qmd-go { background: #7a4d10; border-color: #7a4d10; color: #fff; }
 /* 閲覧モード：フォームを淡くして読み取り専用を視覚化（操作無効化は inert が担う） */
 #tab-quote-make.qmode-view .quote-main { opacity: .72; }
 
@@ -4502,7 +4516,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard .qpd-stat { flex: 1 1 110px; min-width: 100px; display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); background: var(--surface); border: 1px solid var(--c-e0d4bc); border-radius: var(--r-10); padding: var(--sp-11) var(--sp-14); cursor: pointer; transition: border-color .12s, box-shadow .12s; }
 #qpDashboard .qpd-stat:hover { border-color: #c7b486; }
 #qpDashboard .qpd-stat.is-active { border-color: var(--blue-32); box-shadow: 0 0 0 2px #1a5c8a33 inset; }
-#qpDashboard .qpd-stat-n { font-size: 22px; font-weight: 800; color: var(--accent-dk); line-height: 1; }
+#qpDashboard .qpd-stat-n { font-size: var(--text-xl); font-weight: 800; color: var(--accent-dk); line-height: 1; }
 #qpDashboard .qpd-stat-l { font-size: var(--fs-11); font-weight: 700; color: var(--text-muted); }
 #qpDashboard .qpd-stat--won  .qpd-stat-n { color: var(--green-ok); }
 #qpDashboard .qpd-stat--lost .qpd-stat-n { color: var(--red); }
@@ -5528,7 +5542,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   background: var(--accent-lt);
 }
 #tab-quote-make #cmdInput::placeholder { color: var(--border); }
-#tab-quote-make #cmdList { max-height: 340px; overflow-y: auto; padding: var(--sp-6) 0; }
+#tab-quote-make #cmdList { max-height: max(120px, min(340px, calc(100vh - 240px))); overflow-y: auto;   /* 背の低い画面（横向きのスマホ等）で下が切れないように */ padding: var(--sp-6) 0; }
 #tab-quote-make .cmd-item {
   display: flex;
   align-items: center;
@@ -6208,6 +6222,18 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .cp-kv-v { font-size: var(--fs-11); color: #2a1a08; word-break: break-all; }
 #tab-quote-make .cp-cond-empty { font-size: var(--fs-11); color: #9a8070; width: 100%; }
+/* 航路をチェックして現在の見積へ追加（類似案件プレビュー） */
+#tab-quote-make .cp-kv-route { align-items: flex-start; }
+#tab-quote-make .cp-route-pick { display: inline-flex; align-items: center; flex-shrink: 0; padding-top: 1px; cursor: pointer; }
+#tab-quote-make .cp-route-pick input { margin: 0; width: 15px; height: 15px; cursor: pointer; }
+#tab-quote-make .cp-route-copybar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-6); }
+#tab-quote-make .cp-btn-route {
+  font-size: var(--fs-12); font-weight: 600; padding: 5px 12px; border-radius: 6px; cursor: pointer;
+  background: #fff; color: #1f5f8b; border: 1px solid #1f5f8b; min-height: 30px;
+}
+#tab-quote-make .cp-btn-route:hover:not(:disabled) { background: #1f5f8b; color: #fff; }
+#tab-quote-make .cp-btn-route:disabled { opacity: .45; cursor: default; }
+#tab-quote-make .cp-route-count { font-size: var(--fs-12); color: #9a8070; }
 /* ---- end 引き合い条件 ---- */
 #tab-quote-make .cloud-preview-body { flex: 1; overflow-y: auto; overflow-x: auto; padding: 0; }
 #tab-quote-make .cp-table {
@@ -6685,7 +6711,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cloud-kv dt { font-size: var(--fs-10-5); color: #94a3ad; font-weight: 600; padding-top: 1px; }
 #tab-quote-make .cloud-kv dd { font-size: var(--fs-11-5); color: #2c3e4a; margin: 0; }
 /* お客様／担当は視認性重視で約2倍に拡大（11.5px → 23px） */
-#tab-quote-make .cloud-kv dd.cloud-kv-cust { font-size: 23px; font-weight: 700; color: #1f2d36; line-height: 1.25; }
+#tab-quote-make .cloud-kv dd.cloud-kv-cust { font-size: var(--text-xl); font-weight: 700; color: #1f2d36; line-height: 1.25; }
 
 /* === ダッシュボードのカードの文字を大きく（従来は大半が最小の 12px。ここだけ一段〜二段上げる） ===
    値（ルート・条件・サブコン名）＝16px／ラベル・補助＝13px／タグ類＝14px／REF#・更新日時＝16px・14px。
@@ -6695,8 +6721,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make #qpdListWrap .cloud-kv dt { font-size: var(--text-sm); padding-top: 3px; white-space: nowrap; }
 #tab-quote-make #qpdListWrap .cloud-kv dd { font-size: var(--text-lg); line-height: 1.4; }
 #tab-quote-make #qpdListWrap .cloud-kv dd { min-width: 0; overflow-wrap: anywhere; }   /* 空白の無い長い名前で行幅が押し広げられない */
-#tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-cust { font-size: 23px; line-height: 1.25; }
-#tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-who { font-size: var(--text-base); }
+#tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-cust { font-size: var(--text-xl); line-height: 1.25; }
+#tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-who { font-size: var(--text-sm); }
 #tab-quote-make #qpdListWrap .cloud-kv-tags { gap: var(--sp-6); }
 #tab-quote-make #qpdListWrap .cloud-tag { font-size: var(--text-base); padding: var(--sp-2) var(--sp-8); }
 #tab-quote-make #qpdListWrap .cloud-kv-sub { gap: var(--sp-6) var(--sp-12); }
@@ -6704,7 +6730,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make #qpdListWrap .cloud-sc-name { font-size: var(--text-lg); }
 #tab-quote-make #qpdListWrap .cloud-sc-more { font-size: var(--text-sm); }
 #tab-quote-make #qpdListWrap .cloud-kv .route-via { font-size: var(--text-sm); }
-#tab-quote-make #qpdListWrap .cloud-card-who { font-size: var(--text-base); }
+#tab-quote-make #qpdListWrap .cloud-card-who { font-size: var(--text-sm); }
 #tab-quote-make #qpdListWrap .cloud-card-edn { font-size: var(--text-xs); }
 
 /* お客様種別（マスターの取引形態：荷主／同業者／その他）。配色はマスター管理の取引形態の色分けと同じ（青／橙／灰）。
@@ -9610,9 +9636,9 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 .um-tab.is-active { color: var(--accent-dk); border-bottom-color: var(--accent); }
 
 .um-pane { flex: 1 1 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-.um-toolbar { display: flex; align-items: center; gap: var(--sp-8); padding: var(--sp-10) var(--sp-16); border-bottom: 1px solid var(--accent-lt); background: var(--card-bg); flex-shrink: 0; }
-.um-search { flex: 1; border: 1px solid var(--border); border-radius: var(--r-6); padding: var(--sp-6) var(--sp-11); font-size: var(--fs-12-5); font-family: inherit; background: var(--surface); }
-.um-filter { font-size: var(--fs-12); padding: var(--sp-6) var(--sp-9); border: 1px solid var(--border); border-radius: var(--r-6); background: var(--surface); color: var(--brown-25); font-family: inherit; cursor: pointer; }
+.um-toolbar { display: flex; align-items: center; gap: var(--sp-8); padding: var(--sp-10) var(--sp-16); border-bottom: 1px solid var(--accent-lt); background: var(--card-bg); flex-shrink: 0; flex-wrap: wrap; }
+.um-search { flex: 1 1 160px; min-width: 0; border: 1px solid var(--border); border-radius: var(--r-6); padding: var(--sp-6) var(--sp-11); font-size: var(--fs-12-5); font-family: inherit; background: var(--surface); }
+.um-filter { max-width: 100%; font-size: var(--fs-12); padding: var(--sp-6) var(--sp-9); border: 1px solid var(--border); border-radius: var(--r-6); background: var(--surface); color: var(--brown-25); font-family: inherit; cursor: pointer; }
 .um-invite-btn { flex-shrink: 0; white-space: nowrap; background: var(--accent); color: var(--surface); border: none; border-radius: var(--r-6); padding: var(--sp-7) 13px; font-size: var(--fs-12-5); font-weight: 600; font-family: inherit; cursor: pointer; }
 .um-invite-btn:hover { background: var(--c-5a4a35); }
 
@@ -10232,6 +10258,67 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 #tab-quote-make .cmdbar-qpat .qpat-sw { display: inline-block; width: 22px; height: 11px; vertical-align: middle; margin: 0 var(--sp-3) 0 var(--sp-8); border-radius: var(--r-2); }
 #tab-quote-make .cmdbar-qpat .qpat-sw.is-linked { background: #f4f8ec; box-shadow: 0 0 0 1px var(--green-leaf) inset; }
 #tab-quote-make .cmdbar-qpat .qpat-sw.is-check { background: var(--amber-94); box-shadow: 0 0 0 1px #c98a1f inset; }
+/* ===== 案（パターン）をブラウザのタブのように並べる（2026-11）：常に表示・名前のダブルクリックで改名・ドラッグで並べ替え・× で削除・「＋」で追加・色はモード（FCL＝緑／LCL＝青／AIR＝紫／指定なし＝茶） ===== */
+#tab-quote-make { --qpat-air: #7a55a8; }
+#tab-quote-make[data-qpat="air"] { --qpat-color: var(--qpat-air); }
+#tab-quote-make .cmdbar-qpat .qpat-tabs { display: flex; align-items: flex-end; gap: 2px; min-width: 0; }
+#tab-quote-make .cmdbar-qpat .qpat-chip {
+  position: relative; display: inline-flex; align-items: center; gap: var(--sp-4); height: 30px; max-width: 260px; padding: 0 var(--sp-8) 0 var(--sp-10);
+  font-family: inherit; font-size: var(--fs-12); font-weight: 400; cursor: pointer; user-select: none;
+  border: 1px solid var(--border-md); border-bottom: 0; border-radius: 9px 9px 0 0; margin-bottom: 0;
+  background: color-mix(in srgb, var(--text) 6%, var(--surface)); color: var(--text-md);
+}
+#tab-quote-make .cmdbar-qpat .qpat-chip:hover { background: color-mix(in srgb, var(--text) 3%, var(--surface)); color: var(--text); border-color: var(--border-md); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active {
+  background: var(--surface); color: var(--text); font-weight: 700; border-color: var(--border-md); border-top: 3px solid var(--qpat-other);
+  height: 32px; box-shadow: 0 1px 0 var(--surface);
+}
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-fcl { border-top-color: var(--qpat-fcl); background: var(--surface); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-lcl { border-top-color: var(--qpat-lcl); background: var(--surface); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-air { border-top-color: var(--qpat-air); background: var(--surface); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-air .qpat-mode { background: var(--qpat-air); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active .qpat-mode { background: var(--qpat-other); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-fcl .qpat-mode { background: var(--qpat-fcl); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-lcl .qpat-mode { background: var(--qpat-lcl); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-air .qpat-mode { background: var(--qpat-air); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-hidden-from-quote .qpat-name { text-decoration: underline dotted; text-underline-offset: 3px; }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-dragging { opacity: .45; }
+#tab-quote-make .cmdbar-qpat .qpat-chip .qpat-mode { color: #fff; }
+#tab-quote-make .cmdbar-qpat .qpat-chip .qpat-more, #tab-quote-make .cmdbar-qpat .qpat-chip .qpat-x {
+  flex: none; width: 20px; height: 20px; padding: 0; line-height: 1; font-family: inherit; font-size: var(--fs-14); cursor: pointer;
+  border: 0; border-radius: 50%; background: transparent; color: var(--text-md);
+}
+#tab-quote-make .cmdbar-qpat .qpat-chip .qpat-more:hover, #tab-quote-make .cmdbar-qpat .qpat-chip .qpat-x:hover { background: color-mix(in srgb, var(--text) 12%, transparent); color: var(--text); }
+#tab-quote-make .cmdbar-qpat .qpat-chip:not(.is-active) .qpat-x { opacity: 0; }
+#tab-quote-make .cmdbar-qpat .qpat-chip:hover .qpat-x, #tab-quote-make .cmdbar-qpat .qpat-chip:focus-within .qpat-x { opacity: 1; }
+#tab-quote-make .cmdbar-qpat .qpat-edit {
+  width: 140px; height: 22px; padding: 0 var(--sp-4); font-family: inherit; font-size: var(--fs-12); font-weight: 700;
+  border: 1px solid var(--accent-dk, var(--text-md)); border-radius: var(--r-3); background: var(--surface); color: var(--text);
+}
+#tab-quote-make .cmdbar-qpat .qpat-add {
+  flex: none; width: 28px; height: 28px; margin: 0 0 1px var(--sp-4); padding: 0; font-family: inherit; font-size: var(--fs-16); line-height: 1; cursor: pointer;
+  border: 1px dashed var(--border-md); border-radius: 50%; background: transparent; color: var(--text-md);
+}
+#tab-quote-make .cmdbar-qpat .qpat-add:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); border-style: solid; }
+@media (max-width: 680px) { #tab-quote-make .cmdbar-qpat .qpat-tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; } #tab-quote-make .cmdbar-qpat .qpat-tabs::-webkit-scrollbar { display: none; } }
+#tab-quote-make .save-toolbar > .cmdbar-qpat { align-self: flex-end; }
+#tab-quote-make .save-toolbar > .cmdbar-qpat .qpat-chip { height: 30px; }
+#tab-quote-make .save-toolbar > .cmdbar-qpat .qpat-chip.is-active { height: 32px; }
+#tab-quote-make .save-toolbar > .cmdbar-qpat .qpat-need { height: 24px; align-self: center; }
+#tab-quote-make .cmdbar-qpat .qpat-chip:focus-visible, #tab-quote-make .cmdbar-qpat .qpat-add:focus-visible { outline: 2px solid var(--accent-dk, #2f5fb3); outline-offset: 1px; }
+/* 「＋」と「⋯」のメニュー（body 直下に出すためクラス名だけで指定） */
+.qpat-pop { position: fixed; z-index: 3000; min-width: 272px; max-width: 320px; padding: 6px; border: 1px solid var(--border-md, #ccc); border-radius: 10px; background: var(--surface, #fff); color: var(--text, #222); box-shadow: 0 8px 28px rgba(0,0,0,.18); font-size: var(--text-sm, 13px); }
+.qpat-pop-h { padding: 4px 8px 6px; font-size: var(--text-xs, 12px); font-weight: 700; color: var(--text-md, #666); }
+.qpat-pop-sub { padding: 6px 8px 2px; font-size: var(--text-xs, 12px); color: var(--text-md, #666); }
+.qpat-pop-sep { height: 1px; margin: 4px 0; background: var(--border-md, #ddd); }
+.qpat-pop-item { display: block; width: 100%; padding: 7px 10px; text-align: left; font: inherit; color: inherit; cursor: pointer; border: 0; border-radius: 7px; background: transparent; }
+.qpat-pop-item:hover, .qpat-pop-item:focus-visible { background: color-mix(in srgb, var(--text, #222) 8%, transparent); outline: none; }
+.qpat-pop-item b { display: block; font-weight: 700; }
+.qpat-pop-item small { display: block; margin-top: 1px; font-size: var(--text-xs, 12px); color: var(--text-md, #666); }
+.qpat-pop-item.is-danger { color: #b3261e; }
+.qpat-pop-modes { display: flex; gap: 4px; padding: 2px 4px 6px; }
+.qpat-pop-modes .qpat-pop-mode { width: auto; flex: 1 1 0; padding: 6px 4px; text-align: center; border: 1px solid var(--border-md, #ccc); }
+.qpat-pop-modes .qpat-pop-mode.is-on { background: color-mix(in srgb, var(--text, #222) 10%, transparent); font-weight: 700; }
 /* 表の上端の線と、数量の列見出しに、編集中のパターンの色 */
 #tab-quote-make[data-qpat] #tableScrollWrap { border-top: 3px solid var(--qpat-color); }
 #tab-quote-make[data-qpat] #quoteTable th.hd-qty { box-shadow: inset 0 -3px 0 var(--qpat-color); }
@@ -11618,6 +11705,11 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 }
 #tab-quote-make td.subtotal-cell > .st-doneinfo .di-when, #tab-quote-make td.subtotal-cell > .st-doneinfo .di-name { display: inline-block; max-width: 100%; }
 #tab-quote-make td.subtotal-cell > .st-doneinfo[hidden] { display: none; }
+/* 引用元の入力完了（類似案件からインポートした行・この案件では未確認）：完了済みの緑ではなく、控えめな青灰で区別する */
+#tab-quote-make td.subtotal-cell > .st-doneinfo.is-src { color: #3a5f86; font-style: italic; }
+/* 類似案件のプレビュー：明細ごとの入力完了の日時・ユーザー */
+#tab-quote-make .cp-done-tag { display: inline-block; margin-left: var(--sp-6); padding: 0 6px; font-size: var(--text-xs, 12px); font-weight: 600; color: #1f5a31; background: #e3f3e8; border: 1px solid #3f8f55; border-radius: 999px; white-space: nowrap; vertical-align: baseline; }
+#tab-quote-make .cp-done-tag.is-src { color: #3a5f86; background: #eaf1f8; border-color: #8fb0d3; }
 /* classic の小計・利益：新しい div 構造（.st-main／.st-sub／.pr-main／.pr-sub）でも従来どおり縦に並ぶだけ */
 #tab-quote-make td.subtotal-cell > .st-sub,
 #tab-quote-make td.profit-cell > .pr-sub { line-height: 1.2; }
@@ -12084,6 +12176,7 @@ body.memo-fab-off .qf-memo-fab { display: none !important; }
   #tab-quote-make .mc-tag { font-size: 12px; padding: 0 6px; border: 1px solid #c9ccd1; color: #5d5d60; background: #f5f5f8; font-weight: 600; }
   #tab-quote-make .mc-tag.t-pend { background: #fbf1d3; border-color: #d9a21b; color: #6b4e00; }
   #tab-quote-make .mc-tag.t-done { background: #e3f3e8; border-color: #3f8f55; color: #1f5a31; }
+  #tab-quote-make .mc-tag.t-src { background: #eaf1f8; border-color: #8fb0d3; color: #3a5f86; }
   #tab-quote-make .mc-amt { flex: none; text-align: right; font-weight: 700; font-size: 14px; display: flex; flex-direction: column; }
   #tab-quote-make .mc-amt small { font-weight: 400; font-size: 12px; color: #5d5d60; }
   #tab-quote-make .mc-go { flex: none; color: #8a8a8d; font-size: 18px; }
@@ -12371,3 +12464,101 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
   display: inline-block; margin-left: var(--sp-8); padding: 0 var(--sp-6); border-radius: var(--r-6);
   background: var(--accent-lt); color: var(--accent-dk); font-size: var(--fs-12); white-space: nowrap;
 }
+
+
+/* 📩 サブコン別メール取込（サブコン見出しのボタン／ダイアログのルール箱） */
+#tab-quote-make #emailImportBox.ei-sv-ctx .ei-act-new,
+#tab-quote-make #emailImportBox.ei-sv-ctx .ei-store-btn,
+#tab-quote-make #emailImportBox.ei-sv-ctx .ei-ai-prompt-btn { display: none; }
+#tab-quote-make #eiSvCtx[hidden] { display: none; }
+#tab-quote-make #eiSvCtx { margin: 0 0 var(--space-2, 8px); }
+#tab-quote-make #eiSvCtx .ei-rules { border: 1px solid var(--border, #d0d7de); border-radius: 8px; background: var(--surface-2, #f6f8fa); padding: 8px 12px; }
+#tab-quote-make #eiSvCtx .ei-rules > summary { cursor: pointer; font-size: var(--text-sm, 13px); font-weight: 600; }
+#tab-quote-make #eiSvCtx .ei-rule-row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 10px 0 4px; font-size: var(--text-sm, 13px); }
+#tab-quote-make #eiSvCtx .ei-rule-row input[type=text] { width: 120px; }
+#tab-quote-make #eiSvCtx .ei-rule-help,
+#tab-quote-make #eiSvCtx .ei-rule-none,
+#tab-quote-make #eiSvCtx .ei-rule-meta { font-size: var(--text-xs, 12px); color: var(--text-muted, #57606a); margin: 4px 0; line-height: 1.6; }
+#tab-quote-make #eiSvCtx .ei-rule-list { list-style: none; margin: 6px 0; padding: 0; font-size: var(--text-sm, 13px); }
+#tab-quote-make #eiSvCtx .ei-rule-list li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px dashed var(--border, #d0d7de); }
+#tab-quote-make #eiSvCtx .ei-rule-list button { border: 0; background: none; cursor: pointer; color: var(--text-muted, #57606a); }
+#tab-quote-make .ei-learn { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0; font-size: var(--text-xs, 12px); color: var(--text-muted, #57606a); }
+#tab-quote-make .ei-learn-btn { padding: 6px 12px; border: 1px solid #2f8f83; color: #1f6f65; background: #eefaf8; border-radius: 6px; cursor: pointer; font-size: var(--text-sm, 13px); }
+
+/* 📩 メール取込：読み取れなかった行 */
+#tab-quote-make .ei-unread { margin: 10px 0; padding: 8px 12px; border: 1px solid #d4a72c; border-radius: 8px; background: #fff8c5; font-size: var(--text-sm, 13px); }
+#tab-quote-make .ei-unread > summary { cursor: pointer; font-weight: 600; color: #7d4e00; }
+#tab-quote-make .ei-unread ul { margin: 6px 0 0; padding-left: 18px; }
+#tab-quote-make .ei-unread li { margin: 2px 0; word-break: break-all; }
+#tab-quote-make .ei-unread p { margin: 6px 0 0; font-size: var(--text-xs, 12px); color: #57606a; line-height: 1.6; }
+#tab-quote-make .ei-unread .ei-unread-copy { margin-top: 8px; padding: 5px 12px; border: 1px solid #d4a72c; border-radius: 6px; background: #fff; color: #7d4e00; cursor: pointer; font-size: var(--text-sm, 13px); }
+/* サブコン専用の取込では、新規案件用の項目（お客様・REF#・有効期限）と「単価を売値として取り込む」は出さない */
+#tab-quote-make #emailImportBox.ei-sv-ctx .ei-f-meta,
+#tab-quote-make #emailImportBox.ei-sv-ctx .ei-sellmode-label { display: none !important; }
+
+/* 保険料の計算（保険カテゴリの行）：ボタンは青緑系。ON の行だけ、貨物価額・保険価額率・保険料率の入力欄を出す（Industry は「その他 ▾」の中）。
+   計算結果は仕入単価（読み取り専用）に入る。売単価は仕入＋乗せ幅、最低保険料は仕入の MIN */
+#tab-quote-make .ins-mode-btn {
+  display: inline-block; margin-top: var(--sp-3); padding: 1px var(--sp-6);
+  font-size: var(--fs-10); line-height: 1.5; border: 1px solid var(--border-md); border-radius: var(--r-3);
+  background: transparent; color: var(--border-md); cursor: pointer; font-family: inherit;
+  transition: all 0.15s; white-space: nowrap;
+}
+#tab-quote-make .ins-mode-btn:hover { border-color: #1a7f6e; color: #1a7f6e; }
+#tab-quote-make .ins-mode-btn.is-on { background: #e6f5f1; border-color: #3aa392; color: #1a7f6e; font-weight: 700; }
+#tab-quote-make .ins-group { display: none; align-items: center; gap: var(--sp-4); flex-wrap: wrap; margin-top: var(--sp-3); }
+#tab-quote-make tr.row-ins-mode .ins-group { display: flex; }
+#tab-quote-make .ins-group .ins-lbl { font-size: var(--fs-10); font-weight: 700; color: #1a7f6e; }
+#tab-quote-make .ins-group .ins-ctrl { display: inline-flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3); }
+#tab-quote-make .ins-group select, #tab-quote-make .ins-group input {
+  font-size: var(--fs-11); font-family: inherit; padding: 1px var(--sp-4); height: auto; width: auto; min-width: 0;
+  border: 1px solid var(--border-md); border-radius: var(--r-3); background: var(--surface); color: var(--text);
+}
+#tab-quote-make .ins-group input.ins-v { width: 150px; }
+#tab-quote-make .ins-group input.ins-k { width: 56px; }
+#tab-quote-make .ins-group input.ins-r { width: 70px; }
+#tab-quote-make .ins-group input.ins-m { width: 56px; }
+#tab-quote-make .ins-group .ins-mg { display: inline-flex; align-items: center; gap: var(--sp-3); }
+#tab-quote-make .ins-group .ins-mg-lbl { font-size: var(--fs-10); font-weight: 700; color: #1a7f6e; }
+#tab-quote-make .ins-group .ins-x, #tab-quote-make .ins-group .ins-u { font-size: var(--fs-10); color: var(--text-md); }
+#tab-quote-make .ins-group .ins-hint { flex-basis: 100%; font-size: var(--fs-10); color: var(--text-md); white-space: normal; overflow-wrap: anywhere; }
+#tab-quote-make .ins-group .ins-hint.is-warn { color: #b45309; font-weight: 700; }
+
+/* ===== 📥 取り込みの入口（テキスト／PDF／荷姿） ===== */
+#tab-quote-make #importChooser { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9000; align-items: center; justify-content: center; }
+#tab-quote-make #importChooser.open { display: flex; }
+#tab-quote-make #importChooser .ic-box { background: var(--surface-warm); border-radius: var(--r-10); padding: var(--sp-16) var(--sp-20) var(--sp-18); width: min(94vw, 480px); box-shadow: 0 8px 32px rgba(0,0,0,.25); }
+#tab-quote-make #importChooser .ic-sub { margin: 0 0 var(--sp-12); font-size: var(--text-sm, 13px); color: var(--text-md); line-height: 1.6; }
+#tab-quote-make #importChooser .ic-opt { display: flex; align-items: center; gap: var(--sp-12); width: 100%; margin-top: var(--sp-8); padding: var(--sp-12) var(--sp-14); min-height: 44px; text-align: left; font-family: inherit; border: 1px solid var(--border); border-radius: var(--r-8); background: var(--card-bg); color: var(--text); cursor: pointer; }
+#tab-quote-make #importChooser .ic-opt:hover { border-color: #3aa392; background: #f2faf8; }
+#tab-quote-make #importChooser .ic-opt[hidden] { display: none; }
+#tab-quote-make #importChooser .ic-ico { font-size: 24px; }
+#tab-quote-make #importChooser .ic-opt b { display: block; font-size: var(--text-base, 14px); }
+#tab-quote-make #importChooser .ic-opt small { display: block; margin-top: 2px; font-size: var(--text-xs, 12px); color: var(--text-md); line-height: 1.5; }
+
+/* 狭い画面で「ゾーン構成から見積もり行を生成」の見出しがボタンに押されて 1 文字幅に潰れるのを防ぐ（折り返す） */
+@media (max-width: 600px) {
+  #tab-quote-make .zone-preset-section { flex-wrap: wrap; }
+  #tab-quote-make .zone-preset-section-head { flex: 1 1 100%; }
+}
+
+/* 狭い画面では「⋯」のポップアップが左へ切れるので、画面の内側に固定して広げる（⚙ と同じ） */
+@media (max-width: 700px) {
+  #tab-quote-make .cmdbar-more-pop { position: fixed; top: 124px; left: 8px !important; right: 8px !important; width: auto; max-width: none; max-height: calc(100vh - 140px); overflow-y: auto; }
+}
+/* ✅❌ 確認画面の行の評価（サブコン専用の取込） */
+#tab-quote-make .ei-rate-cell { white-space: nowrap; }
+#tab-quote-make .ei-rate-btn { padding: 2px 8px; margin-right: 4px; min-height: 28px; border: 1px solid var(--border-md, #d0d7de); border-radius: 6px; background: #fff; cursor: pointer; font-size: var(--text-sm, 13px); opacity: .55; }
+#tab-quote-make .ei-rate-btn:hover { opacity: 1; }
+#tab-quote-make .ei-rate-btn.on { opacity: 1; border-color: #2f8f83; background: #e6f5f1; }
+#tab-quote-make .ei-rate-btn[data-k="ng"].on { border-color: #c2410c; background: #fdebd3; }
+#tab-quote-make .ei-rate-btn:disabled { opacity: .25; cursor: not-allowed; }
+#tab-quote-make .ei-edited-tag { font-size: var(--text-xs, 12px); color: #1d4ed8; white-space: nowrap; }
+#tab-quote-make .ei-rate-guide { margin: 6px 0; border: 1px solid var(--border-md, #d0d7de); border-radius: 8px; background: #f8fafc; padding: 4px 10px; font-size: var(--text-sm, 13px); }
+#tab-quote-make .ei-rate-guide summary { cursor: pointer; padding: 4px 0; font-weight: 600; }
+#tab-quote-make .ei-rate-guide p { margin: 6px 0; line-height: var(--lh-body, 1.7); }
+#tab-quote-make tr.ei-rate-ngrow td { opacity: .5; }
+#tab-quote-make tr.ei-rate-ngrow td.ei-rate-cell { opacity: 1; }
+#tab-quote-make .ei-ign-btn { margin-left: 8px; padding: 2px 8px; border: 1px solid #d4a72c; border-radius: 6px; background: #fff; color: #7d4e00; cursor: pointer; font-size: var(--text-xs, 12px); }
+#tab-quote-make .ei-ignored { margin: 8px 0; padding: 8px 12px; border: 1px solid var(--border, #d0d7de); border-radius: 8px; background: var(--card-bg, #fff); font-size: var(--text-xs, 12px); color: var(--text-muted, #57606a); }
+#tab-quote-make .ei-ignored ul { margin: 6px 0 0; padding-left: 18px; }

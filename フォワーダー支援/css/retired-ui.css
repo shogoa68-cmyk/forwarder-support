@@ -1,0 +1,15 @@
+/* 廃止した画面部品（2026-11）：DOM・id・保存データは残し、見える入口だけ消す */
+/* ① 表示サイズ 大／中／小（常に標準の「中」） */
+#tab-quote-make .tb-scale-label, #tab-quote-make .tb-segrow-inline, #tab-quote-make .tb-mi-scale { display: none !important; }
+/* ② 👤 作成者を指定して保存（管理者の一時機能） */
+#adminCreatorNew { display: none !important; }
+
+/* ④ サブ案件（メイン／サブ）を新しく作る入口（2026-11・方針はユーザー合意済み＝データは消さない）
+   すでにあるメイン／サブの表示（ツリー・「↳ サブ：○○」・番号の (A)）と関連付けの解除はそのまま。
+   隠すのは：カードの［🌱 サブ作成］・「⋯」の「サブ案件を作成」・関連付けるときの「サブ／メインにする」の選択・
+   一括関連付けの「最初をメインに」・関連の行の位置づけ（関連／サブ／メイン）の切替。関数は残す。 */
+.btn-preset-sub,
+.cloud-menu-item[onclick*="cloudCreateSubPreset"],
+.sq-link-roles,
+#qpdLinkBarRole,
+select.clink-role { display: none !important; }

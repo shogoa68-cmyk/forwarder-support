@@ -94,7 +94,8 @@
   function renderStates(tr) {
     $('mcsState').innerHTML = STATE.map(([k, label, sel, on]) => '<button type="button" class="mcs-tg' + (on(tr) ? ' is-on' : '') + '" data-state="' + k + '" aria-pressed="' + (on(tr) ? 'true' : 'false') + '">' + esc(label) + '</button>').join('');
     { const di = $('mcsDoneInfo'), inf = tr.dataset.done === '1' && typeof window.rowDoneInfo === 'function' ? window.rowDoneInfo(tr) : null;   // 入力完了を押した日時・ユーザー
-      if (di) { di.textContent = inf ? '✓ 入力完了：' + inf.text : ''; di.hidden = !inf; } }
+      const sr = !inf && tr.dataset.done !== '1' && typeof window.rowSrcDoneInfo === 'function' ? window.rowSrcDoneInfo(tr) : null;   // 引用元の入力完了
+      if (di) { di.textContent = inf ? '✓ 入力完了：' + inf.text : (sr ? '📥 引用元の入力完了：' + sr.text + (sr.from ? '（' + sr.from + '）' : '') : ''); di.hidden = !inf && !sr; } }
     $('mcsModes').innerHTML = MODES.map(([sel, label]) => { const b = tr.querySelector(sel); return b ? '<button type="button" class="mcs-tg' + (isOn(b) ? ' is-on' : '') + '" data-mode="' + esc(sel) + '" aria-pressed="' + (isOn(b) ? 'true' : 'false') + '">' + esc(label) + '</button>' : ''; }).join('');
     $('mcsTableModes').innerHTML = TABLE_MODES.map(([sel, label]) => { const b = tr.querySelector(sel); return b ? '<button type="button" class="mcs-tg' + (isOn(b) ? ' is-on' : '') + '" data-tmode="' + esc(sel) + '">' + esc(label) + (isOn(b) ? '（設定中）' : '') + '</button>' : ''; }).join('');
     $('mcsState').querySelectorAll('[data-state]').forEach(b => b.addEventListener('click', () => { const d = STATE.find(s => s[0] === b.dataset.state); tr.querySelector(d[2])?.click(); setTimeout(() => renderStates(tr), 30); }));

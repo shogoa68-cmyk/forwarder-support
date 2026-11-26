@@ -1,0 +1,66 @@
+// 航路のルート案（案の名前・採用／不採用の印）の試験。 node scripts/design-tests/route-plan-test.js （THEME=1 Industry）
+const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
+const http = require('http'), fs = require('fs'), path = require('path');
+let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' → ' + JSON.stringify(x))); };
+(async () => {
+  const root = path.resolve(__dirname, '..', '..');
+  const srv = http.createServer((q, r) => { const f = path.join(root, decodeURIComponent(q.url.split('?')[0])); if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'Content-Type': f.endsWith('.css') ? 'text/css' : f.endsWith('.js') ? 'text/javascript' : 'text/html; charset=utf-8' }); fs.createReadStream(f).pipe(r); });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
+  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+  const ctx = await b.newContext({ viewport: { width: 1500, height: 900 }, locale: 'ja-JP' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('fwd.uiMode', 'detail'); } catch (e) {} });
+  if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
+  await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
+  const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.setDefaultTimeout(8000);
+  await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(700);
+  await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(700);
+  await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1200);
+  await p.evaluate(() => window.qpNewQuote()); await p.waitForTimeout(800);
+  const info = id => p.evaluate(id => { const i = document.getElementById(id); const l = i.list; return { attr: i.getAttribute('list'), has: !!l, same: l && l === document.getElementById(i.getAttribute('list')) }; }, id);
+  const sv = await info('bulkSubconSet'), un = await info('bulkUnitSet'), pt = await info('bulkPatternSet');
+  const add = (c, pol, pod) => p.evaluate(([c, pol, pod]) => { document.getElementById('z2Carrier').value = c; document.getElementById('z2Pol').value = pol; document.getElementById('z2Pod').value = pod; window.addRouteEntry(); }, [c, pol, pod]);
+  await add('ONE', 'TOKYO', 'LOS ANGELES'); await add('MAERSK', 'TOKYO', 'LOS ANGELES'); await p.waitForTimeout(300);
+  // Design 42-3：航路はカード。採用は 1 本だけ（採用＝見積書に出す航路）
+  const chips = () => p.evaluate(() => [...document.querySelectorAll('#z2RouteList .z2-rcard')].map(c => ({ plan: (c.querySelector('.z2-rc-name') || {}).textContent || '', none: !!c.querySelector('.z2-rc-nameadd'), adopt: c.classList.contains('is-adopt') ? '採用' : c.classList.contains('is-reject') ? '不採用' : '未定' })));
+  let c = await chips();
+  ok('どの航路にも「＋ 名前」が出る（既定は案なし）・1 本目は採用・2 本目は未定', c.length === 2 && c.every(x => x.none) && c[0].adopt === '採用' && c[1].adopt === '未定', c);
+  await p.evaluate(() => { window.prompt = () => 'FCL直行案'; window.editRoutePlan(0); window.prompt = () => '混載案'; window.editRoutePlan(1); }); await p.waitForTimeout(200);
+  c = await chips();
+  ok('案の名前を付けられる', c[0].plan === 'FCL直行案' && c[1].plan === '混載案', c);
+  await p.evaluate(() => window.adoptRoute(1)); await p.waitForTimeout(150);
+  c = await chips();
+  ok('2 本目を採用にすると、1 本目は未定に戻る', c[1].adopt === '採用' && c[0].adopt === '未定', c);
+  await p.evaluate(() => window.rejectRoute(0)); await p.waitForTimeout(150);
+  ok('不採用にできる', (await chips())[0].adopt === '不採用');
+  await p.evaluate(() => window.unsetRoute(0)); await p.waitForTimeout(150);
+  ok('未定に戻せる', (await chips())[0].adopt === '未定');
+  const saved = await p.evaluate(() => JSON.parse(document.getElementById('z2-routes-data').value).map(r => [r.plan, r.adopt, r.enabled]));
+  ok('保存用のデータに案の名前・採用の印が入る（採用＝enabled）', JSON.stringify(saved) === JSON.stringify([['FCL直行案', '', false], ['混載案', 'adopt', true]]), saved);
+  await p.evaluate(() => { window.editRouteEntry(1); window.addRouteEntry(); }); await p.waitForTimeout(200);
+  const after = await p.evaluate(() => JSON.parse(document.getElementById('z2-routes-data').value).map(r => [r.plan, r.adopt]));
+  ok('✎ で直して登録しても案の名前・印が残る', after.some(a => a[0] === '混載案' && a[1] === 'adopt'), after);
+  await p.evaluate(() => { window.prompt = () => ''; window.editRoutePlan(0); }); await p.waitForTimeout(150);
+  ok('名前を空にすると案なしに戻る', (await chips()).some(x => x.none));
+  // 区間（区間ごとのモード・キャリア・ETD）
+  await add('YANG MING', 'OSAKA', 'SEATTLE'); await p.waitForTimeout(200);
+  const idx = await p.evaluate(() => JSON.parse(document.getElementById('z2-routes-data').value).length - 1);
+  ok('区間の無い航路には「＋ 区間を足す」が出る', await p.evaluate(() => !!document.querySelector('#z2RouteList .z2-rc-segadd')));
+  await p.evaluate(i => window.openRouteSegs(i), idx); await p.waitForTimeout(200);
+  await p.evaluate(() => { document.querySelector('.z2-seg-add').click(); document.querySelector('.z2-seg-add').click(); }); await p.waitForTimeout(100);
+  ok('区間を 2 つ追加でき、1 つ目は集荷・2 つ目は海上が既定', await p.evaluate(() => [...document.querySelectorAll('.z2-seg-mode')].map(e => e.value).join()) === '集荷,海上');
+  await p.evaluate(() => { const rows = document.querySelectorAll('.z2-seg-row'); const c = rows[1].querySelector('.z2-seg-carrier'); c.value = 'YANG MING'; c.dispatchEvent(new Event('input', { bubbles: true })); const e = rows[1].querySelector('.z2-seg-etd'); e.value = '2026-12-05'; e.dispatchEvent(new Event('change', { bubbles: true })); });
+  const segs = await p.evaluate(i => JSON.parse(document.getElementById('z2-routes-data').value)[i].segs, idx);
+  ok('入力すると保存用のデータ（segs）に入る', segs.length === 2 && segs[1].carrier === 'YANG MING' && segs[1].etd === '2026-12-05' && segs[0].mode === '集荷', segs);
+  await p.evaluate(() => document.querySelector('.z2-seg-x').click()); await p.waitForTimeout(200);
+  ok('閉じるとカードに区間の流れ（2 つ・業者）が出る', await p.evaluate(() => [...document.querySelectorAll('#z2RouteList .z2-rc-segs')].some(o => o.children.length === 2 && /YANG MING/.test(o.textContent))));
+  await p.evaluate(i => { window.editRouteEntry(i); window.addRouteEntry(); }, idx); await p.waitForTimeout(200);
+  const after2 = await p.evaluate(() => JSON.parse(document.getElementById('z2-routes-data').value).some(r => Array.isArray(r.segs) && r.segs.length === 2));
+  ok('✎ で編集して再登録しても区間が残る', after2);
+  // ダッシュボードのカード用メタ（案・採用・区間が通る）
+  const meta = await p.evaluate(() => { const rs = [{ pol: 'TOKYO', pod: 'LA', carrier: 'ONE', plan: 'FCL案', adopt: 'adopt', segs: [{ mode: '集荷', carrier: 'A社', etd: '2026-12-01' }] }]; const m = window.quotePresetMeta({ data: { fields: { 'z2-routes-data': JSON.stringify(rs) } } }); return m.routes; });
+  ok('カード用メタに案・採用・区間が入る', meta && meta[0].plan === 'FCL案' && meta[0].adopt === 'adopt' && meta[0].segs.length === 1 && meta[0].segs[0].mode === '集荷', meta);
+  ok('ページエラーなし', errs.length === 0, errs);
+  console.log(fails ? `\n${fails} 件 FAIL` : '\n全項目 PASS');
+  await b.close(); srv.close(); process.exit(fails ? 1 : 0);
+})();
