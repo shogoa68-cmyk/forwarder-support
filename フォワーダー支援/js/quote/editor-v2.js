@@ -294,6 +294,12 @@
   function toggleDrawer(mod) {
     toggleDrawer0(mod); syncDrawerBtns();
   }
+  // 外から引き出しを開く（すでにそのモジュールで開いていれば何もしない＝閉じない）
+  window.e2OpenDrawer = function (mod) {
+    if (!mod) return;
+    if (document.body.classList.contains('e2-drawer') && document.body.dataset.e2drawer === mod) return;
+    toggleDrawer(mod);
+  };
   function toggleDrawer0(mod) {
     const open = document.body.classList.contains('e2-drawer'), same = document.body.dataset.e2drawer === mod;
     if (open && same) { document.body.classList.remove('e2-drawer'); return; }

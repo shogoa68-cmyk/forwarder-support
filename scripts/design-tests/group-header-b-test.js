@@ -47,7 +47,7 @@ const ok=(n,c,x)=>{const l=(c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify(x)
   // ［⋯］メニュー
   await p.click(H+' .gb-more');await p.waitForTimeout(200);
   let items=await p.$$eval('#gbMenu .gb-mi',a=>a.map(x=>x.textContent.trim()));
-  ok('［⋯］の中：複製・パターンを追加・注記を書く・カテゴリ順に並べる・見積書から外す（未登録のサブコンは取り込み・詳細を出さない）',items.length===5&&/複製/.test(items[0])&&/パターンを追加/.test(items[1])&&/注記を書く/.test(items[2])&&/カテゴリ順/.test(items[3])&&/見積書から外す/.test(items[4]),items);
+  ok('［⋯］の中：過去の明細・複製・パターンを追加・注記を書く・カテゴリ順に並べる・見積書から外す（未登録のサブコンは取り込み・詳細を出さない）',items.length===6&&/過去の明細/.test(items[0])&&/複製/.test(items[1])&&/パターンを追加/.test(items[2])&&/注記を書く/.test(items[3])&&/カテゴリ順/.test(items[4])&&/見積書から外す/.test(items[5]),items);
   ok('［⋯］は aria-expanded=true',await p.$eval(H+' .gb-more',e=>e.getAttribute('aria-expanded'))==='true');
   await p.keyboard.press('Escape');await p.waitForTimeout(150);
   ok('Esc でメニューが閉じる',await p.$eval('#gbMenu',e=>e.hidden));

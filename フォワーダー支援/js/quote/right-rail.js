@@ -291,6 +291,13 @@
     if (el.innerHTML !== h) el.innerHTML = h;
     el.hidden = !h;
   }
+  // 外から特定のモジュールを開く（すでに開いていれば閉じない）
+  window.qrcOpen = function (mod) {
+    if (!mod) return;
+    // 新画面は右の引き出しを body.e2-drawer で出す（editor-v2.js）ので、そちらにも開かせる
+    if (document.documentElement.classList.contains('editor-v2') && typeof window.e2OpenDrawer === 'function') window.e2OpenDrawer(mod);
+    if (state.active !== mod) setActive(mod);
+  };
   window.qrcAddRow = function () { if (typeof window.addRow === 'function') window.addRow(); };
   // ④ 費用のステップ／セクションへ（新画面はステップ、旧画面はスクロール）
   window.qrcGoCost = function () {
