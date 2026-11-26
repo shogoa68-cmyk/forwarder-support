@@ -6033,12 +6033,18 @@ html.theme-quiet .cc-root { --cc-pri: #1f4fd6; --cc-pri-50: #eef3ff; }
 .cc-cancel { background: none; border: 0; color: var(--cc-ink2); font-size: 13px; cursor: pointer; height: 36px; padding: 0 10px; }
 .cc-save { height: 36px; padding: 0 18px; border-radius: 6px; border: 1px solid var(--cc-pri); background: var(--cc-pri); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; }
 .cc-modal { max-width: 760px; }
+.cc-sheet-bar { display: none; }
 /* スマホ：短いカード→押すと下から全文、［＋ 事例を記録］は下に固定、入力は全画面 */
 @media (max-width: 600px) {
   .cc-root { font-size: 14px; }
   .cc-item { min-height: 44px; cursor: pointer; }
   .cc-item:not(.cc-sheet-open) .cc-body { display: none; }
   .cc-root .cc-item.cc-sheet-open { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2100; max-height: 82vh; overflow: auto; border-radius: 14px 14px 0 0; border-left-width: 1px; box-shadow: 0 -8px 24px rgba(16,24,40,.25); cursor: default; }
+  .cc-root .cc-item.cc-sheet-open { padding-top: 0; }
+  .cc-root .cc-item.cc-sheet-open .cc-sheet-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; position: sticky; top: 0; z-index: 1; margin: 0 -14px 8px; padding: 8px 14px; background: inherit; background-color: #fff; border-bottom: 1px solid #e4e7ec; font-size: 13px; color: #475467; }
+  .cc-sheet-close { min-height: 44px; padding: 0 16px; border: 1px solid #98a2b3; border-radius: 6px; background: #fff; color: #1d2939; font-size: 14px; font-weight: 700; cursor: pointer; }
+  /* シートを開いている間は、下に固定の［＋ 事例を記録］を出さない（重なって押し間違えないように） */
+  .cc-root.cc-has-sheet[data-view="list"] .cc-tools .cc-new { display: none; }
   .cc-root.cc-has-sheet::after { content: ''; position: fixed; inset: 0; background: rgba(16,24,40,.35); z-index: 2090; }
   .cc-sec { grid-template-columns: 1fr; gap: 0; }
   .cc-btns > button, .cc-more, .cc-seg-b, .cc-kchip, .cc-done-toggle { min-height: 44px; }
