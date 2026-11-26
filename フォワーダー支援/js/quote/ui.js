@@ -10,6 +10,7 @@
     { label: '🛃 通関費用',        text: '通関費用・関税・消費税等は本見積もりに含まれておりません。', en: 'Customs clearance fees, duties, consumption tax, etc. are not included in this quotation.' },
     { label: '🛡️ 貨物保険',       text: '貨物保険料は含まれておりません。付保をご希望の場合は別途ご相談ください。', en: 'Cargo insurance is not included. Please contact us separately if you wish to arrange coverage.' },
     { label: '⚓ 港湾混雑',        text: '港湾混雑・ストライキ・天災等による遅延・追加費用は含まれておりません。', en: 'Delays and additional costs caused by port congestion, strikes, natural disasters, etc. are not included.' },
+    { label: '🌀 遅延の免責',      text: '天候不良・時化（しけ）・港湾混雑・ストライキ・天災等、当社の責に帰さない事由による輸送の遅延・スケジュール変更・不着については、当社は責任を負いかねます。', en: 'We shall not be held liable for any delay, schedule change or non-delivery caused by reasons beyond our control, such as bad weather, rough seas, port congestion, strikes or natural disasters.' },
     { label: '☣️ 危険品',         text: '危険品・温度管理貨物・特殊貨物については別途ご相談ください。条件が異なります。', en: 'Please consult us separately for dangerous goods, temperature-controlled cargo, and special cargo, as different conditions apply.' },
     { label: '🔄 条件変更',        text: '貨物の内容・数量・仕向地等に変更が生じた場合は再見積となります。', en: 'A re-quotation will be required if there are any changes to the cargo description, quantity, destination, etc.' },
     { label: '📋 書類締切',        text: 'B/L・AWB等の書類提出締め切りは船会社・航空会社の指定期日に従います。遅延の場合は追加費用が発生します。', en: 'The deadline for submitting documents such as B/L and AWB follows the date specified by the carrier or airline. Additional charges will apply for late submission.' },
