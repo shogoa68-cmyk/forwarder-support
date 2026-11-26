@@ -68,6 +68,23 @@ const run=async(p)=>{
  await setSel(0,'cn-key','cnt');await setSel(0,'cn-op','eq');await setNum(0,'cn-a',3);
  ok('コンテナ本数（合計）＝3 に合う',(await state(0)).out==='',await state(0));
 
+ // 4b) 出荷全体の総重量（KGS）・総容積（M3）
+ ok('項目に「総重量（出荷全体）」「総容積（出荷全体）」が選べる',await row(0).evaluate(tr=>['kg','cbm'].every(k=>[...tr.querySelectorAll('.cn-key option')].some(o=>o.value===k))),null);
+ await setSel(0,'cn-key','kg');await setSel(0,'cn-op','ge');await setNum(0,'cn-a',500);
+ ok('総重量が未入力のときは判定できず、表示のまま',(await state(0)).unk==='1'&&(await state(0)).out==='',await state(0));
+ await p.evaluate(()=>{const v=document.getElementById('volumeBody');if(v&&getComputedStyle(v).display==='none'){try{toggleQuoteSection('section-volume')}catch(e){}} addPackingRow();});await p.waitForTimeout(300);
+ await p.evaluate(()=>{const tr=[...document.querySelectorAll('#cargoDetailBody tr')].pop();const set=(sel,v)=>{const e=tr.querySelector(sel);if(!e)return;e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));};
+   set('.cd-pkg input','パレット');set('.cd-qty input',2);[...tr.querySelectorAll('.cd-dim input')].forEach((e,k)=>{e.value=[120,80,100][k];e.dispatchEvent(new Event('input',{bubbles:true}));});set('.cd-kg input',300);});
+ await p.waitForTimeout(700);
+ ok('総重量 600 KGS は「500 KGS 以上」に合う',(await state(0)).out===''&&(await state(0)).unk!=='1',await state(0));
+ await setNum(0,'cn-a',700);
+ ok('「700 KGS 以上」には合わない（除外）',(await state(0)).reason==='condition',await state(0));
+ await setSel(0,'cn-key','cbm');await setSel(0,'cn-op','lt');await setNum(0,'cn-a',1.5);
+ ok('総容積 1.92 M3 は「1.5 M3 未満」に合わない（除外）',(await state(0)).reason==='condition',await state(0));
+ await setSel(0,'cn-op','between');await setNum(0,'cn-a',1.9);await setNum(0,'cn-b',2);
+ ok('総容積 1.92 M3 は「1.9〜2 M3」に合う',(await state(0)).out==='',await state(0));
+ ok('条件の説明に単位 M3 が出る',await row(0).evaluate(tr=>/M3/.test(tr.textContent)),null);
+
  // 5) 輸送モード（海上すべて）／貿易条件
  await setSel(0,'cn-key','mode');
  await setSel(0,'cn-a','海上*');

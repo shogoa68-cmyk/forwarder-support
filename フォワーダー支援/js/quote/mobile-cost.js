@@ -19,7 +19,7 @@
     const hidden = tr.dataset.hideQuote === '1', pending = tr.dataset.pending === '1', done = tr.dataset.done === '1';
     const ccy = v(tr, 'bc') || 'JPY';
     return {
-      tr, id: tr.id, sv: (v(tr, 'sv') || '').trim(), pt: (v(tr, 'pt') || '').trim(), nm: (v(tr, 'nm') || '').trim(),
+      tr, id: tr.id, cat: (v(tr, 'cat') || tr.querySelector('select.w-cat')?.value || ''), sv: (v(tr, 'sv') || '').trim(), pt: (v(tr, 'pt') || '').trim(), nm: (v(tr, 'nm') || '').trim(),
       qty: v(tr, 'pq'), un: (v(tr, 'un') || '').trim(), bp: v(tr, 'bp'), ccy, st: stText(tr),
       hidden, pending, done, out: !!tr.dataset.outRange, amount: num(stText(tr)),
       doneText: (done && typeof window.rowDoneInfo === 'function' && window.rowDoneInfo(tr)) ? window.rowDoneInfo(tr).text : '',   // 入力完了を押した日時・ユーザー
@@ -50,7 +50,7 @@
         if (r.pt !== curPt && (r.pt || curPt)) h += '<div class="mc-pt">' + esc(r.pt || '（パターン設定なし）') + '</div>';
         curPt = r.pt;
         const band = r.done ? 'is-done' : r.pending ? 'is-pending' : '';
-        h += '<button type="button" class="mc-row ' + band + (r.hidden ? ' is-hidden' : '') + (r.out ? ' is-out' : '') + '" data-row="' + esc(r.id) + '">' +
+        h += '<button type="button" class="mc-row ' + band + (r.hidden ? ' is-hidden' : '') + (r.out ? ' is-out' : '') + '" data-row="' + esc(r.id) + '"' + (r.cat ? ' data-cat="' + esc(r.cat) + '"' : '') + '>' +
           '<span class="mc-main"><span class="mc-nm">' + (esc(r.nm) || '<i>（品名未入力）</i>') + '</span>' +
           '<span class="mc-sub">' + esc(r.qty) + (r.un ? ' ' + esc(r.un) : '') + ' × ' + esc(r.bp) + ' ' + esc(r.ccy) + '</span>' +
           '<span class="mc-tags">' + (r.hidden ? '<b class="mc-tag t-hide">見積書に出さない</b>' : '') + (r.pending ? '<b class="mc-tag t-pend">🔍 要調査</b>' : '') + (r.done ? '<b class="mc-tag t-done">✓ 入力完了' + (r.doneText ? ' ' + esc(r.doneText) : '') + '</b>' : '') + (r.srcText ? '<b class="mc-tag t-src">📥 引用元の完了 ' + esc(r.srcText) + '</b>' : '') + (r.out ? '<b class="mc-tag t-out">適用外</b>' : '') + '</span></span>' +
@@ -101,7 +101,7 @@
         if (r.pt !== curPt && (r.pt || curPt)) h += '<div class="mc-pt">' + esc(r.pt || '（パターン設定なし）') + '</div>';
         curPt = r.pt;
         const yen = yenOf(r);
-        h += '<div class="mc2-line"><button type="button" class="mc-row mc2-row' + (r.hidden || r.out ? ' is-mute' : '') + (r.pending ? ' is-pending' : '') + '" data-row="' + esc(r.id) + '">' +
+        h += '<div class="mc2-line"><button type="button" class="mc-row mc2-row' + (r.hidden || r.out ? ' is-mute' : '') + (r.pending ? ' is-pending' : '') + '" data-row="' + esc(r.id) + '"' + (r.cat ? ' data-cat="' + esc(r.cat) + '"' : '') + '>' +
           '<span class="mc2-top"><span class="mc-nm">' + (esc(r.nm) || '<i>（品名未入力）</i>') + '</span>' + badgeV2(r) + '</span>' +
           '<span class="mc2-bot"><span class="mc2-q">' + esc(r.qty || '—') + (r.un ? ' × ' + esc(r.un) : '') + '</span><span class="mc2-dot">・</span>' +
           '<b class="mc2-st">' + esc(r.st || '—') + ' <small>' + esc(r.ccy) + '</small></b></span>' +

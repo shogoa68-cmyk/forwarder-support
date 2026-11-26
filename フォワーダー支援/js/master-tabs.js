@@ -114,6 +114,20 @@
     m.addEventListener('click', e => { if (e.target === m && m.dataset.mtBd) { delete m.dataset.mtBd; window.statsCloseMasterDetail(); } });
   }
 
+  // 他の画面から飛んできたときは、詳細の見出しにも［← ○○に戻る］（上部の戻るバーは詳細の裏に隠れるため）
+  function backBtn(m) {
+    if (!m) return;
+    const head = m.querySelector('.md-modal-head'); if (!head) return;
+    const label = typeof window.statsMasterReturnLabel === 'function' ? window.statsMasterReturnLabel() : '';
+    let b = head.querySelector('.md-back-btn');
+    if (!label) { if (b) b.remove(); return; }
+    if (!b) {
+      b = document.createElement('button'); b.type = 'button'; b.className = 'md-back-btn';
+      b.addEventListener('click', () => window.statsMasterGoBack && window.statsMasterGoBack());
+      head.insertBefore(b, head.firstChild);
+    }
+    b.textContent = '← ' + label + 'に戻る';
+  }
   function hook() {
     const orig = window.statsToggleMasterDetail;
     if (typeof orig !== 'function' || orig.__mt) return false;
@@ -122,6 +136,7 @@
       dirtyHook(); setupDrawer(document.getElementById('mdDetailModal'));
       if (field === 'customer' || field === 'sv') { const m = document.getElementById('mdDetailModal'); if (m) { m.dataset.mtField = field; organize(m); } }
       window.__mtWantTab = '';
+      backBtn(document.getElementById('mdDetailModal'));
       return r;
     };
     w.__mt = true; window.statsToggleMasterDetail = w; return true;

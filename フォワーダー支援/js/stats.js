@@ -535,11 +535,11 @@
 
   // === レンダリングヘルパー ===
 
-  function _esc(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _esc(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   // onclick 属性内のシングルクォート文字列リテラル用エスケープ。
   // HTML エンティティ（&#39;）はブラウザが JS 実行前に ' に戻してしまい構文エラーになるため、
   // JS の \' エスケープを使う（HTML は \ をデコードしない）。
-  function _ea(s)   { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+  function _ea(s)   { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   // HTML value="" 属性用
   function _eav(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
@@ -4393,8 +4393,17 @@
     bar.querySelector('.master-back-btn').textContent = '← ' + _ret.label + 'に戻る';
     bar.hidden = false;
   }
+  window.statsMasterReturnLabel = () => (_ret ? _ret.label : '');
   window.statsMasterGoBack = function () {
     const r = _ret; if (!r) return;
+    // 詳細を未保存のまま戻ろうとしたら確かめる（破棄して戻る／やめる）
+    const m = document.getElementById('mdDetailModal');
+    if (m && m.dataset.mtDirty && typeof window.uiConfirm === 'function') {
+      window.uiConfirm({ title: '保存していない変更があります', lines: ['このまま戻ると、入力した内容は失われます。', '変更：' + m.dataset.mtDirty], okLabel: '破棄して戻る', danger: true }).then(ok => {
+        if (!ok) return; delete m.dataset.mtDirty; window.statsMasterGoBack();
+      });
+      return;
+    }
     _ret = null;
     const bar = document.getElementById('masterBackBar'); if (bar) bar.hidden = true;
     if (typeof window.statsCloseMasterDetail === 'function' && document.getElementById('mdDetailModal')) window.statsCloseMasterDetail();

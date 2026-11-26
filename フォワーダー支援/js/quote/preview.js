@@ -1582,8 +1582,8 @@
     document.querySelectorAll('.pv-layout-btn').forEach(b =>
       b.classList.toggle('is-on', b.dataset.pvl === _pvLayout));
     const h2 = box.querySelector('h2');
-    if (h2) h2.textContent = '📋 プレビュー（表計算）';
-    const mt = box.querySelector('.pv-main-title'); if (mt) mt.textContent = '📋 プレビュー（表計算）';
+    if (h2) h2.textContent = '🧮 社内チェック表（原価・利益つき）';
+    const mt = box.querySelector('.pv-main-title'); if (mt) mt.textContent = '🧮 社内チェック表（原価・利益つき）';
     if (_pvLayout === 'doc') {
       // 御見積書用 発行日／有効期限 入力欄を現在のフォーム値で同期
       const hdr = getQuoteHeader();
@@ -1610,6 +1610,10 @@
     scheduleFitPreview(); // レイアウト切替で高さが変わるため再フィット
   }
   window.setPreviewLayout = setPreviewLayout;
+  // 見積書の画面から「社内チェック表」を開く（確認ガイドは見積書の画面を開くときに済ませているので出し直さない）
+  window.openPreviewDirect = function () { _pvBypassed = true; openPreview(); };
+  // 社内チェック表から見積書の画面へ戻る（2 つの画面を重ねない）
+  window.pvBackToDoc = function () { closePreview(); if (typeof window.openQuoteDoc === 'function') window.openQuoteDoc(); };
 
   // 御見積書を A4 ページに分割してプレビュー（複数ページ時はページ送りを表示）
   function renderDocPreview() {

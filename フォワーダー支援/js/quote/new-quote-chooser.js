@@ -201,7 +201,10 @@
   function onKey(e) {
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
   }
-  function open() {
+  async function open() {
+    if ($('nqOverlay')) return;
+    // 編集中の入力を確認なしで捨てないよう、選ぶ画面を出す前に確認する（一から作成・コピーして作成のどちらも入力を空にするため）
+    if (typeof window.cloudConfirmLeaveUnsaved === 'function' && !(await window.cloudConfirmLeaveUnsaved('新しい見積を作る'))) return;
     if ($('nqOverlay')) return;
     lastFocus = document.activeElement;
     st = { step: 'choose', f: { cust: '', pol: '', pod: '', mode: '' }, sort: 'new' };

@@ -1,12 +1,11 @@
 // 会社の「ちょい見せ」（2026-11）
 //   情報共有（新着まとめ・ニュースの投稿）で会社名を押したとき、マスター管理へ飛ぶ前に、その場で小さな窓に
-//   同じ会社のニュース／顧客カルテ／取引ルールの新しいもの（5 件まで）を出す。
+//   同じ会社のニュース／顧客カルテ／取引ルールを新しい順に、全文で出す（窓の中をスクロール）。
 //   もっと見たいときは［マスターの詳細で見る］で、マスター管理の詳細を該当のタブ（ニュース・顧客カルテ・取引ルール）で開く。
 //   読むだけ（データは mnAll／ccAll／crAll の読み込み済みのもの）。PC は押した場所の近く、スマホ幅は下から出るシート。
 (function () {
   'use strict';
   const _esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const LIMIT = 5;
   const _canon = (f, v) => { v = String(v || '').trim(); return v && typeof window.nameCanon === 'function' ? (window.nameCanon(f, v) || v) : v; };
   const _same = (f, a, b) => { const x = _canon(f, a), y = _canon(f, b); return !!x && x.toLowerCase() === y.toLowerCase(); };
   const _ymd = d => String(d || '').slice(0, 10).replace(/-/g, '/');
@@ -51,7 +50,7 @@
     if (pop) { const same = pop.dataset.key === kind + '|' + field + '|' + name; close(); if (same) return; }
     const K = KIND[kind] || KIND.news;
     const all = listOf(kind, field, name);
-    const items = all.slice(0, LIMIT);
+    const items = all;   // 件数は絞らず、窓の中をスクロールして全部読める
     const fl = field === 'sv' ? '🤝 サブコン' : '🏢 お客様';
     const rows = items.map(x => `<li class="mpk-item${x.warn ? ' is-warn' : ''}"><div class="mpk-meta"><span>${_esc(x.tag)}</span><span>${_esc(_ymd(x.date))}</span></div>
       <div class="mpk-title">${_esc(x.title)}</div>${x.body ? `<div class="mpk-body">${_esc(x.body)}</div>` : ''}${x.url && /^https?:\/\//i.test(x.url) ? `<a class="mpk-link" href="${_esc(x.url)}" target="_blank" rel="noopener">参考リンク ↗</a>` : ''}</li>`).join('');
@@ -59,7 +58,7 @@
     pop.className = 'mpk-pop'; pop.dataset.key = kind + '|' + field + '|' + name;
     pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', name + 'の' + K.label);
     pop.innerHTML = `<div class="mpk-hd"><div><span class="mpk-field">${fl}</span><b class="mpk-name">${_esc(name)}</b></div><button type="button" class="mpk-x" aria-label="閉じる">✕</button></div>
-      <div class="mpk-sub">${K.icon} ${K.label}${all.length ? `（${all.length} 件${all.length > LIMIT ? '・新しい ' + LIMIT + ' 件を表示' : ''}）` : ''}</div>
+      <div class="mpk-sub">${K.icon} ${K.label}${all.length ? `（${all.length} 件・新しい順）` : ''}</div>
       ${rows ? `<ul class="mpk-list">${rows}</ul>` : `<div class="mpk-empty">この会社の${K.label}はまだありません。</div>`}
       <div class="mpk-ft"><button type="button" class="mpk-go">マスターの詳細で見る（${K.label}）›</button></div>`;
     document.body.appendChild(pop);

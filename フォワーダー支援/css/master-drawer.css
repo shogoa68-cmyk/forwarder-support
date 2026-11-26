@@ -64,3 +64,8 @@
 @media (max-width: 600px) { #tab-master .master-back-btn { min-height: 44px; } }
 /* 戻り先が見積の画面のとき、右下の「← 見積もりに戻る」と重ねて出さない */
 body:has(#tab-master.active #masterBackBar:not([hidden])) #backToQuoteFab { display: none !important; }
+
+/* 詳細の見出しの［← ○○に戻る］（他の画面から飛んできたとき・master-tabs.js backBtn） */
+#mdDetailModal .md-back-btn { flex: 0 0 auto; margin-right: 8px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--border-md, #98a2b3); border-radius: 6px; background: var(--card-bg, #fff); color: var(--accent, #2f5fb3); font: inherit; font-size: var(--text-sm, 13px); font-weight: 700; cursor: pointer; white-space: nowrap; }
+#mdDetailModal .md-back-btn:hover { background: var(--hover-bg, #f2f4f7); }
+@media (max-width: 600px) { #mdDetailModal .md-back-btn { min-height: 44px; } }

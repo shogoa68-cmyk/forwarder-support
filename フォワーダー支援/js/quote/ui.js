@@ -847,6 +847,14 @@
       .replace(/&/g,'&amp;').replace(/</g,'&lt;')
       .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+  // onclick="f('…')" の中に入れる値：JS の文字列として（\ と '）、そのあと HTML 属性として（& " < >）処理する。
+  // ブラウザは属性を HTML として戻してから JS を動かすため、&#39; では ' に戻って文字列を抜けられてしまう。
+  function jsAttr(s) {
+    return String(s == null ? '' : s)
+      .replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+      .replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  window.jsAttr = jsAttr;
 
   // ========== テーブル上部 為替レートバー ==========
   // JPY換算に使われている非JPY通貨のレートをコンパクト表示
@@ -2829,13 +2837,16 @@
     if (ctrl && !e.shiftKey && !e.altKey && e.key === 's') {
       e.preventDefault();
       if (quoteTab.classList.contains('qp-dash')) return;
-      if (typeof cloudSaveCurrent === 'function') cloudSaveCurrent();
+      // 画面の［保存］ボタンと同じ入口（閲覧中は「閲覧中です」で止める＝ロックを取らずに上書きしない）
+      if (typeof quoteModeSaveDone === 'function') quoteModeSaveDone();
+      else if (typeof cloudSaveCurrent === 'function') cloudSaveCurrent();
       return;
     }
     // Ctrl+P → プレビュー
     if (ctrl && !e.shiftKey && !e.altKey && e.key === 'p') {
       e.preventDefault();
-      if (typeof openPreview === 'function') openPreview();
+      if (typeof window.openQuotePreview === 'function') window.openQuotePreview();
+      else if (typeof openPreview === 'function') openPreview();
       return;
     }
     // Ctrl+D → 選択行を下にコピー / 未選択はフォーカス行を複製
@@ -4182,8 +4193,8 @@
               'title="この行を別ブランチ（サブコン/パターン）へコピー">⧉</button>' +
             '</div>';
         }
-        const addSv = escapeHtml(g.svLabel || '').replace(/'/g, '&#39;');
-        const addPt = escapeHtml(g.pt || '').replace(/'/g, '&#39;');
+        const addSv = jsAttr(g.svLabel || '');
+        const addPt = jsAttr(g.pt || '');
         // ブランチ別 申し送りメモ（進捗管理）
         const notePt = g.level === 1 ? (g.pt || '') : '';
         const note = (typeof window.getSubconGroupNote === 'function') ? window.getSubconGroupNote(g.sv, notePt) : null;

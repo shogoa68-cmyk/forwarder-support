@@ -628,9 +628,9 @@
 
   // === レンダリング ===
 
-  function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   // onclick の JS 文字列リテラル用
-  function _ea(s)  { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+  function _ea(s)  { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   // HTML value="" 属性用（&#39; が正しい）
   function _eav(s) { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 

@@ -89,6 +89,7 @@
   let _cpReturnTabId = null;
   // メンバープロフィール（email → display_name / avatar）
   let _profileMap  = {};     // { 'email': 'name', ... }（後方互換）
+  window.cloudKnownPeople = () => Object.values(_profileMap);   // メール取込の伏せ字（人名を伏せる）用
   let _profileAv   = {};     // { 'email': { color, emoji }, ... }
   // 同時編集（フェーズ1：保存競合検知）用にロード中の案件を追跡
   let _loadedCloudId = null;
@@ -1684,7 +1685,7 @@
         ' 件（' + e.winRate + '%）' + (e.lost ? '／失注 ' + e.lost + ' 件' : '') + '">受注 ' +
         e.won + '（' + e.winRate + '%）</span>' : '';
       return '<button type="button" class="qpd-rank-item' + (on ? ' is-active' : '') + '" ' +
-          'onclick="qpdFilterCustomer(\'' + encodeURIComponent(e.key) + '\')" ' +
+          'onclick="qpdFilterCustomer(\'' + jsAttr(encodeURIComponent(e.key)) + '\')" ' +
           'title="' + escHtml(e.label) + ' の案件だけに絞り込む（もう一度押すと解除）">' +
         '<span class="qpd-rank-no">' + (i + 1) + '</span>' +
         '<span class="qpd-rank-body">' +
@@ -2140,12 +2141,13 @@
   }
 
   // 保存して作業終了：クラウド保存 → ロック解放 → 閲覧モードへ（cloudSaveCurrent 内で解放）
-  async function quoteModeSaveDone() {
+  // 保存できたら true を返す（未保存の確認の「保存して進む」が、この結果で先へ進むかを決める）
+  async function quoteModeSaveDone(opts) {
     if (_shareMode === 'view') {
       quoteShowToast('🔒 閲覧中です。編集するには「✏️ 編集」を押してください', 'warn', 4000);
-      return;
+      return false;
     }
-    await cloudSaveCurrent();
+    return (await cloudSaveCurrent(opts)) === true;
   }
 
   // 入力を空にして新規案件（保持ロックは解放）
@@ -2196,7 +2198,14 @@
   // 未保存検知：編集モード中のユーザー入力で dirty=true、保存/読込/新規でクリア
   var _quoteDirty = false;
   function _markQuoteDirty() { if (_shareMode === 'edit') _quoteDirty = true; }
-  function _resetQuoteDirty() { _dirtyKept = false; setTimeout(function () { _quoteDirty = false; }, 0); }
+  function _resetQuoteDirty() { _dirtyKept = false; _rowSigQuietUntil = Date.now() + 400; setTimeout(function () { _quoteDirty = false; _rowSig = _calcRowSig(); }, 0); }
+  window.cloudMarkDirty = function () { _markQuoteDirty(); };   // input/change を出さない変更（航路の追加など）から呼ぶ
+  // 行の追加・削除・複製・並べ替えは input/change を出さないため、明細の行の並び（id の列）の変化で数える。
+  // 案件を開いた直後・新規作成の直後（表を作り直す間）は数えない。
+  var _rowSig = null, _rowSigQuietUntil = 0;
+  function _calcRowSig() {
+    return [...document.querySelectorAll('#tableBody > tr[id^="row-"]:not([data-virtual])')].map(tr => tr.id).join(',');
+  }
   // 未保存の変更があるときの確認ダイアログ（保存／破棄／中止の 3 択）。
   // ブラウザ標準の confirm は 2 択しか作れず「その場で保存する」導線が作れないため、
   // 専用のモーダルを出す。戻り値 true＝そのまま進んでよい／false＝操作を中止する。
@@ -2232,11 +2241,14 @@
       // 既存ハンドラを毎回作り直さないよう、押下時に一度だけ使う形で差し替える
       ov.querySelector('.qplc-save').onclick = async () => {
         ov.classList.add('is-busy');
-        try { await quoteModeSaveDone(); } finally { ov.classList.remove('is-busy'); }
-        // 保存に失敗した場合（dirty が残る）は進まずに留まる
-        finish(!_quoteDirty);
+        // stay：保存後の「ダッシュボードに戻りますか？」を出さない（このあと選んだ操作へ進むため）
+        let ok = false;
+        try { ok = await quoteModeSaveDone({ stay: true }); } finally { ov.classList.remove('is-busy'); }
+        // 保存に失敗した場合は進まずに留まる。以前は「未保存の印」で判定していたが、印は 1 拍遅れて下ろす作り
+        // （_resetQuoteDirty の setTimeout）のため、保存できても「中止」と同じ扱いになっていた
+        finish(ok === true);
       };
-      ov.querySelector('.qplc-discard').onclick = () => finish(true);
+      ov.querySelector('.qplc-discard').onclick = () => { _quoteDirty = false; _dirtyKept = false; finish(true); };
       ov.querySelector('.qplc-cancel').onclick  = () => finish(false);
       ov.onclick = e => { if (e.target === ov) finish(false); };
       document.addEventListener('keydown', onKey, true);
@@ -3153,8 +3165,14 @@
   async function cloudSaveCurrent(opts) {
     if (_saveInFlight) return;
     _saveInFlight = true;
+    const _frz = [document.querySelector('#tab-quote-make .quote-main'), document.getElementById('rmSheet')].filter(e => e && !e.inert);
+    _frz.forEach(e => { e.inert = true; e.classList.add('qm-saving'); });
     try { return await _cloudSaveCurrentImpl(opts); }
-    finally { _saveInFlight = false; }
+    finally {
+      _saveInFlight = false;
+      // 保存に成功すると閲覧モード（_applyShareMode が inert を決める）。失敗して編集中のままなら元に戻す
+      _frz.forEach(e => { e.classList.remove('qm-saving'); if (e.id === 'rmSheet' || _shareMode === 'edit') e.inert = false; });   // 引き出しの中は rmsApplyMode が決める
+    }
   }
   async function _cloudSaveCurrentImpl(opts) {
     const c = _getClient();
@@ -3254,13 +3272,14 @@
     cloudListPresets();
     // 保存後の遷移はユーザーに選ばせる（OK＝ダッシュボードへ／キャンセル＝この見積に留まる）
     // 自由入力の保管：stay＝確認なしでこの案件に留まる／toDashboard＝確認なしでダッシュボードへ戻る
-    if (opts && opts.stay === true) return;
-    if (opts && opts.toDashboard === true) { qpShowDashboard(); return; }
+    if (opts && opts.stay === true) return true;
+    if (opts && opts.toDashboard === true) { qpShowDashboard(); return true; }
     setTimeout(() => {
       if (confirm('💾 保存しました。\n📊 ダッシュボードに戻りますか？\n（キャンセル＝この見積を表示したまま）')) {
         qpShowDashboard();
       }
     }, 150);
+    return true;   // 保存できた
   }
 
   // ---------- 読込 ----------
@@ -3501,12 +3520,17 @@
     // コピー元案件自体の「コピー元」表示を引き継がない（内容の引用であり複製ではないため）
     delete importData.copiedFrom;
     // 「管理番号入力」セクションの現在値をそのまま維持する
-    document.querySelectorAll('#section-ref input[id], #section-ref select[id], #section-ref textarea[id]').forEach(el => {
-      importData.fields[el.id] = (el.type === 'checkbox') ? el.checked : el.value;
-    });
+    const _keep = el => { importData.fields[el.id] = (el.type === 'checkbox') ? el.checked : el.value; };
+    document.querySelectorAll('#section-ref input[id], #section-ref select[id], #section-ref textarea[id]').forEach(_keep);
+    // 新しい画面では、ステータス・日付・REF# などを右の列（#sbAside）へ移すため、id でも守る
+    ['qf-status','qf-date','qf-valid-until','qf-due','qf-received','qf-recv-time','qf-core-ref','qf-core-ref2',
+     'qf-related-data','qf-tags-data','qf-first-presented','qf-lost-reason','qf-route','qf-ref','qf-customer','qf-person',
+     'qf-case-name','qf-memo','qf-refurl','qf-cp-keys','qf-ops','qf-follower','qf-follow-log','qf-free-entries']
+      .forEach(id => { const el = document.getElementById(id); if (el) _keep(el); });
     document.getElementById('cloudPreviewModal').style.display = 'none';
     _applyQuoteData(importData);
     if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
+    _markQuoteDirty();   // 取り込んだ内容は、まだ保存していない
     quoteShowToast('📥 「' + (_cpFullName || '') + '」の内容を引用しました（管理番号入力は現在の値のまま）', 'success', 5000);
   }
   window.cloudQuoteFromPreview = cloudQuoteFromPreview;
@@ -3591,7 +3615,7 @@
     tbody.innerHTML = groups.map(g => {
       const svEsc = escHtml(g.sv);
       const header = `<tr class="cp-group-head">
-        <td><input type="checkbox" class="cp-group-chk" data-group="${escHtml(g.sv)}" checked onchange="cpToggleGroup(this,'${escHtml(g.sv)}')" title="このサブコンを一括選択"></td>
+        <td><input type="checkbox" class="cp-group-chk" data-group="${escHtml(g.sv)}" checked onchange="cpToggleGroup(this,'${jsAttr(g.sv)}')" title="このサブコンを一括選択"></td>
         <td colspan="8" class="cp-group-label">🏢 ${svEsc} <span class="cp-group-cnt">${g.rows.length}行</span></td>
       </tr>`;
 
@@ -3705,6 +3729,7 @@
     if (!picked.length) { quoteShowToast('⚠️ 追加する航路にチェックを入れてください', 'warn'); return; }
     if (typeof window.appendRouteEntries !== 'function') { quoteShowToast('⚠️ 航路追加の関数が未ロードです', 'warn'); return; }
     const r = window.appendRouteEntries(picked);
+    if (r && r.added) _markQuoteDirty();   // 航路の一覧は隠し項目なので input/change が出ない
     document.getElementById('cloudPreviewModal').style.display = 'none';
     quoteShowToast(r.added
       ? `✅ 航路を ${r.added} 本追加しました` + (r.skipped ? `（同じ航路 ${r.skipped} 本は追加済みのため除く）` : '')
@@ -3759,6 +3784,8 @@
   async function cloudLoadPreset(rawId) {
     const c = _getClient();
     if (!c) return;
+    // 編集中の入力を確認なしで捨てないよう、開く前に確認する（類似案件の「全体を読み込む」・進行管理・情報共有からも）
+    if (!(await _confirmLeaveUnsaved('別の案件を開く'))) return;
     const id = decodeURIComponent(rawId);
     let { data, error } = await c
       .from(_table()).select('name,data,status,tags,updated_at').eq('id', id).single();
@@ -4214,7 +4241,14 @@
   //   ・サブ案件をコピーしたとき → コピーも同じメインのサブ（兄弟）として付ける
   //   ・サブが付いたメインをコピーしたとき → 確認画面で選んだサブも一緒にコピーし、コピーしたメインのサブとして付ける（ツリーごと）
   //   ・ただの関連（peer）は引き継がない
+  const _dupBusy = new Set();
   async function cloudDuplicatePreset(rawId, opts) {
+    if (_dupBusy.has(rawId)) return;
+    _dupBusy.add(rawId);
+    try { return await _cloudDuplicatePresetImpl(rawId, opts); }
+    finally { _dupBusy.delete(rawId); }
+  }
+  async function _cloudDuplicatePresetImpl(rawId, opts) {
     const c = _getClient();
     if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
     const id = decodeURIComponent(rawId);
@@ -4579,9 +4613,22 @@
     _applyShareMode('edit');
     // 未保存検知：編集中のユーザー入力で dirty フラグを立てる
     var _qtab = document.getElementById('tab-quote-make');
-    // メール取込モーダルの入力欄（原文・お客様名など）は案件の内容ではないので、未保存の変更とは数えない
-    const _markUnlessImportModal = e => { if (e.target && e.target.closest && e.target.closest('#emailImportModal')) return; _markQuoteDirty(); };
+    // メール取込モーダルの入力欄（原文・お客様名など）と、ダッシュボードの検索・絞り込み欄は案件の内容ではないので、未保存の変更とは数えない
+    const _markUnlessImportModal = e => { if (e.target && e.target.closest && e.target.closest('#emailImportModal, #qpDashboard')) return; _markQuoteDirty(); };
     if (_qtab) { _qtab.addEventListener('input', _markUnlessImportModal); _qtab.addEventListener('change', _markUnlessImportModal); }
+    // 行の状態を変えるボタン（入力完了・見積書に出さない・要調査・単価のオプション・グループの除外など）も未保存に数える
+    const _ROW_STATE_BTN = '.row-done-btn, .row-hidequote-btn, .row-pending-btn, .row-mode-btns button, [class*="-mode-btn"], ' +
+      '.subcon-group-excl, .subcon-subgroup-excl, .row-del-btn, .row-dup-btn, .row-add-btn, .ca-done-btn, .ca-hide-btn';
+    if (_qtab) _qtab.addEventListener('click', e => {
+      const b = e.target && e.target.closest && e.target.closest(_ROW_STATE_BTN);
+      if (b && b.closest('#tableBody')) _markQuoteDirty();
+    }, true);
+    const _tb = document.getElementById('tableBody');
+    if (_tb) { _rowSig = _calcRowSig(); new MutationObserver(() => {
+      const sig = _calcRowSig();
+      if (_rowSig === null || Date.now() < _rowSigQuietUntil) { _rowSig = sig; return; }
+      if (sig !== _rowSig) { _rowSig = sig; _markQuoteDirty(); }
+    }).observe(_tb, { childList: true }); }
     // タブを閉じる/離れる時はロックを即時解放（best-effort。失敗しても90秒で自動失効）
     window.addEventListener('pagehide', () => { if (_lockHeldId) _dropLock(); });
     window.addEventListener('beforeunload', (e) => {
