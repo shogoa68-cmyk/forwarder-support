@@ -13,6 +13,8 @@
   let step = 1, built = false, dockHome = null, railOpen = false;
   // 左のレール：画面が広いとき（1400px 以上）は最初から開いた「固定」表示（本文をずらし、暗幕なし）。開閉は任意で、広い画面では選んだ状態を覚える
   const wideRail = () => !!(window.matchMedia && window.matchMedia('(min-width: 1400px)').matches) && !(window.matchMedia && window.matchMedia('(max-width: 600px)').matches);
+  // 値が変わるときだけ hidden を書く（同じ値でも書くと、:has() の規則のせいで画面全体の CSS の計算し直しが起きる）
+  const H = (el, v) => { if (el && el.hidden !== !!v) el.hidden = !!v; };
   const railPref = () => { try { return localStorage.getItem('fwd.e2Rail'); } catch (e) { return null; } };
   const isDock = () => railOpen && wideRail();
   // 右レールを常時表示する広い画面（1500px 以上）では、最初は引き出しを閉じた状態で始める（右レールの既定は「費用」を開いた状態で、本文に重なるため）。1 回だけ
@@ -145,8 +147,8 @@
   window.e2OpenRelated = openRel;
   function paintRel() {
     const b = $('e2Rel'), mi = $('e2RelMi'), t = relN > 0 ? '🔗 関連 ' + relN + '件' : '';
-    if (b) { b.hidden = !t; if (b.textContent !== t) b.textContent = t; }
-    if (mi) { mi.hidden = !t; const tt = mi.querySelector('.tb-mi-title'); if (tt && tt.textContent !== t) tt.textContent = t; }
+    if (b) { H(b, !t); if (b.textContent !== t) b.textContent = t; }
+    if (mi) { H(mi, !t); const tt = mi.querySelector('.tb-mi-title'); if (tt && tt.textContent !== t) tt.textContent = t; }
   }
   function refreshRel(force) {
     const id = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
@@ -181,20 +183,20 @@
     const lk = view && typeof window.quoteLockedByOther === 'function' ? window.quoteLockedByOther() : null;   // 他の人が編集中（一覧の情報＝目安）
     const ro = window._myRole === 'viewer';   // 閲覧のみ権限（チーム管理のロール）
     const t = ro ? '🔒 閲覧のみ（権限）' : lk ? '🔒 ' + lk.name + 'さんが編集中' : view ? '👁 閲覧中' : edit ? '✏️ 編集中' + (dirty ? '　● 未保存' : '') : '';
-    b.hidden = !t; if (b.textContent !== t) b.textContent = t;
-    b.className = (lk || ro) ? 'is-lock' : view ? 'is-view' : edit ? 'is-edit' : '';
+    H(b, !t); if (b.textContent !== t) b.textContent = t;
+    const bc = (lk || ro) ? 'is-lock' : view ? 'is-view' : edit ? 'is-edit' : ''; if (b.className !== bc) b.className = bc;
     const mb = $('qadMode');   // ロック中・閲覧のみ権限のとき：［✏️ 編集を始める］が［🔒 閲覧のみ］（押せない）になる（文字は syncMode が決める。保存ボタンは「保存」のまま押せない）。ロックが外れたら元に戻る
     if (mb) { if (lk || ro) { if (mb.dataset.e2lock !== '1') mb.dataset.e2lock = '1'; if (!mb.disabled) mb.disabled = true; } else if (mb.dataset.e2lock === '1') { delete mb.dataset.e2lock; mb.disabled = false; } }
     syncMode();
     const pop = $('e2StatePop'); if (pop && pop.textContent !== (q || '')) pop.textContent = q || '';
-    b.title = q || '';
+    if (b.title !== (q || '')) b.title = q || '';
   }
   function refreshPat() {
     const chips = [].slice.call(document.querySelectorAll('#qtyPatternBar .qpat-chip'));
     const box = $('e2Pat'); if (!box) return;
-    const multi = chips.length >= 2; box.hidden = !multi;
+    const multi = chips.length >= 2; H(box, !multi);
     const need = $('e2PatNeed'), nb = document.querySelector('#qtyPatternBar .qpat-need');
-    if (need) { need.hidden = !(multi && nb); if (nb) { const t = nb.textContent.trim(); if (need.textContent !== t) need.textContent = t; } }
+    if (need) { H(need, !(multi && nb)); if (nb) { const t = nb.textContent.trim(); if (need.textContent !== t) need.textContent = t; } }
     if (!multi) return;
     const nm = c => (c.querySelector('.qpat-name') || c).textContent.trim();
     const act = chips.find(c => c.classList.contains('is-active')) || chips[0];
@@ -274,7 +276,7 @@
     const html = toggle + [1, 2, 3, 4, 5].map(n => { const warn = !s[n].ok && REQ[n] && visited[n]; const mark = n; const sm = s[n].s.replace(/</g, '&lt;'); return '<button type="button" data-e2s="' + n + '" title="' + NAMES[n] + '：' + sm + '" class="' + (n === step ? 'is-on' : '') + (s[n].ok ? ' is-ok' : '') + (warn ? ' is-warn' : '') + '"><i>' + mark + '</i><b>' + NAMES[n] + '</b><small>' + sm + '</small></button>'; }).join('');
     if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
     const hd = $('e2Head'); if (hd) { const ht = '<b>' + step + ' ' + NAMES[step] + '</b><span>' + s[step].s.replace(/</g, '&lt;') + '</span>'; if (hd.dataset.h !== ht) { hd.dataset.h = ht; hd.innerHTML = ht; } }
-    $('e2Prev').disabled = step <= 1; $('e2Next').disabled = step >= 5;
+    const pv = $('e2Prev'), nv = $('e2Next'); if (pv.disabled !== (step <= 1)) pv.disabled = step <= 1; if (nv.disabled !== (step >= 5)) nv.disabled = step >= 5;
     const nx = $('e2Next'), nt = step < 5 ? '次へ：' + NAMES[step + 1] + ' →' : '次へ'; if (nx.textContent !== nt) nx.textContent = nt;
     const t = (id, to) => { const a = $(id), b = $(to); if (!a || !b) return; const v = a.textContent.replace(/\s+/g, ' ').replace(/^粗利\s*/, '').replace(/\s*粗利\s*/, '  ').trim() || '—'; if (b.textContent !== v) b.textContent = v; };
     t('tot-subtotal', 'e2tSell'); t('tot-cost', 'e2tCost'); t('tot-profit', 'e2tProfit');
@@ -292,6 +294,12 @@
   function toggleDrawer(mod) {
     toggleDrawer0(mod); syncDrawerBtns();
   }
+  // 外から引き出しを開く（すでにそのモジュールで開いていれば何もしない＝閉じない）
+  window.e2OpenDrawer = function (mod) {
+    if (!mod) return;
+    if (document.body.classList.contains('e2-drawer') && document.body.dataset.e2drawer === mod) return;
+    toggleDrawer(mod);
+  };
   function toggleDrawer0(mod) {
     const open = document.body.classList.contains('e2-drawer'), same = document.body.dataset.e2drawer === mod;
     if (open && same) { document.body.classList.remove('e2-drawer'); return; }
@@ -306,7 +314,9 @@
     refresh();
   }
   // 広い画面に変わったら開いた状態へ、狭くなったら重ねる表示（しまった状態）へ
-  const syncRailWidth = () => { if (!isOn() || !built) return; if (wideRail()) { if (!railOpen && railPref() !== '0') setRail(true); else setRail(railOpen); } else if (railOpen) setRail(false); };
+  // 画面幅が「広い／狭い」の境目をまたいだときだけ動かす（ドラッグで幅を変えている間、毎回 refresh() で画面全体の CSS を計算し直させない＝重くなる原因だった）
+  let lastWide = null;
+  const syncRailWidth = () => { if (!isOn() || !built) return; const w = wideRail(); if (w === lastWide) return; lastWide = w; if (w) { if (!railOpen && railPref() !== '0') setRail(true); else setRail(railOpen); } else if (railOpen) setRail(false); };
   window.addEventListener('resize', () => syncRailWidth());
   // 右レールの帯は、ツールバー（保存・PDF）の下に付いて動く（スクロール後も上に隙間ができない）
   let railTopRaf = 0;
@@ -358,12 +368,12 @@
     const locked = mb.dataset.e2lock === '1';
     const view = mb.classList.contains('qad-edit') || locked;
     // 閲覧中（ロックでない）だけ［✏️ 編集を始める］（主）。ロック／閲覧のみ権限は［🔒 閲覧のみ］（薄い・押せない）を保存の位置に出す
-    eb.hidden = !view || locked; gh.hidden = !view;
+    H(eb, !view || locked); H(gh, !view);
     if (eb.textContent !== '✏️ 編集を始める') eb.textContent = '✏️ 編集を始める';
     if (eb.disabled) eb.disabled = false;
     const gt = locked ? '🔒 閲覧のみ' : '💾 保存';
     if (gh.textContent !== gt) gh.textContent = gt;
-    gh.title = locked ? '他の人が編集中、または閲覧のみの権限です' : '編集を始めると保存できます';
+    const ght = locked ? '他の人が編集中、または閲覧のみの権限です' : '編集を始めると保存できます'; if (gh.title !== ght) gh.title = ght;
     // 未保存の点（保存ボタンの右上・編集中で未保存のときだけ）
     const dirty = !view && dirtyNow();
     if (mb.classList.contains('is-dirty') !== dirty) mb.classList.toggle('is-dirty', dirty);
@@ -373,9 +383,9 @@
     const out = $('e2Out');
     if (out) {
       const oe = out.querySelector('[data-e2o="edit"]'), os = out.querySelector('[data-e2o="save"]'), ow = out.querySelector('.e2o-warn');
-      if (oe) oe.hidden = !view || locked;
-      if (os) { os.classList.toggle('is-off', view); os.textContent = locked ? '🔒 閲覧のみ' : '💾 保存'; }
-      if (ow) ow.hidden = !dirty;
+      if (oe) H(oe, !view || locked);
+      if (os) { if (os.classList.contains('is-off') !== view) os.classList.toggle('is-off', view); const ot = locked ? '🔒 閲覧のみ' : '💾 保存'; if (os.textContent !== ot) os.textContent = ot; }
+      if (ow) H(ow, !dirty);
     }
   }
   const dirtyNow = () => !!(window.quoteIsDirty && window.quoteIsDirty());
@@ -403,7 +413,7 @@
       if (b.dataset.e2o === 'files') { if (typeof window.cfOpen === 'function') window.cfOpen('send'); else if (window.rmsShowFiles) window.rmsShowFiles(); return; }
       if (b.dataset.e2o === 'edit') { if (typeof window.qpDockAction === 'function') window.qpDockAction(); }
       else if (b.dataset.e2o === 'pdf' && typeof window.quickQuotePdf === 'function') window.quickQuotePdf();
-      else if (b.dataset.e2o === 'pv' && typeof window.openPreview === 'function') window.openPreview();
+      else if (b.dataset.e2o === 'pv' && typeof window.openQuotePreview === 'function') window.openQuotePreview();
       else if (b.dataset.e2o === 'save') { const mb = $('qadMode'); if (b.classList.contains('is-off')) return; if (mb && !mb.disabled) mb.click(); else if (typeof window.quoteShowToast === 'function') window.quoteShowToast('編集を始めると保存できます（上の［✏️ 編集を始める］）', 'info', 3000); }
     });
   }
@@ -412,14 +422,15 @@
   function moveDock(on) {
     const dock = $('quoteActionDock'), tb = $('saveToolbar'); if (!dock || !tb) return;
     if (on && phone()) { pvMenu(dock, true); return; }   // スマホ幅はドックを下に固定のまま、［プレビュー ▾］だけ付ける
-    if (on) { if (!dockHome) dockHome = { p: dock.parentNode, n: dock.nextSibling }; tb.appendChild(dock); dock.classList.add('e2-in-toolbar'); pvMenu(dock, true); }
+    if (on) { if (dock.parentNode === tb && dock.classList.contains('e2-in-toolbar')) return;   // もう上部にある（幅を変えるたびに入れ直すと、画面全体の CSS の計算し直しが起きて重い）
+      if (!dockHome) dockHome = { p: dock.parentNode, n: dock.nextSibling }; tb.appendChild(dock); dock.classList.add('e2-in-toolbar'); pvMenu(dock, true); }
     else { pvMenu(dock, false); if (dockHome) { dock.classList.remove('e2-in-toolbar'); dockHome.p.insertBefore(dock, dockHome.n); dockHome = null; } }
   }
 
   function apply(on) {
     root.classList.toggle('editor-v2', on);
     ls.set(KEY, on ? '1' : '0');
-    if (on) { build(); buildOut(); moveDock(true); moveRemark(true); placeOut(); watchMode(); syncMode(); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(step, true); syncRailWidth(); } else { { const t0 = $('tab-quote-make'); if (t0) t0.classList.remove('e2-rail-open', 'e2-rail-dock'); railOpen = false; } unwatchMode(); { const o = $('e2Out'); if (o) o.remove(); } moveRemark(false); try { window.lcCheck && window.lcCheck(); } catch (e) {} moveDock(false); document.body.classList.remove('e2-drawer'); const tab = $('tab-quote-make'); if (tab) delete tab.dataset.e2; try { window.rmsClose && 0; } catch (e) {} }
+    if (on) { build(); buildOut(); moveDock(true); moveRemark(true); placeOut(); watchMode(); syncMode(); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(step, true); lastWide = null; syncRailWidth(); } else { { const t0 = $('tab-quote-make'); if (t0) t0.classList.remove('e2-rail-open', 'e2-rail-dock'); railOpen = false; } unwatchMode(); { const o = $('e2Out'); if (o) o.remove(); } moveRemark(false); try { window.lcCheck && window.lcCheck(); } catch (e) {} moveDock(false); document.body.classList.remove('e2-drawer'); const tab = $('tab-quote-make'); if (tab) delete tab.dataset.e2; try { window.rmsClose && 0; } catch (e) {} }
     syncBtn();
   }
   window.editorV2Set = apply;
@@ -442,7 +453,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     let tries = 0; const t = setInterval(() => { if (addMenuBtn() || ++tries > 20) clearInterval(t); }, 300);
-    if (isOn()) { build(); buildOut(); moveDock(true); moveRemark(true); placeOut(); watchMode(); syncMode(); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(1, true); syncRailWidth(); }
+    if (isOn()) { build(); buildOut(); moveDock(true); moveRemark(true); placeOut(); watchMode(); syncMode(); try { window.lcCheck && window.lcCheck(); } catch (e) {} go(1, true); lastWide = null; syncRailWidth(); }
     // 入力のたびに要約・合計を更新（軽く間引く）
     let raf = 0; const kick = () => { if (!isOn()) return; cancelAnimationFrame(raf); raf = requestAnimationFrame(refresh); };
     window.addEventListener('resize', () => { if (isOn()) moveDock(true); });

@@ -218,6 +218,8 @@
     const items = [
       { k: 'qty', label: 'この行の数量', kind: 'num', unit: '' },
       { k: 'pcs', label: '総個数', kind: 'num', unit: '個' },
+      { k: 'kg', label: '総重量（出荷全体）', kind: 'num', unit: 'KGS' },
+      { k: 'cbm', label: '総容積（出荷全体）', kind: 'num', unit: 'M3' },
       { k: 'cnt', label: 'コンテナ本数（合計）', kind: 'num', unit: '本' },
     ];
     const seen = new Set();
@@ -252,6 +254,9 @@
     // 数量の欄が空なら「まだ分からない」（以前は数量の写し bq の 0 を読み、条件外として合計から黙って外していた）
     if (k === 'qty') { const p = document.getElementById(`pq-${id}`)?.value; return (p === '' || p == null) ? null : num(p); }
     if (k === 'pcs') return (m.qty > 0) ? m.qty : null;
+    // 総重量・総容積：物量情報（荷姿・貨物明細の合計）。未入力（0）は判定できない。小数の誤差を丸める（KGS は 2 桁・M3 は 3 桁）
+    if (k === 'kg') return (m.kg > 0) ? Math.round(m.kg * 100) / 100 : null;
+    if (k === 'cbm') return (m.cbm > 0) ? Math.round(m.cbm * 1000) / 1000 : null;
     if (k === 'cnt') return entries.length ? entries.reduce((a, e) => a + e.count, 0) : null;
     if (k.startsWith('cnt:')) { if (!entries.length) return null; const e = entries.find(x => x.type === k.slice(4)); return e ? e.count : 0; }
     if (k === 'mode') { const v = (document.getElementById('cond-mode')?.value || '').trim(); return v || null; }
@@ -4695,6 +4700,7 @@
             `<button type="button" class="sv-hdr-btn sv-hdr-detail" hidden>📇 詳細</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-bm" hidden>🔖 BOOKMARK</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-import" hidden>📥 取り込み</button>` +
+            `<button type="button" class="sv-hdr-btn sv-hdr-past"${key === _UNSET_KEY ? ' hidden' : ''} title="このサブコンの過去の明細（ほかの案件で使った費用の行）を右のパネルに出します。そこから選んで挿入できます">🕘 過去の明細</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-dup" title="このサブコンの明細をまるごと複製して、別のサブコン名の枠をつくります（例：別の船会社で同じ明細の見積をつくる）">📋 複製</button>` +
             // 客先表示名・サブコン別リマークの入力は、この見出しの行内に置く（以前はグループ末尾の小計行にあった）
             `<span class="hdr-notes">` +
@@ -4737,6 +4743,10 @@
           e.stopPropagation();
           const canon = e.currentTarget.dataset.canon;
           if (canon && typeof window.openImportChooser === 'function') window.openImportChooser(canon);
+        });
+        hdr.querySelector('.sv-hdr-past').addEventListener('click', e => {
+          e.stopPropagation();
+          if (typeof window.siFocusSubcon === 'function') window.siFocusSubcon(label, { reset: true });
         });
         hdr.querySelector('.sv-hdr-dup').addEventListener('click', e => {
           e.stopPropagation();
@@ -5494,6 +5504,7 @@
     }
     renderSubconGroups();
     setTimeout(() => document.getElementById(`nm-${newId}`)?.focus(), 40);
+    return newId;
   }
   // ===== サブコンの「枠」を先につくる（その中へ明細を入れ子で入力する流れ） =====
   // サブコン別グループは明細行のサブコン欄から作られる仮想の見出しなので、枠＝最初の 1 行にサブコン名を入れたもの。
@@ -5504,23 +5515,69 @@
     const g = f => (document.getElementById(`${f}-${id}`)?.value || '').trim();
     return !g('sv') && !g('nm') && !(parseFloat(g('pp')) || 0) && !(parseFloat(g('bp')) || 0) && !g('pt');
   }
-  function addSubconFrame(name) {
+  // opts.cat＝新しくつくった行に入れるカテゴリ（ルートのサブコンから足すとき。カテゴリが空の行だけ）
+  function addSubconFrame(name, opts) {
     const sv = String(name || '').trim();
     if (!sv) { if (typeof quoteShowToast === 'function') quoteShowToast('サブコン名を入力してください', 'warn'); return null; }
     const tbody = document.getElementById('tableBody');
     const real = Array.from(tbody.querySelectorAll('tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
     const exists = real.some(tr => subconNormKey(_rowSubcon(tr) ?? '') === subconNormKey(sv));
     const blank = exists ? null : real.find(_isBlankRow);
+    // 空の行を使うときはカテゴリが空のときだけ、新しくつくった行（直前の行のカテゴリを引き継いでいる）は入れ替える
+    const setCat = (id, force) => {
+      const cat = opts && opts.cat, el = id && document.getElementById(`cat-${id}`);
+      if (!cat || !el || (el.value && !force) || ![...el.options].some(o => o.value === cat)) return;
+      el.value = cat; if (typeof onCatChange === 'function') onCatChange(id);
+    };
     if (blank) {
       const id = blank.id.replace('row-', '');
       const svEl = document.getElementById(`sv-${id}`);
       if (svEl) { svEl.value = sv; svEl.dispatchEvent(new Event('change', { bubbles: true })); }
+      if (!exists) setCat(id);
       renderSubconGroups();
       setTimeout(() => document.getElementById(`nm-${id}`)?.focus(), 40);
       return id;
     }
-    addRowToSubconGroup(sv, '');
-    return true;
+    const nid = addRowToSubconGroup(sv, '');
+    if (!exists && nid) { setCat(nid, true); renderSubconGroups(); }
+    return nid || true;
+  }
+  // ② ルートで入力したサブコン（conditions.js routeSubcons）のうち、表にまだ枠が無いもの／あるもの
+  function _routeSvState() {
+    const list = (typeof window.routeSubcons === 'function') ? window.routeSubcons() : [];
+    const have = new Set(_realRows().map(tr => subconNormKey(_rowSubcon(tr) ?? '')).filter(Boolean));
+    return list.map(x => Object.assign({}, x, { added: have.has(subconNormKey(x.name)) }));
+  }
+  // 候補のボタン群（明細が無いときの案内と「＋ サブコンを追加」の吹き出しで共用）
+  const _sfEsc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function _routeSvHtml() {
+    const st = _routeSvState();
+    if (!st.length) return '';
+    const left = st.filter(x => !x.added);
+    return '<div class="sf-rt"><div class="sf-rt-h">ルートで入力したサブコンから選ぶ' +
+      (left.length >= 2 ? `<button type="button" class="sf-rt-all">ルートのサブコンをすべて追加（${left.length}社）</button>` : '') + '</div>' +
+      '<div class="sf-rt-list">' + st.map((x, i) =>
+        `<button type="button" class="sf-rt-chip${x.added ? ' is-added' : ''}" data-i="${i}"${x.added ? ' disabled title="すでに表に枠があります"' : ` title="「${_sfEsc(x.name)}」の枠をつくる"`}>` +
+        `<span class="sf-rt-side sf-rt-${x.side}">${x.sideLabel}</span><span class="sf-rt-name">${_sfEsc(x.name)}</span>` +
+        (x.added ? '<span class="sf-rt-ok">✓ 追加済み</span>' : '<span class="sf-rt-plus">＋</span>') + '</button>').join('') +
+      '</div></div>';
+  }
+  function _wireRouteSv(root, after) {
+    const st = _routeSvState();
+    root.querySelectorAll('.sf-rt-chip:not(.is-added)').forEach(b => b.addEventListener('click', () => {
+      const x = st[+b.dataset.i]; if (!x) return;
+      if (after) after();
+      addSubconFrame(x.name, { cat: x.cat });
+    }));
+    const all = root.querySelector('.sf-rt-all');
+    if (all) all.addEventListener('click', () => {
+      const left = st.filter(x => !x.added);
+      if (after) after();
+      let first = null;
+      left.forEach(x => { const id = addSubconFrame(x.name, { cat: x.cat }); if (!first && id && id !== true) first = id; });
+      if (first) setTimeout(() => document.getElementById(`nm-${first}`)?.focus(), 60);
+      if (typeof quoteShowToast === 'function') quoteShowToast(`✅ ルートのサブコン ${left.length} 社の枠をつくりました`, 'success');
+    });
   }
   // 「＋ サブコンを追加」：名前の入力（サブコンのマスター候補つき）を小さな吹き出しで出す
   function openAddSubconFrame(anchor) {
@@ -5532,6 +5589,7 @@
       '<div class="sf-pop-d">先にサブコン（費用の取引先）の枠をつくり、その中に明細（運賃・THCなど）を入力します。</div>' +
       '<div class="sf-pop-row"><input type="text" class="sf-pop-in" list="svSuggestions" autocomplete="off" maxlength="40" placeholder="サブコン名（例：○○運輸）">' +
       '<button type="button" class="sf-pop-ok">追加</button></div>' +
+      _routeSvHtml() +
       '<button type="button" class="sf-pop-none">サブコンを決めずに明細を追加</button>';
     document.body.appendChild(pop);
     const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: 24, bottom: 120 };
@@ -5549,6 +5607,7 @@
     const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
     pop.querySelector('.sf-pop-ok').addEventListener('click', ok);
     pop.querySelector('.sf-pop-none').addEventListener('click', () => { close(); addRowWithoutSubcon(); });
+    _wireRouteSv(pop, close);
     inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); ok(); } });
     setTimeout(() => { document.addEventListener('pointerdown', onOut, true); document.addEventListener('keydown', onKey, true); }, 0);
     inp.focus();
@@ -5600,15 +5659,18 @@
     if (!empty) { if (h) h.hidden = true; return; }
     if (!h) {
       h = document.createElement('div'); h.id = 'sfHint'; h.className = 'sf-hint sf-empty-card';
-      h.innerHTML = '<div class="sf-e-t">まだ明細がありません</div>' +
-        '<div class="sf-e-d"><b>① サブコン（費用の取引先）を追加</b>して枠をつくり、<b>② その枠の中に明細（運賃・THC など）を入力</b>します。</div>' +
-        '<button type="button" class="sf-hint-btn">＋ サブコンを追加</button>' +
-        '<button type="button" class="sf-e-none">サブコンを決めずに明細を追加</button>';
-      h.querySelector('.sf-hint-btn').addEventListener('click', e => openAddSubconFrame(e.currentTarget));
-      h.querySelector('.sf-e-none').addEventListener('click', () => addRowWithoutSubcon());
       const sw = document.getElementById('mcHost') || document.getElementById('tableScrollWrap');
       if (sw && sw.parentNode) sw.parentNode.insertBefore(h, sw); else wrap.appendChild(h);
     }
+    // ルートのサブコンは開くたびに入力が変わり得るので、出すたびに描き直す
+    h.innerHTML = '<div class="sf-e-t">まだ明細がありません</div>' +
+      '<div class="sf-e-d"><b>① サブコン（費用の取引先）を追加</b>して枠をつくり、<b>② その枠の中に明細（運賃・THC など）を入力</b>します。</div>' +
+      _routeSvHtml() +
+      '<button type="button" class="sf-hint-btn">＋ サブコンを追加</button>' +
+      '<button type="button" class="sf-e-none">サブコンを決めずに明細を追加</button>';
+    h.querySelector('.sf-hint-btn').addEventListener('click', e => openAddSubconFrame(e.currentTarget));
+    h.querySelector('.sf-e-none').addEventListener('click', () => addRowWithoutSubcon());
+    _wireRouteSv(h);
     h.hidden = false;
   }
   window.addSubconFrame = addSubconFrame;

@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" media="not all" data-theme-css="fonts">
 <link rel="stylesheet" href="css/theme-industry.css" media="not all" data-theme-css="site">
 <link rel="stylesheet" href="css/theme-industry-doc.css" media="not all" data-theme-css="doc">
+<link rel="stylesheet" href="css/doc-revision.css">
 <!-- Quiet テーマ（Claude Design 案・3つ目のデザイン・既定オフ）。<html data-theme="quiet" class="theme-quiet"> のときだけ効く。
      トークン：css/design-tokens-quiet.css／部品・画面：css/theme-quiet.css（Industry と同時には使わない） -->
 <!-- 全テーマ共通の書体（Inter＋Noto Sans JP・display=swap：読み込み中は標準書体で先に表示）。読み込めない環境では --font-sans の予備（ヒラギノ等）で表示 -->
@@ -28,6 +29,7 @@
 <!-- 「かんたん表示」（Claude Design 案）。<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま。 -->
 <link rel="stylesheet" href="css/simple-mode.css">
 <link rel="stylesheet" href="css/feedback.css">
+<link rel="stylesheet" href="css/ai-ocr.css">
 <link rel="stylesheet" href="css/glossary-drawer.css">
 <link rel="stylesheet" href="css/announcements.css">
 <link rel="stylesheet" href="css/org-teams.css">
@@ -40,6 +42,7 @@
 <link rel="stylesheet" href="css/master-drawer.css">
 <link rel="stylesheet" href="css/fix-hub.css">
 <link rel="stylesheet" href="css/header-menu.css">
+<link rel="stylesheet" href="css/tab-sync.css">
 <link rel="stylesheet" href="css/editor-v2.css">
 <link rel="stylesheet" href="css/right-col-a.css">
 <link rel="stylesheet" href="css/right-rail-v2.css">
@@ -57,6 +60,7 @@
   <link rel="stylesheet" href="css/route-cards.css">
 <link rel="stylesheet" href="css/group-header-b.css">
 <link rel="stylesheet" href="css/cost-a.css">
+<link rel="stylesheet" href="css/cat-colors.css">
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
@@ -2392,7 +2396,7 @@
           <li><strong>輸送モード</strong>：🚢 Sea（FCL/LCL）/ ✈️ Air</li>
           <li><strong>オプション</strong>：🛡️ 保険付保 ON/OFF</li>
           <li><strong>ゾーンビルダー</strong>：出発地側 → 幹線輸送 → 到着地側 の3カードで作業ピース（集荷／梱包／通関／配送など）を組み立て</li>
-          <li><strong>🔧 この構成でプリセット適用</strong>で見積もり表の行を一括生成</li>
+          <li><strong>🔧 ルートのサブコンで枠をつくる</strong>で、ルートで入力したサブコンごとに見積もり表の枠（空の明細）をまとめてつくる</li>
         </ul>
 
         <h4>② 引き合い条件・貨物情報（📦 貨物情報 サブセクション）</h4>
@@ -3422,14 +3426,14 @@
       <!-- サブセクション：ゾーン構成からプリセット適用（独立セクション） -->
       <div class="zone-preset-section" data-tier="adv">
         <div class="zone-preset-section-head">
-          <span class="zone-preset-section-title">🔧 ゾーン構成から見積もり行を生成
+          <span class="zone-preset-section-title">🔧 ルートのサブコンで明細の枠をまとめてつくる
             <span class="zps-help-wrap">
               <button type="button" class="section-help-btn" aria-label="この機能の説明">?</button>
-              <span class="zps-help-tip">上で組んだ 出発地側 → 幹線輸送 → 到着地側 の作業ピースをもとに、見積もりテーブルの行を一括作成します。</span>
+              <span class="zps-help-tip">② ルートで入力したサブコン（出発地側・幹線輸送のキャリア・到着地側）ごとに、費用の表に枠（空の明細）をまとめてつくります。幹線輸送は航路ごとに分けます。1 社ずつ足すときは、表の［＋ サブコンを追加］からも選べます。</span>
             </span>
           </span>
         </div>
-        <button class="btn-zone-preset" onclick="applyZoneBasedPreset()">🔧 この構成でプリセット適用</button>
+        <button class="btn-zone-preset" onclick="applyZoneBasedPreset()" title="ルートで入力したサブコンごとに、費用の表へ空の明細の枠をつくります">🔧 ルートのサブコンで枠をつくる</button>
       </div>
 
     </div><!-- /section-cond -->
@@ -4393,6 +4397,7 @@
         <p class="ic-sub" id="icSub">取り込み方を選んでください</p>
         <button type="button" class="ic-opt" onclick="icChoose('text')"><span class="ic-ico">📝</span><span><b>テキストで取り込む</b><small>メール本文などを貼り付けて、見積の行にします</small></span></button>
         <button type="button" class="ic-opt" onclick="icChoose('pdf')"><span class="ic-ico">📄</span><span><b>PDFで取り込む</b><small>文字が入ったPDFから文字を取り出して解析します（スキャン画像のPDFは非対応）</small></span></button>
+        <button type="button" class="ic-opt" id="icAiOcr" onclick="icChoose('aiocr')"><span class="ic-ico">📷</span><span><b>画像を AI で読む（準備中）</b><small>写真・スキャン・文字の無い PDF。表だけ切り抜き、社名などを黒く塗ってから送ります（管理者の設定が済むまでは送れません）</small></span></button>
         <button type="button" class="ic-opt" id="icPacking" onclick="icChoose('packing')"><span class="ic-ico">📦</span><span><b>荷姿・貨物明細を取り込む</b><small>見積の明細ではなく、貨物の寸法・個数などが入ります</small></span></button>
         <input type="file" id="icPdfFile" accept="application/pdf,.pdf" hidden onchange="icPdfSelected(this)">
       </div>
@@ -4520,7 +4525,7 @@
         <!-- ===== 左レール：レイアウト切替＋表示カスタマイズ ===== -->
         <aside class="pv-rail">
           <div class="pv-rail-head">
-            <h2>📋 プレビュー</h2>
+            <h2>🧮 社内チェック表</h2>
           </div>
           <div class="pv-rail-grp">
             <div class="pv-rail-h3">レイアウト</div>
@@ -4563,7 +4568,7 @@
             <span class="pv-main-title">📋 プレビュー（表計算形式）</span>
             <span class="pv-main-sp"></span>
             <div class="pv-btns">
-              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()" title="お客様向けの御見積書を PDF で出力します（設定・確認はこの先の画面で）">📄 PDF 出力</button>
+              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="pvBackToDoc()" title="お客様向けの御見積書の画面へ戻ります（PDF 出力はここから）">📄 見積書に戻る</button>
               <button class="pv-btn-email-plain" onclick="copyQuoteEmail()" title="明細付きのメール本文（プレーンテキスト）としてコピー">✉️ メール本文</button>
               <button class="pv-btn-excel" onclick="exportExcel()" title="表計算形式で表示中の内容をExcel（.xlsx）でダウンロード">📊 Excel</button>
               <div class="pv-btn-grp" data-label="印刷">
@@ -5159,6 +5164,7 @@
 <script src="js/quote/admin-creator-edit.js"></script>   <!-- 【一時機能】管理者が作成者を変更（やめるときは docs/sql/admin-edit-creator.sql 参照） -->
 <script src="js/quote/subcon-insert.js"></script>
 <script src="js/quote/email-import.js"></script>
+<script src="js/quote/ai-ocr.js"></script>
 <script src="js/quote/subcon-request-mail.js"></script>
 <script src="js/quote/memo-title.js"></script>
 <script src="js/quote/case-info.js"></script>
@@ -5181,6 +5187,7 @@
 <script src="js/quote/input-grid.js"></script>
 <script src="js/quote/group-header-b.js"></script>
 <script src="js/quote/cost-a.js"></script>
+<script src="js/quote/cat-colors.js"></script>
 <script src="js/quote/packing-import.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/ui-mode.js"></script>
@@ -5205,6 +5212,7 @@
 <script src="js/toast-phone.js"></script>
 <!-- Quiet テーマの置き場所変更（ヘッダーのボタンまとめ・見出しの絵文字）。html.theme-quiet のときだけ働く -->
 <script src="js/header-menu.js"></script>
+<script src="js/tab-sync.js"></script>
 <script src="js/quote/editor-v2.js"></script>
 <script src="js/quote/steps-b.js"></script>
 <script src="js/theme-quiet.js"></script>
@@ -5306,8 +5314,8 @@
 <!-- 見積アクションドック（右下フローティング・見積タブのみ表示） -->
 <button type="button" id="qfMemoFab" class="qf-memo-fab" onclick="toggleMemoFloat()" aria-label="案件名・社内メモ" title="案件名・社内メモ（1行目が案件名になります。お客様向け出力には含まれません）"><span class="qmf-i">📝</span><span class="qmf-t"> 案件名・社内メモ</span><span class="qmf-x" role="button" tabindex="0" aria-label="このボタンを隠す" title="このボタンを隠す（「⋯」メニューからいつでも付箋を開けます）">✕</span></button>
 <div id="quoteActionDock">
-  <button class="qad-btn qad-pdf" onclick="quickQuotePdf()" title="御見積書PDFをそのまま出力（A4縦）。ファイル名・発行元は前回の設定を使います。設定を変えたいときはプレビュー →「📄 御見積書」から">📄 PDF出力</button>
-  <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
+  <button class="qad-btn qad-pdf" onclick="quickQuotePdf()" title="御見積書PDFをそのまま出力（A4縦）。ファイル名・発行元は前回の設定を使います。設定を変えたいときは［📋 プレビュー］から">📄 PDF出力</button>
+  <button class="qad-btn qad-preview" onclick="openQuotePreview()" title="お客様に渡す御見積書の形で確認します。PDF・メール本文・Excel・社内チェック表もここから（Ctrl+P）">📋 プレビュー</button>
   <button class="qad-btn qad-save" id="qadMode" onclick="qpDockAction()" title="閲覧中は編集を開始／編集中は保存して作業終了">💾 保存</button>
 </div>
 

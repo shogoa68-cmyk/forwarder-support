@@ -2846,7 +2846,8 @@
     // Ctrl+P → プレビュー
     if (ctrl && !e.shiftKey && !e.altKey && e.key === 'p') {
       e.preventDefault();
-      if (typeof openPreview === 'function') openPreview();
+      if (typeof window.openQuotePreview === 'function') window.openQuotePreview();
+      else if (typeof openPreview === 'function') openPreview();
       return;
     }
     // Ctrl+D → 選択行を下にコピー / 未選択はフォーカス行を複製

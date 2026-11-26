@@ -101,4 +101,8 @@ r = p("検品料1台あたり 7,000-");
 chk('既定の通貨なし：末尾のハイフンだけでは通貨を決めつけず、読めなかった行に出す', its(r).length === 0 && (r.unread || []).length === 1, r);
 r = p("有効期間 40-45 日\nTEL 03-1234-5678\n検品料 1,000", { defaultCcy: 'JPY' });
 chk('既定の通貨あり：40-45・電話番号のハイフンは金額にしない', its(r).length === 1 && its(r)[0].name === '検品料', its(r));
+r = p("1. THCD: USD 120/20’/40’HQ\n2. SEALF: USD 15/container.\n(3) Clearance Fee: USD 150/vehicle.\n通関料金 ：￥6,000/葉\n4. Extra charges: At cost.");
+chk('行頭の番号・品名の後ろの「:」「.」を外し、「/20’/40’HQ」「/vehicle」「/葉」を単位にし、「At cost」は実費', its(r).length === 5 && its(r)[0].name === 'THCD' && its(r)[0].unit === "20'/40'HQ" && its(r)[1].name === 'SEALF' && its(r)[1].unit === 'container' && its(r)[2].name === 'Clearance Fee' && its(r)[2].unit === 'vehicle' && its(r)[3].name === '通関料金' && its(r)[3].unit === '葉' && its(r)[4].name === 'Extra charges' && its(r)[4].actual, its(r));
+r = p("1.5 CBM 海上運賃 USD 30");
+chk('小数「1.5」は行頭の番号として外さない', its(r)[0].name.startsWith('1.5'), its(r));
 process.exit(ok === C.length && ng === 0 ? 0 : 1);

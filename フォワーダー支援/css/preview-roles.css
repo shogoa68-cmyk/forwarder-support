@@ -192,3 +192,23 @@ body:has(#quoteDocOverlay.open) #quoteActionDock { display: none !important; }
   /* 「コピーしました」は出ている間だけ場所を取る（ふだんは幅 0。出るときは上の行に重ねて出す） */
   #tab-quote-make #previewBox .pv-copy-msg { position: absolute; right: 12px; top: 58px; pointer-events: none; }
 }
+
+/* ===== プレビューは見積書の画面から（2026-11）=====
+   「📋 プレビュー」は見積書の画面（PDF 出力の設定つき）を直接開く。
+   社内チェック表（表計算）・メール本文・Excel は、その画面の［PDF 出力］の下の小さなボタンから。 */
+#quoteDocOverlay .qd-more-out { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 2px; }
+#quoteDocOverlay .qd-btn-sub {
+  padding: 7px 4px; min-height: 34px; border-radius: 6px;
+  background: transparent; border: 1px solid rgba(255,255,255,.2);
+  color: #d8d0c0; font-size: var(--text-xs, 12px); font-family: inherit; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s;
+}
+#quoteDocOverlay .qd-btn-sub:hover { border-color: rgba(255,255,255,.45); color: #fff; }
+:where(html.theme-industry-doc) #quoteDocOverlay .qd-btn-sub { border-radius: 0; color: #d4d4d7; }
+@media (max-width: 600px) {
+  #quoteDocOverlay .qd-panel-foot { flex-wrap: wrap !important; }
+  #quoteDocOverlay .qd-more-out { flex: 1 1 100%; order: -1; }
+  #quoteDocOverlay .qd-btn-sub { min-height: 44px; }
+  #quoteDocOverlay .qd-panel:not(.qd-panel-open) .qd-more-out { display: none; }
+}
+@media print { #quoteDocOverlay .qd-more-out { display: none !important; } }

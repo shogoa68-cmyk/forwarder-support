@@ -1398,8 +1398,9 @@
       const seen1 = new Set();
       const addZ1 = (svList) => {
         (svList.length ? svList : ['']).forEach(sv => {
-          if (seen1.has(sv)) return;
-          seen1.add(sv);
+          const k1 = (typeof subconNormKey === 'function') ? subconNormKey(sv) : sv;   // 表記ゆれ（全角・半角など）は 1 社
+          if (seen1.has(k1)) return;
+          seen1.add(k1);
           items.push({ cat: 'domestic', name: '', note: '', sv });
         });
       };
@@ -1437,8 +1438,9 @@
       const seen3 = new Set();
       const addZ3 = (svList) => {
         (svList.length ? svList : ['']).forEach(sv => {
-          if (seen3.has(sv)) return;
-          seen3.add(sv);
+          const k3 = (typeof subconNormKey === 'function') ? subconNormKey(sv) : sv;   // 表記ゆれ（全角・半角など）は 1 社
+          if (seen3.has(k3)) return;
+          seen3.add(k3);
           items.push({ cat: 'overseas', name: '', note: '', sv });
         });
       };
@@ -1460,6 +1462,35 @@
     return items;
   }
 
+  // ルート（出発地側・幹線輸送・到着地側）で入力したサブコン名の一覧（費用入力で枠をつくる候補に使う）。
+  // [{name, side:'origin'|'main'|'dest', sideLabel, cat}]。同じ会社（表記ゆれも）は最初の 1 つだけ。
+  window.routeSubcons = function () {
+    const out = [], seen = new Set();
+    const norm = v => (typeof subconNormKey === 'function') ? subconNormKey(v) : String(v || '').trim().toLowerCase();
+    const add = (name, side, sideLabel, cat) => {
+      const v = String(name || '').trim(); if (!v) return;
+      const k = norm(v); if (!k || seen.has(k)) return;
+      seen.add(k); out.push({ name: v, side, sideLabel, cat });
+    };
+    const zone = (on, defArea, pieces, side, label, cat) => {
+      if (!on) return;
+      _getAllScValues(defArea).forEach(v => add(v, side, label, cat));
+      pieces.forEach(([pid, area]) => { if (document.getElementById(pid)?.checked) _getAllScValues(area).forEach(v => add(v, side, label, cat)); });
+    };
+    zone(_zone1On, 'z1DefaultScArea', [['piece-pickup', 'sc-pickup'], ['piece-wh-origin', 'sc-wh-origin'], ['piece-customs-e', 'sc-customs-e']], 'origin', '出発地側', 'domestic');
+    const act = _routeEntries.filter(r => r.enabled !== false);
+    if (act.length) {
+      act.forEach(r => {
+        add(r.carrier, 'main', '幹線輸送', 'ocean');
+        (Array.isArray(r.segs) ? r.segs : []).forEach(x => x && add(x.carrier, 'main', '幹線輸送', 'ocean'));
+      });
+    } else if (!_routeEntries.length) {
+      add(document.getElementById('z2Carrier')?.value, 'main', '幹線輸送', 'ocean');
+    }
+    zone(_zone3On, 'z3DefaultScArea', [['piece-customs-i', 'sc-customs-i'], ['piece-wh-dest', 'sc-wh-dest'], ['piece-deliver', 'sc-deliver']], 'dest', '到着地側', 'overseas');
+    return out;
+  };
+
   function applyZoneBasedPreset() {
     const items = _buildZonePresetItems();
     if (!items.length) {
@@ -1467,9 +1498,17 @@
       return;
     }
 
-    const existing = document.querySelectorAll('#tableBody tr').length;
+    // 明細がまだ無い（最初の空の 1 行だけ）ときは、確認なしでその空の行と置き換える
+    const _real = Array.from(document.querySelectorAll('#tableBody tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
+    const _blankOnly = !document.querySelector('#tableBody tr[data-type]') && _real.length <= 1 && _real.every(tr => {
+      const id0 = tr.id.replace('row-', '');
+      const g = f => (document.getElementById(`${f}-${id0}`)?.value || '').trim();
+      return !g('sv') && !g('nm') && !(parseFloat(g('pp')) || 0) && !(parseFloat(g('bp')) || 0) && !g('pt');
+    });
+    if (_blankOnly) _real.forEach(tr => tr.remove());
+    const existing = _blankOnly ? 0 : _real.length;
     if (existing > 0) {
-      if (!confirm(`テーブルに ${existing} 行あります。末尾にサブコン/航路別の空行 ${items.length} 行を追記しますか？\n（置換したい場合は一旦リセットしてから再実行してください）`)) return;
+      if (!confirm(`テーブルに ${existing} 行あります。末尾にルートのサブコン別の枠（空の明細 ${items.length} 行）を足しますか？\n（入れ替えたいときは、先に表をリセットしてから実行してください）`)) return;
     }
 
     let lastCur = 'JPY';
@@ -1483,8 +1522,8 @@
       const tr = document.createElement('tr');
       tr.id = 'row-' + id;
       tr.replaceChildren(buildRowHTML(id, item.cat, lastCur));
-      if (item.pp) { const ptEl = document.getElementById('pt-' + id); if (ptEl) ptEl.value = item.pp; }  // 航路名をパターン（サブコン内の入れ子キー）に
       tbody.appendChild(tr);
+      if (item.pp) { const ptEl = document.getElementById('pt-' + id); if (ptEl) ptEl.value = item.pp; }  // 航路名をパターン（サブコン内の入れ子キー）に（行を表へ入れてから探す）
       const nmEl = document.getElementById('nm-'  + id); if (nmEl) nmEl.value = item.name;
       const ntEl = document.getElementById('nt-'  + id); if (ntEl) ntEl.value = item.note || '';
       const svEl = document.getElementById('sv-'  + id); if (svEl) svEl.value = item.sv   || '';
@@ -1495,7 +1534,7 @@
 
     if (typeof renderSubconGroups === 'function') renderSubconGroups();  // 航路＝パターンの入れ子グループを描画
     updateTotals();
-    quoteShowToast('✅ ゾーン構成プリセット適用完了（サブコン/航路別 ' + items.length + '行）', 'success');
+    quoteShowToast('✅ ルートのサブコン別に明細の枠をつくりました（' + items.length + '行）', 'success');
   }
 
   // ========== 方向・輸送モード プライマリセレクター ==========

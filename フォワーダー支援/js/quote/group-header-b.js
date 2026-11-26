@@ -177,6 +177,8 @@
     const add = (ic, label, fn, cls) => A.push({ ic, label, fn, cls });
     const sep = () => { if (A.length && A[A.length - 1] !== '-') A.push('-'); };
     if (!isPt) {
+      const pa = q(tr, '.sv-hdr-past');
+      if (pa && !pa.hidden) add('🕘', 'このサブコンの過去の明細', () => pa.click());
       const imp = q(tr, '.sv-hdr-import');
       if (isShown(imp)) add('📥', '取り込み', () => imp.click());
       const du = q(tr, '.sv-hdr-dup');

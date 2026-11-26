@@ -102,7 +102,7 @@
 
   // ---- 単位・数量の見つけ方（「/20GP」「per 40HC」「(20GP)」「× 3台」「2×40'HC」）----
   // 20・40・45 は「'」かサイズ記号（GP/HC…）が付くときだけ単位（日付の「/20」などを単位と取り違えない）
-  const _UNIT_SRC = "(?:(?:20|40|45)(?:\\s*['’]\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU)?|\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU))|R\\/T|RT|CBM|M3|M³|㎥|KGS?|MT|CNTR|CTR|CNT|CONTAINER|B\\/L|BL|SHPT|SHIPMENT|SHP|VAN|JOB|PKG|PLT|PALLET|CTN|PCS?|SET|BOX|TEU|FEU|件|台|本|枚|式|梱|才|個|便|回|コンテナ|ロット|口|パレット|トン|立米|DAY|WEEK|MONTH|YEAR|日|週|月|年|期)";
+  const _UNIT_SRC = "(?:(?:20|40|45)(?:\\s*['’]\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU)?|\\s*(?:GP|HC|HQ|DC|DV|ST|RF|RH|OT|FR|FT|TEU|FEU))|R\\/T|RT|CBM|M3|M³|㎥|KGS?|MT|CNTR|CTR|CNT|CONTAINER|B\\/L|BL|SHPT|SHIPMENT|SHP|VAN|JOB|PKG|PLT|PALLET|CTN|PCS?|SET|BOX|TEU|FEU|VEHICLES?|UNITS?|TRUCKS?|件|葉|台|本|枚|式|梱|才|個|便|回|コンテナ|ロット|口|パレット|トン|立米|DAY|WEEK|MONTH|YEAR|日|週|月|年|期)";
   const _UNIT_END = '(?![A-Za-z0-9])';
   const _PER_RE        = new RegExp('(?:\\/|\\bper\\b|あたり|につき|毎|@)\\s*(?:1\\s*)?(' + _UNIT_SRC + ')' + _UNIT_END, 'i');
   const _PERIOD_RE     = new RegExp('(?:^|\\s)\\/\\s*(DAY|WEEK|MONTH|YEAR|日|週|月|年|期)' + _UNIT_END, 'i');
@@ -143,6 +143,12 @@
       // 「/M3/期」「/CBM/月」のように、続けて期間の単位が付くときはつなげる（保管料など）
       const pm = rest.match(_PERIOD_RE);
       if (pm && unit === m[1]) { unit = unit + '/' + pm[1]; rest = rest.slice(0, pm.index) + ' ' + rest.slice(pm.index + pm[0].length); }
+      // 「/20'/40'HQ」のように単位が「/」で続くときは 1 つの単位としてつなぐ（2 つ目が品名に残らないように）
+      else if (unit === m[1]) {
+        const um = rest.slice(m.index).match(new RegExp('^\\s*\\/\\s*(' + _UNIT_SRC + ')' + _UNIT_END, 'i'));
+        if (um) { unit = unit + '/' + um[1]; rest = rest.slice(0, m.index) + ' ' + rest.slice(m.index + um[0].length); }
+      }
+      unit = unit.replace(/’/g, "'");
     } else if (!unit && (m = rest.match(_CNTR_TAIL_RE))) {
       unit = m[1]; rest = rest.slice(0, m.index); perUnit = true;
     }
@@ -150,7 +156,16 @@
     if (minNote) rest = rest.replace(/\b(or|または)\b/gi, ' ');
     let name = rest.replace(/[（(]\s*[）)]/g, ' ');
     if (!/[（(]/.test(name)) name = name.replace(/[)）]\s*$/, '');
-    name = name.replace(/\s+/g, ' ').replace(/^[\s:：/／,，、\-–]+|[\s:：/／,，、\-–×]+$/g, '').trim();
+    name = name.replace(/\s+/g, ' ').replace(/^[\s:：/／,，、\-–]+|[\s:：/／,，、\-–×.。]+$/g, '').trim();
+    // 行頭の番号「1. 」「(2) 」「3）」は品名にしない（品名が空になるときは残す）
+    const nn0 = name.replace(/^[（(]?\d{1,2}[.)）](?!\d)\s*/, '').trim();
+    if (nn0 && nn0 !== name && /[A-Za-z぀-ヿ一-鿿]/.test(nn0)) name = nn0;
+
+    // 「検品料1台あたり」のように「N台あたり」が品名に混ざるときは、単位（台など）として取り出す（品名が空になるときは残す）
+    if (!unit && (m = name.match(/(\d+)\s*(台|個|本|枚)(?:あたり|当たり)(?=\s|$)/))) {
+      const nn = (name.slice(0, m.index) + ' ' + name.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim();
+      if (nn) { unit = m[2]; name = nn; perUnit = true; }
+    }
 
     // 「検品料1台あたり」のように「N台あたり」が品名に混ざるときは、単位（台など）として取り出す（品名が空になるときは残す）
     if (!unit && (m = name.match(/(\d+)\s*(台|個|本|枚)(?:あたり|当たり)(?=\s|$)/))) {
@@ -408,8 +423,9 @@
       }
 
       // パターンB（自形式・実費）
-      if (/(^|[\s:：])実費(\s|$)/.test(body)) {   // 「諸掛り：実費」のようにコロンで区切った書き方も
-        const nm2 = body.replace(/(^|[\s:：])実費(\s|$)/, ' ').replace(/\s+/g, ' ').replace(/[\s:：]+$/, '').trim();
+      const _ACT_RE = /(^|[\s:：])(?:実費|at\s+cost)(?=[\s.。]|$)[.。]?/i;   // 英語の「At cost」も実費
+      if (_ACT_RE.test(body)) {   // 「諸掛り：実費」のようにコロンで区切った書き方も
+        const nm2 = body.replace(_ACT_RE, ' ').replace(/\s+/g, ' ').replace(/[\s:：]+$/, '').replace(/^[（(]?\d{1,2}[.)）](?!\d)\s*/, '').trim();
         if (nm2) {
           pushItem({ _kind: 'item', conf: 'high', name: nm2, qty: '', unit: '', ccy: 'JPY', price: null, actual: true, taxed, taxSrc: tax, cond, ref: refFlg, note });
           return;
@@ -554,7 +570,8 @@
   function closeImportChooser() { document.getElementById('importChooser')?.classList.remove('open'); }
   function icChoose(kind) {
     const canon = _chooserCanon;
-    if (kind === 'pdf') { document.getElementById('icPdfFile')?.click(); return; }   // 選択画面は、ファイルを選んだあとに閉じる
+    if (kind === 'pdf') { document.getElementById('icPdfFile')?.click(); return; }
+    if (kind === 'aiocr') { closeImportChooser(); if (typeof window.aiOcrOpen === 'function') window.aiOcrOpen(canon); return; }   // 選択画面は、ファイルを選んだあとに閉じる
     closeImportChooser();
     if (kind === 'text') { if (canon) eiOpenForSubcon(canon); else openEmailImport(); }
     else if (kind === 'packing' && typeof window.openPackingImport === 'function') window.openPackingImport();
@@ -1164,7 +1181,71 @@
       '<button type="button" class="ei-rule-save" onclick="eiRuleSaveDefaults()">保存</button></div>' +
       '<p class="ei-rule-help">既定の通貨を決めると、通貨が書かれていない数字（例：<code>海上運賃 1200 /20GP</code>）も、その通貨の金額として読みます（確度は「要確認」）。</p>' +
       list + (r.at ? '<div class="ei-rule-meta">最終更新 ' + _esc(String(r.at).slice(0, 10)) + (r.by ? '・' + _esc((typeof window.cloudNameFor === 'function' && window.cloudNameFor(r.by)) || r.by) : '') + '</div>' : '') +
-      '</details>';
+      '</details><div class="ei-props" data-sv="' + _esc(_svCtx.canon) + '"></div>';
+    _mountProposals(wrap.querySelector('.ei-props'), _svCtx.canon, () => _renderSvCtx());
+  }
+
+  // ====== AI が作ったルールの「案」（email_rule_proposals・docs/sql/email-rule-proposals.sql）======
+  //  AI は案を出すだけ。採用するかどうかは人が決め、採用したときだけ、このサブコンのルールに足す
+  let _propOff = false;
+  const _PROP_KIND = { alias: '呼び名の置き換え', ignore: '取り込まない行の形', ccy: '既定の通貨', unit: '既定の単位', qty_as_unit: '数量付きの金額は単価' };
+  async function _loadProposals(canon) {
+    if (_propOff || !canon) return [];
+    const c = typeof window.cloudGetClient === 'function' ? window.cloudGetClient() : null;
+    const me = typeof window.cloudCurrentUser === 'function' ? window.cloudCurrentUser() : null;
+    if (!c || !me) return [];
+    try {
+      const { data, error } = await c.from('email_rule_proposals').select('id,sv,kind,key,payload,reason,created_at').eq('sv', canon).eq('status', 'pending').order('created_at', { ascending: true }).limit(50);
+      if (error) { if (/PGRST20[0-9]|42P01|does not exist|could not find/i.test(String(error.code || '') + ' ' + String(error.message || ''))) _propOff = true; return []; }
+      return data || [];
+    } catch (e) { return []; }
+  }
+  function _propText(p) {
+    const v = p.payload || {};
+    if (p.kind === 'alias') return _esc(v.from || '') + ' → <b>' + _esc(v.to || '') + '</b>' + (v.cat ? ' <i>[' + _esc(v.cat) + ']</i>' : '') + (v.unit ? ' <i>単位 ' + _esc(v.unit) + '</i>' : '');
+    if (p.kind === 'ignore') return '<code>' + _esc(v.shape || '') + '</code>';
+    if (p.kind === 'ccy') return '<b>' + _esc(v.ccy || '') + '</b>';
+    if (p.kind === 'unit') return '<b>' + _esc(v.unit || '') + '</b>';
+    if (p.kind === 'qty_as_unit') return v.on === false ? 'しない' : 'する';
+    return '';
+  }
+  function _applyProposal(r, p) {
+    const v = p.payload || {};
+    if (p.kind === 'alias') { if (!v.from || !v.to) return false; _upsertAlias(r.aliases, { from: String(v.from), to: String(v.to), cat: String(v.cat || ''), unit: String(v.unit || '') }); return true; }
+    if (p.kind === 'ignore') { if (!v.shape) return false; _upsertShape(r.ignore, String(v.shape)); return true; }
+    if (p.kind === 'ccy') { if (!/^[A-Z]{3}$/.test(String(v.ccy || ''))) return false; r.ccy = String(v.ccy); return true; }
+    if (p.kind === 'unit') { if (!v.unit) return false; r.unit = String(v.unit); return true; }
+    if (p.kind === 'qty_as_unit') { r.qtyAsUnit = v.on !== false; return true; }
+    return false;
+  }
+  async function _decideProposal(id, status) {
+    const c = typeof window.cloudGetClient === 'function' ? window.cloudGetClient() : null;
+    if (!c) return false;
+    try { const { error } = await c.rpc('email_rule_decide', { p_id: id, p_status: status }); return !error; } catch (e) { return false; }
+  }
+  async function _mountProposals(el, canon, after) {
+    if (!el) return;
+    const list = await _loadProposals(canon);
+    if (!el.isConnected) return;
+    if (!list.length) { el.innerHTML = ''; el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = '<div class="ei-props-h">🤖 AI からのルールの案（' + list.length + ' 件）<span>採用するとこのサブコンのルールに入ります。合っていなければ却下してください。</span></div>' +
+      list.map(p => '<div class="ei-prop" data-id="' + _esc(String(p.id)) + '"><span class="ei-prop-k">' + _esc(_PROP_KIND[p.kind] || p.kind) + '</span>' +
+        '<span class="ei-prop-v">' + _propText(p) + '</span>' + (p.reason ? '<span class="ei-prop-r">' + _esc(p.reason) + '</span>' : '') +
+        '<button type="button" class="ei-prop-ok">採用</button><button type="button" class="ei-prop-ng">却下</button></div>').join('');
+    el.onclick = async e => {
+      const b = e.target.closest('.ei-prop-ok, .ei-prop-ng'); if (!b) return;
+      const row = b.closest('.ei-prop'), p = list.find(x => String(x.id) === row.dataset.id); if (!p) return;
+      row.querySelectorAll('button').forEach(x => { x.disabled = true; });
+      const accept = b.classList.contains('ei-prop-ok');
+      if (accept) {
+        const r = _rulesOf(canon);
+        if (!_applyProposal(r, p) || !(await _saveRules(canon, r))) { row.querySelectorAll('button').forEach(x => { x.disabled = false; }); if (window.quoteShowToast) quoteShowToast('ルールに入れられませんでした', 'warning'); return; }
+      }
+      const ok = await _decideProposal(p.id, accept ? 'accepted' : 'rejected');
+      if (window.quoteShowToast) quoteShowToast(accept ? '🤖 案を採用して、ルールに入れました' : '🤖 案を却下しました（同じ案はもう出ません）', ok ? 'success' : 'warning');
+      if (typeof after === 'function') after(); else _mountProposals(el, canon);
+    };
   }
   async function eiRuleSaveDefaults() {
     if (!_svCtx) return;
@@ -1263,7 +1344,7 @@
     const delShapes = { ignore: new Set(), ok: new Set() };
     const staleN = r.aliases.filter(_isStaleRule).length;
     const ccyOpts = '<option value="">（なし）</option>' + CCY_LIST.map(c => '<option' + (r.ccy === c ? ' selected' : '') + '>' + c + '</option>').join('');
-    el.innerHTML =
+    el.innerHTML = '<div class="ei-props ir-props"></div>' +
       '<div class="ir-defaults"><label>既定の通貨 <select class="ir-ccy">' + ccyOpts + '</select></label>' +
       '<label>既定の単位 <input type="text" class="ir-unit" value="' + _esc(r.unit) + '" placeholder="例）20\'GP"></label>' +
       '<label class="ir-qau"><input type="checkbox" class="ir-qtyunit"' + (r.qtyAsUnit ? ' checked' : '') + '> 数量が書いてある行の金額は「単価」として読む</label></div>' +
@@ -1275,6 +1356,7 @@
       '<div class="ir-bar"><button type="button" class="ir-add">＋ ルールを追加</button><button type="button" class="ir-save">💾 ルールを保存</button>' +
       '<button type="button" class="ir-clean"' + (staleN ? '' : ' hidden') + ' title="' + _STALE_DAYS + '日以上使われていないルールをまとめて外します">⏳ 長く使っていないルール ' + staleN + ' 件を外す</button>' +
       '<span class="ir-meta">' + (r.at ? '最終更新 ' + _esc(String(r.at).slice(0, 10)) + (r.by ? '・' + _esc((typeof window.cloudNameFor === 'function' && window.cloudNameFor(r.by)) || r.by) : '') : '') + '</span></div>';
+    _mountProposals(el.querySelector('.ir-props'), canon, () => { eiMountRulesPanel(el, canon); if (_svCtx && _svCtx.canon === canon) _renderSvCtx(); });
     const list = el.querySelector('.ir-list'), empty = el.querySelector('.ir-empty');
     const syncEmpty = () => { empty.hidden = !!list.querySelector('.ir-row'); };
     el.querySelector('.ir-add').addEventListener('click', () => {
@@ -1333,8 +1415,35 @@
       .replace(/\S*(?:株式会社|有限会社|合同会社|㈱|[（(]株[）)]|御中)\S*/g, '<社名>')   // 社名・宛名は残さない
       .replace(/\S+\s?(?:様|殿)(?![぀-ゟ一-鿿])/g, '<宛名>')
       .replace(/\b[A-Za-z][\w&.,'-]*(?:\s+[A-Za-z][\w&.,'-]*)*\s+(?:Co\.?,?\s*Ltd\.?|Ltd\.?|Inc\.?|Corp\.?|LLC|GmbH|Pte\.?(?:\s*Ltd\.?)?|Limited)(?![A-Za-z])/gi, '<社名>')
+      .replace(_knownNameRe('co'), '<社名>')   // アプリが知っている社名（サブコン・お客様のマスターと別名・いまの案件のお客様）
+      .replace(_knownNameRe('pp'), '<人名>')   // アプリが知っている人名（いまの案件のご担当者・チームのメンバー）
       .replace(/[0-9０-９]/g, '9')
       .slice(0, 160);
+  }
+  // 伏せる名前の一覧（画面にある候補から作る・30 秒使い回す）。短すぎる名前（漢字 1 字・英字 2 字以下）は伏せない（普通の語を壊さないため）
+  let _knCache = null, _knAt = 0, _knSig = '';
+  function _knownNames() {
+    const gv = id => { const el = typeof document !== 'undefined' && document.getElementById && document.getElementById(id); if (!el) return ''; return el.tagName === 'DATALIST' ? String(el.children.length) : String(el.value || ''); };
+    const sig = [gv('qf-customer'), gv('qf-person'), gv('svSuggestions'), gv('custSuggestions'), _svCtx ? _svCtx.canon : ''].join('|');
+    if (_knCache && sig === _knSig && Date.now() - _knAt < 30000) return _knCache;
+    _knSig = sig;
+    const co = new Set(), pp = new Set();
+    const addList = (id, set) => { const dl = typeof document !== 'undefined' && document.getElementById && document.getElementById(id); if (dl && dl.children) Array.from(dl.children).forEach(o => o && o.value && set.add(String(o.value).trim())); };
+    const addVal = (id, set, split) => { const el = typeof document !== 'undefined' && document.getElementById && document.getElementById(id); const v = el && String(el.value || '').trim(); if (!v) return; set.add(v.replace(/\s*(様|殿|さん)$/, '')); if (split) v.replace(/\s*(様|殿|さん)$/, '').split(/[\s　]+/).forEach(t => set.add(t)); };
+    addList('svSuggestions', co); addList('custSuggestions', co); addVal('qf-customer', co, false);
+    if (_svCtx && _svCtx.canon) co.add(_svCtx.canon);
+    addVal('qf-person', pp, true);
+    try { (typeof window.cloudKnownPeople === 'function' ? window.cloudKnownPeople() : []).forEach(n => { n = String(n || '').trim(); if (!n) return; pp.add(n); n.split(/[\s　]+/).forEach(t => pp.add(t)); }); } catch (_) {}
+    const ok = n => n && (/[^\x00-\x7F]/.test(n) ? n.length >= 2 : n.length >= 3);
+    _knCache = { co: [...co].filter(ok), pp: [...pp].filter(ok) }; _knAt = Date.now();
+    return _knCache;
+  }
+  const _reEsc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  function _knownNameRe(kind) {
+    const list = _knownNames()[kind].slice().sort((a, b) => b.length - a.length);
+    if (!list.length) return /(?!)/;
+    // 英数字の名前は前後が英数字でないときだけ（「ONE」が「PHONE」の中で当たらないように）
+    return new RegExp(list.map(n => /^[\x00-\x7F]+$/.test(n) ? '(?<![A-Za-z0-9])' + _reEsc(n) + '(?![A-Za-z0-9])' : _reEsc(n)).join('|'), 'gi');
   }
   const _unreadSent = new Set();   // このページで送った形（同じ形を何度も送らない）
   let _unreadOff = false;          // 表（関数）が無い環境では以後送らない
@@ -1364,9 +1473,10 @@
       const list = [];
       items.forEach(it => {
         const shape = eiMaskLine(it.shape), hint = eiMaskLine(it.hint || '');
-        const key = it.kind + '|' + shape + '|' + hint;
+        const sv = _svCtx ? String(_svCtx.canon || '').slice(0, 80) : '';   // どのサブコンの書き方か（AI がサブコン別のルール案を作るため）
+        const key = it.kind + '|' + shape + '|' + hint + '|' + sv;
         if (!shape || _fbSent.has(key)) return;
-        _fbSent.add(key); list.push({ kind: it.kind, shape, hint });
+        _fbSent.add(key); list.push(sv ? { kind: it.kind, shape, hint, sv } : { kind: it.kind, shape, hint });
       });
       if (!list.length) return;
       const { error } = await c.rpc('email_feedback_record', { items: list.slice(0, 20) });
