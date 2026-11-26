@@ -369,3 +369,36 @@ html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.ca-row.ca-open 
 html.editor-v2 #tab-quote-make.ca-on .ca-f[data-ca-slot="sv"] { grid-row: 1; grid-column: 1; }
 html.editor-v2 #tab-quote-make.ca-on .ca-f[data-ca-slot="pt"] { grid-row: 1; grid-column: 2 / span 2; }
 html.editor-v2 #tab-quote-make.ca-on .ca-f[data-ca-slot="note"] { grid-row: 2; grid-column: 1; }
+
+/* ===== 明細の下のリマーク行（新画面・2026-11）：線・枠・ラベルを減らし、上の明細に添える「注記」の 1 行に =====
+   ・枠線（上下の青い線・左の太い帯）と背景色をやめ、上の明細とつながって見えるように
+   ・「💬 リマーク」の文字は出さず、項目名の下にそろえた「└」と小さな印だけ
+   ・入力欄はふだん枠なし（文字だけ）・乗せる／入力すると枠
+   ・「見積書に表示／社内メモ」は小さな文字の札（乗せると枠）。社内メモは灰色の文字＋点線の「└」
+   ・選択の ☐・並べ替えの ⠿ は乗せたとき／焦点／選択中だけ */
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row { display: flex !important; align-items: center; min-height: 30px; background: transparent !important; box-shadow: none !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row > td { background: transparent !important; border: 0 !important; box-shadow: none !important; padding-top: 0 !important; padding-bottom: 0 !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row > td.check-cell,
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row > td.remark-drag-cell { visibility: hidden; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row:is(:hover, :focus-within) > td:is(.check-cell, .remark-drag-cell),
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row:has(.row-select-chk:checked) > td.check-cell { visibility: visible; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row > td.remark-row-cell { position: relative; display: flex !important; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; padding-left: 42px !important; padding-right: 8px !important; white-space: nowrap; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row > td.remark-row-cell::before { content: ""; position: absolute; left: 20px; top: 2px; width: 12px; height: 11px; border-left: 1.5px solid #c5ccd6; border-bottom: 1.5px solid #c5ccd6; border-bottom-left-radius: 4px; pointer-events: none; }
+/* 「💬 リマーク」「🔒 社内メモ」の文字は隠し、印だけ（文字は JS が書くので DOM は残す・読み上げ用に title） */
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row .remark-row-marker { font-size: 0 !important; margin: 0 !important; letter-spacing: 0; flex: 0 0 auto; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row .remark-row-marker::before { content: "💬"; font-size: 12px; opacity: .6; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row.remark-internal .remark-row-marker::before { content: "🔒"; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row .remark-row-input { flex: 0 1 560px; width: auto !important; max-width: none !important; min-width: 120px; height: 26px; border: 1px solid transparent !important; border-radius: 6px !important; background: transparent !important; color: #475467 !important; font-size: var(--text-sm, 13px) !important; padding: 0 6px !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row:hover .remark-row-input { border-color: #d0d5dd !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row .remark-row-input:focus { border-color: var(--accent, #2f5fb3) !important; background: #fff !important; color: #1d2939 !important; outline: none; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row .remark-row-input::placeholder { color: #98a2b3; }
+/* 見積書に表示／社内メモ：小さな文字の札（ふだん枠なし・乗せると枠） */
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row .remark-scope-btn { flex: 0 0 auto; margin: 0 !important; height: 22px; padding: 0 8px !important; border: 1px solid transparent !important; border-radius: 11px !important; background: transparent !important; color: #2f5fb3 !important; font-size: 12px !important; font-weight: 600 !important; opacity: .75; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row:is(:hover, :focus-within) .remark-scope-btn { opacity: 1; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row .remark-scope-btn:is(:hover, :focus-visible) { border-color: #c7d4ea !important; background: #f2f6fc !important; }
+/* 社内メモ：文字は灰色・「└」は点線（見積書に出ないことが分かるように） */
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row.remark-internal .remark-row-input { color: #667085 !important; font-style: italic; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row.remark-internal > td.remark-row-cell::before { border-left-style: dashed; border-bottom-style: dashed; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row.remark-internal .remark-scope-btn { color: #667085 !important; }
+html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row.remark-internal .remark-scope-btn:is(:hover, :focus-visible) { border-color: #d0d5dd !important; background: #f2f4f7 !important; }
+@media print { html.editor-v2 #tab-quote-make.ca-on #quoteTable #tableBody > tr.remark-row > td:is(.check-cell, .remark-drag-cell) { visibility: hidden !important; } }

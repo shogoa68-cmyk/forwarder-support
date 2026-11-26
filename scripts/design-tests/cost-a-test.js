@@ -261,6 +261,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => { document.querySelectorAll('#tableBody .row-select-chk:checked').forEach(c => { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); const c = document.querySelectorAll('#tableBody tr.ca-row .row-select-chk')[3]; c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(200);
   ok('1 行だけ選んでいるときは［🔗 統合］は押せない', await p.evaluate(() => document.querySelector('#caSel [data-cs="merge"]').disabled));
   await p.evaluate(() => window.clearRowSelection && window.clearRowSelection()); await p.waitForTimeout(150);
+  // 明細の下のリマーク行：線・枠・ラベルを減らした「注記」の 1 行
+  await p.evaluate(() => { const tr = document.querySelector('#tableBody tr.ca-row'); window.insertRemarkRow(tr.id.replace('row-', ''), { text: '梱包倉庫搬入分のみ', noFocus: true }); window.insertRemarkRow(tr.id.replace('row-', ''), { text: '社内の確認事項', noFocus: true, internal: true }); });
+  await p.waitForTimeout(200);
+  const rmk = await p.evaluate(() => { const rs = [...document.querySelectorAll('#tableBody tr.remark-row')]; const cs = e => getComputedStyle(e); const r = rs.find(x => x.dataset.internal !== '1' && x.querySelector('.remark-row-input').value === '梱包倉庫搬入分のみ'), ri = rs.find(x => x.dataset.internal === '1'); const td = r.querySelector('td.remark-row-cell'), inp = r.querySelector('.remark-row-input'); return { n: rs.length, h: Math.round(r.getBoundingClientRect().height), bt: cs(td).borderTopWidth, bl: cs(r.querySelector('td')).borderLeftWidth, mk: cs(r.querySelector('.remark-row-marker')).fontSize, ib: cs(inp).borderTopColor, chk: cs(r.querySelector('td.check-cell')).visibility, tx: inp.value, it: cs(ri.querySelector('.remark-row-input')).fontStyle, ip: ri.dataset.internal }; });
+  ok('リマーク行：上下の線・左の太い帯なし・高さ 30px 前後', rmk.n >= 2 && rmk.bt === '0px' && rmk.bl === '0px' && rmk.h <= 34, rmk);
+  ok('リマーク行：「リマーク」の文字は出さず印だけ・入力欄はふだん枠なし・☐ は乗せたときだけ', rmk.mk === '0px' && /rgba\(0, 0, 0, 0\)/.test(rmk.ib) && rmk.chk === 'hidden' && rmk.tx === '梱包倉庫搬入分のみ', rmk);
+  ok('社内メモのリマーク行は灰色の斜体（見積書に出ない）', rmk.it === 'italic' && rmk.ip === '1', rmk);
   // 旧い画面に戻すと、元の場所へ戻る
   await p.evaluate(() => window.editorV2Toggle()); await p.waitForTimeout(400);
   ok('旧い画面に戻すと、欄は元の場所（サブコンはカテゴリ欄・課税は課税の列）', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual]):not([data-type])'); return !tr.classList.contains('ca-row') && !!tr.querySelector('td.catsv-cell [data-field="sv"]') && !!tr.querySelector('td.tax-cell [data-field="tx"]') && !!tr.querySelector('td.ccy-cell select[data-field="pc"]') && !tr.querySelector('.ca-name'); }));
