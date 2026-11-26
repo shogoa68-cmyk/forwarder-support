@@ -1938,8 +1938,9 @@
   }
   // ロックを失った（管理者が強制解放 or 他メンバーが引き継ぎ）→ 閲覧モードへ落とす
   function _onLockLost(id) {
-    _dirtyKept = _quoteDirty;   // 未保存の入力は残る。再度「編集」しても未保存の印を消さない
-    const _drafted = _quoteDirty ? _draftSave(id, 'lost') : null;   // 未保存の入力があれば、下書きとしてこの端末に控える
+    const _realDirty = _dirtyNow();   // 中身が開いたときと同じなら、未保存の印を下ろしてから判定する
+    _dirtyKept = _realDirty;   // 未保存の入力は残る。再度「編集」しても未保存の印を消さない
+    const _drafted = _realDirty ? _draftSave(id, 'lost') : null;   // 未保存の入力があれば、下書きとしてこの端末に控える
     _stopLockHeartbeat();
     if (_lockHeldId === id) _lockHeldId = null;
     _setEditing(null);
@@ -1948,8 +1949,9 @@
   }
   // 自分が長時間放置 → 自分でロックを解放して閲覧モードへ（他メンバーが編集できるように）
   function _onSelfIdleRelease(id) {
-    _dirtyKept = _quoteDirty;   // 未保存の入力は残る。再度「編集」しても未保存の印を消さない
-    const _drafted = _quoteDirty ? _draftSave(id, 'idle') : null;   // 未保存の入力があれば、解放と同時に下書きとしてこの端末に控える
+    const _realDirty = _dirtyNow();   // 中身が開いたときと同じなら、未保存の印を下ろしてから判定する
+    _dirtyKept = _realDirty;   // 未保存の入力は残る。再度「編集」しても未保存の印を消さない
+    const _drafted = _realDirty ? _draftSave(id, 'idle') : null;   // 未保存の入力があれば、解放と同時に下書きとしてこの端末に控える
     _stopLockHeartbeat();
     _releaseLock(id);
     if (_lockHeldId === id) _lockHeldId = null;
@@ -2197,8 +2199,53 @@
   // ========== ページ切替（ダッシュボード／エディタ） ==========
   // 未保存検知：編集モード中のユーザー入力で dirty=true、保存/読込/新規でクリア
   var _quoteDirty = false;
-  function _markQuoteDirty() { if (_shareMode === 'edit') _quoteDirty = true; }
-  function _resetQuoteDirty() { _dirtyKept = false; _rowSigQuietUntil = Date.now() + 400; setTimeout(function () { _quoteDirty = false; _rowSig = _calcRowSig(); }, 0); }
+  function _markQuoteDirty() { if (_shareMode === 'edit') { _quoteDirty = true; _dirtyMemo.t = 0; } }
+  function _resetQuoteDirty() {
+    _dirtyKept = false; _rowSigQuietUntil = Date.now() + 400;
+    const gen = ++_dirtyGen;
+    setTimeout(function () {
+      _quoteDirty = false; _rowSig = _calcRowSig(); _dirtyBase = _dirtySnap();
+      // 開いた直後は表の組み立て・正規化などで値が少し動くことがある。1.5 秒のあいだに入力が無ければ、その時点を基準に取り直す
+      setTimeout(function () { if (gen === _dirtyGen && !_quoteDirty) _dirtyBase = _dirtySnap(); }, 1500);
+    }, 0);
+  }
+  // 「未保存の変更がある」の印は、入力・ボタン操作のたびに立てる（軽い）。ただし、開いた（保存した）ときと同じ内容に
+  // 戻っている／行の詳細や貿易条件のボタンを開いただけ、など中身が変わっていないときに確認を出さないよう、
+  // 確認を出す直前に、開いた（保存した）ときの内容（_dirtyBase）と今の内容を比べる。同じなら印を下ろす。
+  // 比べるのは案件の中身だけ（保存日時・グループの開閉・ダッシュボードの検索欄・右の引き出しの入力などは除く）。
+  var _dirtyBase = null, _dirtyGen = 0;
+  const _DIRTY_SKIP_IN = '#qpDashboard, #emailImportModal, #importChooser, .quote-right-col, #sqPanel';
+  function _dirtySnap() {
+    try {
+      if (typeof gatherAllData !== 'function') return null;
+      const d = gatherAllData();
+      const fields = {};
+      Object.keys(d.fields || {}).sort().forEach(k => {
+        const el = document.getElementById(k);
+        if (!el || !el.closest) return;
+        if (!el.closest('#tab-quote-make, #rmSheet')) return;   // 見積の画面の外（ほかのタブ・ダイアログ）の欄は案件の中身ではない
+        if (el.closest(_DIRTY_SKIP_IN)) return;
+        fields[k] = d.fields[k];
+      });
+      return JSON.stringify({ f: fields, r: d.rows, i: d.remarkImages, a: d.subconAliases, m: d.subconRemarks, n: d.groupNotes,
+        x: d.fxSnapshot && d.fxSnapshot.rates });
+    } catch (e) { return null; }
+  }
+  function _dirtyNow() {
+    if (!_quoteDirty) return false;
+    if (_dirtyBase == null) return true;
+    const s = _dirtySnap();
+    if (s != null && s === _dirtyBase) { _quoteDirty = false; _dirtyKept = false; return false; }
+    return true;
+  }
+  let _dirtyMemo = { t: 0, v: false };
+  function _dirtyNowCached() {   // 画面の表示（未保存の点など）から何度も呼ばれるため、0.8 秒は同じ答えを返す
+    if (!_quoteDirty) return false;
+    const now = Date.now();
+    if (now - _dirtyMemo.t < 800) return _dirtyMemo.v;
+    _dirtyMemo = { t: now, v: _dirtyNow() };
+    return _dirtyMemo.v;
+  }
   window.cloudMarkDirty = function () { _markQuoteDirty(); };   // input/change を出さない変更（航路の追加など）から呼ぶ
   // 行の追加・削除・複製・並べ替えは input/change を出さないため、明細の行の並び（id の列）の変化で数える。
   // 案件を開いた直後・新規作成の直後（表を作り直す間）は数えない。
@@ -2210,7 +2257,7 @@
   // ブラウザ標準の confirm は 2 択しか作れず「その場で保存する」導線が作れないため、
   // 専用のモーダルを出す。戻り値 true＝そのまま進んでよい／false＝操作を中止する。
   function _confirmLeaveUnsaved(actionLabel) {
-    if (!(_quoteDirty && _shareMode === 'edit')) return Promise.resolve(true);
+    if (!(_shareMode === 'edit' && _dirtyNow())) return Promise.resolve(true);
     return new Promise(resolve => {
       let ov = document.getElementById('qpLeaveConfirm');
       if (!ov) {
@@ -2272,7 +2319,7 @@
   }
   // 作業中の見積があるか（保存済みの案件を開いている／未保存の入力がある）。ダッシュボードの「作業中の見積に戻る」の出し分け
   window.qpHasWorkingQuote = function () { return !!_loadedCloudId || !!_quoteDirty; };
-  window.quoteIsDirty = function () { return !!_quoteDirty; };
+  window.quoteIsDirty = function () { return _dirtyNowCached(); };
   // 別のタブへ見積を移すとき（未保存の変更が無いときだけ呼ばれる）：編集をやめ、画面を空にしてダッシュボードへ
   window.quoteHandOff = function () { _exitShareEditing(); _clearQuoteForm(); _loadedCloudId = null; _loadedCloudTs = null; _resetQuoteDirty(); qpShowDashboard(); };   // 未保存の変更があるか（見積入力の新画面の作業状態の札が読む）
   function qpShowEditor() {
@@ -4640,7 +4687,7 @@
     window.addEventListener('beforeunload', (e) => {
       // 編集中に未保存の変更があるまま再読込・タブを閉じようとしたら、ブラウザ標準の確認を出す（自動保存は廃止済みで、そのままだと入力が消える）。
       // 実際に離れるとき（pagehide）にロックは解放されるので、ここでは確認を出す場合は解放しない（「このページに留まる」を選んでも編集を続けられる）。
-      if (_quoteDirty && _shareMode === 'edit') { e.preventDefault(); e.returnValue = ''; return; }
+      if (_shareMode === 'edit' && _dirtyNow()) { e.preventDefault(); e.returnValue = ''; return; }
       if (_lockHeldId) _dropLock();
     });
     const c = _getClient();
