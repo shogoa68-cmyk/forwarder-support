@@ -322,8 +322,8 @@
     if (tabs) tabs.querySelectorAll('.rm-tab').forEach(t => { const c = /(\d+)/.exec(txt(t.querySelector('.rm-count'))); const zero = !c || +c[1] === 0; const pop = t.dataset.rt === 'popular'; t.classList.toggle('sb-zero', (zero && t.dataset.rt !== 'preset') || pop); });
     // 入っている定型文のチップ
     let chips = $('sbRmChips');
-    if (!chips) { chips = document.createElement('div'); chips.id = 'sbRmChips'; chips.dataset.sbNew = '1'; chips.className = 'sb-rm-chips'; chips.addEventListener('click', e => { const x = e.target.closest('[data-i]'); if (!x) return; const b = (btns ? [...btns.querySelectorAll('.preset-btn.active')] : [])[+x.dataset.i]; if (b) b.click(); setTimeout(refresh, 30); }); }
-    const act = btns ? [...btns.querySelectorAll('.preset-btn.active')] : [];
+    if (!chips) { chips = document.createElement('div'); chips.id = 'sbRmChips'; chips.dataset.sbNew = '1'; chips.className = 'sb-rm-chips'; chips.addEventListener('click', e => { const x = e.target.closest('[data-i]'); if (!x) return; const b = (btns ? [...btns.querySelectorAll('.preset-btn.active:not(.preset-btn-suggest)')] : [])[+x.dataset.i]; if (b) b.click(); setTimeout(refresh, 30); }); }
+    const act = btns ? [...btns.querySelectorAll('.preset-btn.active:not(.preset-btn-suggest)')] : [];
     const h = act.map((b, i) => '<span class="sb-chip">' + esc(txt(b).replace(/✕$/, '').trim()) + '<button type="button" data-i="' + i + '" aria-label="外す" title="この定型文を外す">✕</button></span>').join('');
     if (chips.dataset.h !== h) { chips.dataset.h = h; chips.innerHTML = h; }
     chips.hidden = !act.length;

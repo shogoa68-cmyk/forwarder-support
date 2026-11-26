@@ -25,7 +25,8 @@
   // 長い定型文（複数行）から先に置換する
   function translateRemarkToEn(text) {
     let out = String(text == null ? '' : text);
-    PRESETS.concat(_allBuiltinCargoRemarks()).filter(p => p.en).sort((a, b) => b.text.length - a.text.length)
+    PRESETS.concat(_allBuiltinCargoRemarks(), (typeof _sharedRemarkPresets !== 'undefined' ? _sharedRemarkPresets : []), getUserRemarkPresets(), getUserCargoRemarks())
+      .filter(p => p && p.en && p.text).sort((a, b) => b.text.length - a.text.length)
       .forEach(p => { if (out.includes(p.text)) out = out.split(p.text).join(p.en); });
     return out;
   }
@@ -194,10 +195,19 @@
 
   // cargo_type 列がまだ作成されていない環境（docs/sql/remark-presets-cargo-verify.sql
   // 未実行）でも、既存の共有プリセット機能自体は壊さずに動くようフォールバックする
+  let _rpCondCols = null;   // conditions／en 列があるか（docs/sql/remark-presets-conditions.sql 実行済みか）。null＝未判定
+  window.rpCondColsReady = () => _rpCondCols === true;
+  window.rpCondColsState = () => _rpCondCols;   // true＝列あり／false＝SQL 未実行／null＝まだ読んでいない
   async function _fetchRemarkPresets(c) {
     let { data, error } = await c.from('remark_presets')
-      .select('id, label, text, use_count, created_by, created_at, cargo_type')
+      .select('id, label, text, use_count, created_by, created_at, cargo_type, conditions, en')
       .order('use_count', { ascending: false });
+    _rpCondCols = !error;
+    if (error && /conditions|\ben\b|column/i.test(error.message || '')) {
+      ({ data, error } = await c.from('remark_presets')
+        .select('id, label, text, use_count, created_by, created_at, cargo_type')
+        .order('use_count', { ascending: false }));
+    }
     if (error && /cargo_type/i.test(error.message || '')) {
       ({ data, error } = await c.from('remark_presets')
         .select('id, label, text, use_count, created_by, created_at')
@@ -277,29 +287,57 @@
   // まとめた（bmAddModal と同じ .bm-modal-* / .bm-form-* を流用）。
   // _rpModalScope: 'shared' | 'user' | { cargoType, cargoLabel }
   let _rpModalScope = null;
+  // 直すとき：{ kind:'shared'|'user'|'cargoLocal', id, label, type }（null＝新しく足す）
+  let _rmpEdit = null;
 
-  function _openRemarkPresetModal(scope, title, labelPlaceholder) {
+  // scope: 'shared' | 'user' | 'any'（共有か個人かをその場で選ぶ）| { cargoType, cargoLabel }
+  // opts: { label, text, cond, en, edit }
+  function _openRemarkPresetModal(scope, title, labelPlaceholder, opts) {
+    opts = opts || {};
     _rpModalScope = scope;
+    _rmpEdit = opts.edit || null;
     const titleEl = document.getElementById('rpModalTitle');
     if (titleEl) titleEl.textContent = title;
     const labelEl = document.getElementById('rpFormLabel');
     const textEl  = document.getElementById('rpFormText');
-    if (labelEl) { labelEl.value = ''; labelEl.placeholder = labelPlaceholder || '例：📄 特別条件'; }
-    // 品物別リマークの追加時だけ、保存先（共有／個人）の選択を出す。未ログインは個人固定
+    if (labelEl) { labelEl.value = opts.label || ''; labelEl.placeholder = labelPlaceholder || '例：📄 特別条件'; }
+    // 保存先（共有／個人）の選択は、品物別リマークの追加と「選んだ文をプリセットにする」のときだけ出す。未ログインは個人固定
     const isCargo = !!(scope && typeof scope === 'object' && scope.cargoType);
+    const choose = (isCargo || scope === 'any') && !_rmpEdit;
     const loggedIn = !!(window.quoteCloudUser && window.quoteCloudUser());
     const destRow = document.getElementById('rpDestRow');
     const personal = document.getElementById('rpFormPersonal');
-    if (destRow) destRow.hidden = !isCargo;
-    if (personal) { personal.checked = isCargo && !loggedIn; personal.disabled = !loggedIn; }
-    if (textEl) textEl.value = '';
+    if (destRow) destRow.hidden = !choose;
+    if (personal) { personal.checked = choose && !loggedIn; personal.disabled = !loggedIn; }
+    if (textEl) textEl.value = opts.text || '';
+    if (window.rsFormSet) window.rsFormSet(opts.cond || null, opts.en || '', { shared: !_rmpEdit ? scope !== 'user' : _rmpEdit.kind === 'shared' });
     document.getElementById('remarkPresetModal')?.classList.add('open');
-    setTimeout(() => labelEl?.focus(), 50);
+    setTimeout(() => (opts.label ? textEl : labelEl)?.focus(), 50);
   }
   function closeRemarkPresetModal(ev) {
     if (ev && ev.target.id !== 'remarkPresetModal') return;
     document.getElementById('remarkPresetModal')?.classList.remove('open');
+    _rmpEdit = null;
   }
+  // 外から開く入口（remark-suggest.js の「選んだ文をプリセットにする」「候補からプリセットにする」）
+  window.rpOpenWith = function (o) {
+    o = o || {};
+    _openRemarkPresetModal('any', '⭐ リマークをプリセットにする', '例：🇮🇳 インド向け書類', { label: o.label || '', text: o.text || '', cond: o.cond || null, en: o.en || '' });
+  };
+  // ✎：プリセットを直す（標準の定型文は直せない）
+  function editRemarkPreset(p) {
+    if (!p) return;
+    let edit = null;
+    if (p._user) edit = { kind: 'user', label: p.label };
+    else if (p._cargoLocal) edit = { kind: 'cargoLocal', label: p.label, type: p._cargoKey };
+    else if (p.id) edit = { kind: 'shared', id: p.id, label: p.label };
+    if (!edit) return;
+    const cond = p.cond || p.conditions || null;
+    _openRemarkPresetModal(edit.kind === 'shared' ? 'shared' : 'user', '✎ プリセットを直す', '', { label: p.label, text: p.text, cond, en: p.en || '', edit });
+  }
+  window.editRemarkPreset = editRemarkPreset;
+
+  const _isCondColErr = m => /conditions|column .*\ben\b|\ben\b.*column|schema cache/i.test(m || '');
 
   async function saveRemarkPresetModal() {
     const label = (document.getElementById('rpFormLabel')?.value || '').trim();
@@ -307,27 +345,60 @@
     if (!label) { quoteShowToast('⚠️ ラベル名を入力してください', 'warn'); return; }
     if (!text)  { quoteShowToast('⚠️ 本文を入力してください', 'warn'); return; }
     const scope = _rpModalScope;
+    const ex = window.rsFormGet ? window.rsFormGet() : { cond: null, en: '' };
+    const cond = ex.cond || null, en = (ex.en || '').trim();
+    const done = (msg) => { renderRemarkPresets(); quoteShowToast(msg, 'success'); closeRemarkPresetModal(); };
 
-    // 品物別リマーク：個人（この端末）に保存
-    if (scope && typeof scope === 'object' && scope.cargoType && document.getElementById('rpFormPersonal')?.checked) {
-      const arr = getUserCargoRemarks();
-      if (arr.some(r => r.type === scope.cargoType && r.label === label)) { quoteShowToast('⚠️ 同名のラベルが既にあります', 'warn'); return; }
-      arr.push({ type: scope.cargoType, label, text });
-      localStorage.setItem(USER_CARGO_REMARKS_KEY, JSON.stringify(arr));
+    // ---- 直す ----
+    if (_rmpEdit) {
+      const e = _rmpEdit;
+      if (e.kind === 'user') {
+        const arr = getUserRemarkPresets();
+        if (label !== e.label && arr.some(x => x.label === label)) { quoteShowToast('⚠️ 同名のラベルが既にあります', 'warn'); return; }
+        const i = arr.findIndex(x => x.label === e.label); if (i < 0) { quoteShowToast('⚠️ 見つかりませんでした', 'warn'); return; }
+        arr[i] = { ...arr[i], label, text, cond, en };
+        saveUserRemarkPresets(arr); done(`✅ 「${label}」を直しました`); return;
+      }
+      if (e.kind === 'cargoLocal') {
+        const arr = getUserCargoRemarks();
+        const i = arr.findIndex(x => x.type === e.type && x.label === e.label); if (i < 0) { quoteShowToast('⚠️ 見つかりませんでした', 'warn'); return; }
+        arr[i] = { ...arr[i], label, text, cond, en };
+        localStorage.setItem(USER_CARGO_REMARKS_KEY, JSON.stringify(arr)); done(`✅ 「${label}」を直しました（個人）`); return;
+      }
+      const c = window.quoteCloudClient && window.quoteCloudClient();
+      if (!c) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+      let { error } = await c.from('remark_presets').update({ label, text, conditions: cond, en: en || null }).eq('id', e.id);
+      let warn = '';
+      if (error && _isCondColErr(error.message)) {
+        ({ error } = await c.from('remark_presets').update({ label, text }).eq('id', e.id));
+        warn = '（おすすめの条件・英文は保存できませんでした：docs/sql/remark-presets-conditions.sql が未実行です）';
+      }
+      if (error) { quoteShowToast('⚠️ 保存に失敗しました：' + (error.message || ''), 'warn', 8000); return; }
+      const p = _sharedRemarkPresets.find(x => x.id === e.id);
+      if (p) Object.assign(p, { label, text }, warn ? {} : { conditions: cond, en: en || null });
       renderRemarkPresets();
-      quoteShowToast(`✅ 「${label}」を「${scope.cargoLabel}」に追加しました（個人）`, 'success');
+      quoteShowToast(`✅ 「${label}」を直しました${warn}`, warn ? 'warn' : 'success', warn ? 9000 : 3000);
       closeRemarkPresetModal();
       return;
     }
 
-    if (scope === 'user') {
+    const personalChecked = !!document.getElementById('rpFormPersonal')?.checked;
+    // 品物別リマーク：個人（この端末）に保存
+    if (scope && typeof scope === 'object' && scope.cargoType && personalChecked) {
+      const arr = getUserCargoRemarks();
+      if (arr.some(r => r.type === scope.cargoType && r.label === label)) { quoteShowToast('⚠️ 同名のラベルが既にあります', 'warn'); return; }
+      arr.push({ type: scope.cargoType, label, text, cond, en });
+      localStorage.setItem(USER_CARGO_REMARKS_KEY, JSON.stringify(arr));
+      done(`✅ 「${label}」を「${scope.cargoLabel}」に追加しました（個人）`);
+      return;
+    }
+
+    if (scope === 'user' || (scope === 'any' && personalChecked)) {
       const arr = getUserRemarkPresets();
       if (arr.some(p => p.label === label)) { quoteShowToast('⚠️ 同名のラベルが既にあります', 'warn'); return; }
-      arr.push({ label, text });
+      arr.push({ label, text, cond, en });
       saveUserRemarkPresets(arr);
-      renderRemarkPresets();
-      quoteShowToast(`✅ 「${label}」を追加しました`, 'success');
-      closeRemarkPresetModal();
+      done(`✅ 「${label}」を追加しました（個人）`);
       return;
     }
 
@@ -337,7 +408,15 @@
     const cargoType = (scope && scope.cargoType) || null;
     const payload = { label, text, use_count: 0, created_by: user.email };
     if (cargoType) payload.cargo_type = cargoType;
-    const { data, error } = await c.from('remark_presets').insert(payload).select().single();
+    if (cond) payload.conditions = cond;
+    if (en) payload.en = en;
+    let { data, error } = await c.from('remark_presets').insert(payload).select().single();
+    let warn = '';
+    if (error && (cond || en) && _isCondColErr(error.message)) {
+      delete payload.conditions; delete payload.en;
+      ({ data, error } = await c.from('remark_presets').insert(payload).select().single());
+      warn = '（おすすめの条件・英文は保存できませんでした：docs/sql/remark-presets-conditions.sql が未実行です）';
+    }
     if (error) {
       const m = error.message || '不明なエラー';
       const msg = cargoType && /cargo_type/i.test(m)
@@ -348,9 +427,9 @@
     }
     _sharedRemarkPresets.push(data);
     renderRemarkPresets();
-    quoteShowToast(cargoType
+    quoteShowToast((cargoType
       ? `✅ 「${label}」を「${scope.cargoLabel}」の推奨リマークに追加しました`
-      : `✅ 「${label}」を共有プリセットに追加しました`, 'success');
+      : `✅ 「${label}」を共有プリセットに追加しました`) + warn, warn ? 'warn' : 'success', warn ? 9000 : 3000);
     closeRemarkPresetModal();
   }
 
@@ -399,7 +478,7 @@
     const promoted = general.filter(p => p.use_count >= 5).map(p => ({ ...p, _promoted: true, _shared: true }));
     const shared   = general.filter(p => p.use_count < 5).map(p => ({ ...p, _shared: true }));
     const cargoAll = getCargoTypeItems(_selectedCargoType());   // 「品物別リマーク」で選択中の区分のみ
-    return [...cargoAll, ...PRESETS, ...promoted, ...shared, ...getUserRemarkPresets().map(p => ({ ...p, _user: true }))];
+    return [..._lastSug, ...cargoAll, ...PRESETS, ...promoted, ...shared, ...getUserRemarkPresets().map(p => ({ ...p, _user: true }))];
   }
 
   function initRemarks() {
@@ -424,10 +503,30 @@
     });
   }
 
+  // 🎯 おすすめに出す候補（描画した時点の並びを保つ＝ボタンの番号と getAllRemarkPresets() の番号をそろえる）
+  let _lastSug = [];
+  // おすすめの判定に使う全プリセット（標準・品物別の標準・共有・個人・個人の品物別）。印（_shared など）は描画と同じ
+  function _rsPool() {
+    const out = [];
+    PRESETS.forEach(p => out.push({ ...p, _std: true }));
+    CARGO_TYPE_DEFS.forEach(d => (d.builtin || []).forEach(p => out.push({ ...p, _cargoType: true, _builtin: true, _cargoKey: d.key })));
+    _sharedRemarkPresets.forEach(p => out.push(p.cargo_type ? { ...p, _cargoType: true, _cargoKey: p.cargo_type } : { ...p, _shared: true }));
+    getUserRemarkPresets().forEach(p => out.push({ ...p, _user: true }));
+    getUserCargoRemarks().forEach(r => out.push({ label: r.label, text: r.text, cond: r.cond, en: r.en, _cargoType: true, _cargoLocal: true, _cargoKey: r.type }));
+    return out;
+  }
+  window.rsPresetPool = _rsPool;
+  window.rsCargoTypes = () => getAllCargoTypes().map(d => ({ key: d.key, label: d.label, keywords: d.keywords || [] }));
+  window.rsCargoNow = () => {   // いまの見積の品物の区分（選択中＋品名に合うもの）
+    const keys = new Set(); const sel = _selectedCargoType(); if (sel) keys.add(sel);
+    getAllCargoTypes().forEach(d => { if (_cargoTypeMatches(d)) keys.add(d.key); });
+    return [...keys];
+  };
   function renderRemarkPresets() {
     const wrap = document.getElementById('presetBtns');
     if (!wrap) return;
     wrap.innerHTML = '';
+    try { _lastSug = window.rsSuggest ? window.rsSuggest(_rsPool()) : []; } catch (e) { _lastSug = []; }
     const all = getAllRemarkPresets();
     const isLoggedIn = !!(window.quoteCloudUser && window.quoteCloudUser());
 
@@ -452,6 +551,14 @@
       lbl.textContent = p.label;
       btn.appendChild(lbl);
       if (p._cargoType && p.id && !p._builtin) btn.appendChild(_remarkVerifyBadge(p.id));
+      if (window.rsHasCond && window.rsHasCond(p)) { const m = document.createElement('span'); m.className = 'preset-btn-cond'; m.textContent = '🎯'; m.title = 'おすすめの条件：' + (window.rsCondText ? window.rsCondText(p) : ''); btn.appendChild(m); }
+      if ((p._user || p._cargoLocal || ((p._shared || p._cargoType) && p.id)) && !p._builtin) {
+        const e = document.createElement('span');
+        e.className = 'preset-btn-edit'; e.textContent = '✎';
+        e.title = 'ラベル・本文・おすすめの条件・英文を直す';
+        e.onclick = (ev) => { ev.stopPropagation(); editRemarkPreset(p); };
+        btn.appendChild(e);
+      }
       if (p._user) {
         const x = document.createElement('span');
         x.className = 'preset-btn-del'; x.textContent = '✕';
@@ -480,6 +587,19 @@
     }
 
     let idx = 0;
+
+    // ⓪' 🎯 おすすめ（この見積の条件に合うもの・似た条件でよく使われるもの＝remark-suggest.js）
+    const sug = _lastSug;
+    if (sug.length) {
+      addTierLabel('おすすめ（この見積の条件）');
+      for (const p of sug) {
+        const b = makeBtn(p, idx++); b.classList.add('preset-btn-suggest');
+        b.querySelectorAll('.preset-btn-del, .preset-btn-edit').forEach(x => x.remove());   // 消す・直すは元の場所（共有・個人のタブ）で
+        if (p._why) { const w = document.createElement('span'); w.className = 'preset-btn-why'; w.textContent = p._whyShort || ''; if (w.textContent) b.appendChild(w); b.title = p._why + '\n\n' + p.text; }
+        wrap.appendChild(b);
+      }
+    }
+    wrap.dataset.rsSig = window.rsSignature ? window.rsSignature() : '';
 
     // ⓪ 品物別リマーク（プルダウンで選んだ区分のぶんだけ表示）
     const selKey = _selectedCargoType();
@@ -577,8 +697,10 @@
       ta.value = cur ? cur + '\n' + text : text;
       btn.classList.add('active');
       if (preset._shared && preset.id) _incrementSharedRemarkUseCount(preset.id);
+      if (window.rsRecordUse) { try { window.rsRecordUse(preset); } catch (e) {} }
     }
     _remarkChanged(ta);
+    syncRemarkChips();   // 同じ文のボタン（🎯 おすすめと元のタブ）をそろえて点灯・消灯
   }
 
   function clearRemark() {
@@ -595,6 +717,7 @@
       `${document.getElementById('remarkTextarea').value.length}文字`;
   }
   window.updateRemarkChar = updateRemarkChar;
+  window.renderRemarkPresets = renderRemarkPresets;
   window.loadSharedRemarkPresets = loadSharedRemarkPresets;
 
   // テキストエリアの内容を基準にチップの active 状態を同期する。

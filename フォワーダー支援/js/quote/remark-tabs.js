@@ -3,10 +3,11 @@
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
-  const TABS = [['cargo', '品物別'], ['preset', '定型文'], ['line', '区切り線'], ['popular', 'チーム人気 ⭐'], ['shared', 'チーム共有 ☁️'], ['personal', '個人']];
-  let active = 'preset', hadCargo = false, busy = false, wrap = null, bar = null;
+  const TABS = [['suggest', '🎯 おすすめ'], ['cargo', '品物別'], ['preset', '定型文'], ['line', '区切り線'], ['popular', 'チーム人気 ⭐'], ['shared', 'チーム共有 ☁️'], ['personal', '個人']];
+  let active = 'preset', hadCargo = false, hadSug = false, busy = false, wrap = null, bar = null;
 
   function groupOf(label) {
+    if (/^おすすめ/.test(label)) return 'suggest';
     if (/品物別リマーク/.test(label)) return 'cargo';
     if (/^区切り線/.test(label)) return 'line';
     if (/^チーム人気/.test(label)) return 'popular';
@@ -21,17 +22,22 @@
       let cur = 'preset', inCargo = false;
       kids.forEach(k => {
         if (k.classList.contains('preset-tier-label')) { cur = groupOf(k.textContent.trim()); inCargo = cur === 'cargo'; k.dataset.rt = cur; k.classList.add('rt-label'); return; }
+        if (cur === 'suggest' && !k.classList.contains('preset-btn-suggest')) cur = 'preset';   // おすすめの後ろ（見出しの無い標準の定型文）は「定型文」へ
         k.dataset.rt = cur;
         if (!k.classList.contains('preset-btn-add')) counts[cur]++;
         if (inCargo && k.classList.contains('preset-btn-add')) { inCargo = false; cur = 'preset'; }   // 品物別の「＋追加」まで。続く標準の定型文は「定型文」へ
       });
       const hasCargo = kids.some(k => k.dataset.rt === 'cargo');
+      const hasSug = kids.some(k => k.dataset.rt === 'suggest' && !k.classList.contains('preset-tier-label'));
       if (hasCargo && !hadCargo) active = 'cargo';
+      if (hasSug && !hadSug) active = 'suggest';   // おすすめが出たら先に見せる（自分で選び直したタブはそのまま）
       if (!hasCargo && active === 'cargo') active = 'preset';
-      hadCargo = hasCargo;
+      if (!hasSug && active === 'suggest') active = hasCargo ? 'cargo' : 'preset';
+      hadCargo = hasCargo; hadSug = hasSug;
       bar.innerHTML = '';
       TABS.forEach(([key, label]) => {
         if (key === 'cargo' && !hasCargo) return;
+        if (key === 'suggest' && !hasSug) return;
         const b = document.createElement('button'); b.type = 'button'; b.className = 'rm-tab' + (active === key ? ' is-on' : ''); b.dataset.rt = key;
         b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', active === key ? 'true' : 'false');
         b.innerHTML = label + ' <span class="rm-count">' + counts[key] + '</span>';
