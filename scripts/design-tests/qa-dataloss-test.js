@@ -182,6 +182,23 @@ const mk = (id, cust, extra) => ({ id, name: '案件' + id, status: '下書き�
   });
   ok('⑧ 数量が空の行の表示条件は「判定できません」', r8 === 'unknown', r8);
 
+  // ⑨ 中身が変わっていないときは「保存していない変更があります」を出さない（開いた直後の表の組み立て・行のボタンを開いただけ・元に戻した）
+  await p.evaluate(() => window.cloudSaveCurrent({ stay: true })); await p.waitForTimeout(900);
+  await openEdit('c1'); await p.waitForTimeout(1800);
+  await p.evaluate(() => { const b = document.querySelector('#tableBody .ic-mode-btn'); b && b.click(); }); await p.waitForTimeout(300);
+  await p.evaluate(() => { const b = document.querySelector('#tableBody .ic-mode-btn'); b && b.click(); }); await p.waitForTimeout(300);
+  ok('⑨ 行の「貿易条件」ボタンを開いて閉じただけなら未保存にしない', !(await dirty()));
+  const nm9 = 'qf-person';
+  if (nm9) {
+    const v0 = await p.evaluate(id => document.getElementById(id).value, nm9);
+    await p.evaluate(id => { const el = document.getElementById(id); el.value = el.value + 'X'; el.dispatchEvent(new Event('input', { bubbles: true })); }, nm9); await p.waitForTimeout(300);
+    ok('⑨ ご担当者を書き換えると未保存になる', await dirty());
+    await p.evaluate(([id, v]) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }, [nm9, v0]); await p.waitForTimeout(1000);
+    ok('⑨ 元の文字に戻せば未保存の扱いにしない（確認を出さない）', !(await dirty()));
+  }
+  await p.evaluate(() => { window.cloudLoadPreset('c2'); }); await p.waitForTimeout(900);
+  ok('⑨ 中身が変わっていなければ、別の案件を開いても確認を出さない', !(await p.evaluate(() => document.getElementById('qpLeaveConfirm')?.classList.contains('open'))));
+
   ok('ページエラーなし', p.__errs.length === 0, p.__errs);
   await H.close();
   console.log(fails ? fails + ' 件 FAIL' : '全項目 PASS');

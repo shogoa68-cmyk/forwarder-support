@@ -250,7 +250,7 @@
     $('qpHint').textContent = cur < 0 ? HINTS[5] : (cur === 0 ? (noName ? HINTS[0] : HINTS[1]) : HINTS[cur + 1]);
   }
   window.uiGuideGo = function (n) {
-    if (n === 4) { if (typeof window.openPreview === 'function') window.openPreview(); return; }
+    if (n === 4) { const f = window.openQuotePreview || window.openPreview; if (typeof f === 'function') f(); return; }
     const el = $({ 1: 'section-cond', 2: 'section-cargo', 3: 'section-table' }[n]);
     if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };

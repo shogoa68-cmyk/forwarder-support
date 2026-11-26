@@ -227,3 +227,17 @@ html.editor-v2 #tab-quote-make .qrc-drawer { height: auto; min-height: 0; }
 /* ❓（困ったとき）はレールの下端（レールの一部として・44px の丸）。引き出しの外に浮かばない */
 #tab-quote-make #qrcRail > #fbQuickFab.fb-in-rail { position: static; right: auto; bottom: auto; width: 44px; height: 44px; margin: 8px 0 2px; line-height: 42px; font-size: 20px; opacity: 1; flex: 0 0 auto; z-index: auto; border-color: var(--rr-line); color: var(--rr-ink-2); }
 #tab-quote-make #qrcRail > #fbQuickFab.fb-in-rail:hover { background: var(--rr-face); transform: none; }
+
+/* サブコン：入力中のサブコンの過去の明細（🎯 絞り込みの札・「入力中のサブコンに合わせる」） */
+#tab-quote-make .si-focus-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
+#tab-quote-make .si-focus-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 4px 4px 4px 10px; border-radius: 999px;
+  background: var(--rr-pri-50); border: 1px solid var(--rr-pri); color: var(--rr-pri); font-size: var(--text-sm, 13px); }
+#tab-quote-make .si-focus-chip b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+#tab-quote-make .si-focus-x { width: 24px; height: 24px; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; font-size: 12px; line-height: 1; }
+#tab-quote-make .si-focus-x:hover { background: var(--rr-pri-200); }
+#tab-quote-make .si-follow { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs, 12px); color: var(--rr-ink-2); cursor: pointer; }
+#tab-quote-make .si-focus-clear-btn { margin-top: 10px; padding: 6px 12px; border: 1px solid var(--rr-line); border-radius: 6px; background: var(--surface, #fff); color: var(--rr-ink-2); cursor: pointer; font-size: var(--text-sm, 13px); }
+@media (pointer: coarse), (max-width: 600px) {
+  #tab-quote-make .si-focus-x { width: 36px; height: 36px; }
+  #tab-quote-make .si-follow input { width: 20px; height: 20px; }
+}

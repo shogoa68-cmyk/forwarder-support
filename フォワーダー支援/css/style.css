@@ -6546,3 +6546,16 @@ html.theme-quiet #sqPanel { --sq-pri: var(--q-accent, #2f5fb3); --sq-pri-50: var
   .mpk-go, .mpk-x { min-height: 44px; }
   .mpk-ft { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* ===== AI からのルールの案（メール取込・サブコン別／2026-11）===== */
+.ei-props { margin: 8px 0; padding: 8px 10px; border: 1px solid #c9d7f2; background: #f4f7fd; border-radius: 8px; }
+.ei-props[hidden] { display: none; }
+.ei-props-h { font-size: var(--text-sm, 13px); font-weight: 700; margin-bottom: 6px; }
+.ei-props-h span { display: block; font-weight: 400; font-size: var(--text-xs, 12px); color: #57606a; }
+.ei-prop { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 6px 0; border-top: 1px solid #dde5f4; font-size: var(--text-sm, 13px); }
+.ei-prop-k { font-size: var(--text-xs, 12px); background: #fff; border: 1px solid #c9d7f2; border-radius: 10px; padding: 1px 8px; }
+.ei-prop-v { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.ei-prop-r { flex-basis: 100%; font-size: var(--text-xs, 12px); color: #57606a; }
+.ei-prop button { min-height: 30px; padding: 2px 12px; border-radius: 6px; border: 1px solid #98a2b3; background: #fff; cursor: pointer; }
+.ei-prop .ei-prop-ok { background: #2f5fb3; border-color: #2f5fb3; color: #fff; }
+.ei-prop button:disabled { opacity: .5; cursor: default; }

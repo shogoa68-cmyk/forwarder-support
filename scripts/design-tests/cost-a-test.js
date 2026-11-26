@@ -41,8 +41,12 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.keyboard.press('Escape');
   // 行の詳細
   await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[1].querySelector('td.qty-cell').click()); await p.waitForTimeout(200);
+  ok('行の詳細：行の何もない所を押しても開かない', await p.evaluate(() => !document.querySelectorAll('#tableBody tr.ca-row')[1].classList.contains('ca-open')));
+  await p.evaluate(() => { const tr = document.querySelectorAll('#tableBody tr.ca-row')[1]; tr.focus(); tr.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }); await p.waitForTimeout(150);
+  ok('行の詳細：行で Enter を押しても開かない', await p.evaluate(() => !document.querySelectorAll('#tableBody tr.ca-row')[1].classList.contains('ca-open')));
+  await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[1].querySelector('[data-ca="tog"]').click()); await p.waitForTimeout(200);
   const d = await p.evaluate(() => { const tr = document.querySelectorAll('#tableBody tr.ca-row')[1]; const pn = tr.querySelector('.row-detail-panel'); const v = s => { const e = pn.querySelector(s); return !!e && !!e.getClientRects().length; }; return { open: tr.classList.contains('ca-open'), w: Math.round(pn.getBoundingClientRect().width), tw: Math.round(document.getElementById('tableBody').getBoundingClientRect().width), title: pn.querySelector('.ca-dtitle').textContent, note: v('[data-field="nt"]'), cat: v('select.w-cat'), tax: v('[data-field="tx"]'), bc: v('select[data-field="bc"]'), chips: [...pn.querySelectorAll('.ca-chip[data-ca-q]')].map(x => x.textContent), more: pn.querySelector('.ca-dmore').hidden }; });
-  ok('行の詳細：行の何もない所を押すと、行の下に全幅で開く', d.open && d.w >= d.tw - 4, d);
+  ok('行の詳細：［▸ 詳細］を押すと、行の下に全幅で開く', d.open && d.w >= d.tw - 4, d);
   ok('行の詳細：見出し「THC の詳細」・備考／カテゴリ／課税／売の通貨', d.title === 'THC の詳細' && d.note && d.cat && d.tax && d.bc, d);
   ok('行の詳細：単価の扱い［0円で載せる］［MIN］［幅］［%］＋［さらに ▾］（閉じている）', JSON.stringify(d.chips) === JSON.stringify(['0円で載せる', 'MIN', '幅', '%']) && d.more, d.chips);
   await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[1].querySelector('[data-ca="more"]').click()); await p.waitForTimeout(100);
@@ -237,6 +241,33 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const r = y('mcs-pq') < y('mcs-pp') && y('mcs-pp') < y('mcs-mk') && y('mcs-mk') < y('mcs-bp') && y('mcs-bp') < y('mcs-nt') && y('mcs-nt') < y('mcs-cat');
     document.getElementById('mcsDone').click(); return r; }));
   await p.setViewportSize({ width: 1440, height: 900 }); await p.waitForTimeout(500);
+  // ↓ 統合などで明細の中身が変わるため、ほかの確認が済んだあとで行う
+  await p.evaluate(() => { document.querySelectorAll('#tableBody .row-select-chk:checked').forEach(c => { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); [...document.querySelectorAll('#tableBody tr.ca-row .row-select-chk')].slice(0, 2).forEach(c => { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }); }); await p.waitForTimeout(250);
+  // 旧画面の選択バーにあった操作（統合・保持・貼付・一括設定）
+  ok('帯に［🔗 統合］［⋯ そのほか］・2 行選択中は統合を押せる', await p.evaluate(() => { const m = document.querySelector('#caSel [data-cs="merge"]'), o = document.querySelector('#caSel [data-cs="more"]'); return !!m && !!m.getClientRects().length && !m.disabled && !!o && !!o.getClientRects().length; }));
+  await p.evaluate(() => document.querySelector('#caSel [data-cs="more"]').click()); await p.waitForTimeout(150);
+  const sm = await p.evaluate(() => [...document.querySelectorAll('.ca-menu .ca-mi')].map(x => x.textContent));
+  ok('［⋯ そのほか］：保持・貼り付け・カテゴリ／通貨／単位／乗せ幅をまとめて変える', ['保持', '貼り付け', 'カテゴリ', '通貨', '単位', '乗せ幅'].every(k => sm.some(t => t.includes(k))), sm);
+  await p.evaluate(() => [...document.querySelectorAll('.ca-menu .ca-mi')].find(x => /単位をまとめて/.test(x.textContent)).click()); await p.waitForTimeout(150);
+  await p.fill('.ca-move-in', 'CBM'); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
+  ok('単位をまとめて変える：選んだ 2 行の単位が CBM に', await p.evaluate(() => [...document.querySelectorAll('#tableBody tr.ca-row')].filter(tr => tr.querySelector('.row-select-chk').checked).every(tr => tr.querySelector('[data-field="un"]').value === 'CBM')));
+  await p.evaluate(() => document.querySelector('#caSel [data-cs="more"]').click()); await p.waitForTimeout(150);
+  await p.evaluate(() => [...document.querySelectorAll('.ca-menu .ca-mi')].find(x => /カテゴリをまとめて/.test(x.textContent)).click()); await p.waitForTimeout(150);
+  const catPick = await p.evaluate(() => { const b = [...document.querySelectorAll('.ca-menu .ca-mi')].filter(x => !x.disabled); const opt = [...document.getElementById('bulkCatSet').options].find(o => o.value && o.value !== '__none__' && o.textContent.trim() === b[b.length - 1].textContent); b[b.length - 1].click(); return opt ? opt.value : null; });
+  await p.waitForTimeout(300);
+  ok('カテゴリをまとめて変える：選んだ 2 行のカテゴリが変わる', !!catPick && await p.evaluate(v => [...document.querySelectorAll('#tableBody tr.ca-row')].filter(tr => tr.querySelector('.row-select-chk').checked).every(tr => tr.querySelector('select.w-cat').value === v), catPick), catPick);
+  await p.evaluate(() => document.querySelector('#caSel [data-cs="merge"]').click()); await p.waitForTimeout(500);
+  ok('［🔗 統合］：2 行が 1 行にまとまる（2 行目は統合済みの印）', await p.evaluate(() => document.querySelectorAll('#tableBody tr[data-merged-into]').length === 1));
+  await p.evaluate(() => { document.querySelectorAll('#tableBody .row-select-chk:checked').forEach(c => { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); const c = document.querySelectorAll('#tableBody tr.ca-row .row-select-chk')[3]; c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(200);
+  ok('1 行だけ選んでいるときは［🔗 統合］は押せない', await p.evaluate(() => document.querySelector('#caSel [data-cs="merge"]').disabled));
+  await p.evaluate(() => window.clearRowSelection && window.clearRowSelection()); await p.waitForTimeout(150);
+  // 明細の下のリマーク行：線・枠・ラベルを減らした「注記」の 1 行
+  await p.evaluate(() => { const tr = document.querySelector('#tableBody tr.ca-row'); window.insertRemarkRow(tr.id.replace('row-', ''), { text: '梱包倉庫搬入分のみ', noFocus: true }); window.insertRemarkRow(tr.id.replace('row-', ''), { text: '社内の確認事項', noFocus: true, internal: true }); });
+  await p.waitForTimeout(200);
+  const rmk = await p.evaluate(() => { const rs = [...document.querySelectorAll('#tableBody tr.remark-row')]; const cs = e => getComputedStyle(e); const r = rs.find(x => x.dataset.internal !== '1' && x.querySelector('.remark-row-input').value === '梱包倉庫搬入分のみ'), ri = rs.find(x => x.dataset.internal === '1'); const td = r.querySelector('td.remark-row-cell'), inp = r.querySelector('.remark-row-input'); return { n: rs.length, h: Math.round(r.getBoundingClientRect().height), bt: cs(td).borderTopWidth, bl: cs(r.querySelector('td')).borderLeftWidth, mk: cs(r.querySelector('.remark-row-marker')).fontSize, ib: cs(inp).borderTopColor, chk: cs(r.querySelector('td.check-cell')).visibility, tx: inp.value, it: cs(ri.querySelector('.remark-row-input')).fontStyle, ip: ri.dataset.internal }; });
+  ok('リマーク行：上下の線・左の太い帯なし・高さ 30px 前後', rmk.n >= 2 && rmk.bt === '0px' && rmk.bl === '0px' && rmk.h <= 34, rmk);
+  ok('リマーク行：「リマーク」の文字は出さず印だけ・入力欄はふだん枠なし・☐ は乗せたときだけ', rmk.mk === '0px' && /rgba\(0, 0, 0, 0\)/.test(rmk.ib) && rmk.chk === 'hidden' && rmk.tx === '梱包倉庫搬入分のみ', rmk);
+  ok('社内メモのリマーク行は灰色の斜体（見積書に出ない）', rmk.it === 'italic' && rmk.ip === '1', rmk);
   // 旧い画面に戻すと、元の場所へ戻る
   await p.evaluate(() => window.editorV2Toggle()); await p.waitForTimeout(400);
   ok('旧い画面に戻すと、欄は元の場所（サブコンはカテゴリ欄・課税は課税の列）', await p.evaluate(() => { const tr = document.querySelector('#tableBody tr:not([data-virtual]):not([data-type])'); return !tr.classList.contains('ca-row') && !!tr.querySelector('td.catsv-cell [data-field="sv"]') && !!tr.querySelector('td.tax-cell [data-field="tx"]') && !!tr.querySelector('td.ccy-cell select[data-field="pc"]') && !tr.querySelector('.ca-name'); }));

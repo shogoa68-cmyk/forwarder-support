@@ -35,7 +35,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('ステップ⑤の最後に出力パネル（プレビュー・PDF・保存の順）が出る（スマホは Design 48 で出さない＝下の固定ボタン）', o && (o.shown || (W <= 600)) && o.btns.length === 4 && /プレビュー/.test(o.btns[0]) && /PDF/.test(o.btns[1]) && /案件のファイル/.test(o.btns[2]) && /保存/.test(o.btns[3]), o);
   ok('出力パネルは［戻る］［次へ］の上（Design 48 以降は右の列の下）にある', o && o.aboveNav, o);
   let called = {};
-  await p.evaluate(() => { window.__c = []; window.quickQuotePdf = () => window.__c.push('pdf'); window.openPreview = () => window.__c.push('pv'); });
+  await p.evaluate(() => { window.__c = []; window.quickQuotePdf = () => window.__c.push('pdf'); window.openQuotePreview = () => window.__c.push('pv'); });
   await p.evaluate(() => { document.querySelector('#e2Out [data-e2o="pdf"]').click(); document.querySelector('#e2Out [data-e2o="pv"]').click(); });
   ok('パネルのボタンは、元の関数（PDF・プレビュー）を呼ぶ', JSON.stringify(await p.evaluate(() => window.__c)) === '["pdf","pv"]');
   await p.evaluate(() => window.editorV2Go(2)); await p.waitForTimeout(300);
