@@ -296,6 +296,8 @@
     if (!hdr.person)   document.getElementById('qf-person')?.classList.add('quote-warn-field');
     if (cond && !cond.incoterms && document.getElementById('cond-incoterms')?.value !== '設定なし') document.getElementById('cond-incoterms')?.classList.add('quote-warn-field');   // 「設定なし」は選択済み
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+      // 客先に出ない行（PROFIT SHARE・見積書に出さない・除外・適用期間外）は確認しない
+      if (tr.dataset.virtual || tr.dataset.profitShare === '1' || tr.dataset.hideQuote === '1' || tr.dataset.excluded === '1' || (tr.dataset.outRange === '1' && tr.dataset.refInfo !== '1')) return;
       const nm   = tr.querySelector('[data-field="nm"]');
       const bp   = tr.querySelector('[data-field="bp"]');
       const un   = tr.querySelector('[data-field="un"]');
@@ -611,11 +613,39 @@
         if (d.pc && d.bc && d.pc !== d.bc) mixedCcyCount++;
         const isMemoRow = (d.un === '式' || d.un === 'note' || d.un === 'memo')
                        || (d.name && /^[#＃].+/.test(d.name.trim()));
-        if (!isMemoRow && canConvert) {
+        if (!isMemoRow && canConvert && !d._actual && !d._cond && !d._ref) {   // 実費・発生時のみ・参考は客先合計の外
           totBillJpy += toJPY(d.bill, d.bc || 'JPY');
           totCostJpy += toJPY(d.cost, d.pc || 'JPY');
         }
       });
+
+      // 条件と明細の食い違い（止めはしない・確認だけ）
+      if (cond) {
+        const code = (cond.incoterms || '').slice(0, 3).toUpperCase();
+        const dir  = cond.direction || '';
+        const nmOf = d => (d.name || '').replace(/^\*\s?/, '').trim() || '（品名未入力）';
+        const few  = arr => arr.slice(0, 4).join('、') + (arr.length > 4 ? ' ほか' : '');
+        const freight = data.filter(d => d.cat === 'ocean' || d.cat === 'air').map(nmOf);
+        if (freight.length && dir === 'export' && ['EXW', 'FCA', 'FAS', 'FOB'].includes(code))
+          infoItems.push({ msg: `輸出の ${code} では、幹線の運賃（海上・航空）は通常は買主が持ちます。お客様（売主）に請求してよいか確認してください（${freight.length} 件：${few(freight)}）`, focusEl: null });
+        if (freight.length && dir === 'import' && ['CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'].includes(code))
+          infoItems.push({ msg: `輸入の ${code} では、幹線の運賃（海上・航空）は通常は売主が持ちます。お客様（買主）に請求してよいか確認してください（${freight.length} 件：${few(freight)}）`, focusEl: null });
+        if (dir === 'export' && (code === 'CIF' || code === 'CIP') && !data.some(d => d.cat === 'insurance' || /保険|insurance/i.test(d.name || '')))
+          infoItems.push({ msg: `輸出の ${code} は売主が保険を手配する条件ですが、保険料の行がありません`, focusEl: null });
+        if (/^危険品/.test(cond.hazmat || '') && !data.some(d => /DG|危険|IMO|hazard|dangerous/i.test((d.name || '') + ' ' + (d.note || ''))))
+          infoItems.push({ msg: '貨物が「危険品」ですが、危険品の割増・申告料（DG など）の行がありません', focusEl: null });
+        const portKey = s => String(s || '').normalize('NFKC').replace(/\s+/g, '').toUpperCase();
+        if (cond.pol && cond.pod && portKey(cond.pol) === portKey(cond.pod))
+          infoItems.push({ msg: `積み港（POL）と揚げ港（POD）が同じ「${cond.pol}」です`, focusEl: document.getElementById('z2Pod') || null });
+        const mode = cond.mode || '';
+        if (/^航空/.test(mode) && ['FAS', 'FOB', 'CFR', 'CIF'].includes(code))
+          infoItems.push({ msg: `${code} は海上・内陸水路の専用の条件です。航空では FCA／CPT／CIP が使われます`, focusEl: document.getElementById('cond-incoterms') || null });
+        const cntrUnit = u => /^(20|40|45)\s*['’]?\s*(GP|DC|DV|HC|HQ|RF|RH|OT|FR)?$/i.test(String(u || '').normalize('NFKC').trim());
+        if (/LCL|航空/.test(mode)) {
+          const cu = data.filter(d => cntrUnit(d.un)).map(nmOf);
+          if (cu.length) infoItems.push({ msg: `輸送モードが「${mode}」ですが、コンテナ単位（20'GP など）の行があります（${cu.length} 件：${few(cu)}）`, focusEl: null });
+        }
+      }
 
       // 課税の印がある外貨請求の行：消費税は円で請求する行だけに計算するため、御見積書の「*」も付けない
       const fxTaxed = data.filter(d => d.taxed && (d.bc || 'JPY') !== 'JPY').map(d => (d.name || '').replace(/^\*\s?/, '').trim() || '（品名未入力）');
@@ -625,10 +655,12 @@
       }
       if (canConvert && totBillJpy > 0) {
         const gm = SharedCalc.grossMarginPct(totBillJpy, totCostJpy); // 売上ベース粗利率（B）
-        if (gm < 20 || gm > 40) {
-          const dir = gm < 20 ? '低め' : '高め';
-          infoItems.push({ msg: `粗利率 ${gm.toFixed(1)}% — 目安（20〜40%）より${dir}です`, focusEl: null });
-        }
+        // 目安は右パネルの「見積の診断」（diagnosis.js の TH）と同じ値を使う（画面ごとに違う目安を出さない）
+        const TH = window.qdgTH || { low: 5, stdLo: 8, stdHi: 12, high: 15 };
+        const lbl = '粗利率（売上に対する利益の割合）';
+        if (gm < 0) infoItems.push({ msg: `${lbl}が ${gm.toFixed(1)}% で赤字です`, focusEl: null });
+        else if (gm < TH.low) infoItems.push({ msg: `${lbl} ${gm.toFixed(1)}% — 目安（${TH.low}% 未満は低め・標準 ${TH.stdLo}〜${TH.stdHi}%）より低めです`, focusEl: null });
+        else if (gm >= TH.high) infoItems.push({ msg: `${lbl} ${gm.toFixed(1)}% — 目安（標準 ${TH.stdLo}〜${TH.stdHi}%・${TH.high}% 以上は高め）より高めです`, focusEl: null });
       }
       const usedNonJpy = [...new Set(data.flatMap(d => [d.pc, d.bc]).filter(c => c && c !== 'JPY'))];
       if (usedNonJpy.length && isFxStale()) {
