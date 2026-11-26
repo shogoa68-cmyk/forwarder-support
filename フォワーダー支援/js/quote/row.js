@@ -4700,6 +4700,7 @@
             `<button type="button" class="sv-hdr-btn sv-hdr-detail" hidden>📇 詳細</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-bm" hidden>🔖 BOOKMARK</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-import" hidden>📥 取り込み</button>` +
+            `<button type="button" class="sv-hdr-btn sv-hdr-past"${key === _UNSET_KEY ? ' hidden' : ''} title="このサブコンの過去の明細（ほかの案件で使った費用の行）を右のパネルに出します。そこから選んで挿入できます">🕘 過去の明細</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-dup" title="このサブコンの明細をまるごと複製して、別のサブコン名の枠をつくります（例：別の船会社で同じ明細の見積をつくる）">📋 複製</button>` +
             // 客先表示名・サブコン別リマークの入力は、この見出しの行内に置く（以前はグループ末尾の小計行にあった）
             `<span class="hdr-notes">` +
@@ -4742,6 +4743,10 @@
           e.stopPropagation();
           const canon = e.currentTarget.dataset.canon;
           if (canon && typeof window.openImportChooser === 'function') window.openImportChooser(canon);
+        });
+        hdr.querySelector('.sv-hdr-past').addEventListener('click', e => {
+          e.stopPropagation();
+          if (typeof window.siFocusSubcon === 'function') window.siFocusSubcon(label, { reset: true });
         });
         hdr.querySelector('.sv-hdr-dup').addEventListener('click', e => {
           e.stopPropagation();
