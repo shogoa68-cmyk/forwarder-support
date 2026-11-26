@@ -2262,6 +2262,7 @@
     qpShowDashboard();
   }
   function qpShowDashboard() {
+    if (window.qtOwn) window.qtOwn.release();   // 見積の作業から離れた＝ほかのタブで見積を開いてよい（js/tab-sync.js）
     document.getElementById('tab-quote-make')?.classList.add('qp-dash');
     document.body.classList.add('qp-dash-active');
     _renderQpdAuth();
@@ -2271,8 +2272,11 @@
   }
   // 作業中の見積があるか（保存済みの案件を開いている／未保存の入力がある）。ダッシュボードの「作業中の見積に戻る」の出し分け
   window.qpHasWorkingQuote = function () { return !!_loadedCloudId || !!_quoteDirty; };
-  window.quoteIsDirty = function () { return !!_quoteDirty; };   // 未保存の変更があるか（見積入力の新画面の作業状態の札が読む）
+  window.quoteIsDirty = function () { return !!_quoteDirty; };
+  // 別のタブへ見積を移すとき（未保存の変更が無いときだけ呼ばれる）：編集をやめ、画面を空にしてダッシュボードへ
+  window.quoteHandOff = function () { _exitShareEditing(); _clearQuoteForm(); _loadedCloudId = null; _loadedCloudTs = null; _resetQuoteDirty(); qpShowDashboard(); };   // 未保存の変更があるか（見積入力の新画面の作業状態の札が読む）
   function qpShowEditor() {
+    if (window.qtOwn) window.qtOwn.claim();     // このタブが見積の作業中（同時に開ける見積は 1 つ）
     document.getElementById('tab-quote-make')?.classList.remove('qp-dash');
     document.body.classList.remove('qp-dash-active');
   }
@@ -2383,6 +2387,7 @@
   window.cloudDiscardLocalPresets = cloudDiscardLocalPresets;
   // 新規見積（ダッシュボード or 未ログインの「ログインせず作成」から）→ エディタへ
   function qpNewQuote() {
+    if (window.qtOwnGuard && window.qtOwnGuard(() => qpNewQuote())) return;   // 別のタブで見積を開いているときは止めて聞く
     _exitShareEditing();
     _clearQuoteForm();
     _loadedCloudId = null; _loadedCloudTs = null;
@@ -3782,6 +3787,7 @@
   }
 
   async function cloudLoadPreset(rawId) {
+    if (window.qtOwnGuard && window.qtOwnGuard(() => cloudLoadPreset(rawId))) return;   // 別のタブで見積を開いているときは止めて聞く
     const c = _getClient();
     if (!c) return;
     // 編集中の入力を確認なしで捨てないよう、開く前に確認する（類似案件の「全体を読み込む」・進行管理・情報共有からも）

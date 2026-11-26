@@ -241,6 +241,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('編集画面で保存しても進捗は残る', !!o && o.s[0].d === true, o && o.s[0]);
   // 見積タブを開かずに、いきなり「進行管理」を開いても一覧が出る（案件一覧を自分で読み込む）
   {
+    // 見積を開けるのは 1 つのタブだけ（js/tab-sync.js）。見積を開いている元のタブは閉じてから、新しいタブで試す
+    await p.close({ runBeforeUnload: false });
     const p2 = await ctx.newPage(); const e2 = []; p2.on('pageerror', e => e2.push(e.message));
     await p2.goto(URL, { waitUntil: 'domcontentloaded' }); await p2.waitForTimeout(800);
     await p2.evaluate(() => { const b = document.querySelector('.cat-btn[aria-controls="tab-ops"]'); b.click(); }); await p2.waitForTimeout(2500);
