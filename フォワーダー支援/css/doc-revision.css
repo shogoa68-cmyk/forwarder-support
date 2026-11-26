@@ -1,0 +1,29 @@
+/* 御見積書の「前回提示分からの変更点」の色（2026-11）
+   以前は変更＝青・追加＝緑で、Industry の御見積書ではどちらも青系（鋼青）に寄せられ、
+   表の青い見出し・薄い青の行に溶け込んでいた。テーマに左右されない別系統の色にする：
+   変更＝橙（琥珀）、追加＝緑。行の左に太い線、品名の前に文字つきの札（変更／追加）。
+   テーマの CSS（theme-industry-doc.css は :where で詳細度 0）より後に読み込む。 */
+#quoteDocOverlay, body {
+  --rev-chg: #b45309; --rev-chg-ink: #8a3d05; --rev-chg-bg: #fff4e0; --rev-chg-line: #f0b25a;
+  --rev-add: #1e7a4a; --rev-add-ink: #155c37; --rev-add-bg: #e8f6ee; --rev-add-line: #7cc49a;
+}
+.qd-row-changed td { background: var(--rev-chg-bg) !important; }
+.qd-row-added   td { background: var(--rev-add-bg) !important; }
+.qd-row-changed td:first-child { box-shadow: inset 4px 0 0 var(--rev-chg); }
+.qd-row-added   td:first-child { box-shadow: inset 4px 0 0 var(--rev-add); }
+.qd-rev-mark {
+  display: inline-block; padding: 0 6px; margin-right: 2px; border-radius: 3px;
+  font-size: var(--doc-fs-caption, 10px); font-weight: 700; line-height: 1.6; color: #fff !important;
+  vertical-align: 1px; white-space: nowrap;
+}
+.qd-rev-mark-chg { background: var(--rev-chg); }
+.qd-rev-mark-add { background: var(--rev-add); }
+/* 末尾の「変更点」のまとめも同じ色に */
+.qd-revision-block { border-color: var(--rev-chg-line) !important; }
+.qd-revision-block .qd-remark-ttl { background: var(--rev-chg-bg) !important; color: var(--rev-chg-ink) !important; }
+.qd-rev-chg { color: var(--rev-chg-ink) !important; }
+.qd-rev-add { color: var(--rev-add-ink) !important; }
+/* 印刷でも背景・札の色を落とさない */
+.qd-row-changed td, .qd-row-added td, .qd-rev-mark, .qd-revision-block .qd-remark-ttl {
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}

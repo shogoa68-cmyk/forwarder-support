@@ -792,8 +792,8 @@
       // 前回提示分から追加／変更された行をハイライト（uid で突き合わせ）
       const revMark = r.uid ? _revMarks[r.uid] : null;
       const revCls  = revMark === 'added' ? ' qd-row-added' : revMark === 'changed' ? ' qd-row-changed' : '';
-      const revIcon = revMark === 'added' ? '<span class="qd-rev-mark qd-rev-mark-add" title="前回提示分から追加">＋</span> '
-                    : revMark === 'changed' ? '<span class="qd-rev-mark qd-rev-mark-chg" title="前回提示分から変更">✎</span> ' : '';
+      const revIcon = revMark === 'added' ? `<span class="qd-rev-mark qd-rev-mark-add" title="前回提示分から追加">＋ ${_curLangEn ? 'New' : '追加'}</span> `
+                    : revMark === 'changed' ? `<span class="qd-rev-mark qd-rev-mark-chg" title="前回提示分から変更">✎ ${_curLangEn ? 'Changed' : '変更'}</span> ` : '';
       const rowCls = (isCond || isRef || revCls) ? ` class="${[isCond ? 'qd-cond-row' : '', isRef ? 'qd-ref-row' : '', revCls.trim()].filter(Boolean).join(' ')}"` : '';
       lineHTML.push(
         `<tr${rowCls}>
