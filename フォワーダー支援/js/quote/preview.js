@@ -561,6 +561,25 @@
       if (unk.length)  infoItems.push({ msg: `表示条件を判定できない行が ${unk.length} 件あります（値が未入力のため表示のまま）：${list(unk)}`, focusEl: null });
     }
 
+    // 日付の確認：有効期限が過ぎている・発行日より前・発行日が 30 日より前・依頼受信日が未来
+    {
+      const iso = s => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
+      const _d = new Date(), _p = n => String(n).padStart(2, '0');
+      const today = _d.getFullYear() + '-' + _p(_d.getMonth() + 1) + '-' + _p(_d.getDate());
+      const fmt = s => s.replace(/-/g, '/');
+      const elD = document.getElementById('qf-date'), elV = document.getElementById('qf-valid-until');
+      const recv = document.getElementById('qf-received')?.value || '';
+      if (iso(hdr.date)) {
+        const days = Math.round((new Date(today) - new Date(hdr.date)) / 86400000);
+        if (days > 30) infoItems.push({ msg: `発行日が ${fmt(hdr.date)}（${days} 日前）のままです。コピーした古い日付になっていませんか`, focusEl: elD || null });
+      }
+      if (iso(hdr.validUntil)) {
+        if (hdr.validUntil < today) infoItems.push({ msg: `有効期限 ${fmt(hdr.validUntil)} はもう過ぎています`, focusEl: elV || null });
+        else if (iso(hdr.date) && hdr.validUntil < hdr.date) infoItems.push({ msg: `有効期限 ${fmt(hdr.validUntil)} が発行日 ${fmt(hdr.date)} より前です`, focusEl: elV || null });
+      }
+      if (iso(recv) && recv > today) infoItems.push({ msg: `依頼受信日 ${fmt(recv)} が未来の日付です`, focusEl: document.getElementById('qf-received') || null });
+    }
+
     // 英語出力が ON のとき、英訳辞書で訳せていない品名・リマークを知らせる（日本語のまま出るので、辞書に英語を登録する）
     try {
       if (typeof window.jeScanCurrent === 'function' && typeof window.quoteDocLangEnOn === 'function' && window.quoteDocLangEnOn()) {
@@ -586,6 +605,9 @@
         }
       });
 
+      // 課税の印がある外貨請求の行：消費税は円で請求する行だけに計算するため、御見積書の「*」も付けない
+      const fxTaxed = data.filter(d => d.taxed && (d.bc || 'JPY') !== 'JPY').map(d => (d.name || '').replace(/^\*\s?/, '').trim() || '（品名未入力）');
+      if (fxTaxed.length) infoItems.push({ msg: `外貨で請求する行に「課税」が付いています（${fxTaxed.length} 件：${fxTaxed.slice(0, 4).join('、')}${fxTaxed.length > 4 ? ' ほか' : ''}）。消費税は円の行だけ計算するため、この行は課税されず「*」も付きません`, focusEl: null });
       if (mixedCcyCount) {
         infoItems.push({ msg: `支払い通貨と請求通貨が異なる行が ${mixedCcyCount} 件あります（乗せ幅は請求通貨建てで加算）`, focusEl: null });
       }

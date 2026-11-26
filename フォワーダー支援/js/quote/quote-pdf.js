@@ -797,7 +797,7 @@
       const rowCls = (isCond || isRef || revCls) ? ` class="${[isCond ? 'qd-cond-row' : '', isRef ? 'qd-ref-row' : '', revCls.trim()].filter(Boolean).join(' ')}"` : '';
       lineHTML.push(
         `<tr${rowCls}>
-          <td class="qd-item qd-l3">${revIcon}${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}${condNote}${refNote}${r.insInv ? `<div class="qd-ins-inv">${esc(window.insInvoiceText(r.insInv, _curLangEn))}</div>` : ''}</td>
+          <td class="qd-item qd-l3">${revIcon}${(r.taxed && (r.bc || 'JPY') === 'JPY') ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}${condNote}${refNote}${r.insInv ? `<div class="qd-ins-inv">${esc(window.insInvoiceText(r.insInv, _curLangEn))}</div>` : ''}</td>
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
