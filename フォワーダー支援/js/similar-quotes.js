@@ -280,30 +280,15 @@ function _sqTreeCount(kids) { return (kids || []).reduce((n, k) => n + 1 + _sqTr
 function _sqLinksHtml() {
   const loadedId = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
   if (!loadedId) return '';
-  const parents = _sqLinks.filter(l => l.rel === 'parent');
-  const kids    = _sqLinks.filter(l => l.rel === 'child');
-  const peers   = _sqLinks.filter(l => l.rel !== 'parent' && l.rel !== 'child');
-  const subTotal = kids.reduce((n, l) => n + 1 + _sqTreeCount(l.kids), 0);
-  const hier = parents.length || kids.length;
-  const group = (title, body) => `<div class="sq-links-group"><div class="sq-links-group-title">${title}</div>${body}</div>`;
-  let items = '';
-  if (parents.length) {
-    items += group('👑 この案件のメイン', parents.map(l => _sqLinkItemHtml(l, loadedId, 'main')).join(''));
-  }
-  if (kids.length) {
-    items += group(`🌳 サブ案件（${subTotal}）`,
-      `<ul class="sq-link-tree sq-link-tree--root">${kids.map(l =>
-        `<li class="sq-link-tree-node">${_sqLinkItemHtml(l, loadedId, 'sub')}` +
-        (l.kids && l.kids.length ? `<ul class="sq-link-tree">${l.kids.map(k => _sqTreeNodeHtml(k, l.otherId)).join('')}</ul>` : '') +
-        `</li>`).join('')}</ul>`);
-  }
-  if (peers.length) {
-    const body = peers.map(l => _sqLinkItemHtml(l, loadedId, 'none')).join('');
-    items += hier ? group(`🔗 関連案件（${peers.length}）`, body) : body;
-  }
+  // Design 42-7：サブ案件をやめたので、元のメイン／サブの組も「関連」として 1 つの一覧に並べる（位置づけの切替は出さない）
+  const flat = [];
+  const walk = (l, anchor) => { flat.push({ l, anchor }); (l.kids || []).forEach(k => walk(Object.assign({}, k, { otherId: k.id || k.otherId }), l.otherId || l.id)); };
+  _sqLinks.forEach(l => walk(l, loadedId));
+  const items = flat.map(x => _sqLinkItemHtml(x.l, x.anchor, 'none')).join('');
+  const total = flat.length;
   return `<div class="sq-links-section">
     <div class="sq-links-head">
-      <span class="sq-links-title"><b>🔗 関連付けた案件${_sqLinks.length ? '（' + _sqLinks.length + '）' : ''}</b><small>手で結んだ案件</small></span>
+      <span class="sq-links-title"><b>🔗 関連付けた案件${total ? '（' + total + '）' : ''}</b><small>手で結んだ案件</small></span>
       <button type="button" class="sq-links-add-btn" onclick="sqToggleLinkSearch()" title="他の案件をこの案件に関連付ける（メイン／サブにもできます）">＋ 関連付け</button>
     </div>
     <div class="sq-link-search-bar" id="sqLinkSearchBar" ${_sqLinkSearchOpen ? '' : 'hidden'}>

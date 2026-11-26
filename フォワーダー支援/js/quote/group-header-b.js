@@ -149,6 +149,27 @@
   const q = (tr, sel) => tr.querySelector(sel);
   function clickExcl(tr) { const b = q(tr, '.subcon-group-excl, .subcon-subgroup-excl'); if (b) b.click(); }
 
+  // サブコン見出しの下の明細（次のサブコン見出しまで）
+  function rowsUnder(tr) {
+    const out = []; let n = tr.nextElementSibling;
+    while (n && !n.classList.contains('subcon-group-header')) { if (!n.dataset.virtual && !n.dataset.type && (n.id || '').startsWith('row-')) out.push(n); n = n.nextElementSibling; }
+    return out;
+  }
+  // ＋ パターンを追加：名前を聞いて、このサブコンにそのパターンの空の行を 1 行作る
+  function addPattern(tr) {
+    const rows = rowsUnder(tr);
+    const sv = rows.length ? (rows[0].querySelector('input[data-field="sv"]')?.value || '').trim() : '';
+    const used = new Set(rows.map(r => (r.querySelector('input[data-field="pt"]')?.value || '').trim()).filter(Boolean));
+    const anchor = q(tr, '.gb-more') || tr;
+    const ask = window.caAskText || ((a, o, cb) => { const v = prompt(o.title, o.value || ''); if (v != null) cb(v.trim()); });
+    ask(anchor, { title: (sv || 'サブコン未設定') + ' にパターンを追加', list: 'ptSuggestions', placeholder: '例）FCL案', required: true, ok: '追加',
+      note: used.size ? '使っているパターン：' + [...used].join('・') : 'パターン名が無い行は「パターンなし」の枠に残ります' }, v => {
+      if (!v) return;
+      window.addRowToSubconGroup(sv, v);
+      if (used.has(v) && typeof window.quoteShowToast === 'function') window.quoteShowToast('「' + v + '」の末尾に行を足しました', 'info', 2200);
+    });
+  }
+
   function itemsFor(tr) {
     const isPt = tr.classList.contains('subcon-subgroup-header');
     const ex = tr.classList.contains('is-excluded');
@@ -160,6 +181,7 @@
       if (isShown(imp)) add('📥', '取り込み', () => imp.click());
       const du = q(tr, '.sv-hdr-dup');
       if (du && !du.hidden) add('📋', 'このサブコンを複製', () => du.click());
+      if (typeof window.addRowToSubconGroup === 'function') add('🔖', 'パターンを追加', () => addPattern(tr));
     }
     if (q(tr, '.hdr-notes')) add('📝', tr.classList.contains('gb-notes-open') ? '注記の段を閉じる' : '注記を書く', () => toggleNotes(tr));
     if (isPt) {

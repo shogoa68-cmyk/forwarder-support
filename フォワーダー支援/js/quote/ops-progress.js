@@ -74,6 +74,7 @@
   const legOf = l => /^【復路】/.test(l || '') ? 1 : 0;
   const stripLeg = l => String(l || '').replace(/^【(往路|復路)】/, '');
   function dlLabel(st, x) {
+    if (x.virt) return x.l;
     let l = x.k === 'free' ? (x.l || '（名前なし）') : (DL_TYPES[x.k] || [x.k])[0];
     const keys = String(st.tpl || '').split('+'), tk = keys[x.g || 0] || '';
     if (/-air$/.test(tk)) l = l.replace('出港予定日', '出発予定日').replace('入港予定日', '到着予定日');
@@ -93,11 +94,18 @@
     return st;
   }
   const dlOf = st => (st && Array.isArray(st.dl)) ? st.dl : [];
+  // 期限を入れた作業は、締め切りの一覧にも「作業の期限」として出す（締め切りとつないだ作業は、その締め切りで出ているので除く）。保存はしない＝作業の期限そのもの
+  function stepDls(st) {
+    const ids = new Set(dlOf(st).map(d => d.id));
+    return (st && st.s || []).filter(x => x.due && !(x.dk && ids.has(x.dk)))
+      .map(x => ({ id: 's:' + x.id, sid: x.id, virt: true, k: 'step', l: x.l, d: x.due, g: legOf(x.l) }));
+  }
+  const allDls = st => dlOf(st).concat(stepDls(st));
   function addDays(ymd, n) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd); if (!m) return ''; const t = new Date(+m[1], +m[2] - 1, +m[3] + n); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); }
   function daysBetween(a, b) { const p = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN; }; return Math.round((p(b) - p(a)) / 86400000); }
   // 締め切りの状態：met（間に合った）／over（過ぎた）／soon（48 時間以内＝今日・明日）／later／past（予定日が過ぎた・知らせない）／none（日付なし）
   function dlState(st, x, today) {
-    const linked = (st.s || []).filter(s => s.dk === x.id);
+    const linked = x.virt ? (st.s || []).filter(s => s.id === x.sid) : (st.s || []).filter(s => s.dk === x.id);
     if (x.ok || (linked.length && linked.every(s => s.d))) return 'met';
     if (!x.d) return 'none';
     today = today || todayStr();
@@ -228,7 +236,7 @@
 
   // いちばん近い、まだ済んでいない締め切り（過ぎたものが先）
   function nearestDl(st, today) {
-    const xs = dlOf(st).map(x => ({ x, state: dlState(st, x, today) })).filter(o => o.state === 'over' || o.state === 'soon' || o.state === 'later');
+    const xs = allDls(st).map(x => ({ x, state: dlState(st, x, today) })).filter(o => o.state === 'over' || o.state === 'soon' || o.state === 'later');
     xs.sort((a, b) => (a.state === 'over' ? 0 : 1) - (b.state === 'over' ? 0 : 1) || a.x.d.localeCompare(b.x.d));
     return xs[0] || null;
   }
@@ -272,9 +280,9 @@
       else if (act === 'card') toggleCard(b.dataset.id);
       else if (act === 'wstate') setWState(i, b.dataset.v);
       else if (act === 'whome') setWho(i, me());
-      else if (act === 'gedit') { _cur.gedit = b.dataset.id; render(); const ta = $('opmBody').querySelector('.opc-g-in'); if (ta) ta.focus(); }
+      else if (act === 'gedit') { _cur.gedit = b.dataset.id + '|' + (b.dataset.s || 'all'); render(); const ta = $('opmBody').querySelector('.opc-g-in'); if (ta) ta.focus(); }
       else if (act === 'gcancel') { _cur.gedit = ''; render(); }
-      else if (act === 'gsave') saveGuide(i);
+      else if (act === 'gsave') saveGuide(i, b.dataset.s || 'all');
       else if (act === 'nadd') addNote(i);
       else if (act === 'ndel') delNote(b.dataset.id);
       else if (act === 'fopen') openFile(b.dataset.id, false);
@@ -289,6 +297,7 @@
       const t = e.target;
       if (t.matches('.opm-due')) setDue(+t.dataset.i, t.value);
       else if (t.matches('.opc-who')) setWho(+t.dataset.i, t.value);
+      else if (t.matches('.opc-sv')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (!x) return; const v = t.value.trim().slice(0, 80); if ((x.sv || '') === v) return; if (v) x.sv = v; else delete x.sv; _cur.gedit = ''; commit(); }
       else if (t.matches('.opc-f-in')) { const fl = Array.from(t.files || []); t.value = ''; uploadFiles(+t.dataset.i, fl); }
       else if (t.matches('.opc-wn')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (x) { x.wn = t.value.trim().slice(0, 80); commit(); } }
       else if (t.matches('.opc-dk')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (x) { x.dk = t.value; const dl = dlOf(_cur.st).find(d => d.id === x.dk); if (dl && dl.d && !x.d && !x.due) x.due = dl.d; commit(); } }
@@ -297,6 +306,7 @@
       else if (t.matches('.opm-dl-ok')) { if (readOnly()) return; const x = dlOf(_cur.st)[+t.dataset.i]; if (x) { x.ok = t.checked; commit(); } }
       else if (t.id === 'opmDlType') { const f = $('opmDlFree'); if (f) f.hidden = t.value !== 'free'; }
     });
+    ov.addEventListener('pointerdown', e => { const g = e.target.closest && e.target.closest('.opm-grip'); if (g) dragStart(e, g); });
     ov.addEventListener('keydown', e => {
       if (e.key === 'Enter' && e.target.id === 'opmAddIn' && !e.isComposing) { e.preventDefault(); add(); }
     });
@@ -338,6 +348,7 @@
     h += '<ol class="opm-steps">' + st.s.map((x, i) => {
       const isNext = sm.next === x, open = _cur.open === x.id;
       return '<li class="opm-step' + (x.d ? ' is-done' : '') + (isNext ? ' is-next' : '') + (open ? ' is-open' : '') + (x.w === 'wait' && !x.d ? ' is-wait' : '') + '">' +
+        (ro || st.s.length < 2 ? '' : '<span class="opm-grip" data-i="' + i + '" title="ドラッグで並べ替え" aria-hidden="true">⠿</span>') +
         '<button type="button" class="opm-chk" data-opm="toggle" data-i="' + i + '" role="checkbox" aria-checked="' + x.d + '"' + (ro ? ' disabled' : '') + ' title="' + (x.d ? '完了を取り消す' : '完了にする') + '">' + (x.d ? '✓' : '') + '</button>' +
         '<div class="opm-step-main"><button type="button" class="opm-step-l" data-opm="card" data-id="' + esc(x.id) + '" aria-expanded="' + open + '">' + (isNext ? '<em class="opm-next-tag">次</em>' : '') + esc(x.l) + '<span class="opm-caret" aria-hidden="true">' + (open ? '▾' : '▸') + '</span></button>' +
           stepBadges(x, st) +
@@ -385,6 +396,48 @@
     if (readOnly()) return;
     const s = _cur.st.s, j = i + d; if (j < 0 || j >= s.length) return;
     [s[i], s[j]] = [s[j], s[i]]; commit();
+  }
+  // ドラッグで並べ替え（作業の左端の ⠿ をつかむ・マウスでも指でも）。to＝入れたい位置（0〜件数）
+  function moveTo(from, to) {
+    if (readOnly()) return;
+    const s = _cur.st.s; if (from < 0 || from >= s.length) return;
+    if (to > from) to--;
+    if (to === from || to < 0 || to > s.length - 1) return;
+    const [x] = s.splice(from, 1); s.splice(to, 0, x); commit();
+  }
+  let _drag = null;
+  // kind='step'＝作業（ol.opm-steps > li.opm-step・番号＝並びの位置）／'dl'＝締め切り（.opm-dl-list > .opm-dl-row・番号＝表示の位置）
+  const DRAG_ITEM = { step: '.opm-step', dl: '.opm-dl-row' };
+  function dragStart(e, grip) {
+    if (readOnly() || e.button > 0) return;
+    const kind = grip.dataset.kind === 'dl' ? 'dl' : 'step', sel = DRAG_ITEM[kind];
+    const li = grip.closest(sel), ol = li && li.parentElement; if (!li) return;
+    e.preventDefault();
+    const lis = Array.from(ol.querySelectorAll(':scope > ' + sel)), from = lis.indexOf(li);
+    _drag = { kind, sel, from, to: from, li, ol, id: e.pointerId };
+    li.classList.add('is-dragging'); document.body.classList.add('opm-dragging');
+    try { grip.setPointerCapture(e.pointerId); } catch (_) {}
+    const mv = ev => dragMove(ev), up = ev => { grip.removeEventListener('pointermove', mv); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up); dragEnd(ev.type === 'pointercancel'); };
+    grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+  }
+  function dragMove(e) {
+    if (!_drag) return;
+    const lis = Array.from(_drag.ol.querySelectorAll(':scope > ' + _drag.sel));
+    let to = lis.length;
+    for (let k = 0; k < lis.length; k++) { const r = lis[k].getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { to = k; break; } }
+    _drag.to = to;
+    lis.forEach((l, k) => { l.classList.toggle('drop-before', k === to && to !== _drag.from && to !== _drag.from + 1); });
+    _drag.ol.classList.toggle('drop-end', to === lis.length && to !== _drag.from + 1);
+    // 画面の端に近づいたら、中身をスクロール
+    const box = _drag.ol.closest('.opm-body'); if (box) { const r = box.getBoundingClientRect(); if (e.clientY < r.top + 40) box.scrollTop -= 12; else if (e.clientY > r.bottom - 40) box.scrollTop += 12; }
+  }
+  function dragEnd(cancel) {
+    const d = _drag; _drag = null; if (!d) return;
+    document.body.classList.remove('opm-dragging');
+    d.li.classList.remove('is-dragging'); d.ol.classList.remove('drop-end');
+    d.ol.querySelectorAll('.drop-before').forEach(l => l.classList.remove('drop-before'));
+    if (cancel) return;
+    if (d.kind === 'dl') dlMoveTo(d.from, d.to); else moveTo(d.from, d.to);
   }
   async function del(i) {
     if (readOnly()) return;
@@ -436,6 +489,32 @@
   const isMissingRel = e => !!e && (e.code === '42P01' || e.code === 'PGRST205' || /(does not exist|Could not find the table)/i.test(e.message || ''));
   const guideKey = l => stripLeg(l).normalize('NFKC').replace(/\s+/g, '').toLowerCase().slice(0, 120);
   const GUIDE = { map: new Map(), loaded: false, loading: false, missing: false };
+  // 手順メモの「範囲」：共通（作業の名前だけで判定）／お客様ごと（この進行のお客様）／サブコンごと（作業カードの「相手（サブコン）」）
+  // key＝共通は作業の名前、範囲つきは「作業の名前（70 字まで）|c:お客様」「…|s:サブコン」（名前は代表名にそろえ、空白・大小・全角半角を無視）
+  const GSCOPES = [['all', '共通'], ['c', 'お客様'], ['s', 'サブコン']];
+  const normName = v => String(v || '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
+  const canonName = (f, v) => { v = String(v || '').trim(); if (!v) return ''; try { return (typeof window.nameCanon === 'function' && window.nameCanon(f, v)) || v; } catch (e) { return v; } };
+  function curCustomer() {
+    if (!_cur) return '';
+    if (_cur.kind === 'job') { const j = jobById(_cur.jobId); return j ? (j.customer || '') : ''; }
+    const r = rowById(_cur.id); return r ? (r.customer || '') : '';
+  }
+  function guideScopeName(x, scope) { return scope === 'c' ? canonName('customer', curCustomer()) : scope === 's' ? canonName('sv', x.sv) : ''; }
+  function guideKeyFor(x, scope) {
+    const b = guideKey(x.l); if (!b) return '';
+    if (scope === 'all') return b;
+    const n = normName(guideScopeName(x, scope)); if (!n) return '';
+    return b.slice(0, 70) + '|' + scope + ':' + n.slice(0, 40);
+  }
+  const hasGuide = x => GSCOPES.some(sc => { const k = guideKeyFor(x, sc[0]), g = k && GUIDE.map.get(k); return !!(g && g.body); });
+  // 作業カードの「相手（サブコン）」の候補：この案件の明細のサブコン＋サブコンのマスター
+  function svCandidates() {
+    const out = [], seen = new Set(), add = v => { v = String(v || '').trim(); if (v && !seen.has(normName(v))) { seen.add(normName(v)); out.push(v); } };
+    const r = _cur && _cur.kind !== 'job' ? rowById(_cur.id) : null;
+    if (r && typeof window.quoteExtractSubcons === 'function') { try { window.quoteExtractSubcons(r.data).forEach(o => add(canonName('sv', o.name))); } catch (e) {} }
+    try { (typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : []).filter(m => m.field === 'sv').forEach(m => add(m.value)); } catch (e) {}
+    return out;
+  }
   async function loadGuides(force) {
     const c = client(); if (!c || GUIDE.loading || (GUIDE.loaded && !force)) return;
     GUIDE.loading = true;
@@ -539,7 +618,7 @@
     if (dl) b.push('<span class="opm-b opm-b-dl is-' + dlState(st, dl) + '" title="つないだ締め切り">📅 ' + esc(stripLeg(dlLabel(st, dl))) + (dl.d ? ' ' + md(dl.d) : '') + '</span>');
     const n = notesOf(x).length; if (n) b.push('<span class="opm-b" title="やりとり・記録">💬 ' + n + '</span>');
     const nf = filesOf(x).length; if (nf) b.push('<span class="opm-b" title="添付ファイル">📎 ' + nf + '</span>');
-    if (GUIDE.map.get(guideKey(x.l)) && GUIDE.map.get(guideKey(x.l)).body) b.push('<span class="opm-b" title="手順メモがあります">📖</span>');
+    if (hasGuide(x)) b.push('<span class="opm-b" title="手順メモがあります">📖</span>');
     return b.length ? '<span class="opm-badges">' + b.join('') + '</span>' : '';
   }
   function cardHtml(x, i, st, ro) {
@@ -559,14 +638,25 @@
     h += '<div class="opc-row"><span class="opc-l">締め切り</span><select class="opc-dk" data-i="' + i + '"' + dis + '><option value="">（つながない）</option>' +
       dls.map(d => '<option value="' + esc(d.id) + '"' + (x.dk === d.id ? ' selected' : '') + '>' + esc(dlLabel(st, d)) + (d.d ? '（' + md(d.d) + '）' : '') + '</option>').join('') + '</select>' +
       '<small class="opc-hint">締め切りの日付を入れると、この作業の期限にも入ります</small></div>';
-    // 手順メモ
-    const g = GUIDE.map.get(guideKey(x.l)), editing = _cur.gedit === x.id;
-    h += '<div class="opc-sec"><h5>📖 この作業の手順<small>同じ名前の作業すべてに出ます（チームで共有）</small></h5>';
+    h += '<div class="opc-row"><span class="opc-l">相手（サブコン）</span><input type="text" class="opc-sv" data-i="' + i + '" maxlength="80" list="opcSvList" value="' + esc(x.sv || '') + '" placeholder="例）○○運送（この作業でやりとりする会社）"' + dis + '>' +
+      '<datalist id="opcSvList">' + svCandidates().map(v => '<option value="' + esc(v) + '"></option>').join('') + '</datalist>' +
+      '<small class="opc-hint">入れると、そのサブコン向けの手順を書けます</small></div>';
+    // 手順メモ（共通／お客様ごと／サブコンごと）
+    h += '<div class="opc-sec"><h5>📖 この作業の手順<small>チームで共有。共通の手順に加えて、お客様ごと・サブコンごとの手順も書けます</small></h5>';
     if (GUIDE.missing) h += '<p class="opc-miss">手順メモを使うには、管理者が Supabase で <code>docs/sql/ops-cards.sql</code> を実行してください。</p>';
-    else if (editing) h += '<textarea class="opc-g-in" rows="6" maxlength="4000" placeholder="例）&#10;1. 船会社の SI 提出画面で入力（https://…）&#10;2. 荷主に B/L ドラフトを送って確認&#10;注意：○○社は HS コードを必ず記載">' + esc(g ? g.body : '') + '</textarea>' +
-      '<div class="opc-acts"><button type="button" class="opm-link" data-opm="gcancel">やめる</button><button type="button" class="opm-btn opm-btn-pri" data-opm="gsave" data-i="' + i + '">保存</button></div>';
-    else h += (g && g.body ? '<div class="opc-guide">' + linkify(g.body) + '</div><small class="opc-meta">最後に直した人：' + esc(nameOf(g.updated_by)) + (g.updated_at ? '（' + esc(whenText(g.updated_at)) + '）' : '') + '</small>' : '<p class="opc-empty">まだ手順がありません。やり方・使うページ・注意点を書いておくと、ほかの人も同じように進められます。</p>') +
-      (logged ? '<div class="opc-acts"><button type="button" class="opm-link" data-opm="gedit" data-id="' + esc(x.id) + '">✎ 手順を' + (g && g.body ? '直す' : '書く') + '</button></div>' : '');
+    else GSCOPES.forEach(sc => {
+      const scope = sc[0], key = guideKeyFor(x, scope), nm = guideScopeName(x, scope);
+      const g = key ? GUIDE.map.get(key) : null, editing = _cur.gedit === x.id + '|' + scope;
+      const title = scope === 'all' ? '共通' : scope === 'c' ? 'お客様：' + (nm || '—') : 'サブコン：' + (nm || '—');
+      const sub = scope === 'all' ? '同じ名前の作業すべてに出ます' : scope === 'c' ? 'このお客様の、同じ名前の作業だけに出ます' : 'このサブコンが相手の、同じ名前の作業だけに出ます';
+      h += '<div class="opc-gs opc-gs-' + scope + (g && g.body ? ' has-body' : '') + '" data-scope="' + scope + '"><div class="opc-gs-h"><b>' + esc(title) + '</b><small>' + sub + '</small></div>';
+      if (!key) { h += '<p class="opc-empty">' + (scope === 'c' ? 'この進行にはお客様が入っていないため、お客様ごとの手順は書けません。' : '上の「相手（サブコン）」を入れると、そのサブコン向けの手順を書けます。') + '</p></div>'; return; }
+      if (editing) h += '<textarea class="opc-g-in" rows="5" maxlength="4000" placeholder="' + (scope === 'all' ? '例）&#10;1. 船会社の SI 提出画面で入力（https://…）&#10;2. 荷主に B/L ドラフトを送って確認' : scope === 'c' ? '例）このお客様は INV に HS コードを必ず記載・B/L ドラフトは担当の○○さんへ' : '例）このサブコンへの依頼はメールではなく専用フォームから（https://…）') + '">' + esc(g ? g.body : '') + '</textarea>' +
+        '<div class="opc-acts"><button type="button" class="opm-link" data-opm="gcancel">やめる</button><button type="button" class="opm-btn opm-btn-pri" data-opm="gsave" data-i="' + i + '" data-s="' + scope + '">保存</button></div>';
+      else h += (g && g.body ? '<div class="opc-guide">' + linkify(g.body) + '</div><small class="opc-meta">最後に直した人：' + esc(nameOf(g.updated_by)) + (g.updated_at ? '（' + esc(whenText(g.updated_at)) + '）' : '') + '</small>' : '<p class="opc-empty">' + (scope === 'all' ? 'まだ手順がありません。やり方・使うページ・注意点を書いておくと、ほかの人も同じように進められます。' : 'まだありません。') + '</p>') +
+        (logged ? '<div class="opc-acts"><button type="button" class="opm-link" data-opm="gedit" data-id="' + esc(x.id) + '" data-s="' + scope + '">✎ ' + (scope === 'all' ? '共通の手順' : scope === 'c' ? 'お客様の手順' : 'サブコンの手順') + 'を' + (g && g.body ? '直す' : '書く') + '</button></div>' : '');
+      h += '</div>';
+    });
     h += '</div>';
     // 添付ファイル
     h += '<div class="opc-sec opc-files" data-i="' + i + '"><h5>📎 添付ファイル<small>B/L のドラフト・INV・写真など（チームで共有・1 ファイル 10MB まで）</small></h5>';
@@ -614,15 +704,18 @@
     if (email) x.who = email; else delete x.who;
     commit(email ? '👤 業務：「' + x.l + '」の担当を ' + nameOf(email) + ' に' : '');
   }
-  async function saveGuide(i) {
+  async function saveGuide(i, scope) {
     const x = _cur && _cur.st.s[i], c = client(); if (!x || !c) return;
+    scope = scope || 'all';
     const ta = $('opmBody').querySelector('.opc-g-in'); const body = (ta ? ta.value : '').replace(/\s+$/, '');
-    const key = guideKey(x.l); if (!key) return;
-    const { data, error } = await c.from('ops_guides').upsert({ key, label: stripLeg(x.l), body }, { onConflict: 'key' }).select('key,label,body,updated_by,updated_at');
+    const key = guideKeyFor(x, scope); if (!key) return;
+    const nm = guideScopeName(x, scope);
+    const label = (stripLeg(x.l) + (scope === 'all' ? '' : '（' + (scope === 'c' ? 'お客様' : 'サブコン') + '：' + nm + '）')).slice(0, 120);
+    const { data, error } = await c.from('ops_guides').upsert({ key, label, body }, { onConflict: 'key' }).select('key,label,body,updated_by,updated_at');
     if (error) { if (isMissingRel(error)) GUIDE.missing = true; toast('⚠️ 手順を保存できませんでした：' + (error.message || error.code), 'warn', 5000); render(); return; }
-    const row = (data && data[0]) || { key, label: stripLeg(x.l), body, updated_by: me(), updated_at: new Date().toISOString() };
+    const row = (data && data[0]) || { key, label, body, updated_by: me(), updated_at: new Date().toISOString() };
     GUIDE.map.set(key, row); if (_cur) _cur.gedit = '';
-    toast('📖 手順を保存しました（同じ名前の作業すべてに出ます）', 'success', 3000); render();
+    toast('📖 手順を保存しました（' + (scope === 'all' ? '同じ名前の作業すべてに出ます' : scope === 'c' ? 'このお客様の同じ名前の作業に出ます' : 'このサブコンが相手の同じ名前の作業に出ます') + '）', 'success', 3000); render();
   }
   async function addNote(i) {
     const x = _cur && _cur.st.s[i], c = client(); if (!x || !c) return;
@@ -644,13 +737,36 @@
     NOTES.list = NOTES.list.filter(n => n.id !== id); render();
   }
   // ---- 📅 日程・締め切りの欄 ----
+  // 締め切りの並び（表示だけ）：まだの締め切りのうち日付のあるもの（日付の早い順）→ 日付のないもの（手で並べた順）→ 済みのもの（同じ規則）
+  function dlOrder(st, today, dls) {
+    dls = dls || dlOf(st); const idx = dls.map((x, i) => i);
+    const grp = i => (dlState(st, dls[i], today) === 'met' ? 2 : 0) + (dls[i].d ? 0 : 1);
+    return idx.sort((a, b) => grp(a) - grp(b) || (dls[a].d && dls[b].d && dls[a].d !== dls[b].d ? (dls[a].d < dls[b].d ? -1 : 1) : a - b));
+  }
+  // ドラッグで並べ替え（日付のない締め切りだけ・日付のあるものは日付順に自動で並ぶ）。from／to＝表示の位置
+  function dlMoveTo(from, to) {
+    if (readOnly()) return;
+    const st = _cur.st, all = allDls(st), ord = dlOrder(st, todayStr(), all);
+    if (from < 0 || from >= ord.length) return;
+    const moved = ord[from]; if (all[moved].d) return;
+    const disp = ord.slice(); disp.splice(from, 1); disp.splice(to > from ? to - 1 : to, 0, moved);
+    const manual = disp.filter(i => !all[i].d), before = ord.filter(i => !all[i].d);
+    if (manual.join() === before.join()) return;
+    st.dl = dlOf(st).filter(x => x.d).concat(manual.map(i => all[i]));
+    commit();
+  }
   function dlSecHtml(st, ro, today) {
     const dls = dlOf(st), two = String(st.tpl || '').split('+').length > 1, dis = ro ? ' disabled' : '';
     const ctx = _cur.kind === 'job' ? ctxTargets('job', _cur.jobId, _cur.shipId) : ctxTargets('case', _cur.id);
-    let h = '<section class="opm-dl"><h4 class="opm-sec-h">📅 日程・締め切り<small>赤＝過ぎた・黄＝48 時間以内。作業とつないだ締め切りは、その作業が済むと「済み」になります</small></h4>';
-    h += dls.length ? '<div class="opm-dl-list">' + dls.map((x, i) => {
-      const state = dlState(st, x, today), linked = (st.s || []).filter(s => s.dk === x.id);
-      return '<div class="opm-dl-row is-' + state + '"><span class="opm-dl-l">' + esc(dlLabel(st, x)) + '</span>' +
+    let h = '<section class="opm-dl"><h4 class="opm-sec-h">📅 日程・締め切り<small>日付の早い順に自動で並びます（日付のないものは ⠿ で並べ替え）。赤＝過ぎた・黄＝48 時間以内。作業とつないだ締め切りは、その作業が済むと「済み」になります</small></h4>';
+    const manualN = dls.filter(x => !x.d).length, all = allDls(st);
+    h += all.length ? '<div class="opm-dl-list">' + dlOrder(st, today, all).map(i => {
+      const x = all[i], state = dlState(st, x, today);
+      if (x.virt) return dlStepRowHtml(st, x, state, ro, today);
+      const linked = (st.s || []).filter(s => s.dk === x.id);
+      const grip = ro ? '' : (x.d ? '<span class="opm-grip is-auto" title="日付のある締め切りは、日付の早い順に自動で並びます" aria-hidden="true">📅</span>'
+        : (manualN > 1 ? '<span class="opm-grip" data-kind="dl" title="ドラッグで並べ替え（日付のない締め切り）" aria-hidden="true">⠿</span>' : '<span class="opm-grip is-auto" aria-hidden="true"></span>'));
+      return '<div class="opm-dl-row is-' + state + '" data-dl="' + esc(x.id) + '">' + grip + '<span class="opm-dl-l">' + esc(dlLabel(st, x)) + '</span>' +
         '<input type="date" class="opm-dl-d" data-i="' + i + '" value="' + esc(x.d || '') + '" aria-label="' + esc(dlLabel(st, x)) + 'の日付"' + dis + '>' +
         '<span class="opm-dl-st">' + dlRemain(x, state, today) + '</span>' +
         (linked.length ? '<span class="opm-dl-link" title="つないだ作業">→ ' + linked.map(s => esc(stripLeg(s.l)) + (s.d ? ' ✓' : '')).join('、') + '</span>'
@@ -667,6 +783,17 @@
       (two ? '<select id="opmDlLeg" aria-label="往路・復路"><option value="0">往路</option><option value="1">復路</option></select>' : '') +
       '<input type="text" id="opmDlFree" maxlength="40" placeholder="名前（例：通関書類の提出）" hidden><button type="button" class="opm-btn" data-opm="dladd">＋ 締め切りを追加</button></div>';
     return h + '</section>';
+  }
+  // 作業の期限の行：日付は作業の期限そのもの（直すと作業の期限が変わる）・消す／メモ／済みのチェックは作業の側で
+  function dlStepRowHtml(st, x, state, ro, today) {
+    const si = (st.s || []).findIndex(s => s.id === x.sid), step = st.s[si] || {};
+    return '<div class="opm-dl-row is-step is-' + state + '" data-dl="' + esc(x.id) + '">' +
+      (ro ? '' : '<span class="opm-grip is-auto" title="日付のある締め切りは、日付の早い順に自動で並びます" aria-hidden="true">📅</span>') +
+      '<span class="opm-dl-l">' + esc(x.l) + '<small class="opm-dl-kind">作業の期限</small></span>' +
+      '<input type="date" class="opm-due opm-dl-sd" data-i="' + si + '" value="' + esc(x.d) + '" aria-label="' + esc(x.l) + 'の期限"' + (ro || step.d ? ' disabled' : '') + '>' +
+      '<span class="opm-dl-st">' + dlRemain(x, state, today) + '</span>' +
+      '<span class="opm-dl-link">→ 作業「' + esc(stripLeg(x.l)) + '」' + (step.d ? ' ✓' : '') + '（チェックリストの期限から自動で表示）</span>' +
+      '<span class="opm-dl-note is-step"></span></div>';
   }
   function dlSetDate(i, v, via) {
     if (readOnly()) return; const x = dlOf(_cur.st)[i]; if (!x) return;
@@ -858,7 +985,7 @@
   // 全進行の締め切り（済み・日付なし・予定日が過ぎたものは除く）
   function collectDl(all) {
     const today = todayStr(), out = [];
-    (all || collect()).filter(x => !x.sm.all).forEach(x => stsOf(x).forEach(o => dlOf(o.st).forEach(d => {
+    (all || collect()).filter(x => !x.sm.all).forEach(x => stsOf(x).forEach(o => allDls(o.st).forEach(d => {
       const state = dlState(o.st, d, today);
       if (state === 'over' || state === 'soon' || state === 'later') out.push({ x, ship: o.ship, st: o.st, d, state });
     })));
@@ -889,7 +1016,7 @@
   }
 
   // ---------- ④「📦 進行管理」タブ（#tab-ops・独立した画面） ----------
-  const TAB = { f: 'active', src: '', q: '', sort: 'due', loading: false, asked: false };
+  const TAB = { f: 'active', src: '', q: '', sort: 'due', loading: false, asked: false, view: 'list', cal: 'month', cur: '' };
   const FILTERS = [['active', '進行中'], ['over', '⚠ 期限切れ'], ['today', '今日まで'], ['week', '7日以内'], ['dl', '📅 締め切り'], ['mine', '👤 自分の担当'], ['nodue', '期限なし'], ['done', '完了'], ['all', 'すべて']];
   const SRCS = [['', 'すべての種類'], ['quote', KIND_LBL.quote], ['spot', KIND_LBL.spot], ['regular', KIND_LBL.regular]];
   const SORTS = [['due', '期限の近い順'], ['progress', '進み具合の少ない順'], ['updated', '更新が新しい順'], ['name', '案件名順']];
@@ -911,7 +1038,7 @@
     root.addEventListener('click', e => {
       const b = e.target.closest('[data-opt]'); if (!b) return;
       const a = b.dataset.opt, id = b.dataset.id;
-      if (a === 'f') { TAB.f = b.dataset.f; renderTab(); }
+      if (a === 'f') { TAB.f = b.dataset.f; TAB.view = 'list'; renderTab(); }
       else if (a === 'src') { TAB.src = b.dataset.src; renderTab(); }
       else if (a === 'list') opsOpen(id);
       else if (a === 'quote') openQuote(id);
@@ -923,6 +1050,12 @@
       else if (a === 'dash') goDash();
       else if (a === 'reload') reload();
       else if (a === 'dlopen') { if (b.dataset.src === 'quote') opsOpen(id); else openJobSteps(decodeURIComponent(id), b.dataset.ship || ''); }
+      else if (a === 'view') { TAB.view = b.dataset.v; renderTab(); }
+      else if (a === 'calmode') { TAB.cal = b.dataset.v; renderTab(); }
+      else if (a === 'calnav') { calNav(+b.dataset.d); renderTab(); }
+      else if (a === 'caltoday') { TAB.cur = todayStr(); renderTab(); }
+      else if (a === 'calday') { TAB.cur = b.dataset.d; TAB.cal = 'week'; renderTab(); }
+      else if (a === 'calhol') { HOL.on[b.dataset.k] = !HOL.on[b.dataset.k]; holSave(); renderTab(); }
     });
     root.addEventListener('input', e => { if (e.target.id === 'optQ' && !e.isComposing) { TAB.q = e.target.value; renderTab(true); } });
     root.addEventListener('compositionend', e => { if (e.target.id === 'optQ') { TAB.q = e.target.value; renderTab(true); } });
@@ -963,17 +1096,22 @@
       tile('today', '今日まで', g.today.length, g.today.length ? 'is-today' : '') + tile('week', '7日以内', g.week.length) +
       (() => { const n = dlAll.filter(o => o.state !== 'later').length, nc = collectCand(all).length; return tile('dl', '📅 締め切り 48h' + (nc ? ' <em class="opt-cand-n" title="COLINS に新しい日付がある締め切り">🛰 ' + nc + '</em>' : ''), n, dlAll.some(o => o.state === 'over') ? 'is-over' : n ? 'is-today' : ''); })() +
       tile('done', '完了', g.done.length, 'is-done') + '</div>';
-    h += '<div class="opt-bar"><div class="opt-chips" role="group" aria-label="種類">' + SRCS.map(sv => {
+    h += '<div class="opt-view" role="group" aria-label="表示">' +
+      '<button type="button" class="opt-view-b' + (TAB.view === 'list' ? ' is-on' : '') + '" data-opt="view" data-v="list" aria-pressed="' + (TAB.view === 'list') + '">☰ 一覧</button>' +
+      '<button type="button" class="opt-view-b' + (TAB.view === 'cal' ? ' is-on' : '') + '" data-opt="view" data-v="cal" aria-pressed="' + (TAB.view === 'cal') + '">📅 カレンダー</button></div>';
+    const isCal = TAB.view === 'cal';
+    h += '<div class="opt-bar' + (isCal ? ' is-cal' : '') + '"><div class="opt-chips" role="group" aria-label="種類">' + SRCS.map(sv => {
         const n = sv[0] ? all0.filter(x => x.src === sv[0]).length : all0.length;
         return '<button type="button" class="opt-chip opt-chip-src' + (TAB.src === sv[0] ? ' is-on' : '') + '" data-opt="src" data-src="' + sv[0] + '" aria-pressed="' + (TAB.src === sv[0]) + '">' + sv[1] + ' <b>' + n + '</b></button>';
       }).join('') + '</div>' +
-      '<div class="opt-chips">' + FILTERS.filter(f => !['active', 'over', 'today', 'week', 'done', 'dl'].includes(f[0])).map(f =>
-        '<button type="button" class="opt-chip' + (TAB.f === f[0] ? ' is-on' : '') + '" data-opt="f" data-f="' + f[0] + '" aria-pressed="' + (TAB.f === f[0]) + '">' + f[1] + ' <b>' + g[f[0]].length + '</b></button>').join('') + '</div>' +
+      (isCal ? '' : '<div class="opt-chips">' + FILTERS.filter(f => !['active', 'over', 'today', 'week', 'done', 'dl'].includes(f[0])).map(f =>
+        '<button type="button" class="opt-chip' + (TAB.f === f[0] ? ' is-on' : '') + '" data-opt="f" data-f="' + f[0] + '" aria-pressed="' + (TAB.f === f[0]) + '">' + f[1] + ' <b>' + g[f[0]].length + '</b></button>').join('') + '</div>') +
       '<input type="search" id="optQ" class="opt-q" placeholder="🔍 案件名・お客様・基幹 ID・作業名で探す" value="' + esc(TAB.q) + '" aria-label="検索">' +
-      '<label class="opt-sort"><span>並び順</span><select id="optSort">' + SORTS.map(s => '<option value="' + s[0] + '"' + (TAB.sort === s[0] ? ' selected' : '') + '>' + s[1] + '</option>').join('') + '</select></label></div>';
+      (isCal ? '' : '<label class="opt-sort"><span>並び順</span><select id="optSort">' + SORTS.map(s => '<option value="' + s[0] + '"' + (TAB.sort === s[0] ? ' selected' : '') + '>' + s[1] + '</option>').join('') + '</select></label>') + '</div>';
     if ((TAB.loading || JOBS.loading) && !all0.length) h += '<div class="opt-empty">読み込み中…</div>';
     else if (!all0.length) h += '<div class="opt-empty">まだ進行はありません。<br><small>見積ダッシュボードで案件のステータスを「受注」にするか、［＋ 進行を作る］でスポット・レギュラーの進行を作ってください。</small><br>' +
       (canNew ? '<button type="button" class="opt-btn opt-btn-pri" data-opt="new">＋ 進行を作る</button> ' : '') + '<button type="button" class="opt-btn opt-btn-pri" data-opt="dash">💼 見積ダッシュボードへ</button></div>';
+    else if (isCal) h += calHtml(all, q, today);
     else if (TAB.f === 'dl') h += dlListHtml(dlAll, q, today, collectCand(all));
     else if (!list.length) h += '<div class="opt-empty">当てはまる進行はありません。</div>';
     else h += '<ul class="opt-list">' + list.map(x => rowHtml(x, today)).join('') + '</ul>';
@@ -981,6 +1119,126 @@
     const pos = hadFocus ? document.activeElement.selectionStart : 0;
     root.innerHTML = h;
     if (hadFocus || keepSearch) { const qi = $('optQ'); if (qi && hadFocus) { qi.focus(); try { qi.setSelectionRange(pos, pos); } catch (e) {} } }
+  }
+  // ---- 祝日・協力会社の休業日（📂 その他 → 📅 カレンダーの calendar_holidays）を薄く重ねる。読むだけ ----
+  const HOL_KEY = 'opsCalHol_v1';
+  const HOL_TYPES = [['jp', '🇯🇵 日本の祝日'], ['partner', '🤝 協力会社の休業日'], ['overseas', '🌍 海外の祝日']];
+  const HOL = { rows: [], loaded: false, loading: false, missing: false, err: '', on: { jp: true, partner: true, overseas: false } };
+  try { const v = JSON.parse(localStorage.getItem(HOL_KEY) || 'null'); if (v && typeof v === 'object') HOL_TYPES.forEach(t => { if (typeof v[t[0]] === 'boolean') HOL.on[t[0]] = v[t[0]]; }); } catch (e) {}
+  function holSave() { try { localStorage.setItem(HOL_KEY, JSON.stringify(HOL.on)); } catch (e) {} }
+  async function loadHolidays() {
+    if (HOL.loading || HOL.loaded) return;
+    const c = client(); if (!c) return;
+    HOL.loading = true;
+    try {
+      const { data, error } = await c.from('calendar_holidays').select('*').order('event_date');
+      if (error) { if (isMissingTable(error)) HOL.missing = true; else HOL.err = error.message || String(error); }
+      else HOL.rows = data || [];
+    } catch (e) { HOL.err = String(e && e.message || e); }
+    HOL.loading = false; HOL.loaded = true;
+    if (TAB.view === 'cal') renderTab();
+  }
+  // 表示する日付ごとの祝日・休業日（期間のあるものは毎日に）
+  function holByDay(days) {
+    const set = new Set(days), out = {};
+    HOL.rows.forEach(h => {
+      const k = h.source_type === 'overseas' ? 'overseas' : h.source_type === 'partner' ? 'partner' : 'jp';
+      if (!HOL.on[k]) return;
+      const from = String(h.event_date || '').slice(0, 10); if (!from) return;
+      const to = String(h.end_date || '').slice(0, 10) || from;
+      for (let d = from, i = 0; d && d <= to && i < 400; d = addDays(d, 1), i++) {
+        if (!set.has(d)) continue;
+        (out[d] = out[d] || []).push({ k, name: h.name || '', sub: k === 'partner' ? (h.company_name || '') : k === 'overseas' ? (h.country_code || '') : '', note: h.note || '' });
+      }
+    });
+    return out;
+  }
+  function holHtml(list, week) {
+    if (!list || !list.length) return '';
+    const shown = week ? list : list.slice(0, 2);
+    return '<div class="opc-hols">' + shown.map(o => '<span class="opc-hol is-' + o.k + '" title="' + esc([HOL_TYPES.find(t => t[0] === o.k)[1], o.sub, o.name, o.note].filter(Boolean).join('　')) + '">' +
+      (o.k === 'partner' ? '🤝 ' + esc(o.sub ? o.sub + ' 休' : '休業') : o.k === 'overseas' ? '🌍 ' + esc((o.sub ? o.sub + ' ' : '') + o.name) : '🎌 ' + esc(o.name)) + '</span>').join('') +
+      (list.length > shown.length ? '<span class="opc-hol is-more">他 ' + (list.length - shown.length) + '</span>' : '') + '</div>';
+  }
+  // ---------- 📅 カレンダー表示（月・週）。締め切りと作業の期限を日付のマスに並べる（済み・予定日が過ぎたものは灰色） ----------
+  function collectCal(all, q) {
+    const today = todayStr(), out = [];
+    (all || collect()).forEach(x => {
+      const sts = x.src === 'regular' ? (x.job.data.ships || []).map(sh => ({ st: sh.st, ship: sh })) : [{ st: x.st, ship: null }];
+      sts.forEach(o => { if (!o.st) return; allDls(o.st).forEach(d => {
+        if (!d.d) return;
+        const state = dlState(o.st, d, today), lbl = dlLabel(o.st, d);
+        if (q && !norm(x.title + ' ' + x.customer + ' ' + idsOf(x).join(' ') + ' ' + lbl + ' ' + (o.ship ? o.ship.label : '')).includes(q)) return;
+        out.push({ x, ship: o.ship, st: o.st, d, state, lbl, gray: state === 'met' || state === 'past' || !!x.sm.all });
+      }); });
+    });
+    out.sort((a, b) => (a.gray ? 1 : 0) - (b.gray ? 1 : 0) || ({ over: 0, soon: 1, later: 2 }[a.state] || 3) - ({ over: 0, soon: 1, later: 2 }[b.state] || 3) || String(a.x.title).localeCompare(String(b.x.title), 'ja'));
+    return out;
+  }
+  const ymdOf = dt => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+  const dateOf = ymd => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(); };
+  const WD = ['日', '月', '火', '水', '木', '金', '土'];
+  function calNav(dir) {
+    const c = dateOf(TAB.cur || todayStr());
+    if (TAB.cal === 'week') TAB.cur = addDays(ymdOf(c), 7 * dir);
+    else TAB.cur = ymdOf(new Date(c.getFullYear(), c.getMonth() + dir, 1));
+  }
+  function calChip(e, wide) {
+    const cls = 'opc-ev is-' + e.state + (e.gray ? ' is-gray' : '') + (e.d.virt ? ' is-step' : '');
+    const name = e.x.title || '（名前なし）', who = e.d.virt ? (e.st.s || []).find(s => s.id === e.d.sid) : null;
+    const tip = e.lbl + '　' + name + (e.ship ? '　' + (e.ship.label || '') : '') + (e.x.customer ? '　' + e.x.customer : '') + '　' + dlRemain(e.d, e.state, todayStr());
+    return '<button type="button" class="' + cls + '" data-opt="dlopen" data-src="' + e.x.src + '" data-id="' + esc(encodeURIComponent(e.x.id)) + '" data-ship="' + esc(e.ship ? e.ship.id : '') + '" title="' + esc(tip) + '">' +
+      '<span class="opc-ev-k">' + (e.gray ? '✓ ' : e.state === 'over' ? '⚠ ' : '') + esc(e.lbl) + '</span>' +
+      '<span class="opc-ev-c">' + esc(name) + (wide && e.ship ? '　' + esc(e.ship.label || '') : '') + '</span>' +
+      (wide && e.x.customer ? '<span class="opc-ev-s">' + esc(e.x.customer) + (who && who.who ? '　👤 ' + esc(nameOf(who.who)) : '') + '</span>' : '') + '</button>';
+  }
+  function calHtml(all, q, today) {
+    if (!TAB.cur) TAB.cur = today;
+    if (!HOL.loaded && !HOL.loading) loadHolidays();
+    const evs = collectCal(all, q), by = {};
+    evs.forEach(e => { (by[e.d.d] = by[e.d.d] || []).push(e); });
+    const cur = dateOf(TAB.cur), week = TAB.cal === 'week';
+    let days, label;
+    if (week) {
+      const s0 = addDays(TAB.cur, -cur.getDay());
+      days = Array.from({ length: 7 }, (_, i) => addDays(s0, i));
+      label = md(days[0]) + '（' + WD[0] + '）〜 ' + md(days[6]) + '（' + WD[6] + '）　' + cur.getFullYear() + '年';
+    } else {
+      const first = new Date(cur.getFullYear(), cur.getMonth(), 1), s0 = addDays(ymdOf(first), -first.getDay());
+      const last = new Date(cur.getFullYear(), cur.getMonth() + 1, 0), cells = Math.ceil((first.getDay() + last.getDate()) / 7) * 7;
+      days = Array.from({ length: cells }, (_, i) => addDays(s0, i));
+      label = cur.getFullYear() + '年 ' + (cur.getMonth() + 1) + '月';
+    }
+    const inRange = evs.filter(e => days.includes(e.d.d)), open = inRange.filter(e => !e.gray).length;
+    const hol = holByDay(days);
+    let h = '<div class="opc-cal' + (week ? ' is-week' : ' is-month') + '">' +
+      '<div class="opc-cal-bar"><div class="opc-cal-nav"><button type="button" class="opt-btn" data-opt="calnav" data-d="-1" aria-label="前へ">‹</button>' +
+      '<button type="button" class="opt-btn" data-opt="caltoday">今日</button><button type="button" class="opt-btn" data-opt="calnav" data-d="1" aria-label="次へ">›</button>' +
+      '<b class="opc-cal-t" id="opcCalTitle">' + label + '</b></div>' +
+      '<div class="opc-cal-sum">この' + (week ? '週' : '月') + '：まだ <b>' + open + '</b> 件・済み ' + (inRange.length - open) + ' 件</div>' +
+      '<div class="opt-view opc-cal-mode" role="group" aria-label="表示の単位"><button type="button" class="opt-view-b' + (!week ? ' is-on' : '') + '" data-opt="calmode" data-v="month" aria-pressed="' + !week + '">月</button>' +
+      '<button type="button" class="opt-view-b' + (week ? ' is-on' : '') + '" data-opt="calmode" data-v="week" aria-pressed="' + week + '">週</button></div></div>' +
+      '<div class="opc-holbar" role="group" aria-label="重ねて表示"><span class="opc-holbar-l">重ねて表示：</span>' + HOL_TYPES.map(t =>
+        '<button type="button" class="opc-holchip is-' + t[0] + (HOL.on[t[0]] ? ' is-on' : '') + '" data-opt="calhol" data-k="' + t[0] + '" aria-pressed="' + !!HOL.on[t[0]] + '">' + (HOL.on[t[0]] ? '✓ ' : '') + t[1] + '</button>').join('') +
+        (HOL.missing ? '<small class="opc-holbar-n">祝日・休業日の表がまだありません（📂 その他 → 📅 カレンダーで準備）</small>' : HOL.err ? '<small class="opc-holbar-n">祝日・休業日を読めませんでした：' + esc(HOL.err) + '</small>' : HOL.loaded && !HOL.rows.length ? '<small class="opc-holbar-n">祝日・休業日はまだ登録されていません（📂 その他 → 📅 カレンダーで登録）</small>' : '') + '</div>' +
+      '<div class="opc-cal-legend"><span class="opc-lg is-over">過ぎた</span><span class="opc-lg is-soon">今日・明日</span><span class="opc-lg is-later">これから</span><span class="opc-lg is-gray">済み・予定日が過ぎた</span><span class="opc-lg-note">押すとチェックリストが開きます</span></div>' +
+      '<div class="opc-grid" role="grid">' + WD.map((w, i) => '<div class="opc-wd' + (i === 0 ? ' is-sun' : i === 6 ? ' is-sat' : '') + '" role="columnheader">' + w + '</div>').join('');
+    const MAX = 3;
+    h += days.map(d => {
+      const dt = dateOf(d), list = by[d] || [], other = !week && dt.getMonth() !== cur.getMonth(), hl = hol[d] || [];
+      const offDay = hl.some(o => o.k === 'jp'), ptOff = hl.some(o => o.k === 'partner');
+      const cls = 'opc-day' + (d === today ? ' is-today' : '') + (other ? ' is-other' : '') + (dt.getDay() === 0 ? ' is-sun' : dt.getDay() === 6 ? ' is-sat' : '') + (offDay ? ' is-hol' : '') + (ptOff ? ' is-ptoff' : '') +
+        (list.some(e => !e.gray) && (offDay || ptOff || dt.getDay() === 0 || dt.getDay() === 6) ? ' is-warn' : '');
+      const shown = week ? list : list.slice(0, MAX);
+      return '<div class="' + cls + '" role="gridcell" data-day="' + d + '"><div class="opc-day-h">' + (week ? '<span class="opc-day-w">' + WD[dt.getDay()] + '</span>' : '') +
+        '<button type="button" class="opc-day-n" data-opt="calday" data-d="' + d + '" title="この週を見る">' + (week || dt.getDate() === 1 ? (dt.getMonth() + 1) + '/' : '') + dt.getDate() + '</button>' +
+        (d === today ? '<em class="opc-today-tag">今日</em>' : '') + '</div>' + holHtml(hl, week) +
+        '<div class="opc-day-b">' + shown.map(e => calChip(e, week)).join('') +
+        (list.length > shown.length ? '<button type="button" class="opc-more" data-opt="calday" data-d="' + d + '">他 ' + (list.length - shown.length) + ' 件</button>' : '') +
+        (week && !list.length ? '<span class="opc-none">予定なし</span>' : '') + '</div></div>';
+    }).join('') + '</div>';
+    if (!evs.length) h += '<p class="opc-cal-empty">日付の入った締め切り・作業の期限はまだありません。チェックリストの「📅 日程・締め切り」や作業の「期限」に日付を入れると、ここに並びます。</p>';
+    return h + '</div>';
   }
   // 「📅 締め切り」の表示：過ぎた／今日・明日／7 日以内／それ以降 に分けて、日付の順に
   // COLINS の日付が、入っている日付と違う（または空の）締め切り
@@ -1007,9 +1265,9 @@
     return ch + secs.map(sv => {
       const rows = xs.filter(sv[2]); if (!rows.length) return '';
       return '<h3 class="opt-dl-h is-' + sv[0] + '">' + sv[1] + ' <b>' + rows.length + '</b></h3><ul class="opt-dl">' + rows.map(o => {
-        const linked = (o.st.s || []).filter(s => s.dk === o.d.id);
+        const linked = (o.st.s || []).filter(s => o.d.virt ? s.id === o.d.sid : s.dk === o.d.id);
         return '<li class="opt-dl-row is-' + o.state + '"><span class="opt-dl-date">' + md(o.d.d) + '<small>' + dlRemain(o.d, o.state, today) + '</small></span>' +
-          '<span class="opt-dl-k">' + esc(dlLabel(o.st, o.d)) + (o.d.note ? '<small>' + esc(o.d.note) + '</small>' : '') + '</span>' +
+          '<span class="opt-dl-k">' + esc(dlLabel(o.st, o.d)) + (o.d.virt ? '<small>作業の期限</small>' : '') + (o.d.note ? '<small>' + esc(o.d.note) + '</small>' : '') + '</span>' +
           '<span class="opt-dl-case"><span class="opt-kind opt-kind-' + o.x.src + '">' + KIND_LBL[o.x.src] + '</span><b>' + esc(o.x.title || '（名前なし）') + '</b>' + (o.ship ? '<small>' + esc(o.ship.label || '') + '</small>' : '') + (o.x.customer ? '<small>' + esc(o.x.customer) + '</small>' : '') + '</span>' +
           '<span class="opt-dl-step">' + (linked.length ? linked.map(s => '作業：' + esc(stripLeg(s.l)) + (s.who ? '（👤 ' + esc(nameOf(s.who)) + '）' : '') + (s.w === 'wait' ? ' ⏳' : '')).join('<br>') : '') + '</span>' +
           '<button type="button" class="opt-btn" data-opt="dlopen" data-src="' + o.x.src + '" data-id="' + esc(encodeURIComponent(o.x.id)) + '" data-ship="' + esc(o.ship ? o.ship.id : '') + '">☑ 開く</button></li>';

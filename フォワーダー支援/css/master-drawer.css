@@ -55,3 +55,17 @@
 /* ③ 表記ゆれのあるマスターの［表記ゆれ ▸ 直す］ */
 .mm-fix { border: 1px solid #f0c98b; background: #fdecc8; color: #8a5a00; border-radius: 999px; padding: 2px 10px; font-size: var(--text-xs, 12px); cursor: pointer; margin-left: 4px; }
 @media (max-width: 600px) { .mm-fix { min-height: 44px; } }
+
+/* 他の画面から飛んできたときの［← ○○に戻る］（stats.js _syncReturn） */
+#tab-master .master-back-bar { position: sticky; top: var(--nav-cat-h, 56px); z-index: 30; margin: 0 0 8px; padding: 6px 0; background: var(--bg, #fff); }
+#tab-master .master-back-bar[hidden] { display: none; }
+#tab-master .master-back-btn { min-height: 36px; padding: 0 14px; border: 1px solid var(--accent, #2c455d); border-radius: 999px; background: var(--surface, #fff); color: var(--accent, #2c455d); font: inherit; font-size: var(--text-sm, 13px); font-weight: 700; cursor: pointer; }
+#tab-master .master-back-btn:hover { background: var(--accent-lt, #eef3fb); }
+@media (max-width: 600px) { #tab-master .master-back-btn { min-height: 44px; } }
+/* 戻り先が見積の画面のとき、右下の「← 見積もりに戻る」と重ねて出さない */
+body:has(#tab-master.active #masterBackBar:not([hidden])) #backToQuoteFab { display: none !important; }
+
+/* 詳細の見出しの［← ○○に戻る］（他の画面から飛んできたとき・master-tabs.js backBtn） */
+#mdDetailModal .md-back-btn { flex: 0 0 auto; margin-right: 8px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--border-md, #98a2b3); border-radius: 6px; background: var(--card-bg, #fff); color: var(--accent, #2f5fb3); font: inherit; font-size: var(--text-sm, 13px); font-weight: 700; cursor: pointer; white-space: nowrap; }
+#mdDetailModal .md-back-btn:hover { background: var(--hover-bg, #f2f4f7); }
+@media (max-width: 600px) { #mdDetailModal .md-back-btn { min-height: 44px; } }

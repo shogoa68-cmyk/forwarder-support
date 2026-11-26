@@ -46,6 +46,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.fill('#z2Carrier', 'ONE'); await p.fill('#z2Pol', 'Yokohama'); await p.fill('#z2Pod', 'Shanghai'); await p.fill('#z2Tt', '14 days');
   await p.evaluate(() => addRouteEntry()); await p.waitForTimeout(300);
   ok('航路を追加できる', await p.evaluate(() => document.querySelectorAll('#z2RouteList > *').length >= 1));
+  await p.evaluate(() => window.routeAddOpen && window.routeAddOpen()); await p.waitForTimeout(150);   // Design 42-3：航路が 1 本以上あると入力欄は畳む
   ok('PODがPOLより下（縦の流れ）', await p.evaluate(() => document.getElementById('z2Pod').getBoundingClientRect().top > document.getElementById('z2Pol').getBoundingClientRect().top + 20));
   const saved = await p.evaluate(() => ({ c: document.getElementById('z2Carrier').value, v: document.getElementById('z2-routes-data').value.length }));
   await p.evaluate(() => window.qpNewQuote()); await p.waitForTimeout(500); if (process.env.OUT) { await p.evaluate(() => document.getElementById('section-cond').scrollIntoView()); await p.screenshot({ path: require('path').join(process.env.OUT, 'route-flow.png') }); }

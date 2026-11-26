@@ -1,0 +1,36 @@
+/* 📷 画像を AI で読む（js/quote/ai-ocr.js・2026-11）— body 直下のモーダル */
+#aoModal { display: none; position: fixed; inset: 0; z-index: 2600; background: rgba(16, 24, 40, .45); align-items: center; justify-content: center; padding: 16px; }
+#aoModal.open { display: flex; }
+#aoModal .ao-box { background: var(--card-bg, #fff); color: var(--text, #1f2937); width: min(980px, 100%); max-height: calc(100vh - 32px); overflow: auto; border-radius: 12px; padding: 16px 18px; box-shadow: 0 12px 40px rgba(0, 0, 0, .25); font-size: var(--text-base, 14px); line-height: var(--lh-ui, 1.5); }
+#aoModal .ao-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#aoModal .ao-head h3 { margin: 0; font-size: var(--text-lg, 16px); }
+#aoModal .ao-x { border: 0; background: none; font-size: 18px; min-width: 44px; min-height: 44px; cursor: pointer; color: inherit; }
+#aoModal .ao-sub { margin: 4px 0 10px; color: var(--text-muted, #57606a); font-size: var(--text-sm, 13px); }
+#aoModal .ao-banner { margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; background: #fff7e6; border: 1px solid #f0c36d; color: #7a4b00; font-size: var(--text-sm, 13px); }
+#aoModal .ao-banner[hidden], #aoModal .ao-edit[hidden], #aoModal .ao-pick[hidden], #aoModal .ao-pager[hidden], #aoModal .ao-sel[hidden] { display: none; }
+#aoModal .ao-pick { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 28px 16px; border: 2px dashed var(--border, #d0d7de); border-radius: 10px; justify-content: center; color: var(--text-muted, #57606a); }
+#aoModal button { font-family: inherit; font-size: var(--text-sm, 13px); min-height: 36px; padding: 4px 12px; border-radius: 6px; border: 1px solid #98a2b3; background: #fff; color: #1f2937; cursor: pointer; }
+#aoModal button:disabled { opacity: .5; cursor: default; }
+#aoModal .ao-primary { background: #2f5fb3; border-color: #2f5fb3; color: #fff; font-weight: 600; }
+#aoModal .ao-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+#aoModal .ao-tool[aria-pressed="true"] { background: #e8f0fb; border-color: #2f5fb3; color: #1d3f7a; font-weight: 600; }
+#aoModal .ao-pager { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+#aoModal .ao-hint { margin: 6px 0; font-size: var(--text-sm, 13px); color: var(--text-muted, #57606a); }
+#aoModal .ao-stage { position: relative; display: inline-block; max-width: 100%; border: 1px solid var(--border, #d0d7de); background: #f6f7f9; touch-action: none; }
+#aoModal #aoCanvas { display: block; max-width: 100%; max-height: 58vh; cursor: crosshair; }
+#aoModal .ao-sel { position: absolute; pointer-events: none; }
+#aoModal .ao-sel.is-crop { border: 2px dashed #2f5fb3; background: rgba(47, 95, 179, .08); }
+#aoModal .ao-sel.is-black { background: rgba(0, 0, 0, .7); }
+#aoModal .ao-size { margin: 4px 0 8px; font-size: var(--text-xs, 12px); color: var(--text-muted, #57606a); }
+#aoModal .ao-check { border: 1px solid var(--border, #d0d7de); border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; }
+#aoModal .ao-check legend { font-size: var(--text-sm, 13px); font-weight: 600; padding: 0 4px; }
+#aoModal .ao-check label { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; font-size: var(--text-sm, 13px); cursor: pointer; }
+#aoModal .ao-check input { margin-top: 3px; width: 16px; height: 16px; }
+#aoModal .ao-foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 600px) {
+  #aoModal { padding: 0; align-items: flex-end; }
+  #aoModal .ao-box { border-radius: 12px 12px 0 0; max-height: 92vh; }
+  #aoModal button { min-height: 44px; }
+  #aoModal .ao-foot button { flex: 1 1 100%; }
+}
+@media print { #aoModal { display: none !important; } }

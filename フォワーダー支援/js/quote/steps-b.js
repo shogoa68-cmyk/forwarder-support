@@ -207,7 +207,8 @@
     }
     const lb = $('sbCarLinks'); if (lb) { const c = val('z2Carrier'); const t = '🔗 ' + (c ? esc(c) + ' の' : '') + 'リンク ▾'; if (lb.innerHTML !== t) lb.innerHTML = t; }
     const add = document.querySelector('#zone2Card .z2-route-add');
-    if (add) setText(add, '＋ 別の航路を登録（案を比べる）');
+    // 航路が 1 本以上あるとき、このボタンは航路の追加の箱の中（名前は conditions.js が決める＝Design 42-3）
+    if (add && !($('zone2Card') || {}).classList?.contains('rl-has')) setText(add, '＋ 別の航路を登録（案を比べる）');
     // 国の説明は 1 行に短く
     const note = $('z2PortCountryNote'); let sn = $('sbCountryNote');
     if (note && !sn) { sn = document.createElement('div'); sn.id = 'sbCountryNote'; sn.className = 'sb-country-note'; note.parentNode.insertBefore(sn, note.nextSibling); }

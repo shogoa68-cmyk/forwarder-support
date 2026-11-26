@@ -26,7 +26,7 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deploy3.outputs.page_url || steps.deploy2.outputs.page_url || steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -61,6 +61,31 @@ jobs:
       #    400 "due to in progress deployment. Please cancel <sha> first" で作成拒否される。
       #    その場合は Settings → Environments → github-pages で当該デプロイを Cancel する
       # 復旧後に Actions から Re-run するか、新しいコミットを push し直すこと。
+      #
+      # 自動のやり直し（2026-11）：GitHub 側が一時的に、直前にアップロードした成果物を
+      # 見つけられず「No artifacts named "github-pages" were found」で失敗することがある
+      # （手で Re-run すると通る）。このときはデプロイ自体が作られる前に止まっているので、
+      # 少し待って同じ run の中でやり直せば通る。最大 3 回（待ち 30 秒・90 秒）。
       - name: Deploy to GitHub Pages
         id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Wait before retry (1)
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 30
+
+      - name: Deploy to GitHub Pages (retry 1)
+        id: deploy2
+        if: steps.deployment.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Wait before retry (2)
+        if: steps.deployment.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        run: sleep 90
+
+      - name: Deploy to GitHub Pages (retry 2)
+        id: deploy3
+        if: steps.deployment.outcome == 'failure' && steps.deploy2.outcome == 'failure'
         uses: actions/deploy-pages@v4

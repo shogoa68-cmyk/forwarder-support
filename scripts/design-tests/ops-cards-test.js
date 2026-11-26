@@ -113,6 +113,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const setv = (sel, v) => p.evaluate(([sel, v]) => { const i = document.querySelector(sel); if (!i) return false; i.value = v; i.dispatchEvent(new Event('change', { bubbles: true })); return true; }, [sel, v]);
   const iso = n => p.evaluate(n => window.__iso(n), n);
   const dlRows = () => p.evaluate(() => [...document.querySelectorAll('#opmModal .opm-dl-row')].map(r => ({ l: r.querySelector('.opm-dl-l').textContent, cls: r.className, st: r.querySelector('.opm-dl-st').textContent, link: (r.querySelector('.opm-dl-link') || {}).textContent || '' })));
+  const by = (rows, re) => rows.find(r => re.test(r.l)) || {};
   await p.evaluate(() => window.opsOpen('B1')); await p.waitForTimeout(400);
   // ---- 📅 日程・締め切り ----
   let dr = await dlRows();
@@ -125,25 +126,57 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('締め切りの日付は案件に保存（qf-ops の dl）', !!cy && cy.d === tmr, cy);
   ok('つないだ作業の期限にも同じ日付が入る', van.due === tmr && van.dk === cy.id, van);
   dr = await dlRows();
-  ok('明日の締め切りは黄（48 時間以内）・「明日」', /is-soon/.test(dr[1].cls) && /明日/.test(dr[1].st), dr[1]);
+  ok('明日の締め切りは黄（48 時間以内）・「明日」', /is-soon/.test(by(dr, /^CY カット/).cls) && /明日/.test(by(dr, /^CY カット/).st), by(dr, /^CY カット/));
+  ok('日付の入った締め切りは一番上へ自動で並ぶ', dr[0].l === 'CY カット', dr.map(r => r.l));
   await setv('#opmModal .opm-dl-d[data-i="2"]', yst); await p.waitForTimeout(600);
   dr = await dlRows();
-  ok('昨日の SI カットは赤（過ぎた）・「1 日過ぎています」', /is-over/.test(dr[2].cls) && /1 日過ぎています/.test(dr[2].st), dr[2]);
+  ok('昨日の SI カットは赤（過ぎた）・「1 日過ぎています」', /is-over/.test(by(dr, /^SI カット/).cls) && /1 日過ぎています/.test(by(dr, /^SI カット/).st), by(dr, /^SI カット/));
+  ok('日付の早い順（昨日の SI カット → 明日の CY カット → 日付なし）', dr.map(r => r.l).slice(0, 3).join('|') === 'SI カット|CY カット|CY オープン', dr.map(r => r.l));
   await setv('#opmModal .opm-dl-d[data-i="4"]', await iso(-3)); await p.waitForTimeout(600);
   dr = await dlRows();
-  ok('予定日（ETD）でも、つないだ作業が済んでいなければ過ぎたら赤', /is-over/.test(dr[4].cls), dr[4]);
+  ok('予定日（ETD）でも、つないだ作業が済んでいなければ過ぎたら赤', /is-over/.test(by(dr, /^ETD/).cls), by(dr, /^ETD/));
   const cmt = await p.evaluate(() => window.__db.quote_comments.map(c => c.body));
   ok('申し送りに「📅 業務：CY カット を …に」', cmt.some(t => /📅 業務：CY カット/.test(t)), cmt);
   // 作業を済ませると締め切りは「済み」
   const vi = o.s.indexOf(o.s.find(s => /バンニング/.test(s.l)));
   await p.evaluate(i => document.querySelector('#opmModal .opm-chk[data-i="' + i + '"]').click(), vi); await p.waitForTimeout(600);
   dr = await dlRows();
-  ok('つないだ作業が済むと、締め切りは「✅ 済み」', /is-met/.test(dr[1].cls) && /済み/.test(dr[1].st), dr[1]);
+  ok('つないだ作業が済むと、締め切りは「✅ 済み」', /is-met/.test(by(dr, /^CY カット/).cls) && /済み/.test(by(dr, /^CY カット/).st), by(dr, /^CY カット/));
+  ok('済みの締め切りは一番下へ', dr[dr.length - 1].l === 'CY カット', dr.map(r => r.l));
   await p.evaluate(i => document.querySelector('#opmModal .opm-chk[data-i="' + i + '"]').click(), vi); await p.waitForTimeout(600);
   // 自由な名前の締め切りを足す
   await setv('#opmDlType', 'free'); await p.evaluate(() => { document.getElementById('opmDlFree').value = '通関書類の提出'; document.querySelector('#opmModal [data-opm="dladd"]').click(); }); await p.waitForTimeout(600);
   dr = await dlRows();
   ok('自由な名前の締め切りを追加できる（つないだ作業なし＝「済み」のチェック）', dr.length === 6 && dr[5].l === '通関書類の提出' && await p.evaluate(() => !!document.querySelector('#opmModal .opm-dl-row:last-child .opm-dl-ok')), dr[5]);
+  // ドラッグで並べ替え（日付のないものだけ・日付のあるものは 📅＝自動）
+  ok('日付のない締め切りに ⠿・日付のあるものに 📅', await p.evaluate(() => { const rows = [...document.querySelectorAll('#opmModal .opm-dl-row')]; return rows.every(r => { const d = r.querySelector('.opm-dl-d').value, g = r.querySelector('.opm-grip'); return d ? g.classList.contains('is-auto') : g.dataset.kind === 'dl'; }); }));
+  const dragDl = async (fromL, toL) => {
+    const rows = await p.$$('#opmModal .opm-dl-row'); let f, t;
+    for (const r of rows) { const l = await r.$eval('.opm-dl-l', e => e.textContent); if (l === fromL) f = r; if (l === toL) t = r; }
+    const g = await f.$('.opm-grip'); await g.scrollIntoViewIfNeeded();
+    const gb = await g.boundingBox(); await p.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2); await p.mouse.down();
+    await t.scrollIntoViewIfNeeded(); const tb = await t.boundingBox();
+    await p.mouse.move(gb.x + 4, tb.y + 3, { steps: 8 });
+    const mk = await p.evaluate(() => !!document.querySelector('#opmModal .opm-dl-row.drop-before'));
+    await p.mouse.up(); await p.waitForTimeout(700); return mk;
+  };
+  const mkd = await dragDl('通関書類の提出', 'CY オープン');
+  dr = await dlRows();
+  o = await ops(p, 'B1');
+  ok('締め切りをドラッグで並べ替え（日付のないものの中で・保存される）', mkd && dr.map(r => r.l).indexOf('通関書類の提出') === dr.map(r => r.l).indexOf('CY オープン') - 1 && o.dl.map(d => d.l || d.k).indexOf('通関書類の提出') < o.dl.map(d => d.k).indexOf('cy_open'), dr.map(r => r.l));
+  // 期限を入れた作業は、締め切りの一覧にも出る（締め切りとつないでいない作業）
+  const s0 = o.s.findIndex(x => !x.dk && !x.d);
+  await setv('#opmModal .opm-step .opm-due[data-i="' + s0 + '"]', await iso(2)); await p.waitForTimeout(600);
+  dr = await dlRows();
+  const vrow = dr.find(r => r.l.startsWith(o.s[s0].l));
+  ok('期限を入れた作業が「作業の期限」として締め切りの一覧に出る（日付順の位置）', !!vrow && /作業の期限/.test(vrow.l) && /is-step/.test(vrow.cls) && /あと 2 日/.test(vrow.st), dr.map(r => r.l));
+  if (process.env.OUT) await p.locator('#opmModal .opm-dl').screenshot({ path: process.env.OUT });
+  await setv('#opmModal .opm-dl-row.is-step .opm-dl-sd', await iso(4)); await p.waitForTimeout(600);
+  o = await ops(p, 'B1');
+  ok('一覧の日付を直すと作業の期限が変わる（締め切りは増えない）', o.s[s0].due === await iso(4) && o.dl.length === 6, { due: o.s[s0].due, n: o.dl.length });
+  await setv('#opmModal .opm-step .opm-due[data-i="' + s0 + '"]', ''); await p.waitForTimeout(600);
+  ok('作業の期限を消すと一覧からも消える', !(await dlRows()).some(r => /作業の期限/.test(r.l)));
+  ok('並べ替えても日付のある締め切りは日付順のまま上', dr.slice(0, 2).map(r => r.l).join('|') === 'ETD（出港予定日）|SI カット', dr.map(r => r.l));
   // ---- 🗂 作業カード ----
   const SI = o.s.findIndex(s => /SI（船積指示）/.test(s.l));
   await p.evaluate(i => document.querySelectorAll('#opmModal .opm-step-l')[i].click(), SI); await p.waitForTimeout(500);
@@ -167,6 +200,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const gd = await p.evaluate(() => window.__db.ops_guides || []);
   ok('手順メモはチーム共有の表に、作業名（往路・復路を除く）の key で保存', gd.length === 1 && gd[0].key === 'si(船積指示)の提出' && /SI 画面/.test(gd[0].body), gd);
   ok('手順メモの URL はリンクになる', await p.evaluate(() => !!document.querySelector('#opmModal .opc-guide a[href="https://example.com/si"][target="_blank"]')));
+  // 手順メモの範囲：お客様ごと・サブコンごと
+  ok('手順メモは「共通／お客様：X社／サブコン」の 3 つの枠', await p.evaluate(() => { const t = [...document.querySelectorAll('#opmModal .opc-gs .opc-gs-h b')].map(e => e.textContent); return t.length === 3 && t[0] === '共通' && t[1] === 'お客様：X社' && /^サブコン/.test(t[2]); }));
+  ok('相手（サブコン）が空のあいだは、サブコンの手順は書けない（案内だけ）', await p.evaluate(() => !document.querySelector('#opmModal .opc-gs-s [data-opm="gedit"]') && /相手（サブコン）/.test(document.querySelector('#opmModal .opc-gs-s').textContent)));
+  await click(p, '#opmModal .opc-gs-c [data-opm="gedit"]'); await p.waitForTimeout(200);
+  await p.evaluate(() => { document.querySelector('#opmModal .opc-gs-c .opc-g-in').value = 'X社は INV に HS コード必須'; document.querySelector('#opmModal .opc-gs-c [data-opm="gsave"]').click(); }); await p.waitForTimeout(600);
+  let gd2 = await p.evaluate(() => window.__db.ops_guides || []);
+  ok('お客様の手順は「作業名|c:お客様」の key で保存（共通の手順は変わらない）', gd2.some(g => g.key === 'si(船積指示)の提出|c:x社' && /HS コード/.test(g.body)) && gd2.some(g => g.key === 'si(船積指示)の提出' && /SI 画面/.test(g.body)), gd2.map(g => g.key));
+  await setv('#opmModal .opc-sv', '山田運送'); await p.waitForTimeout(600);
+  o = await ops(p, 'B1');
+  ok('相手（サブコン）は作業に保存', o.s[SI].sv === '山田運送', o.s[SI]);
+  await click(p, '#opmModal .opc-gs-s [data-opm="gedit"]'); await p.waitForTimeout(200);
+  await p.evaluate(() => { document.querySelector('#opmModal .opc-gs-s .opc-g-in').value = '山田運送は専用フォームで依頼'; document.querySelector('#opmModal .opc-gs-s [data-opm="gsave"]').click(); }); await p.waitForTimeout(600);
+  gd2 = await p.evaluate(() => window.__db.ops_guides || []);
+  ok('サブコンの手順は「作業名|s:サブコン」の key で保存', gd2.some(g => g.key === 'si(船積指示)の提出|s:山田運送' && /専用フォーム/.test(g.body)), gd2.map(g => g.key));
+  ok('3 つの枠それぞれに手順が出る', await p.evaluate(() => ['all', 'c', 's'].every(k => document.querySelector('#opmModal .opc-gs-' + k + ' .opc-guide'))));
   // やりとり
   await p.evaluate(() => { document.querySelector('#opmModal .opc-n-in').value = 'INV の確認を依頼しました'; document.querySelector('#opmModal [data-opm="nadd"]').click(); }); await p.waitForTimeout(600);
   const nt = await p.evaluate(() => window.__db.ops_notes || []);
@@ -238,13 +286,14 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const cd = await p.evaluate(() => [...document.querySelectorAll('#opmModal .opm-dl-cand')].map(e => e.textContent.replace(/\s+/g, ' ')));
   ok('チェックリストの締め切りに「🛰 COLINS の日付が違います」と出どころ', cd.some(t => /COLINS の日付が違います/.test(t) && /CYカット（本船 ONE HARMONY 012E）/.test(t)), cd);
   ok('勝手には書き換えない', (await ops(p, 'B1')).dl.find(d => d.k === 'cy_cut').d === tmr);
-  await p.evaluate(() => { const b = [...document.querySelectorAll('#opmModal [data-opm="dlapply"]')][0]; b.click(); }); await p.waitForTimeout(700);
+  const candBtn = (lab, act) => p.evaluate(([lab, act]) => { const r = [...document.querySelectorAll('#opmModal .opm-dl-row')].find(r => r.querySelector('.opm-dl-l').textContent.startsWith(lab)); const b = r && r.querySelector('[data-opm="' + act + '"]'); b && b.click(); return !!b; }, [lab, act]);
+  await candBtn('CY カット', 'dlapply'); await p.waitForTimeout(700);
   o = await ops(p, 'B1');
   const cy2 = o.dl.find(d => d.k === 'cy_cut'), van2 = o.s.find(s => /バンニング/.test(s.l));
   ok('［反映する］で COLINS の日付が入り、つないだ作業の期限も追う', cy2.d === d3 && van2.due === d3, { cy2, due: van2.due });
   ok('申し送りに「COLINS の日付を反映・前は …」', (await p.evaluate(() => window.__db.quote_comments.map(c => c.body))).some(t => /COLINS の日付を反映・前は/.test(t)));
   ok('反映後は「COLINS と同じ日付」', await p.evaluate(() => [...document.querySelectorAll('#opmModal .opm-dl-cand.is-same')].some(e => /CYカット/.test(e.textContent))));
-  await p.evaluate(() => { const b = [...document.querySelectorAll('#opmModal [data-opm="dlignore"]')][0]; b.click(); }); await p.waitForTimeout(700);
+  await candBtn('ETD', 'dlignore'); await p.waitForTimeout(700);
   o = await ops(p, 'B1');
   const etd2 = o.dl.find(d => d.k === 'etd');
   ok('［このままにする］で日付は変えず、同じ候補は出さない', etd2.d !== d5 && etd2.cx === d5 && !(await p.evaluate(() => document.querySelector('#opmModal [data-opm="dlapply"]'))), etd2);

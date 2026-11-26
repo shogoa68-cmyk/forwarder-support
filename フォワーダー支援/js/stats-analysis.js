@@ -96,9 +96,25 @@
     if (tr) { tr.scrollIntoView({ behavior: 'smooth', block: 'center' }); tr.classList.add('sa-flash'); setTimeout(function () { tr.classList.remove('sa-flash'); }, 1600); }
   }
 
+  // Design 42-5：スマホも受注率の横棒だけは出す（数字のカード・メニューはスマホ版 stats-mobile.js のまま）
+  function barsOnly() {
+    var pane = document.getElementById('statsPane-winrate'); if (!pane) return;
+    var add = function (re, col) {
+      var h = [].slice.call(pane.querySelectorAll('h3')).filter(function (x) { return re.test(x.textContent); })[0];
+      var t = h && h.parentNode.querySelector('table.stats-table');
+      if (!t || t.dataset.saBars === '1' || !t.tBodies[0]) return;
+      t.dataset.saBars = '1';
+      [].forEach.call(t.tBodies[0].rows, function (r) {
+        var c = col == null ? r.cells[r.cells.length - 1] : r.cells[col], p = num(c && c.textContent); if (p == null) return;
+        var bar = document.createElement('span'); bar.className = 'sa-bar'; var i = document.createElement('i'); i.style.width = Math.max(0, Math.min(100, p)) + '%'; bar.appendChild(i);
+        c.classList.add('sa-ratecell'); c.insertBefore(bar, c.firstChild);
+      });
+    };
+    add(/粗利率の帯/, null); add(/お客様別/, 5);
+  }
   function run() {
-    if (busy || phone()) return; busy = true;
-    try { groupMenu(); enhanceWinrate(); } finally { busy = false; }
+    if (busy) return; busy = true;
+    try { if (phone()) barsOnly(); else { groupMenu(); enhanceWinrate(); } } finally { busy = false; }
   }
   function boot() {
     var tab = document.getElementById('tab-stats'); if (!tab) return;

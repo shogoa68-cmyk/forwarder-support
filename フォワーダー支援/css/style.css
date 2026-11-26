@@ -6521,3 +6521,41 @@ html.theme-quiet #sqPanel { --sq-pri: var(--q-accent, #2f5fb3); --sq-pri-50: var
   #tab-share .sf-chip, #tab-share .sf-open, #tab-share .sf-reload, #tab-share .sf-more { min-height: 44px; }
   #tab-share .sf-hd { flex-direction: column; }
 }
+
+/* 会社の「ちょい見せ」（情報共有から会社名を押したとき・js/master-peek.js・2026-11） */
+.mpk-pop { position: fixed; z-index: 1600; width: min(400px, calc(100vw - 16px)); max-height: min(70vh, 560px); display: flex; flex-direction: column; background: var(--card-bg, #fff); color: var(--text, #1d2939); border: 1px solid var(--border-md, #98a2b3); border-radius: 10px; box-shadow: 0 10px 30px rgba(16,24,40,.22); font-size: var(--text-sm, 13px); line-height: var(--lh-ui, 1.5); }
+.mpk-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 12px 14px 4px; }
+.mpk-field { display: block; font-size: var(--text-xs, 12px); color: var(--text-muted, #5a6475); }
+.mpk-name { font-size: var(--text-lg, 16px); }
+.mpk-x { border: 0; background: none; font-size: 16px; cursor: pointer; color: inherit; min-width: 32px; min-height: 32px; border-radius: 6px; }
+.mpk-x:hover { background: var(--hover-bg, #f2f4f7); }
+.mpk-sub { padding: 0 14px 8px; color: var(--text-muted, #5a6475); border-bottom: 1px solid var(--border, #e4e7ec); }
+.mpk-list { list-style: none; margin: 0; padding: 4px 14px; overflow-y: auto; flex: 1 1 auto; min-height: 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.mpk-item { padding: 10px 0; border-bottom: 1px solid var(--border, #e4e7ec); }
+.mpk-item:last-child { border-bottom: 0; }
+.mpk-item.is-warn .mpk-title { color: #b42318; }
+.mpk-meta { display: flex; justify-content: space-between; gap: 8px; font-size: var(--text-xs, 12px); color: var(--text-muted, #5a6475); }
+.mpk-title { font-weight: 700; margin-top: 2px; }
+.mpk-body { margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--lh-body, 1.7); }
+.mpk-link { font-size: var(--text-xs, 12px); }
+.mpk-empty { padding: 16px 14px; color: var(--text-muted, #5a6475); }
+.mpk-ft { padding: 10px 14px 12px; border-top: 1px solid var(--border, #e4e7ec); }
+.mpk-go { width: 100%; min-height: 38px; border: 0; border-radius: 6px; background: var(--accent, #2f5fb3); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+@media (max-width: 600px) {
+  .mpk-pop { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: 100%; max-height: 75vh; border-radius: 14px 14px 0 0; border-bottom: 0; }
+  .mpk-go, .mpk-x { min-height: 44px; }
+  .mpk-ft { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ===== AI からのルールの案（メール取込・サブコン別／2026-11）===== */
+.ei-props { margin: 8px 0; padding: 8px 10px; border: 1px solid #c9d7f2; background: #f4f7fd; border-radius: 8px; }
+.ei-props[hidden] { display: none; }
+.ei-props-h { font-size: var(--text-sm, 13px); font-weight: 700; margin-bottom: 6px; }
+.ei-props-h span { display: block; font-weight: 400; font-size: var(--text-xs, 12px); color: #57606a; }
+.ei-prop { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 6px 0; border-top: 1px solid #dde5f4; font-size: var(--text-sm, 13px); }
+.ei-prop-k { font-size: var(--text-xs, 12px); background: #fff; border: 1px solid #c9d7f2; border-radius: 10px; padding: 1px 8px; }
+.ei-prop-v { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.ei-prop-r { flex-basis: 100%; font-size: var(--text-xs, 12px); color: #57606a; }
+.ei-prop button { min-height: 30px; padding: 2px 12px; border-radius: 6px; border: 1px solid #98a2b3; background: #fff; cursor: pointer; }
+.ei-prop .ei-prop-ok { background: #2f5fb3; border-color: #2f5fb3; color: #fff; }
+.ei-prop button:disabled { opacity: .5; cursor: default; }

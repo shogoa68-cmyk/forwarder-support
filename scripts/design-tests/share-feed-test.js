@@ -58,8 +58,19 @@ let fail=0;const ok=(n,c,x)=>{if(!c)fail++;console.log((c?'PASS ':'FAIL ')+n+(c?
  ok('「山田商事」で探すと関係する 3 件',await p.evaluate(()=>document.querySelectorAll('.sf-item').length===3&&document.activeElement.matches('.sf-q')),null);
  await p.fill('.sf-q','');await p.waitForTimeout(100);
  // 移動
- await p.click('.sf-t-rule .sf-open');await p.waitForTimeout(100);
- ok('取引ルールの会社名からマスター詳細を開く',await p.evaluate(()=>JSON.stringify(window.__jump)===JSON.stringify(['customer','山田商事',true])),null);
+ await p.click('.sf-t-rule .sf-open');await p.waitForTimeout(150);
+ const pk=await p.evaluate(()=>{const e=document.querySelector('.mpk-pop');return e?{name:e.querySelector('.mpk-name').textContent,sub:e.querySelector('.mpk-sub').textContent,n:e.querySelectorAll('.mpk-item').length,go:e.querySelector('.mpk-go').textContent}:null;});
+ ok('会社名を押すと、その場で取引ルールの簡易表示（マスターへは飛ばない）',pk&&pk.name==='山田商事'&&/取引ルール/.test(pk.sub)&&pk.n>=1&&/取引ルール/.test(pk.go),pk);
+ ok('簡易表示は本文を省略せず全文（行数で切らない）',await p.evaluate(()=>{const b=document.querySelector('.mpk-body');if(!b)return true;const cs=getComputedStyle(b);return cs.webkitLineClamp==='none'&&cs.overflow!=='hidden';}),null);
+ ok('一覧の部分は窓の中でスクロールできる',await p.evaluate(()=>{const l=document.querySelector('.mpk-list');return !!l&&getComputedStyle(l).overflowY==='auto';}),null);
+ await p.keyboard.press('Escape');await p.waitForTimeout(100);
+ ok('Esc で閉じる',await p.evaluate(()=>!document.querySelector('.mpk-pop')),null);
+ await p.click('.sf-t-news .sf-open');await p.waitForTimeout(150);
+ ok('ニュースの会社名ではニュースの簡易表示（サブコン）',await p.evaluate(()=>{const e=document.querySelector('.mpk-pop');return !!e&&/サブコン/.test(e.textContent)&&/倉庫を移転/.test(e.textContent)&&/ニュース/.test(e.querySelector('.mpk-sub').textContent);}),null);
+ await p.click('.mpk-go');await p.waitForTimeout(100);
+ ok('［マスターの詳細で見る］でニュースのタブを指定して開く',await p.evaluate(()=>JSON.stringify(window.__jump)===JSON.stringify(['sv','ABC運輸','news'])&&!document.querySelector('.mpk-pop')),null);
+ await p.click('.sf-t-rule .sf-open');await p.waitForTimeout(150);await p.click('.mpk-go');await p.waitForTimeout(100);
+ ok('取引ルールからは取引ルールのタブを指定',await p.evaluate(()=>JSON.stringify(window.__jump)===JSON.stringify(['customer','山田商事','rules'])),null);
  await p.evaluate(()=>switchCategory('share',document.querySelector('.cat-btn[aria-controls="tab-share"]')));await p.waitForTimeout(300);
  await p.evaluate(()=>document.querySelector('.sf-t-comment .sf-open').click());await p.waitForTimeout(300);
  ok('申し送りから案件を開く（見積の画面へ移る）',await p.evaluate(()=>window.__open==='p1'&&document.getElementById('tab-quote-make').classList.contains('active')),null);

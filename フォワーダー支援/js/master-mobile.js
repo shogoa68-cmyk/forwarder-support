@@ -25,6 +25,10 @@
     const work = document.createElement('div'); work.id = 'mmWork'; work.className = 'mm-work';
     (tabs || r.firstElementChild).after(bar); bar.after(home); home.after(work);
     bar.addEventListener('click', e => { if (e.target.closest('#mmBack')) show('home'); else if (e.target.closest('#mmFix')) { show('alias'); } });
+    // Design 42-4：エイリアス是正（多くの案件を書き換える画面）は PC だけ。スマホでは案内のカードだけ出す
+    const an = document.createElement('div'); an.id = 'mmAliasPc'; an.className = 'mm-alias-pc';
+    an.innerHTML = '<b>🔧 表記の是正</b><p>古い表記をまとめて直す画面は、PC で開いてください（多くの案件を書き換えるため）。</p>';
+    work.after(an);
     home.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
     work.addEventListener('click', onWorkClick);
     built = true;
@@ -125,6 +129,7 @@
   }
   function closeSheet() { const w = $('mmSheet'); if (w) w.remove(); document.body.classList.remove('sm-sheet-open'); }
   function toast(msg) {
+    if (typeof window.quoteShowToast === 'function') { window.quoteShowToast(msg, 'info', 4000); return; }   // 通知は 1 か所（画面の上）
     const o = document.querySelector('.mm-toast'); if (o) o.remove(); clearTimeout(undoT);
     const t = document.createElement('div'); t.className = 'sm-undo mm-toast'; t.innerHTML = '<span>' + esc(msg) + '</span>';
     document.body.appendChild(t); undoT = setTimeout(() => t.remove(), 4000);
@@ -155,9 +160,58 @@
         if (marks.length > 3) { marks.slice(3).forEach(m => m.classList.add('mm-hide')); const mo = document.createElement('span'); mo.className = 'mm-more'; mo.textContent = '他 ' + (marks.length - 3); nm.appendChild(mo); }
       }
       const nest = tr.querySelector(':scope > td.master-nest-cell');
-      if (nest) { const n = nest.querySelectorAll('tbody > tr').length; const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'mm-nestbtn'; bt.textContent = '🔗 先のお客様 ' + n + '社を見る ›'; bt.addEventListener('click', () => nest.classList.toggle('mm-nest-open')); nest.prepend(bt); }
+      if (nest) nestList(nest);
     });
   }
+  // Design 42-4：先のお客様は「🔗 先のお客様 N社 ▾」でカードの中にその場で開く（1 段だけ・名前 · 案件数・3 社まで）
+  function nestList(nest) {
+    const kids = [...nest.querySelectorAll(':scope > table.master-nest > tbody > tr, :scope table.master-nest > tbody > tr')]
+      .filter((tr, k, a) => a.indexOf(tr) === k && tr.dataset.mvalue && tr.closest('td.master-nest-cell') === nest);
+    const n = kids.length;
+    const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'mm-nestbtn'; bt.setAttribute('aria-expanded', 'false');
+    bt.textContent = '🔗 先のお客様 ' + n + '社 ▾';
+    const box = document.createElement('div'); box.className = 'mm-nestlist'; box.hidden = true;
+    const cnt = v => { const c = typeof window.statsCasesCount === 'function' ? window.statsCasesCount('customer', v) : null; return c == null ? '' : ' · ' + c + '件'; };
+    const draw = () => {
+      box.innerHTML = kids.slice(0, 3).map(tr => '<div class="mm-nest-i"><b>' + esc(tr.dataset.mvalue) + '</b><span>' + esc(cnt(tr.dataset.mvalue)) + '</span></div>').join('')
+        + (n > 3 ? '<button type="button" class="mm-nest-all">すべて見る（' + n + '社） ›</button>' : '');
+    };
+    bt.addEventListener('click', () => {
+      const open = box.hidden; box.hidden = !open; bt.setAttribute('aria-expanded', open ? 'true' : 'false');
+      bt.textContent = '🔗 先のお客様 ' + n + '社 ' + (open ? '▴' : '▾');
+      if (open) draw(); else nest.classList.remove('mm-nest-open');
+    });
+    box.addEventListener('click', e => { if (e.target.closest('.mm-nest-all')) { nest.classList.add('mm-nest-open'); box.hidden = true; } });
+    nest.prepend(box); nest.prepend(bt);
+  }
+
+  // Design 42-4：新規登録は下から出るシート（種別は丸いチップ・名前・詳細は畳む・［登録する］は下に固定）
+  function decorateRegister(m) {
+    if (!mobile() || !m || m.dataset.mmReg) return;
+    m.dataset.mmReg = '1'; m.classList.add('mm-reg');
+    const sel = m.querySelector('#masterNewField'), top = m.querySelector('.mnr-top'), fields = m.querySelector('#masterNewFields');
+    if (sel && top) {
+      const chips = document.createElement('div'); chips.className = 'mm-reg-kinds'; chips.setAttribute('role', 'radiogroup'); chips.setAttribute('aria-label', '種別');
+      const paint = () => chips.querySelectorAll('button').forEach(b => { const on = b.dataset.v === sel.value; b.classList.toggle('is-on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+      [...sel.options].forEach(o => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'mm-reg-kind'; b.dataset.v = o.value; b.setAttribute('role', 'radio'); b.textContent = o.textContent.replace(/（.*$/, '');
+        b.addEventListener('click', () => { sel.value = o.value; sel.dispatchEvent(new Event('change', { bubbles: true })); paint(); });
+        chips.appendChild(b);
+      });
+      const lab = document.createElement('p'); lab.className = 'mm-reg-step'; lab.textContent = '① 種別';
+      top.parentNode.insertBefore(lab, top); top.parentNode.insertBefore(chips, top);
+      sel.addEventListener('change', paint); paint();
+      const nl = top.querySelector('.mnr-name'); if (nl && nl.firstChild && nl.firstChild.nodeType === 3) nl.firstChild.textContent = '② 名前 ＊';
+    }
+    if (fields) {
+      const d = document.createElement('details'); d.className = 'mm-reg-more';
+      d.innerHTML = '<summary>③ 詳細（任意）<small>別名・ふりがな・国・担当など（種別で中身が変わります）</small></summary>';
+      fields.parentNode.insertBefore(d, fields); d.appendChild(fields);
+    }
+    const btn = m.querySelector('.master-new-btn'); if (btn && /^登録$/.test(btn.textContent.trim())) btn.textContent = '登録する';
+  }
+  new MutationObserver(ms => { ms.forEach(x => x.addedNodes.forEach(n => { if (n.id === 'masterNewModal') decorateRegister(n); })); }).observe(document.body, { childList: true });
+
   function filterSheet(rows) {
     const h = rows.map(row => {
       const lab = (row.querySelector('.master-type-chips-label') || {}).textContent || '';

@@ -138,7 +138,7 @@
           ? `<span class="cmp-pt-total-breakdown">（共通${_cmpFmtJpy(commonTotal)}＋個別${_cmpFmtJpy(p.ownTotal)}）</span>`
           : '';
         return `<button type="button" class="cmp-pt-total-row${isCheapest ? ' cmp-pt-total--best' : ''}${isActive ? ' cmp-pt-total--active' : ''}"
-            onclick="cmpSetPatternFilter('${escHtml(p.pt).replace(/'/g, "\\'")}')" title="クリックするとこのパターンの内訳（下の品目別比較）に絞り込みます">
+            onclick="cmpSetPatternFilter('${jsAttr(p.pt)}')" title="クリックするとこのパターンの内訳（下の品目別比較）に絞り込みます">
           <span class="cmp-pt-total-star">${isCheapest ? '⭐' : ''}</span>
           <span class="cmp-pt-total-name">${escHtml(p.pt)}</span>
           <span class="cmp-pt-total-amt">${_cmpFmtJpy(p.grandTotal)}</span>

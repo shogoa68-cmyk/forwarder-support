@@ -535,11 +535,11 @@
 
   // === レンダリングヘルパー ===
 
-  function _esc(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _esc(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   // onclick 属性内のシングルクォート文字列リテラル用エスケープ。
   // HTML エンティティ（&#39;）はブラウザが JS 実行前に ' に戻してしまい構文エラーになるため、
   // JS の \' エスケープを使う（HTML は \ をデコードしない）。
-  function _ea(s)   { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+  function _ea(s)   { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   // HTML value="" 属性用
   function _eav(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
@@ -752,6 +752,8 @@
     return out;
   }
 
+  // 使っている案件の数（読み込み済みの案件から数える。スマホの先のお客様の一覧などから）
+  window.statsCasesCount = function (field, value) { try { return _casesUsing(field, value).length; } catch (e) { return null; } };
   // 「使用案件」ポップオーバー（body 直下に fixed 配置、既存 syn-suggest と同じ流儀）
   let _usagePop = null;
   function _usagePopOutsideClick(e) {
@@ -1099,6 +1101,7 @@
       );
     }
     // エイリアス是正は独立した「🗂 マスター管理」タブへ移設済み。そちらへ遷移。
+    _markReturn();
     const catBtn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
     if (typeof window.switchCategory === 'function' && catBtn) window.switchCategory('master', catBtn);
     if (typeof window.masterSetPane === 'function') window.masterSetPane('alias');
@@ -1121,20 +1124,22 @@
     }
   }
   window.statsJumpToMaster = async function (field, value, openDetail) {
+    // 重さの対策（2026-11）：以前は「タブを開く（initMasterTab がクラウドを読み込んで描画）」と「ここでもう一度
+    // クラウドを読み込んで描画」が二重に走り、さらに種別の絞り込みでもう一度描き直していた。
+    // いまは絞り込みを先に決めてから開き（描画は 1 回）、読み込みは共通の 1 本（_ensureMasterData）だけにする。
+    _markReturn();
+    // openDetail にタブ名（'news'／'cases'／'rules' など）を渡すと、詳細をそのタブで開く（master-tabs.js が読む）
+    window.__mtWantTab = typeof openDetail === 'string' ? openDetail : '';
+    _masterFieldFilter = field || 'all';
+    _masterDeal = ''; _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = ''; _masterSort = 'name';
+    _jumpPending = true;
+    const tab = document.getElementById('tab-master');
     const catBtn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
-    if (typeof window.switchCategory === 'function' && catBtn) window.switchCategory('master', catBtn);
-    if (typeof window.masterSetPane === 'function') window.masterSetPane('master');
-    // クラウド最新化してからフィルタ・スクロール（ローカルのみの場合は同期的に完了する）
-    if (_cloud()) {
-      _cvMap = null;
-      await _loadCloudVotes();
-      if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
-      if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
-      if (typeof window.arLoadCloud === 'function') await window.arLoadCloud();
-      if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
-    }
-    if (typeof window.statsMasterSetFilter === 'function') window.statsMasterSetFilter(field);
-    else _renderMaster();
+    if (!(tab && tab.classList.contains('active')) && typeof window.switchCategory === 'function' && catBtn) window.switchCategory('master', catBtn);
+    else masterSetPane('master');
+    let refreshed = false;
+    try { refreshed = await _ensureMasterData(); } finally { _jumpPending = false; }
+    if (refreshed) _renderMaster();
     _scrollToMasterRow(field, value, openDetail);
   };
 
@@ -2806,11 +2811,13 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape') _closeOpsMenu(); });
   // 個別マスターの解除（確認つき。入力候補から外れる）
   window.statsMasterRemove = async function (field, value) {
+    // Design 42-4：使っている案件の数を出す（読み込み済みの案件から数える＝追加の通信なし）
+    let n = null;
+    try { n = _casesUsing(field, value).length; } catch (e) { n = null; }
     const ok = await window.uiConfirm({
-      title: 'マスターから解除しますか？',
-      lines: [(_FIELD_LABEL[field] || field) + '「' + value + '」を、チーム共有のマスター（入力候補）から外します。', '見積データそのものは削除されません。'],
-      irreversible: '解除すると、入力候補から消えます（再び使うには、あらためて登録・申請が必要です）。',
-      okLabel: '外す', danger: true,
+      title: '「' + value + '」をマスターから解除しますか？',
+      lines: [(n == null ? 'この名前を使っている案件があるかもしれません。' : 'この名前を使っている案件：' + n + ' 件'), '案件の中の表記はそのまま残ります（マスターの候補に出なくなるだけ）。'],
+      cancelLabel: 'やめる', okLabel: '解除する', danger: true,
     });
     if (ok) await window.statsToggleVote(field, value);
   };
@@ -4081,7 +4088,9 @@
     e.innerHTML =
       '<p class="stats-empty">🎯 KPI（目標値を定めた指標）は準備中です。<br>' +
       '<small>目標値の設定方法を決めたうえで、ここに目標に対する達成状況を表示します。' +
-      '目標値を持たない実績の集計（案件数・受注率・作成者別成績）は「📊 データ」タブで確認できます。</small></p>';
+      '目標値を持たない実績の集計（案件数・受注率・作成者別成績）は「📊 データ」タブで確認できます。</small></p>' +
+      // Design 42-5：スマホは空の状態のカード
+      '<div class="sm-kpi-empty"><b>📊 KPI は準備中です</b><span>受注率・粗利率の目標と、今の進み具合をここで見られるようになります。</span></div>';
   }
 
   // === 🔖 パターン別：受注率・粗利率 ===
@@ -4215,6 +4224,7 @@
     _fixKind = _FIX_KINDS.includes(kind) ? kind : 'sv';
     const tab = document.getElementById('tab-master');
     if (tab && tab.classList.contains('active')) { masterSetPane('fix'); return; }
+    _markReturn();
     window.__masterWant = 'fix';
     const btn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
     if (typeof window.switchCategory === 'function') window.switchCategory('master', btn);
@@ -4321,21 +4331,87 @@
   }
   window.masterSetPane = masterSetPane;
 
+  // マスター管理の読み込みは 1 本にまとめる（タブを開く・他の画面から飛んでくる、のどちらから呼んでも同じ）。
+  // 読み込み中ならその完了を待つだけ・最後に読んでから 60 秒以内なら読み直さない（画面は手元のデータですぐ出す）。
+  const _MASTER_FRESH_MS = 60 * 1000;
+  let _masterDataAt = 0, _masterLoadP = null, _jumpPending = false;
+  function _ensureMasterData(force) {
+    if (!_cloud()) return Promise.resolve(false);
+    if (_masterLoadP) return _masterLoadP;
+    if (!force && _masterDataAt && Date.now() - _masterDataAt < _MASTER_FRESH_MS) return Promise.resolve(false);
+    _masterLoadP = (async () => {
+      _cvMap = null;
+      await Promise.all([
+        _loadCloudVotes(),
+        typeof window.synLoadCloud === 'function' ? window.synLoadCloud() : null,
+        typeof window.mdLoadCloud === 'function' ? window.mdLoadCloud() : null,
+        typeof window.arLoadCloud === 'function' ? window.arLoadCloud() : null,
+      ]);
+      if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();   // 読み込んだクラウドのマスターを入力補完へ
+      _masterDataAt = Date.now();
+      return true;
+    })().finally(() => { _masterLoadP = null; });
+    return _masterLoadP;
+  }
+  window.statsEnsureMasterData = _ensureMasterData;
   window.initMasterTab = async function () {
+    _syncReturn();
     const _want = window.__masterWant === 'fix' ? 'fix' : 'master'; window.__masterWant = null;
     masterSetPane(_want);
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
-    if (_cloud()) {
-      _cvMap = null;
-      await _loadCloudVotes();
-      if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
-      if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
-      if (typeof window.arLoadCloud === 'function') await window.arLoadCloud();
-      if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();   // 読み込んだクラウドのマスターを入力補完へ
-      // アクティブなマスタータブのペインを再描画
-      const active = document.querySelector('#tab-master .stats-pane.is-active');
-      if (active && active.id === 'statsPane-alias') _renderAlias(); else if (active && active.id === 'statsPane-fix') fixSetKind(_fixKind); else _renderMaster();
+    const refreshed = await _ensureMasterData();
+    if (!refreshed || _jumpPending) return;   // 飛んできたとき（statsJumpToMaster）は向こうで描く
+    const active = document.querySelector('#tab-master .stats-pane.is-active');
+    if (active && active.id === 'statsPane-alias') _renderAlias(); else if (active && active.id === 'statsPane-fix') fixSetKind(_fixKind); else _renderMaster();
+  };
+  // ===== 元の画面に戻る（他の画面からマスター管理へ飛んできたとき） =====
+  // 飛ぶ直前の画面（タブ）とスクロール位置を覚え、マスター管理の上部に［← ○○に戻る］を出す。
+  // ナビのボタンから自分でマスター管理を開いたときは出さない（戻り先を持たない）。
+  let _ret = null, _retPending = false;
+  function _markReturn() {
+    const cur = document.querySelector('.tab-content.active');
+    if (cur && cur.id !== 'tab-master') {
+      const btn = document.querySelector('.cat-btn[aria-controls="' + cur.id + '"]');
+      const label = btn ? (btn.textContent || '').replace(/[▾]/g, '').trim() : '';
+      _ret = { tab: cur.id, y: window.scrollY, label: label || '元の画面' };
     }
+    _retPending = true;
+  }
+  window.statsMarkMasterReturn = _markReturn;
+  function _syncReturn() {
+    if (!_retPending) _ret = null;   // ナビから開いた＝戻り先なし
+    _retPending = false;
+    let bar = document.getElementById('masterBackBar');
+    if (!_ret) { if (bar) bar.hidden = true; return; }
+    const tab = document.getElementById('tab-master');
+    if (!tab) return;
+    if (!bar) {
+      bar = document.createElement('div'); bar.id = 'masterBackBar'; bar.className = 'master-back-bar';
+      bar.innerHTML = '<button type="button" class="master-back-btn" onclick="statsMasterGoBack()"></button>';
+      tab.insertBefore(bar, tab.firstChild);
+    }
+    bar.querySelector('.master-back-btn').textContent = '← ' + _ret.label + 'に戻る';
+    bar.hidden = false;
+  }
+  window.statsMasterReturnLabel = () => (_ret ? _ret.label : '');
+  window.statsMasterGoBack = function () {
+    const r = _ret; if (!r) return;
+    // 詳細を未保存のまま戻ろうとしたら確かめる（破棄して戻る／やめる）
+    const m = document.getElementById('mdDetailModal');
+    if (m && m.dataset.mtDirty && typeof window.uiConfirm === 'function') {
+      window.uiConfirm({ title: '保存していない変更があります', lines: ['このまま戻ると、入力した内容は失われます。', '変更：' + m.dataset.mtDirty], okLabel: '破棄して戻る', danger: true }).then(ok => {
+        if (!ok) return; delete m.dataset.mtDirty; window.statsMasterGoBack();
+      });
+      return;
+    }
+    _ret = null;
+    const bar = document.getElementById('masterBackBar'); if (bar) bar.hidden = true;
+    if (typeof window.statsCloseMasterDetail === 'function' && document.getElementById('mdDetailModal')) window.statsCloseMasterDetail();
+    const btn = document.querySelector('.cat-btn[aria-controls="' + r.tab + '"]');
+    if (btn) btn.click();
+    else if (typeof window.switchTab === 'function') window.switchTab(r.tab.replace(/^tab-/, ''));
+    // 見積タブは app.js がスクロール位置を戻す。ほかのタブはここで戻す
+    if (r.tab !== 'tab-quote-make') requestAnimationFrame(() => window.scrollTo({ top: r.y, behavior: 'instant' }));
   };
 
   // 昇格済みマスターを全フィールド分まとめて返す（alias-rules.js の datalist 補完用）
