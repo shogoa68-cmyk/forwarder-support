@@ -1573,8 +1573,16 @@
   // ========== フォーミュラ評価（ペースト時に計算式を自動評価） ==========
   function safeEvalExpr(expr) {
     try {
-      const clean = String(expr).replace(/[^0-9+\-*/.() ]/g, '').trim();
-      if (!clean || !/[+\-*/]/.test(clean)) return null;
+      // 数字・演算子以外の文字（USD・GP・e など）を黙って削ると、
+      // 「USD 1,200/20GP」→ 60 のような別の値になるため、削るのは先頭の「=」・カンマ・空白だけ。
+      const clean = String(expr).replace(/^\s*=/, '').replace(/[,\s]/g, '');
+      if (!clean || !/^[0-9+\-*/.()]+$/.test(clean)) return null;
+      // 日付（2026-11-24・2026/11/24）と、幅の書き方（1000-1500）は式として扱わない
+      if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(clean)) return null;
+      const rg = clean.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/);
+      if (rg && Number(rg[2]) > Number(rg[1])) return null;   // 「1,000-1,500」は幅（引き算ではない）
+      // 2 つの値の間に演算子があるときだけ式（「-500」のような符号だけは式ではない）
+      if (!/[0-9.)][+\-*/][(0-9.\-]/.test(clean)) return null;
       // eslint-disable-next-line no-new-func
       const result = Function('"use strict"; return (' + clean + ')')();
       return (typeof result === 'number' && isFinite(result)) ? result : null;
@@ -1646,6 +1654,13 @@
       if (!el.closest('#tableBody, #calcBody')) return;
       const text = (e.clipboardData || window.clipboardData).getData('text').trim();
       const result = safeEvalExpr(text);
+      // 「1,200」のようなカンマ区切りの数だけの貼り付けは、そのまま数として入れる
+      if (result === null && /^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(text)) {
+        e.preventDefault();
+        el.value = text.replace(/,/g, '');
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        return;
+      }
       if (result !== null) {
         e.preventDefault();
         el.value = parseFloat(result.toFixed(6));
@@ -4268,7 +4283,7 @@
         const sv = tr.dataset.svKey || '', pt = tr.dataset.ptKey || '';
         // 親サブコンの表示名を探す
         let svLabel = '';
-        const phdr = document.querySelector('#tableBody tr.subcon-group-header[data-sv-key="' + sv + '"]');
+        const phdr = document.querySelector('#tableBody tr.subcon-group-header[data-sv-key="' + CSS.escape(sv) + '"]');
         if (phdr) svLabel = phdr.dataset.svLabel || '';
         let sum = '';
         const tbody = document.getElementById('tableBody');

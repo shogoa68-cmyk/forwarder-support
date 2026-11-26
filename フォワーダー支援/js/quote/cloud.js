@@ -3726,7 +3726,7 @@
   }
 
   function cpToggleGroup(chk, sv) {
-    document.querySelectorAll(`#cpTableBody .cp-row[data-sv="${sv.replace(/"/g, '\\"')}"] .cp-chk`).forEach(c => {
+    document.querySelectorAll(`#cpTableBody .cp-row[data-sv="${CSS.escape(sv)}"] .cp-chk`).forEach(c => {
       c.checked = chk.checked;
     });
     _cpUpdateSelCount();
@@ -3747,7 +3747,7 @@
     // グループチェックボックスの indeterminate 更新
     document.querySelectorAll('#cpTableBody .cp-group-chk').forEach(gChk => {
       const sv = gChk.dataset.group;
-      const rows = document.querySelectorAll(`#cpTableBody .cp-row[data-sv="${sv.replace(/"/g, '\\"')}"] .cp-chk`);
+      const rows = document.querySelectorAll(`#cpTableBody .cp-row[data-sv="${CSS.escape(sv)}"] .cp-chk`);
       const chked = [...rows].filter(c => c.checked).length;
       gChk.indeterminate = chked > 0 && chked < rows.length;
       if (!gChk.indeterminate) gChk.checked = chked === rows.length;
