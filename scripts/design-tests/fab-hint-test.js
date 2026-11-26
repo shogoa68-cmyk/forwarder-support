@@ -156,7 +156,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const { ctx, p } = await open({ w: 390, h: 800, mobile: true });
     await p.waitForTimeout(5200);
     const auto = await hintInfo(p);
-    ok('スマホ幅：下に押せる部品が隠れる位置なら、自動では出さない（回数は数えない）', !auto.shown && (await store(p)).n === null, { auto, s: await store(p) });
+    // 押せる部品に重なる位置なら出さない／出したときは、押せる部品に重なっていない（画面の配置しだいでどちらにもなる）
+    const covers = await p.evaluate(() => { const h = document.getElementById('fbFabHint'); if (!h || !h.getClientRects().length) return false; const r = h.getBoundingClientRect();
+      return [...document.querySelectorAll('button, a[href], input, select, textarea')].some(e => { if (e.closest('#fbFabHint') || e.id === 'fbQuickFab' || !e.getClientRects().length) return false; const b = e.getBoundingClientRect(); return b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top; }); });
+    ok('スマホ幅：下に押せる部品が隠れる位置なら、自動では出さない（出すときは押せる部品に重ならない）', auto.shown ? !covers : (await store(p)).n === null, { auto, covers, s: await store(p) });
     await p.evaluate(() => window.fbHintShow(true));
     const i = await hintInfo(p);
     ok('スマホ幅（手動で出した場合）：「？」の真上・画面内・はみ出さない', i.shown && i.above && i.inView && !i.overflowX && i.w <= 210, i);
