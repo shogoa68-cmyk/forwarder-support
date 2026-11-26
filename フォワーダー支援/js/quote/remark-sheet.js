@@ -73,11 +73,11 @@
     const vis = !!sheet && sheet.getClientRects().length > 0;   // 他のタブ・ダッシュボードでは出ていない
     // 開閉のアニメーション中でも、最終的な高さ（取っ手＋中身＋下の余白）を先に渡す（ほかの固定要素が一度に避けるように）
     const lift = vis ? Math.round(handle.getBoundingClientRect().height + bodyH + (parseFloat(getComputedStyle(sheet).paddingBottom) || 0) + 1) : 0;
-    root.style.setProperty('--rms-lift', lift + 'px');
+    if (root.style.getPropertyValue('--rms-lift') !== lift + 'px') root.style.setProperty('--rms-lift', lift + 'px');   // 同じ値なら書かない（書くたびに画面全体の CSS が計算し直しになる）
     // 取っ手バーだけの高さ（閉じているときの持ち上げ量）。開いても変えない＝右下のボタンは引き出しに追従せず、裏に隠れる
     const bar = vis ? Math.round(handle.getBoundingClientRect().height + (parseFloat(getComputedStyle(sheet).paddingBottom) || 0) + 1) : 0;
-    root.style.setProperty('--rms-bar', bar + 'px');
-    document.body.classList.toggle('rms-open', !!(vis && open));
+    if (root.style.getPropertyValue('--rms-bar') !== bar + 'px') root.style.setProperty('--rms-bar', bar + 'px');
+    if (document.body.classList.contains('rms-open') !== !!(vis && open)) document.body.classList.toggle('rms-open', !!(vis && open));
     if (typeof window.totFloatRefresh === 'function') window.totFloatRefresh();
     if (typeof window.pvWarnGuidePlace === 'function') window.pvWarnGuidePlace();   // 出力前の確認ガイドは、引き出し・ドックの上に避ける
     // 見積入力画面が出たとき（ダッシュボード・他のタブ・オーバーレイから戻ったとき）に、存在を知らせる

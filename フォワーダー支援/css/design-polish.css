@@ -1,0 +1,172 @@
+/* ==========================================================================
+   デザインの仕上げ（2026-11・評価の改善点 1〜9）
+   いちばん最後に読み込む。Quiet テーマ（独自の色の決まりがある）には当てない。
+   色と形の決まり：
+     主ボタン（その画面でいちばん大事な 1 つ）＝ --pol-pri の塗り
+     副ボタン＝白地＋灰の枠
+     ボタン・入力欄の角＝6px／入力欄の高さ＝36px（スマホ 44px）
+   ========================================================================== */
+:root {
+  --pol-pri: #2f5fb3;
+  --pol-pri-hover: #24498c;
+  --pol-pri-ring: rgba(47, 95, 179, .22);
+  --pol-sec-bd: #98a2b3;
+  --pol-text: #1d2939;
+  --pol-r: 6px;
+  --pol-h: 36px;
+  --pol-nav-on: #1f3550;
+}
+
+/* ---------- 1. 主ボタンの色を 1 つに ---------- */
+html:not(.theme-quiet) #qadMode:not(:disabled):not(.qad-locked):not(.qad-edit),
+html:not(.theme-quiet) #quoteActionDock #qadMode:not(:disabled),
+html:not(.theme-quiet) #tab-quote-make #e2EditBtn,
+html:not(.theme-quiet) #tab-quote-make #e2Next,
+html:not(.theme-quiet) #tab-quote-make .e2-primary,
+html:not(.theme-quiet) #tab-quote-make #e2Out .e2o-pdf,
+html:not(.theme-quiet) #tab-quote-make .sf-add-btn,
+html:not(.theme-quiet) #tab-quote-make .gb-add {
+  background: var(--pol-pri) !important;
+  border-color: var(--pol-pri) !important;
+  color: #fff !important;
+  border-radius: var(--pol-r) !important;
+  background-image: none !important;
+}
+html:not(.theme-quiet) #qadMode:not(:disabled):hover,
+html:not(.theme-quiet) #tab-quote-make #e2EditBtn:hover,
+html:not(.theme-quiet) #tab-quote-make #e2Next:hover,
+html:not(.theme-quiet) #tab-quote-make .e2-primary:hover {
+  background: var(--pol-pri-hover) !important;
+  border-color: var(--pol-pri-hover) !important;
+}
+/* 「ルートのサブコンで枠をつくる」は補助の操作＝副ボタン、箱も控えめに */
+html:not(.theme-quiet) #tab-quote-make .zone-preset-section {
+  background: transparent !important;
+  border: 1px dashed #d0d5dd !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+}
+html:not(.theme-quiet) #tab-quote-make .zone-preset-section .btn-zone-preset,
+html:not(.theme-quiet) #tab-quote-make #e2Prev {
+  background: #fff !important;
+  color: var(--pol-text) !important;
+  border: 1px solid var(--pol-sec-bd) !important;
+  box-shadow: none !important;
+  border-radius: var(--pol-r) !important;
+  filter: none !important;
+}
+html:not(.theme-quiet) #tab-quote-make .zone-preset-section .btn-zone-preset:hover,
+html:not(.theme-quiet) #tab-quote-make #e2Prev:not(:disabled):hover { background: #f2f4f7 !important; }
+
+/* ---------- 2. 角の丸み・入力欄の高さ・焦点の色をそろえる ---------- */
+html.editor-v2:not(.theme-quiet) #tab-quote-make .quote-main :is(input[type="text"], input[type="search"], input[type="number"], input[type="date"], input[type="time"], input:not([type]), select):not([type="checkbox"]):not([type="radio"]):not(#tableBody *):not(.ei-review *) {
+  border-radius: var(--pol-r);
+}
+html.editor-v2:not(.theme-quiet) #tab-quote-make #section-cond :is(#z2Carrier, #z2Service, #z2Tt) {
+  min-height: var(--pol-h);
+  height: var(--pol-h);
+  box-sizing: border-box;
+  padding-top: 0; padding-bottom: 0;
+}
+html:not(.theme-quiet) #tab-quote-make :is(input, select, textarea):focus-visible,
+html:not(.theme-quiet) #tab-quote-make :is(input, select, textarea):focus {
+  border-color: var(--pol-pri) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px var(--pol-pri-ring) !important;
+}
+html:not(.theme-quiet) #tab-quote-make :is(#e2Next, #e2Prev, #e2Out button, .zone-preset-section .btn-zone-preset) { border-radius: var(--pol-r) !important; }
+@media (max-width: 600px) {
+  html.editor-v2:not(.theme-quiet) #tab-quote-make #section-cond :is(#z2Carrier, #z2Service, #z2Tt) { min-height: 44px; height: 44px; }
+}
+
+/* ---------- 3. 上の固定部分を薄く（ヘッダーは 1 行に） ---------- */
+html:not(.theme-quiet) .header .subtitle { display: none !important; }
+html:not(.theme-quiet) .header { padding-top: 10px !important; padding-bottom: 10px !important; min-height: 0 !important; }
+html:not(.theme-quiet) .header h1 { margin: 0 !important; line-height: 1.3; }
+
+/* ---------- 4. スマホの重なり ---------- */
+@media (max-width: 600px) {
+  /* 上段ナビは 1 行（「情報共有 ▾」を折り返さない） */
+  .cat-nav .cat-btn, .cat-nav .cat-more-btn { white-space: nowrap !important; min-height: 44px !important; height: 44px !important; padding-left: 4px !important; padding-right: 4px !important; }
+  .cat-nav .cat-more-btn .cat-more-label { display: none !important; }
+  .cat-nav .cat-more-btn .cat-more-caret { font-size: 10px; margin-left: 1px; }
+  .cat-nav .cat-btn, .cat-nav .cat-more-btn { font-size: 13px !important; }
+  /* 見積入力の上のバーへ入れた ❓ */
+  #saveToolbar #fbQuickFab.fb-in-toolbar {
+    position: static !important; width: 36px !important; height: 36px !important; min-width: 36px !important;
+    margin: 0 0 0 4px !important; box-shadow: none !important; opacity: 1 !important;
+    font-size: 16px !important; flex: 0 0 auto; order: 3;
+  }
+}
+
+/* ---------- 5. は JS（editor-v2.js：空の 1 行を「入力済み」に数えない） ---------- */
+
+/* ---------- 6. 右の列の行：項目名を切らない・操作の印を押しやすく ---------- */
+html.editor-v2 #sbAside .sb-l { flex-basis: 96px !important; }
+html.editor-v2 #sbAside .sb-op:not(.sb-sw) {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; min-width: 28px; border-radius: var(--pol-r);
+  font-size: 16px; line-height: 1; color: var(--pol-pri);
+}
+html.editor-v2 #sbAside .sb-rh:hover .sb-op:not(.sb-sw) { background: #eef3fb; }
+
+/* ---------- 7. 飾りをやめる（四隅のかぎ印・途中に出るフッター・ナビのグラデーション） ---------- */
+html.theme-industry #tab-quote-make .quote-main::after,
+html.theme-industry #tab-quote-make .quote-main::before { content: none !important; display: none !important; }
+body:has(#tab-quote-make.active) .footer { display: none !important; }
+html:not(.theme-quiet) .footer { background: transparent !important; border: none !important; box-shadow: none !important; color: #98a2b3; }
+html:not(.theme-quiet) .cat-nav .cat-btn,
+html:not(.theme-quiet) .cat-nav .cat-more-btn {
+  background: #fff !important; background-image: none !important;
+  color: var(--pol-text) !important;
+  border: 1px solid #d0d5dd !important;
+  border-radius: var(--pol-r) !important;
+  box-shadow: none !important;
+}
+html:not(.theme-quiet) .cat-nav .cat-btn:hover,
+html:not(.theme-quiet) .cat-nav .cat-more-btn:hover { background: #f2f4f7 !important; }
+html:not(.theme-quiet) .cat-nav > .cat-btn.active,
+html:not(.theme-quiet) .cat-nav .cat-more.is-current > .cat-more-btn,
+html:not(.theme-quiet) .cat-nav .cat-more.has-active > .cat-more-btn,
+html:not(.theme-quiet) .cat-nav .cat-more-btn.active {
+  background: var(--pol-nav-on) !important;
+  color: #fff !important;
+  border-color: var(--pol-nav-on) !important;
+}
+
+/* ---------- 8. 「見積もりに戻る」は、どの画面でも左下の同じボタン ---------- */
+#tab-master .master-back { display: none !important; }
+html:not(.theme-quiet) #backToQuoteFab,
+html:not(.theme-quiet) #tab-master #backToQuoteFab {
+  position: fixed !important;
+  left: max(16px, calc(16px + env(safe-area-inset-left))) !important;
+  bottom: max(20px, calc(20px + env(safe-area-inset-bottom))) !important;
+  background: #fff !important; color: var(--pol-text) !important;
+  border: 1px solid var(--pol-sec-bd) !important;
+  border-radius: var(--pol-r) !important;
+  min-height: 40px !important; padding: 0 14px !important;
+  box-shadow: 0 4px 14px rgba(16, 24, 40, .14) !important;
+  font-weight: 700;
+}
+html:not(.theme-quiet) #backToQuoteFab:hover { background: #f2f4f7 !important; transform: none; }
+@media (max-width: 600px) { html:not(.theme-quiet) #backToQuoteFab { min-height: 44px !important; } }
+/* 上のバーに入れた ❓ は、入力中も消さない（バーの並びが動かないように） */
+@media (max-width: 600px) {
+  body:has(#tab-quote-make.active input:focus, #tab-quote-make.active textarea:focus) #saveToolbar #fbQuickFab.fb-in-toolbar { display: inline-flex !important; align-items: center; justify-content: center; }
+  #saveToolbar #fbQuickFab.fb-in-toolbar { display: inline-flex !important; align-items: center; justify-content: center; }
+}
+/* マスター管理でも同じ左下のボタンを出す（上部の［← ○○に戻る］のバーが出ているときは重ねない） */
+html:not(.theme-quiet) body:has(#tab-master.active):not(:has(#masterBackBar:not([hidden]))) #backToQuoteFab:not([hidden]) { display: inline-flex !important; }
+/* スマホ：ヘッダーは 1 行（題名・☰・ログイン）／上段ナビは折り返さない */
+@media (max-width: 600px) {
+  html:not(.theme-quiet) .header { flex-wrap: nowrap !important; flex-direction: row !important; align-items: center !important; padding: 8px 12px !important; gap: 8px !important; }
+  html:not(.theme-quiet) .header .header-main { flex: 1 1 auto; min-width: 0; }
+  html:not(.theme-quiet) .header h1 { font-size: 16px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  html:not(.theme-quiet) .header > :not(.header-main) { flex: 0 0 auto; }
+  .cat-nav .cat-btn, .cat-nav .cat-more-btn { font-size: 12px !important; letter-spacing: 0 !important; }
+  .cat-nav .cat-more-btn .cat-more-caret { margin-left: 0 !important; }
+  .cat-nav .cat-more-btn { flex-wrap: nowrap !important; }
+}
+/* 見積入力の上のバーの［←］［⋯］も角を 6px に */
+html:not(.theme-quiet) #saveToolbar #qmDash,
+html:not(.theme-quiet) #saveToolbar .tb-menu-right > button { border-radius: var(--pol-r) !important; }

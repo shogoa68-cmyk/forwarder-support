@@ -18,6 +18,14 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => window.addRow()); await p.waitForTimeout(400);
   const hint = await p.evaluate(() => { const h = document.querySelector('#tableBody tr:not([data-virtual]) .row-acts-hint'); if (!h) return null; const r = h.getBoundingClientRect(), c = getComputedStyle(h); return { w: Math.round(r.width), h: Math.round(r.height), vis: c.visibility, disp: c.display, text: h.textContent }; });
   ok('行の左端に「⋯」の目印がいつも見える', hint && hint.vis === 'visible' && hint.disp !== 'none' && hint.w > 10, hint);
+  if (process.env.EDITOR === 'v2') {
+    // Design 50（案A）：新しい画面では、右端の［⋯］を押すとメニュー（行の詳細・複製・入力完了・削除など）が開く
+    await p.evaluate(() => document.querySelector('#tableBody tr.ca-row .row-acts-hint').click()); await p.waitForTimeout(200);
+    const mi = await p.evaluate(() => [...document.querySelectorAll('.ca-menu .ca-mi')].map(x => x.textContent));
+    ok('［⋯］を押すと 行の詳細・複製・入力完了・削除 のメニュー', ['行の詳細', '⧉ 複製', '削除'].every(t => mi.includes(t)) && mi.some(t => /入力完了/.test(t)), mi);
+    ok('JS エラーなし', errs.length === 0, errs);
+    await b.close(); srv.close(); console.log(fails ? '\nFAIL=' + fails : '\nALL PASS'); process.exit(fails ? 1 : 0);
+  }
   const acts = () => p.evaluate(() => { const bt = document.querySelector('#tableBody tr:not([data-virtual]) .row-del-btn'); const c = getComputedStyle(bt), r = bt.getBoundingClientRect(); return { vis: c.visibility, r: r.width > 0 }; });
   const before = await acts();
   ok('何もしないときは操作ボタンは隠れている', before.vis === 'hidden' || !before.r, before);

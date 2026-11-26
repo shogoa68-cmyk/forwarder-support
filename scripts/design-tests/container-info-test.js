@@ -16,7 +16,7 @@ let fails=0;const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(
  await ctx.route(u=>!u.href.startsWith('http://127.0.0.1'),r=>r.abort());
  const p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));p.setDefaultTimeout(8000);
  await p.goto(URL,{waitUntil:'domcontentloaded'});await p.waitForTimeout(800);
- await p.click('.cat-btn[aria-controls="tab-quote-make"]');await p.waitForTimeout(800);
+ await p.evaluate(()=>document.querySelector('.cat-btn[aria-controls="tab-quote-make"]').click());await p.waitForTimeout(800);
  await p.evaluate(()=>{ if(typeof qpNewQuote==='function') qpNewQuote(); });await p.waitForTimeout(600);
  await p.evaluate(()=>{const s=document.getElementById('section-volume'); if(s&&s.classList.contains('is-collapsed')) toggleQuoteSection('section-volume'); s&&s.scrollIntoView({block:'center'});});await p.waitForTimeout(300);
  const st=await p.evaluate(()=>{const chips=[...document.querySelectorAll('.container-chip-grid .cc-chip[data-ctype]')];

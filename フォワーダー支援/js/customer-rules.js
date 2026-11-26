@@ -66,6 +66,9 @@
   };
 
   window.crIsLoaded = () => _loaded;
+  window.crAll = () => _rules.slice();      // 情報共有の新着まとめ（js/share-feed.js）用
+  window.crIsMissing = () => _missing;
+  window.CR_LEVELS = LV;
   // マスター管理の一覧用：お客様ごとの有効なルール件数・厳守件数・再確認が必要な件数
   window.crStats = function (customer) {
     const co = _canon(customer);

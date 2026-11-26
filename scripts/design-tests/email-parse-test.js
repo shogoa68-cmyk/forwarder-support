@@ -95,4 +95,14 @@ const fe = win.eiFreeEntriesOf({ fields: { 'qf-free-entries': JSON.stringify([{ 
 chk('保管した原文の id に細工があっても、ボタンの onclick に埋めても安全な文字だけにする', fe.length === 2 && fe.every(e => /^[\w-]+$/.test(e.id)) && fe[0].id !== fe[1].id, fe);
 r = p("・諸掛り：実費\nドレージ 実費");
 chk('「諸掛り：実費」（コロン区切り）も実費の行として読む', its(r).length === 2 && its(r)[0].name === '諸掛り' && its(r)[0].actual && its(r)[1].name === 'ドレージ', its(r));
+r = p("検品料1台あたり 7,000- 貨物写真撮影・車台番号確認のみ\n1台55,000-\nフリーなし 1DAY1台 2,000-", { defaultCcy: 'JPY' });
+chk('既定の通貨あり：「7,000-」「1台55,000-」（末尾のハイフン＝円の書き方）も金額として読み、台は単位にする', its(r).length === 3 && its(r)[0].price === 7000 && its(r)[0].unit === '台' && its(r)[1].price === 55000 && its(r)[2].price === 2000 && its(r)[2].name.includes('1DAY') && its(r).every(x => x.ccy === 'JPY') && !its(r)[0].name.includes('-'), its(r));
+r = p("検品料1台あたり 7,000-");
+chk('既定の通貨なし：末尾のハイフンだけでは通貨を決めつけず、読めなかった行に出す', its(r).length === 0 && (r.unread || []).length === 1, r);
+r = p("有効期間 40-45 日\nTEL 03-1234-5678\n検品料 1,000", { defaultCcy: 'JPY' });
+chk('既定の通貨あり：40-45・電話番号のハイフンは金額にしない', its(r).length === 1 && its(r)[0].name === '検品料', its(r));
+r = p("1. THCD: USD 120/20’/40’HQ\n2. SEALF: USD 15/container.\n(3) Clearance Fee: USD 150/vehicle.\n通関料金 ：￥6,000/葉\n4. Extra charges: At cost.");
+chk('行頭の番号・品名の後ろの「:」「.」を外し、「/20’/40’HQ」「/vehicle」「/葉」を単位にし、「At cost」は実費', its(r).length === 5 && its(r)[0].name === 'THCD' && its(r)[0].unit === "20'/40'HQ" && its(r)[1].name === 'SEALF' && its(r)[1].unit === 'container' && its(r)[2].name === 'Clearance Fee' && its(r)[2].unit === 'vehicle' && its(r)[3].name === '通関料金' && its(r)[3].unit === '葉' && its(r)[4].name === 'Extra charges' && its(r)[4].actual, its(r));
+r = p("1.5 CBM 海上運賃 USD 30");
+chk('小数「1.5」は行頭の番号として外さない', its(r)[0].name.startsWith('1.5'), its(r));
 process.exit(ok === C.length && ng === 0 ? 0 : 1);

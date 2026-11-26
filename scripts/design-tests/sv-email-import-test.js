@@ -218,7 +218,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // ===== 取り込みの入口（テキスト／PDF／荷姿） =====
     await p.evaluate(() => { window.closeEmailImport(); window.openImportChooser(); }); await p.waitForTimeout(200);
     const ch1 = await p.evaluate(() => ({ open: document.getElementById('importChooser').classList.contains('open'), n: document.querySelectorAll('#importChooser .ic-opt').length, pk: !document.getElementById('icPacking').hidden }));
-    ok('「取り込み」で選択画面が開き、テキスト・PDF・荷姿の3択が出る', ch1.open && ch1.n === 3 && ch1.pk, ch1);
+    ok('「取り込み」で選択画面が開き、テキスト・PDF・画像（AI）・荷姿の4択が出る', ch1.open && ch1.n === 4 && ch1.pk, ch1);
     await p.evaluate(() => window.icChoose('text')); await p.waitForTimeout(200);
     const ch2 = await p.evaluate(() => ({ ch: document.getElementById('importChooser').classList.contains('open'), ei: document.getElementById('emailImportModal').classList.contains('open'), ctx: document.getElementById('emailImportBox').classList.contains('ei-sv-ctx') }));
     ok('「テキストで取り込む」で選択画面が閉じ、通常のメール取込が開く', !ch2.ch && ch2.ei && !ch2.ctx, ch2);
@@ -363,6 +363,28 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('画面のエラーが出ていない', errs.length === 0, errs);
     await ctx.close();
   }
+  // ===== 別のサブコンの見出しから開き直したとき、前のサブコンの確認画面（一括設定・各行のサブコン）が残らない =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member' });
+    await setSv(p, 'テスト運送');
+    await p.evaluate(() => { document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); window.icChoose('text'); }); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.getElementById('eiText').value = '海上運賃 USD 1,200 /20GP'; window.eiParse(); }); await p.waitForTimeout(300);
+    ok('（前提）テスト運送の取込を解析すると、一括設定がテスト運送になる', await p.evaluate(() => document.getElementById('eiBulkSv').value === 'テスト運送'));
+    await p.evaluate(() => window.closeEmailImport()); await p.waitForTimeout(100);
+    await p.evaluate(() => window.eiOpenForSubcon('テスト運送')); await p.waitForTimeout(200);
+    ok('同じサブコンで閉じて開き直したときは、貼り付け文と確認画面を残す（うっかり閉じても失わない）', await p.evaluate(() => document.getElementById('eiText').value.includes('海上運賃') && !!document.getElementById('eiBulkSv')));
+    await p.evaluate(() => { window.closeEmailImport(); window.eiOpenForSubcon('ABCキャリア'); }); await p.waitForTimeout(300);
+    ok('別のサブコンの取込を開くと、前のサブコンの確認画面は残らない（貼り付け文・確認画面が空）', await p.evaluate(() => document.getElementById('eiText').value === '' && document.getElementById('eiReviewWrap').innerHTML === '' && !document.getElementById('eiBulkSv')), await p.evaluate(() => [document.getElementById('eiText').value.length, document.getElementById('eiReviewWrap').innerHTML.length]));
+    await p.evaluate(() => { document.getElementById('eiText').value = '海上運賃 USD 1,200 /20GP'; window.eiParse(); }); await p.waitForTimeout(300);
+    ok('解析すると、一括設定・各行のサブコンは今開いたサブコン（ABCキャリア）になる', await p.evaluate(() => document.getElementById('eiBulkSv').value === 'ABCキャリア' && [...document.querySelectorAll('#eiReviewWrap .ei-sv')].every(i => i.value === 'ABCキャリア')), await p.evaluate(() => document.getElementById('eiBulkSv').value));
+    await p.evaluate(() => { window.closeEmailImport(); window.openEmailImport(); }); await p.waitForTimeout(200);
+    ok('サブコンを決めない通常の取込を開くと、サブコン専用の確認画面は残らない', await p.evaluate(() => document.getElementById('eiText').value === '' && !document.getElementById('eiBulkSv')));
+    await p.evaluate(() => { document.getElementById('eiText').value = '海上運賃 USD 1,200 /20GP'; window.eiParse(); window.eiInsertRows && window.eiInsertRows(); }); await p.waitForTimeout(300);
+    await p.evaluate(() => { window.closeEmailImport(); window.openEmailImport(); }); await p.waitForTimeout(200);
+    ok('挿入し終えた取り込みは、次に開くとき空になる', await p.evaluate(() => document.getElementById('eiText').value === '' && !document.getElementById('eiBulkSv')));
+    ok('エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
   // ===== 実際の文面（円記号が「\\」）：読めなかった状態 → 読める → 直して覚える =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, role: 'member' });
@@ -377,7 +399,6 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('サブコン専用の取込では、お客様・REF#・有効期限・「単価を売値として取り込む」は表示しない（サブコン一括設定は出す）', !(await vis('#eiF-customer')) && !(await vis('#eiF-ref')) && !(await vis('#eiF-valid')) && !(await vis('#eiSellMode')) && await vis('#eiBulkSv'), [await vis('#eiF-customer'), await vis('#eiSellMode'), await vis('#eiBulkSv')]);
     ok('サブコン専用の取込の説明文には、非表示にした「売値として取り込む」の説明が残らない', await p.evaluate(() => { const h = document.querySelector('#eiReviewWrap .ei-hint').textContent; return !/売値として取り込む/.test(h) && /課税/.test(h); }), await p.evaluate(() => document.querySelector('#eiReviewWrap .ei-hint').textContent));
     ok('読み取れなかった行の案内は出ない（すべて読めたため）', await p.evaluate(() => !document.querySelector('#eiReviewWrap .ei-unread')), null);
-
     // 直して覚える → 次回から自動
     await p.evaluate(() => { const tr = document.querySelectorAll('#eiReviewWrap .ei-table tbody tr')[3]; tr.querySelector('.ei-name').value = '東京CY搬入（ショートドレー）'; window.eiLearnFromCorrections(); }); await p.waitForTimeout(700);
     const learned = await p.evaluate(() => window.__db.master_details.find(r => r.field === 'sv' && r.value === 'テスト運送').details.importRules.aliases);
@@ -401,6 +422,26 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => { document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-import').click(); window.icChoose('text'); }); await p.waitForTimeout(300);
     const mask = await p.evaluate(() => ({ a: window.eiMaskLine('定温庫保管料：\\850/M3/期'), b: window.eiMaskLine('連絡先 taro@example.com 03-1234-5678'), c: window.eiMaskLine('見積 https://example.com/q?id=12345 ＿１２３'), d: window.eiMaskLine('  特殊作業   ABC123  ') }));
     ok('伏せ字：数字は 9 に（半角・全角とも）・メールアドレスと URL は置き換え・空白はそろえる', mask.a === '定温庫保管料：\\999/M9/期' && mask.b === '連絡先 <mail> 99-9999-9999' && mask.c === '見積 <url> ＿999' && mask.d === '特殊作業 ABC999', mask);
+
+    // アプリが知っている社名・人名も伏せる（マスターの候補・いまの案件のお客様／ご担当者・チームのメンバー）
+    const kn = await p.evaluate(() => {
+      const set = (id, v) => { const el = document.getElementById(id); if (el) { el.value = v; } };
+      set('qf-customer', '青空商事'); set('qf-person', '佐藤 一郎');
+      const dl = document.getElementById('custSuggestions'); if (dl) { const o = document.createElement('option'); o.value = 'MIDORI TRADING'; dl.appendChild(o); }
+      const prev = window.cloudKnownPeople; window.cloudKnownPeople = () => ['高橋 花子'];
+      const r = {
+        a: window.eiMaskLine('青空商事向け 特別料金 USD 120'),
+        b: window.eiMaskLine('MIDORI TRADING handling fee 50'),
+        c: window.eiMaskLine('担当 佐藤 からの依頼 3,000'),
+        d: window.eiMaskLine('高橋さん確認済み 9,000'),
+        e: window.eiMaskLine('テスト運送 作業料 1,000'),
+        f: window.eiMaskLine('PHONE 料金 100'),
+      };
+      window.cloudKnownPeople = prev; set('qf-customer', ''); set('qf-person', '');
+      return r;
+    });
+    ok('伏せ字：マスター・案件のお客様は <社名>、ご担当者・メンバーは <人名> に（英字は語の途中では当てない）',
+      /^<社名>向け/.test(kn.a) && /^<社名> handling/.test(kn.b) && /担当 <人名> から/.test(kn.c) && /^<人名>さん/.test(kn.d) && /^<社名> 作業料/.test(kn.e) && /^PHONE/.test(kn.f), kn);
 
     // 読めなかった行がある文面 → 自動で記録される（伏せた形だけ）
     await p.evaluate(() => { document.getElementById('eiText').value = '特殊作業 ABC123 XYZ 999 要相談\n倉庫保管 〒105-0023 港区\n海上運賃 USD 1,200 /20GP'; window.eiParse(); }); await p.waitForTimeout(500);
@@ -499,6 +540,29 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const fbSent0 = (await fbCalls()).length;
     await p.evaluate(() => window.eiLearnFromCorrections()); await p.waitForTimeout(300);
     ok('同じ内容は、このページから二度送らない', (await fbCalls()).length === fbSent0, fbSent0);
+    await p.evaluate(() => window.closeEmailImport());
+    ok('サブコンから開いた取込の評価には、サブコン名（sv）が付く', (await fbCalls()).every(x => x.sv === 'ABCキャリア'), (await fbCalls()).map(x => x.sv));
+    // ===== AI からのルールの案（email_rule_proposals）：採用／却下 =====
+    await p.evaluate(() => {
+      window.__db.email_rule_proposals = [
+        { id: 901, sv: 'ABCキャリア', kind: 'alias', key: 'たんぼりょう', payload: { from: 'タンボ料', to: 'THC', cat: 'export-local', unit: 'CNTR' }, reason: '直した例が 3 回', status: 'pending', created_at: '2026-11-20' },
+        { id: 902, sv: 'ABCキャリア', kind: 'ccy', key: 'eur', payload: { ccy: 'EUR' }, reason: '', status: 'pending', created_at: '2026-11-21' },
+        { id: 903, sv: 'ほかの会社', kind: 'unit', key: 'bl', payload: { unit: 'BL' }, reason: '', status: 'pending', created_at: '2026-11-21' },
+      ];
+      window.__rpc = [];
+      window.eiOpenForSubcon('ABCキャリア');
+    }); await p.waitForTimeout(600);
+    const pr = await p.evaluate(() => [...document.querySelectorAll('#eiSvCtx .ei-prop')].map(x => x.dataset.id));
+    ok('このサブコンの案だけが「AI からのルールの案」に出る', pr.length === 2 && pr.includes('901') && pr.includes('902'), pr);
+    await p.evaluate(() => document.querySelector('#eiSvCtx .ei-prop[data-id="901"] .ei-prop-ok').click()); await p.waitForTimeout(700);
+    rr = await abcRules();
+    const dec = await p.evaluate(() => (window.__rpc || []).filter(c => c.name === 'email_rule_decide').map(c => c.args));
+    ok('採用すると、ルールに入り、採用の記録（email_rule_decide accepted）を送る', rr.aliases.some(a => a.from === 'タンボ料' && a.to === 'THC' && a.unit === 'CNTR') && dec.some(d => d.p_id === 901 && d.p_status === 'accepted'), { a: rr.aliases, dec });
+    await p.evaluate(() => { window.__db.email_rule_proposals.find(x => x.id === 901).status = 'accepted'; }); 
+    await p.evaluate(() => document.querySelector('#eiSvCtx .ei-prop[data-id="902"] .ei-prop-ng').click()); await p.waitForTimeout(700);
+    rr = await abcRules();
+    const dec2 = await p.evaluate(() => (window.__rpc || []).filter(c => c.name === 'email_rule_decide').map(c => c.args));
+    ok('却下すると、ルールは変えず、却下の記録（rejected）を送る', rr.ccy !== 'EUR' && dec2.some(d => d.p_id === 902 && d.p_status === 'rejected'), { ccy: rr.ccy, dec2 });
     await p.evaluate(() => window.closeEmailImport());
     // ===== 品名・単位のマスターを参照する（解析時／確認画面で直したとき） =====
     await p.evaluate(() => { window.openEmailImport(); document.getElementById('eiText').value = "Terminal Handling Charge USD 100\n5. THC: terminal USD 50 /BL\nABC特殊作業 USD 10\n海上運賃 USD 100 /40HQ"; window.eiParse(); }); await p.waitForTimeout(500);

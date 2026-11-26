@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" media="not all" data-theme-css="fonts">
 <link rel="stylesheet" href="css/theme-industry.css" media="not all" data-theme-css="site">
 <link rel="stylesheet" href="css/theme-industry-doc.css" media="not all" data-theme-css="doc">
+<link rel="stylesheet" href="css/doc-revision.css">
 <!-- Quiet テーマ（Claude Design 案・3つ目のデザイン・既定オフ）。<html data-theme="quiet" class="theme-quiet"> のときだけ効く。
      トークン：css/design-tokens-quiet.css／部品・画面：css/theme-quiet.css（Industry と同時には使わない） -->
 <!-- 全テーマ共通の書体（Inter＋Noto Sans JP・display=swap：読み込み中は標準書体で先に表示）。読み込めない環境では --font-sans の予備（ヒラギノ等）で表示 -->
@@ -28,6 +29,7 @@
 <!-- 「かんたん表示」（Claude Design 案）。<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま。 -->
 <link rel="stylesheet" href="css/simple-mode.css">
 <link rel="stylesheet" href="css/feedback.css">
+<link rel="stylesheet" href="css/ai-ocr.css">
 <link rel="stylesheet" href="css/glossary-drawer.css">
 <link rel="stylesheet" href="css/announcements.css">
 <link rel="stylesheet" href="css/org-teams.css">
@@ -40,15 +42,26 @@
 <link rel="stylesheet" href="css/master-drawer.css">
 <link rel="stylesheet" href="css/fix-hub.css">
 <link rel="stylesheet" href="css/header-menu.css">
+<link rel="stylesheet" href="css/tab-sync.css">
 <link rel="stylesheet" href="css/editor-v2.css">
 <link rel="stylesheet" href="css/right-col-a.css">
+<link rel="stylesheet" href="css/right-rail-v2.css">
 <link rel="stylesheet" href="css/phone-tabs.css">
   <link rel="stylesheet" href="css/retired-ui.css">
   <link rel="stylesheet" href="css/bulk-bar.css">
 <link rel="stylesheet" href="css/dash-top.css">
+<link rel="stylesheet" href="css/ops-progress.css">
 <link rel="stylesheet" href="css/card-c3.css">
 <link rel="stylesheet" href="css/button-layout.css">
 <link rel="stylesheet" href="css/case-files.css">
+<link rel="stylesheet" href="css/preview-roles.css">
+<link rel="stylesheet" href="css/input-grid.css">
+<link rel="stylesheet" href="css/steps-b.css">
+  <link rel="stylesheet" href="css/route-cards.css">
+<link rel="stylesheet" href="css/group-header-b.css">
+<link rel="stylesheet" href="css/cost-a.css">
+<link rel="stylesheet" href="css/cat-colors.css">
+<link rel="stylesheet" href="css/design-polish.css">
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
@@ -138,29 +151,34 @@
 
   <!-- Tab Navigation -->
   <!-- ===== カテゴリーナビ（上段） ===== -->
-  <!-- 2026-11 整理：「作業する」ボタン（ティール系・cat-btn-bookmark）と「見る・管理する」ボタン（グレー系・cat-btn-admin）に色分け。
-       毎日使う 計算／書類・通関／Booking/SI は「その他」から外に出した。ボタンの id・onclick・aria-controls は不変（calculator.js 等が aria-controls で探す）。
-       ボタン名だけ「やること」ベースに変更（BOOKMARK→リンク集 など）。 -->
+  <!-- 2026-11 再編：上段は 💼 見積を作る・📦 進行管理（直接開く）と 2 つのまとまり（💬 情報共有／📂 その他）にし、各タブはまとまりのメニューの中へ移した。
+       メニューの中のボタンは従来の .cat-btn のまま（onclick・aria-controls 不変＝calculator.js 等が aria-controls で探す）。
+       開閉と「いま選んでいるタブ名」の表示は js/cat-more.js（.cat-more ごと）。 -->
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
-    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-bookmark"   title="船会社・サブコン（協力会社）のリンク集（BOOKMARK）" onclick="switchCategory('bookmark', this)">🔖 リンク集</button>
-    <button class="cat-btn cat-btn-bookmark active" role="tab" aria-selected="true"  aria-controls="tab-quote-make"   title="お客様へ出す見積書を作る" onclick="switchCategory('quote',  this)">💼 見積を作る</button>
-    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-calc"         title="CBM・運賃トン・バンニングなどの計算" onclick="switchCategory('calc',   this)">🧮 計算</button>
-    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-bldo"         title="B/L・D/O・通関などの書類" onclick="switchCategory('docs',   this)">📄 書類・通関</button>
-    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-booking-tab"  title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
-    <button class="cat-btn cat-btn-admin"    role="tab" aria-selected="false" aria-controls="tab-stats"         title="過去の見積・受注の実績を見る（統計）" onclick="switchCategory('stats',   this)">📊 実績を見る</button>
-    <button class="cat-btn cat-btn-admin"    role="tab" aria-selected="false" aria-controls="tab-master"        title="お客様・サブコン・港などの登録データの管理（マスター管理）" onclick="switchCategory('master',  this)">🗂 マスター管理</button>
-    <!-- 「その他」メニュー（js/cat-more.js が開閉と選択中の表示を担当）。中を「調べる」「ほか」に分け、各項目に 1 行説明（data-desc）を出す -->
-    <div class="cat-more" id="catMore">
-      <button type="button" class="cat-btn cat-more-btn" id="catMoreBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catMorePanel" title="調べる（本船・航路／知識・参考／諸チャージ）・カレンダー・作業フォルダ・サイバーポート">📂 <span class="cat-more-label">その他</span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
+    <button class="cat-btn cat-btn-bookmark active" role="tab" aria-selected="true" aria-controls="tab-quote-make" title="お客様へ出す見積書を作る" onclick="switchCategory('quote', this)">💼 見積を作る</button>
+    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-ops" title="受注後、手配から請求までの作業の進み具合" onclick="switchCategory('ops', this)">📦 進行管理</button>
+    <div class="cat-more cat-grp" id="catGrpShare">
+      <button type="button" class="cat-btn cat-more-btn cat-btn-bookmark" id="catGrpShareBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catGrpSharePanel" title="ニュースの投稿・情報共有・リンク集・知識・参考・カレンダー">💬 <span class="cat-grp-name">情報共有</span><span class="cat-more-label"></span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
+      <div class="cat-more-panel" id="catGrpSharePanel" role="tablist" aria-label="情報共有のカテゴリ" hidden>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-news" data-desc="お客様・サブコンの新しい情報を投稿し、時系列で見る" onclick="switchCategory('news', this)">📰 ニュースの投稿</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-share" data-desc="チームの共有機能への入口" onclick="switchCategory('share', this)">💬 情報共有</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-bookmark" data-desc="船会社・サブコンのリンクをチームで共有" onclick="switchCategory('bookmark', this)">🔖 リンク集</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-incoterms" data-desc="貿易用語・インコタームズ・船会社情報" onclick="switchCategory('ref', this)">📚 知識・参考</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-calendar" data-desc="予定・締切の確認" onclick="switchCategory('calendar', this)">📅 カレンダー</button>
+      </div>
+    </div>
+    <div class="cat-more cat-grp" id="catMore">
+      <button type="button" class="cat-btn cat-more-btn cat-btn-admin" id="catMoreBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catMorePanel" title="実績を見る・マスター管理・計算・諸チャージ・Booking/SI・書類・通関・本船・航路・サイバーポート・作業フォルダ">📂 <span class="cat-grp-name">その他</span><span class="cat-more-label"></span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
       <div class="cat-more-panel" id="catMorePanel" role="tablist" aria-label="その他のカテゴリ" hidden>
-        <div class="cat-more-head" role="presentation">調べる</div>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-tracking"     data-desc="本船の動き・航路のスケジュール" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-incoterms"    data-desc="貿易用語・インコタームズ・船会社情報" onclick="switchCategory('ref',    this)">📚 知識・参考</button>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-local-charges" data-desc="現地・港で発生する諸費用の目安" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
-        <div class="cat-more-head" role="presentation">ほか</div>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-cptest"       data-desc="サイバーポート連携（読み取りのみ）" onclick="switchCategory('cptest', this)">🚢 サイバーポート</button>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-calendar"     data-desc="予定・締切の確認" onclick="switchCategory('calendar', this)">📅 カレンダー</button>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-workfolder"   data-desc="自分専用のファイル置き場" onclick="switchCategory('workfolder', this)">📁 作業フォルダ</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-stats" data-desc="過去の見積・受注の実績（統計）" onclick="switchCategory('stats', this)">📊 実績を見る</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-master" data-desc="お客様・サブコン・港などの登録データ" onclick="switchCategory('master', this)">🗂 マスター管理</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-calc" data-desc="CBM・運賃トン・バンニングなどの計算" onclick="switchCategory('calc', this)">🧮 計算</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-local-charges" data-desc="現地・港で発生する諸費用の目安" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-booking-tab" data-desc="船腹予約と S/I（船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-bldo" data-desc="B/L・D/O・通関などの書類" onclick="switchCategory('docs', this)">📄 書類・通関</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-tracking" data-desc="本船の動き・航路のスケジュール" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-cptest" data-desc="サイバーポート連携（読み取りのみ）" onclick="switchCategory('cptest', this)">🛰 サイバーポート</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-workfolder" data-desc="自分専用のファイル置き場" onclick="switchCategory('workfolder', this)">📁 作業フォルダ</button>
       </div>
     </div>
   </div>
@@ -2379,7 +2397,7 @@
           <li><strong>輸送モード</strong>：🚢 Sea（FCL/LCL）/ ✈️ Air</li>
           <li><strong>オプション</strong>：🛡️ 保険付保 ON/OFF</li>
           <li><strong>ゾーンビルダー</strong>：出発地側 → 幹線輸送 → 到着地側 の3カードで作業ピース（集荷／梱包／通関／配送など）を組み立て</li>
-          <li><strong>🔧 この構成でプリセット適用</strong>で見積もり表の行を一括生成</li>
+          <li><strong>🔧 ルートのサブコンで枠をつくる</strong>で、ルートで入力したサブコンごとに見積もり表の枠（空の明細）をまとめてつくる</li>
         </ul>
 
         <h4>② 引き合い条件・貨物情報（📦 貨物情報 サブセクション）</h4>
@@ -2893,6 +2911,9 @@
             <input type="hidden" id="qf-versions" value="[]" />
             <input type="hidden" id="qf-follower" value="" />
             <input type="hidden" id="qf-follow-log" value="[]" />
+            <input type="hidden" id="qf-ops" value="" />
+            <input type="hidden" id="qf-core-ref2" value="" />
+            <input type="hidden" id="qf-cp-keys" value="" />
             <div class="qv-panel" id="qvPanel" hidden></div>
             <input type="hidden" id="qf-revision-baseline" />
           </div>
@@ -2960,7 +2981,7 @@
           <div class="ci-cell ci-cell-person">
           <div class="quote-field">
             <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
-            <input type="text" id="qf-person" placeholder="例）山田　※宛先（お客様側）の氏名。出力時に自動で「様」付与" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。登録済みのお客様なら、マスターの担当者一覧から候補表示されます。" aria-required="true" list="qfPersonSuggestions" autocomplete="off" />
+            <input type="text" id="qf-person" placeholder="例）山田" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。登録済みのお客様なら、マスターの担当者一覧から候補表示されます。" aria-required="true" list="qfPersonSuggestions" autocomplete="off" />
           </div>
           </div>
             </div>
@@ -3406,14 +3427,14 @@
       <!-- サブセクション：ゾーン構成からプリセット適用（独立セクション） -->
       <div class="zone-preset-section" data-tier="adv">
         <div class="zone-preset-section-head">
-          <span class="zone-preset-section-title">🔧 ゾーン構成から見積もり行を生成
+          <span class="zone-preset-section-title">🔧 ルートのサブコンで明細の枠をまとめてつくる
             <span class="zps-help-wrap">
               <button type="button" class="section-help-btn" aria-label="この機能の説明">?</button>
-              <span class="zps-help-tip">上で組んだ 出発地側 → 幹線輸送 → 到着地側 の作業ピースをもとに、見積もりテーブルの行を一括作成します。</span>
+              <span class="zps-help-tip">② ルートで入力したサブコン（出発地側・幹線輸送のキャリア・到着地側）ごとに、費用の表に枠（空の明細）をまとめてつくります。幹線輸送は航路ごとに分けます。1 社ずつ足すときは、表の［＋ サブコンを追加］からも選べます。</span>
             </span>
           </span>
         </div>
-        <button class="btn-zone-preset" onclick="applyZoneBasedPreset()">🔧 この構成でプリセット適用</button>
+        <button class="btn-zone-preset" onclick="applyZoneBasedPreset()" title="ルートで入力したサブコンごとに、費用の表へ空の明細の枠をつくります">🔧 ルートのサブコンで枠をつくる</button>
       </div>
 
     </div><!-- /section-cond -->
@@ -3924,6 +3945,7 @@
       <div class="scope-body">
         <p class="section-desc">この見積もりで当社が担当する作業範囲（業務の範囲）を記述します。当面は自由入力です。お客様への出力反映は今後対応予定。</p>
         <input type="hidden" id="qf-multi-out" value="">
+        <input type="hidden" id="qf-subtotal-mode" value="">
         <textarea id="qf-scope" class="qf-scope-area" placeholder="例）輸出通関手配、保税搬入、海上スペースブッキング、船積書類（B/L・I/V・P/L）作成、本船手配。&#10;※ 国内集荷・梱包・現地配送は含みません 等"></textarea>
       </div>
     </div><!-- /section-scope -->
@@ -4141,7 +4163,7 @@
                 <td colspan="4"></td>
                 <td style="text-align:right; color:#6b21a8; font-weight:bold;">社内利益<small style="font-weight:600;">（PS込み）</small></td>
                 <td colspan="3" class="tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#f5edfb;">
-                  <span class="t-sell">代理店収益</span> <span id="tot-ps-rev">—</span>
+                  <span class="t-sell" id="tot-ps-label">PS（代理店へ返す）</span> <span id="tot-ps-rev">—</span>
                 </td>
                 <td colspan="2" class="profit-cell pr-cell" id="tot-ps-profit">—</td>
               </tr>
@@ -4235,6 +4257,7 @@
           </div>
           <div class="fl-cargo-now" id="flCargoNow"></div>
         </div>
+        <details class="fl-edit" id="flEdit" open><summary>単価を直す（LCL 運賃・FCL 運賃）</summary>
         <div class="fl-sec">
           <div class="fl-sec-title">🚢 LCL（混載） <span class="fl-sub">通貨</span> <select id="fl-lcl-cur" class="fl-cur" onchange="renderFclLcl()"><option value="JPY">JPY</option><option value="USD" selected>USD</option><option value="EUR">EUR</option><option value="CNY">CNY</option><option value="KRW">KRW</option><option value="SGD">SGD</option><option value="HKD">HKD</option><option value="GBP">GBP</option><option value="AUD">AUD</option><option value="TWD">TWD</option><option value="THB">THB</option><option value="VND">VND</option><option value="MYR">MYR</option><option value="IDR">IDR</option><option value="PHP">PHP</option><option value="INR">INR</option></select></div>
           <div class="fl-grid">
@@ -4253,6 +4276,7 @@
             <label>固定費 /BL</label><input type="number" id="fl-fcl-fix" class="fl-in" min="0" step="any" placeholder="DOC等 例 100" title="B/L 1枚あたりの固定費用" oninput="renderFclLcl()">
           </div>
         </div>
+        </details>
         <div id="flResult" class="fl-result"></div>
         </details>
       </div>
@@ -4314,6 +4338,9 @@
         <div id="bmRailChips" class="bm-rail-chips"></div>
       </div>
 
+      <!-- 行セット（旧：行パターン）の引き出し用の置き場。中身（#rowPatternModal の .preset-mgr-box）は開いている間だけここへ移す -->
+      <div id="rpRailPanel" class="rp-rail-panel" style="display:none"></div>
+
       </div><!-- /.quote-right-col -->
     </div><!-- /.quote-workspace -->
 
@@ -4371,6 +4398,7 @@
         <p class="ic-sub" id="icSub">取り込み方を選んでください</p>
         <button type="button" class="ic-opt" onclick="icChoose('text')"><span class="ic-ico">📝</span><span><b>テキストで取り込む</b><small>メール本文などを貼り付けて、見積の行にします</small></span></button>
         <button type="button" class="ic-opt" onclick="icChoose('pdf')"><span class="ic-ico">📄</span><span><b>PDFで取り込む</b><small>文字が入ったPDFから文字を取り出して解析します（スキャン画像のPDFは非対応）</small></span></button>
+        <button type="button" class="ic-opt" id="icAiOcr" onclick="icChoose('aiocr')"><span class="ic-ico">📷</span><span><b>画像を AI で読む（準備中）</b><small>写真・スキャン・文字の無い PDF。表だけ切り抜き、社名などを黒く塗ってから送ります（管理者の設定が済むまでは送れません）</small></span></button>
         <button type="button" class="ic-opt" id="icPacking" onclick="icChoose('packing')"><span class="ic-ico">📦</span><span><b>荷姿・貨物明細を取り込む</b><small>見積の明細ではなく、貨物の寸法・個数などが入ります</small></span></button>
         <input type="file" id="icPdfFile" accept="application/pdf,.pdf" hidden onchange="icPdfSelected(this)">
       </div>
@@ -4498,7 +4526,7 @@
         <!-- ===== 左レール：レイアウト切替＋表示カスタマイズ ===== -->
         <aside class="pv-rail">
           <div class="pv-rail-head">
-            <h2>📋 プレビュー</h2>
+            <h2>🧮 社内チェック表</h2>
           </div>
           <div class="pv-rail-grp">
             <div class="pv-rail-h3">レイアウト</div>
@@ -4512,12 +4540,13 @@
             <div class="pv-rail-grp">
               <div class="pv-rail-h3">表示列</div>
               <label class="pv-sw"><span>カテゴリ</span><input type="checkbox" class="pv-col-chk" data-col="cat" checked></label>
-              <label class="pv-sw"><span>原価列（数量/通貨/単価/CD）</span><input type="checkbox" class="pv-col-chk" data-col="pay" checked></label>
+              <label class="pv-sw"><span>原価列（数量/通貨/単価）</span><input type="checkbox" class="pv-col-chk" data-col="pay" checked></label>
+              <label class="pv-sw"><span>CD</span><input type="checkbox" class="pv-col-chk" data-col="cd"></label>
               <label class="pv-sw"><span>単位</span><input type="checkbox" class="pv-col-chk" data-col="unit" checked></label>
               <label class="pv-sw"><span>請求列（数量/通貨/単価）</span><input type="checkbox" class="pv-col-chk" data-col="bill" checked></label>
               <label class="pv-sw"><span>乗せ幅</span><input type="checkbox" class="pv-col-chk" data-col="mk" checked></label>
-              <label class="pv-sw"><span>円換算</span><input type="checkbox" class="pv-col-chk" data-col="jpy-conv" checked></label>
-              <label class="pv-sw"><span>消費税</span><input type="checkbox" class="pv-col-chk" data-col="tax-col" checked></label>
+              <label class="pv-sw"><span>円換算</span><input type="checkbox" class="pv-col-chk" data-col="jpy-conv"></label>
+              <label class="pv-sw"><span>消費税</span><input type="checkbox" class="pv-col-chk" data-col="tax-col"></label>
               <label class="pv-sw"><span>利益</span><input type="checkbox" class="pv-col-chk" data-col="profit" checked></label>
               <label class="pv-sw"><span>備考</span><input type="checkbox" class="pv-col-chk" data-col="note" checked></label>
               <label class="pv-sw"><span>サブコン</span><input type="checkbox" class="pv-col-chk" data-col="sv" checked></label>
@@ -4540,7 +4569,7 @@
             <span class="pv-main-title">📋 プレビュー（表計算形式）</span>
             <span class="pv-main-sp"></span>
             <div class="pv-btns">
-              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書</button>
+              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="pvBackToDoc()" title="お客様向けの御見積書の画面へ戻ります（PDF 出力はここから）">📄 見積書に戻る</button>
               <button class="pv-btn-email-plain" onclick="copyQuoteEmail()" title="明細付きのメール本文（プレーンテキスト）としてコピー">✉️ メール本文</button>
               <button class="pv-btn-excel" onclick="exportExcel()" title="表計算形式で表示中の内容をExcel（.xlsx）でダウンロード">📊 Excel</button>
               <div class="pv-btn-grp" data-label="印刷">
@@ -4573,7 +4602,6 @@
             <div id="pvRemarkBox" style="display:none;"><strong>📝 条件・リマーク</strong></div>
             <div id="pvAuditMeta" class="pv-audit-meta"></div>
             <p class="pv-hint">
-              ※ CSV はデータ行のみ出力（カテゴリ列を先頭に付与）。再読み込みにも対応。<br>
               ※ <b>項目名の先頭にある <code>*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。消費税の列・税率は「消費税」セクションで設定できます。
             </p>
           </div>
@@ -4689,8 +4717,8 @@
             <span class="pct-group">
               <input type="number" data-field="pprate" class="w-pct-rate" min="0" step="0.01" value="0" placeholder="%" title="%率（例: 0.3 → 0.3%）" />
               <span class="pct-x">%×</span>
-              <select class="w-ppref" title="参照行（選択するとその行の仕入単価を基準額として使用。変更されると自動再計算）"><option value="">—</option></select>
-              <input type="number" data-field="ppbase" class="w-pct-base" min="0" value="0" placeholder="基準額" title="基準金額（例: CIF価格・保険価格など。仕入通貨と同じ通貨で入力）" />
+              <select class="w-ppref" title="参照行（選択するとその行の仕入単価を基準額として使用。変更されると自動再計算）"><option value="">—</option></select><button type="button" class="ppref-pick" title="明細テーブルの行を直接クリックして、％の基準にする行を選びます（同じ品名が複数あっても間違えません）">🎯 表から選ぶ</button>
+              <input type="number" data-field="ppbase" class="w-pct-base" min="0" value="0" placeholder="基準額" title="基準金額（例: CIF価格・保険価格など。仕入通貨と同じ通貨で入力）" /><span class="ppref-where" hidden><span class="ppref-where-txt"></span><button type="button" class="ppref-where-go" title="表で参照先の行を探して光らせます">📍 表で見る</button></span>
             </span>
           </span>
           <span class="stk-sell"><span class="stk-tag t-sell">売</span><span class="min-note" aria-hidden="true"></span><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly data-base="0" /><small class="bp-base-hint" hidden title="仕入単価を売通貨へ換算した正確な金額（端数切り捨て前）です。これを下回る売単価にすると赤字になります。※このライン自体が仕入通貨と売通貨の為替レートに基づく目安であり、実際のレートと差が出る場合があります"></small></span>
@@ -4713,7 +4741,7 @@
           <span class="mh-grp">単価の扱い</span>
           <button type="button" class="zero-confirm-btn" tabindex="-1" title="あえて0円にする（0円であることを確認済みの目印。もう一度クリックで解除）">あえて¥0</button>
           <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
-          <button type="button" class="profit-share-btn" tabindex="-1" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内の利益・粗利率にのみ計上します（もう一度クリックで解除）。">PS</button>
+          <button type="button" class="profit-share-btn" tabindex="-1" title="PROFIT SHARE。仕入（最低料金を含む）に金額があれば「代理店へ返す」扱いで売は 0・社内利益からマイナス、仕入が 0 で乗せ幅（売）に金額があれば「代理店から受け取る」扱いで社内利益にプラスします。客先見積もりには出しません（もう一度クリックで解除）。">PS</button>
           <button type="button" class="cond-charge-btn" tabindex="-1" title="必要時のみ請求。金額は客先にも表示しますが、見積もり合計には加算しません（もう一度クリックで解除）。">必要時</button>
           <button type="button" class="ref-info-btn" tabindex="-1" title="参考情報。金額は客先にも表示しますが、見積もり合計には加算しません。「必要時（必要なときだけ請求）」とは別に、参考として提示したい行に使用します（もう一度クリックで解除）。">参考</button>
           <button type="button" class="est-btn" tabindex="-1" title="概算（金額は目安）。単価・金額の前に「約」を付けて表示します。見積もり合計には通常どおり加算されます（もう一度クリックで解除）。">概算</button>
@@ -5022,6 +5050,22 @@
   </div>
 
   <!-- ===================== Tab: CALENDAR ===================== -->
+  <!-- 📦 進行管理（受注後の業務のチェックリスト一覧）。ロジックは js/quote/ops-progress.js -->
+  <div class="tab-content" id="tab-ops">
+    <div class="opt-root" id="opsRoot"><div class="opt-empty">読み込み中…</div></div>
+  </div><!-- /#tab-ops -->
+
+  <!-- 💬 情報共有（2026-11 新設・中身は準備中）。いまは既存の共有機能への入口だけ置く -->
+  <!-- 💬 情報共有＝新着まとめ（お知らせ・ニュース・申し送り・顧客カルテ・取引ルール）。ロジックは js/share-feed.js -->
+  <div class="tab-content" id="tab-share">
+    <div class="share-root" id="sfRoot"><div class="sf-empty">読み込み中…</div></div>
+  </div><!-- /#tab-share -->
+
+  <!-- 📰 ニュースの投稿（情報共有のまとまり・2026-11）。ロジックは js/news-feed.js（保存先は master_news＝マスター詳細のニュースと同じ） -->
+  <div class="tab-content" id="tab-news">
+    <div class="nf-root" id="nfRoot"><div class="nf-empty">読み込み中…</div></div>
+  </div><!-- /#tab-news -->
+
   <!-- 📁 作業フォルダ（個人フォルダ・エクスプローラー風）。ロジックは js/workfolder.js、SQL は docs/sql/work-folders.sql -->
   <div class="tab-content" id="tab-workfolder">
     <div class="wf-root" id="wfRoot"><div class="wf-empty">読み込み中…</div></div>
@@ -5093,6 +5137,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
 <script src="js/vanning3d.js"></script>
 <script src="js/calculator.js"></script>
+<script src="js/safe-links.js"></script>
 <script src="js/app.js"></script>
 <!-- 見積タブ用：初期化は switchTab フックで遅延実行（js/app.js 内） -->
 <script src="js/quote/constants.js"></script>
@@ -5111,6 +5156,7 @@
 <script src="js/quote/cloud-config.js"></script>
 <script src="js/quote/cloud.js"></script>
 <script src="js/quote/dash-top.js"></script>
+<script src="js/quote/ops-progress.js"></script>
 <script src="js/quote/users.js"></script>
 <script src="js/quote/hazmat-ai-import.js"></script>
 <script src="js/quote/total-float.js"></script>
@@ -5119,6 +5165,7 @@
 <script src="js/quote/admin-creator-edit.js"></script>   <!-- 【一時機能】管理者が作成者を変更（やめるときは docs/sql/admin-edit-creator.sql 参照） -->
 <script src="js/quote/subcon-insert.js"></script>
 <script src="js/quote/email-import.js"></script>
+<script src="js/quote/ai-ocr.js"></script>
 <script src="js/quote/subcon-request-mail.js"></script>
 <script src="js/quote/memo-title.js"></script>
 <script src="js/quote/case-info.js"></script>
@@ -5137,6 +5184,11 @@
 <script src="js/quote/remark-sheet.js"></script>
 <script src="js/quote/temp-files.js"></script>
 <script src="js/quote/case-files.js"></script>
+<script src="js/quote/preview-phone.js"></script>
+<script src="js/quote/input-grid.js"></script>
+<script src="js/quote/group-header-b.js"></script>
+<script src="js/quote/cost-a.js"></script>
+<script src="js/quote/cat-colors.js"></script>
 <script src="js/quote/packing-import.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/ui-mode.js"></script>
@@ -5156,9 +5208,14 @@
 <script src="js/feedback-md.js"></script>
 <script src="js/feedback-annotate.js"></script>
 <script src="js/feedback.js"></script>
+<!-- 🔴 不具合の再現を記録する「見張り番」（Ctrl+Shift+L・再現手順つきの報告を作る） -->
+<script src="js/bug-recorder.js"></script>
+<script src="js/toast-phone.js"></script>
 <!-- Quiet テーマの置き場所変更（ヘッダーのボタンまとめ・見出しの絵文字）。html.theme-quiet のときだけ働く -->
 <script src="js/header-menu.js"></script>
+<script src="js/tab-sync.js"></script>
 <script src="js/quote/editor-v2.js"></script>
+<script src="js/quote/steps-b.js"></script>
 <script src="js/theme-quiet.js"></script>
 <!-- 欄ごとの説明書きを「？」にしまう（マウスを乗せる／タップで読める） -->
 <script src="js/hint-fold.js"></script>
@@ -5184,6 +5241,9 @@
 <script src="js/zone-subcon.js"></script>
 <script src="js/customer-rules.js"></script>
 <script src="js/master-news.js"></script>
+<script src="js/news-feed.js"></script>
+<script src="js/share-feed.js"></script>
+<script src="js/master-peek.js"></script>
 <script src="js/customer-cases.js"></script>
 <script src="js/master-tabs.js"></script>
 <script src="js/fix-hub.js"></script>
@@ -5255,8 +5315,8 @@
 <!-- 見積アクションドック（右下フローティング・見積タブのみ表示） -->
 <button type="button" id="qfMemoFab" class="qf-memo-fab" onclick="toggleMemoFloat()" aria-label="案件名・社内メモ" title="案件名・社内メモ（1行目が案件名になります。お客様向け出力には含まれません）"><span class="qmf-i">📝</span><span class="qmf-t"> 案件名・社内メモ</span><span class="qmf-x" role="button" tabindex="0" aria-label="このボタンを隠す" title="このボタンを隠す（「⋯」メニューからいつでも付箋を開けます）">✕</span></button>
 <div id="quoteActionDock">
-  <button class="qad-btn qad-pdf" onclick="quickQuotePdf()" title="御見積書PDFをそのまま出力（A4縦）。ファイル名・発行元は前回の設定を使います。設定を変えたいときはプレビュー →「📄 御見積書」から">📄 PDF出力</button>
-  <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
+  <button class="qad-btn qad-pdf" onclick="quickQuotePdf()" title="御見積書PDFをそのまま出力（A4縦）。ファイル名・発行元は前回の設定を使います。設定を変えたいときは［📋 プレビュー］から">📄 PDF出力</button>
+  <button class="qad-btn qad-preview" onclick="openQuotePreview()" title="お客様に渡す御見積書の形で確認します。PDF・メール本文・Excel・社内チェック表もここから（Ctrl+P）">📋 プレビュー</button>
   <button class="qad-btn qad-save" id="qadMode" onclick="qpDockAction()" title="閲覧中は編集を開始／編集中は保存して作業終了">💾 保存</button>
 </div>
 

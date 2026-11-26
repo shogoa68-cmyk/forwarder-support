@@ -57,7 +57,11 @@
     const tabEl = document.querySelector('.tab-content.active');
     const cls = (document.documentElement.className || '').split(/\s+/).filter(c => /^(theme|mode)-/.test(c)).join(' ');
     const ver = ((document.querySelector('script[src*="app.js"]') || {}).src || '').match(/[?&]v=([^&]+)/);
+    // 見張り番（js/bug-recorder.js）で作った再現記録つきの報告だけ、記録の要約を context に添える
+    const fbBody = $('fbBody');
+    const rec = (window.__fbRecCtx && fbBody && fbBody.value.indexOf('【再現手順（自動記録）】') >= 0) ? window.__fbRecCtx : null;
     return {
+      ...(rec ? { recording: rec } : {}),
       tab: tabEl ? tabEl.id.replace(/^tab-/, '') : '',
       nav: ((document.querySelector('.cat-btn.active') || {}).textContent || '').trim().slice(0, 30),
       viewport: window.innerWidth + 'x' + window.innerHeight,
@@ -325,6 +329,7 @@
     return (err && (err.code === 'PGRST204' || err.code === '42703')) || /column .* (does not exist|of relation)|could not find the .* column|schema cache/i.test(m);
   }
   function fbAfterSubmit() {
+    window.__fbRecCtx = null;
     fbResetAttachments();
     if ($('fbTitle')) $('fbTitle').value = '';
     _setIdeaMode(false);
@@ -401,6 +406,7 @@
   function fbOpenQuick() {
     if (typeof window.openFeedback !== 'function') return;
     window.openFeedback('全体');
+    const recSw = $('fbBrecModeSw'); if (recSw) recSw.hidden = true;      // 見張り番の「処理の方法」は再現記録のときだけ（bug-recorder.js が出し直す）
     const secSel = $('fbSection'); if (secSel) secSel.value = 'わからない';     // 該当セクションは任意（開いていた画面は自動で記録される）
     const r = document.querySelector('#fbForm input[name="fbCategory"][value="バグ報告"]');
     if (r) { r.checked = true; const lab = r.closest('.fb-radio'); if (lab) { document.querySelectorAll('#fbForm .fb-radio').forEach(x => x.classList.remove('checked')); lab.classList.add('checked'); } }
@@ -909,6 +915,12 @@
     send.textContent = '🐞 不具合・ご意見を送る';
     send.addEventListener('click', () => { closeHelpCard(); fbOpenQuick(); });
     c.appendChild(send);
+    // 不具合の再現を記録する「見張り番」（js/bug-recorder.js・Ctrl+Shift+L でも開始／終了）
+    const rec = document.createElement('button');
+    rec.type = 'button'; rec.id = 'fbHelpRec'; rec.className = 'fbhc-item'; rec.setAttribute('role', 'menuitem');
+    rec.textContent = '🔴 不具合の再現を記録する（Ctrl+Shift+L）';
+    rec.addEventListener('click', () => { closeHelpCard(); if (typeof window.bugRecToggle === 'function') window.bugRecToggle(); });
+    c.appendChild(rec);
     const header = document.querySelector('.header');
     const rename = (a, text) => { const n = a && Array.prototype.find.call(a.childNodes, x => x.nodeType === 3); if (n) n.nodeValue = text; };
     const bug = $('hdrBugReportsBtn'), idea = $('hdrIdeasBtn');
@@ -992,11 +1004,14 @@
   function _hintCovers() {
     if (!_hintEl) return false;
     const r = _hintEl.getBoundingClientRect();
-    const pts = [[.1, .2], [.5, .2], [.9, .2], [.1, .8], [.5, .8], [.9, .8]];
-    return pts.some(([fx, fy]) => {
-      const x = r.left + r.width * fx, y = r.top + r.height * fy;
-      return document.elementsFromPoint(x, y).some(el => el !== _hintEl && !_hintEl.contains(el) && el.id !== 'fbQuickFab' &&
-        el.closest && el.closest('button, a, input, select, textarea, [role="button"]'));
+    // 押せる部品の四角と吹き出しの四角が少しでも重なれば「重なる」（点で調べると小さな重なりを見落とすため）
+    return [...document.querySelectorAll('button, a[href], input, select, textarea, [role="button"]')].some(el => {
+      if (el === _hintEl || _hintEl.contains(el) || el.id === 'fbQuickFab' || (el.closest && el.closest('#fbQuickFab, #fbHelpCard'))) return false;
+      if (!el.getClientRects().length) return false;
+      const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.opacity === '0') return false;
+      const b = el.getBoundingClientRect();
+      if (b.width < 2 || b.height < 2) return false;
+      return b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
     });
   }
   function fbHintShow(force) {
@@ -1028,6 +1043,8 @@
     _hintEl = el;
     _hintPlace();
     if (!force && _hintCovers()) { fbHintHide(false); return; }      // 重なるなら出さない（回数は数えない）
+    // Design 42-4：通知（トースト）が出ている間は出さない（回数は数えない）
+    if (!force && document.querySelector('#toast-container > .toast')) { fbHintHide(false); return; }
     if (!force) _ls.set(HINT_N, String(HINT_MAX));
     _hintPosTimer = setInterval(_hintPlace, 500);     // 全体リマークの引き出し等でボタンの位置が動いても追従
     _hintTimer = setTimeout(() => fbHintHide(false), HINT_SHOW_MS);

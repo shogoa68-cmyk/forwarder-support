@@ -364,6 +364,20 @@ function saveFxRates() {
   SharedStorage.setJSON(SharedStorage.KEYS.FX_RATES, _fxRates);
 }
 
+// 手入力した為替レートの記録 {通貨: 入力した日時（ISO）}。自動取得に成功すると消える。
+// 御見積書の為替注記で「open.er-api.com から取得」と書かず「手入力の値」と書くために使う。
+const FX_MANUAL_KEY = 'fxManual_v1';
+function getFxManual() {
+  try { const o = JSON.parse(localStorage.getItem(FX_MANUAL_KEY) || '{}'); return (o && typeof o === 'object') ? o : {}; } catch (e) { return {}; }
+}
+function setFxManual(obj) {
+  try {
+    if (obj && Object.keys(obj).length) localStorage.setItem(FX_MANUAL_KEY, JSON.stringify(obj));
+    else localStorage.removeItem(FX_MANUAL_KEY);
+  } catch (e) {}
+}
+function markFxManual(cur) { const o = getFxManual(); o[cur] = new Date().toISOString(); setFxManual(o); }
+
 function setFxAutoMode(on) {
   _fxAutoMode = !!on;
   SharedStorage.set(SharedStorage.KEYS.FX_AUTO_MODE, on ? '1' : '0');
@@ -385,6 +399,7 @@ async function fetchAutoFxRates() {
     });
     saveFxRates();
     localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, new Date().toISOString());
+    setFxManual({});   // 取得した値で置き換わったので、手入力の記録は消す
     return true;
   } catch(e) {
     console.warn('為替レート取得失敗:', e);
@@ -515,7 +530,17 @@ function minAmt(amount, min) {
   return m > 0 ? Math.max(amount, m) : amount;
 }
 // 画面の行（id）から最低料金を読んで当てる。side：'cost'（仕入）／'sell'（売値）
+// PROFIT SHARE の向き：仕入（単価か最低料金）に金額がある行＝代理店へ返す（売は 0・マイナス計上）。
+// 仕入が 0 で乗せ幅（売）に金額がある行＝代理店から受け取る（売をそのままプラス計上）
+function psPayMode(id) {
+  if (document.getElementById('ps-' + id)?.value !== '1') return false;
+  const n = f => parseFloat(document.getElementById(f + '-' + id)?.value) || 0;
+  return n('pp') > 0 || n('ppmin') > 0;
+}
+window.psPayMode = psPayMode;
 function applyRowMin(amount, id, side) {
+  // PROFIT SHARE（代理店へ仕入の金額を返す）の行は売に数字を入れない＝売の最低料金も当てない
+  if (side === 'sell' && psPayMode(id)) return 0;
   const el = document.getElementById((side === 'cost' ? 'ppmin-' : 'bpmin-') + id);
   return minAmt(amount, el ? el.value : 0);
 }

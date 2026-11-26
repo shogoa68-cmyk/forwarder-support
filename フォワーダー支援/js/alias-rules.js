@@ -628,9 +628,9 @@
 
   // === レンダリング ===
 
-  function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   // onclick の JS 文字列リテラル用
-  function _ea(s)  { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+  function _ea(s)  { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   // HTML value="" 属性用（&#39; が正しい）
   function _eav(s) { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
@@ -1774,6 +1774,7 @@
       { key: 'referrer',     label: '紹介元（誰から紹介されたか）', refer: true, placeholder: '例）○○商事の山田さん／株式会社○○（お客様・サブコンの名前が候補に出ます）' },
       { key: 'referralNote', label: '紹介の経緯・時期', placeholder: '例）2026-10 展示会で山田氏から紹介' },
       { key: 'contacts',     label: '担当者', contacts: true },
+      { key: 'sites',        label: '倉庫・配送先', sites: true },
       { key: 'location',     label: '所在地' },
       { key: 'mainGoods',    label: 'メイン商材' },
       { key: 'destCountry',  label: '仕向国/輸入国' },

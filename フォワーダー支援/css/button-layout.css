@@ -163,3 +163,57 @@ html.editor-v2 #tab-quote-make:not(.e2-rail-open) #e2Steps button.is-warn i::aft
 
 /* 行の操作（👁 🔍 ✓ ➕ 📋 🗑）を押した直後は、吹き出しをすぐ隠す（js/quote/row.js・カーソルが離れると戻る） */
 #tab-quote-make #quoteTable td.handle-cell.acts-dismissed .row-acts { display: none !important; }
+
+/* ===== サブコンの枠を先につくる（2026-11・row.js addSubconFrame／openAddSubconFrame／updateFrameHint） ===== */
+/* editor-v2.css の html.editor-v2 #e2CostBar button（白地）より強く指定する（弱いと白地に白文字で空の箱に見えた） */
+html.editor-v2 #e2CostBar button.e2-primary { background: var(--accent, #2f5fb3); border-color: var(--accent, #2f5fb3); color: #fff; font-weight: 700; }
+.sf-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 10px; padding: 10px 14px; border: 1px dashed var(--accent, #2f5fb3); border-radius: 8px; background: var(--accent-lt, #eef3fb); font-size: var(--text-sm, 13px); line-height: 1.6; }
+.sf-hint[hidden] { display: none; }
+/* 明細が 1 行も無い間：表（空の行と「（サブコン未設定）」の見出し）を隠し、案内のカード 1 つにする */
+#tableWrap.sf-empty #tableScrollWrap, #tableWrap.sf-empty #mcHost { display: none !important; }
+html.editor-v2 #tableWrap.sf-empty #e2CostBar [data-f="collapseAllGroups"],
+html.editor-v2 #tableWrap.sf-empty #e2CostBar [data-f="expandAllGroups"],
+html.editor-v2 #tableWrap.sf-empty #e2CostBar [data-f="openAddSubconFrame"] { display: none; }
+.sf-hint.sf-empty-card { flex-direction: column; align-items: center; text-align: center; gap: 10px; margin: 8px 0 14px; padding: 32px 20px; border: 1px dashed #98a2b3; border-radius: 10px; background: var(--surface, #fff); color: #1d2939; }
+.sf-empty-card[hidden] { display: none; }
+.sf-e-t { font-size: var(--text-lg, 16px); font-weight: 700; }
+.sf-e-d { max-width: 560px; color: #475467; }
+.sf-empty-card .sf-hint-btn { min-height: 40px; padding: 0 20px; }
+.sf-e-none { padding: 4px 6px; border: 0; background: none; color: #475467; font: inherit; text-decoration: underline; cursor: pointer; }
+.sf-hint-btn, .sf-pop-ok { min-height: 36px; padding: 0 14px; border: 1px solid var(--accent, #2f5fb3); border-radius: 8px; background: var(--accent, #2f5fb3); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.sf-pop { position: fixed; z-index: 1400; width: 340px; max-width: calc(100vw - 16px); padding: 14px; background: #fff; border: 1px solid #98a2b3; border-radius: 10px; box-shadow: 0 8px 28px rgba(16,24,40,.22); font-size: var(--text-sm, 13px); line-height: 1.6; color: #1d2939; }
+.sf-pop-t { font-weight: 700; font-size: var(--text-base, 14px); margin-bottom: 4px; }
+.sf-pop-d { color: #475467; margin-bottom: 10px; }
+.sf-pop-row { display: flex; gap: 8px; }
+.sf-pop-in { flex: 1; min-width: 0; min-height: 36px; padding: 0 10px; border: 1px solid #98a2b3; border-radius: 6px; font: inherit; }
+.sf-pop-none { display: block; margin-top: 10px; padding: 0; border: 0; background: none; color: #475467; font: inherit; text-decoration: underline; cursor: pointer; }
+@media (max-width: 600px) { .sf-pop { left: 8px !important; right: 8px; width: auto; } .sf-hint-btn, .sf-pop-ok, .sf-pop-in, .sf-e-none { min-height: 44px; } .sf-hint.sf-empty-card { padding: 24px 14px; } }
+
+/* ===== Design 42-4：スマホの通知（トースト）は画面の上の 1 か所（新しいものが上・押すと消える） ===== */
+@media (max-width: 600px) {
+  #toast-container {
+    top: var(--toast-top, 8px) !important; left: 12px !important; right: 12px !important; bottom: auto !important;
+    transform: none !important; max-width: none !important; width: auto !important;
+    display: flex !important; flex-direction: column-reverse !important; align-items: stretch !important; gap: 6px;
+  }
+  #toast-container > .toast { pointer-events: auto; border-radius: 8px !important; max-width: none !important; width: auto !important; cursor: pointer; }
+}
+
+/* ===== 費用入力：② ルートで入力したサブコンから枠をつくる（2026-11・row.js _routeSvHtml） ===== */
+.sf-rt, #tab-quote-make .sf-rt { width: 100%; max-width: 560px; margin: 10px 0 4px; padding: 10px 12px; border: 1px solid #d0d5dd; border-radius: 8px; background: #f8fafc; text-align: left; }
+.sf-rt-h, #tab-quote-make .sf-rt-h { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; margin: 0 0 8px; font-weight: 700; font-size: var(--text-sm, 13px); color: #344054; }
+.sf-rt-list, #tab-quote-make .sf-rt-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.sf-rt-chip, #tab-quote-make .sf-rt-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; max-width: 100%; padding: 4px 10px; border: 1px solid var(--accent, #2f5fb3); border-radius: 999px; background: #fff; color: #1d2939; font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; }
+.sf-rt-chip:hover, #tab-quote-make .sf-rt-chip:hover { background: var(--accent-lt, #eef3fb); }
+.sf-rt-chip.is-added, #tab-quote-make .sf-rt-chip.is-added { border-color: #d0d5dd; background: #f2f4f7; color: #667085; cursor: default; }
+.sf-rt-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+.sf-rt-side, #tab-quote-make .sf-rt-side { flex: none; padding: 1px 6px; border-radius: 4px; font-size: var(--text-xs, 12px); font-weight: 700; color: #fff; background: #667085; }
+.sf-rt-side.sf-rt-origin, #tab-quote-make .sf-rt-side.sf-rt-origin { background: #2f8f83; }
+.sf-rt-side.sf-rt-main, #tab-quote-make .sf-rt-side.sf-rt-main { background: #2f5fb3; }
+.sf-rt-side.sf-rt-dest, #tab-quote-make .sf-rt-side.sf-rt-dest { background: #7c52d1; }
+#tab-quote-make .sf-empty-card .sf-hint-btn { white-space: nowrap; padding: 0 20px; }
+.sf-rt-plus { color: var(--accent, #2f5fb3); font-weight: 700; }
+.sf-rt-ok { font-size: var(--text-xs, 12px); color: #1e7a4a; }
+.sf-rt-all, #tab-quote-make .sf-rt-all { min-height: 30px; padding: 0 10px; border: 1px solid var(--accent, #2f5fb3); border-radius: 6px; background: var(--accent, #2f5fb3); color: #fff; font: inherit; font-size: var(--text-xs, 12px); font-weight: 700; cursor: pointer; }
+.sf-pop .sf-rt { max-width: none; }
+@media (max-width: 600px) { .sf-rt-chip, #tab-quote-make .sf-rt-chip, .sf-rt-all, #tab-quote-make .sf-rt-all { min-height: 44px; } .sf-rt-name { max-width: 150px; } }

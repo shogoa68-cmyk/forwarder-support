@@ -31,7 +31,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await click('.cat-btn[aria-controls="tab-calc"]'); await p.waitForTimeout(400);
   await p.click('#backToQuoteFab'); await p.waitForTimeout(400);
   const s = await p.evaluate(() => ({ tab: document.getElementById('tab-quote-make').classList.contains('active'), act: [...document.querySelectorAll('.cat-btn.active')].map(e => e.textContent.trim()) }));
-  ok('「見積もりに戻る」で見積タブが開き、選択中は「見積」だけ', s.tab && s.act.length === 1 && /見積/.test(s.act[0]), s);
+  ok('「見積もりに戻る」で見積タブが開き、選択中は「見積」だけ', s.tab && s.act.length === 1 && /見積を作る/.test(s.act[0]), s);
   await p.setViewportSize({ width: 1400, height: 500 });
   await p.evaluate(() => window.scrollTo(0, 400));
   await p.evaluate(id => cloudLoadPreset(encodeURIComponent(id)), ID); await p.waitForTimeout(800);

@@ -165,7 +165,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
       await p.click('#mmSheet [data-go]'); await p.waitForTimeout(700);
       ok(L + '却下できた', await p.evaluate(() => window.__db.master_requests.find(x => x.id === 'q2').status === 'rejected'));
       await p.click('[data-ok="q1"]'); await p.waitForTimeout(700);
-      ok(L + '1 タップで承認・トースト', await p.evaluate(() => window.__db.master_requests.find(x => x.id === 'q1').status === 'approved' && !!document.querySelector('.mm-toast')));
+      ok(L + '1 タップで承認・トースト', await p.evaluate(() => window.__db.master_requests.find(x => x.id === 'q1').status === 'approved' && !!document.querySelector('#toast-container > .toast, .mm-toast')));
+      ok(L + '[42-4] 通知は画面の上（左右 12px）', await p.evaluate(() => { const t = document.querySelector('#toast-container > .toast'); if (!t) return false; const r = t.getBoundingClientRect(); return r.top < innerHeight / 2 && Math.abs(r.left - 12) <= 2 && Math.abs(innerWidth - r.right - 12) <= 2; }));
       await p.click('[data-wt="drift"]'); await p.waitForTimeout(600);
       ok(L + '表記ゆれ：既存カードが出る', await vis(p, '#driftCard') && !(await vis(p, '#statsPane-master .master-table')));
       if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'mm-drift.png') });
@@ -183,6 +184,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
       const det = await p.$('#statsPane-master table.master-grid > tbody > tr:not(.master-tag-group-row) td.ops button:not(.master-ops-more)');
       if (det) { await det.click(); await p.waitForTimeout(800); const full = await p.evaluate(() => { const m = document.querySelector('#mdDetailModal .md-modal'); if (!m) return null; const r = m.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), innerWidth, innerHeight]; }); ok(L + '詳細は全画面', !!full && full[0] === full[2] && full[1] === full[3], full); ok(L + '保存バーが見える', await vis(p, '#mdDetailModal .mt-foot')); if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'mm-detail-' + role + '.png') }); }
     }
+    // ===== Design 42-4 =====
+    await p.evaluate(() => { const d = document.getElementById('mdDetailModal'); if (d) window.statsCloseMasterDetail && window.statsCloseMasterDetail(); });
+    await p.evaluate(() => window.statsMasterToggleRegister()); await p.waitForTimeout(300);
+    const reg = await p.evaluate(() => { const m = document.querySelector('#masterNewModal .md-modal'); if (!m) return null; const r = m.getBoundingClientRect(); const ch = [...document.querySelectorAll('#masterNewModal .mm-reg-kind')]; return { bottom: Math.round(r.bottom), w: Math.round(r.width), h: ch.map(c => Math.round(c.getBoundingClientRect().height)), n: ch.length, more: !!document.querySelector('#masterNewModal details.mm-reg-more #masterNewFields'), name: Math.round(document.getElementById('masterNewValue').getBoundingClientRect().height), btn: document.querySelector('#masterNewModal .master-new-btn').textContent }; });
+    ok(L + '[42-4] 新規登録は下から出るシート（幅いっぱい・下端）', reg && reg.bottom >= 844 - 2 && reg.w >= 388, reg);
+    ok(L + '[42-4] 種別は丸いチップ（36px）・名前は 44px・詳細は畳む', reg && reg.n >= 5 && reg.h.every(x => x >= 36) && reg.name >= 44 && reg.more, reg);
+    if (process.env.OUT) await p.screenshot({ path: path.join(process.env.OUT, 'mm-register-' + role + '.png') });
+    await p.evaluate(() => document.querySelectorAll('#masterNewModal .mm-reg-kind')[1].click());
+    ok(L + '[42-4] チップを押すと種別（select）が変わる', await p.evaluate(() => document.getElementById('masterNewField').value === document.querySelectorAll('#masterNewModal .mm-reg-kind')[1].dataset.v && document.querySelectorAll('#masterNewModal .mm-reg-kind')[1].classList.contains('is-on')));
+    await p.evaluate(() => window.statsMasterCloseRegister());
+    await p.evaluate(() => mmShow('alias')); await p.waitForTimeout(300);
+    ok(L + '[42-4] エイリアス是正はスマホでは案内のカードだけ', await vis(p, '#mmAliasPc') && !(await vis(p, '#statsPane-alias')));
+    await p.evaluate(() => mmShow('home'));
+    const cf = await p.evaluate(async () => { const pr = window.statsMasterRemove('sv', 'テスト運送'); await new Promise(r => setTimeout(r, 200)); const d = document.querySelector('.confirm-dialog'); const t = d ? d.innerText : ''; const ok = d && d.querySelector('.btn-danger') ? d.querySelector('.btn-danger').textContent : ''; const c = d && d.querySelector('.btn-cancel'); if (c) c.click(); await pr; return { t, ok }; });
+    ok(L + '[42-4] 解除の確認に件数・「表記はそのまま残ります」・［解除する］', /をマスターから解除しますか/.test(cf.t) && /この名前を使っている案件：\d+ 件/.test(cf.t) && /そのまま残ります/.test(cf.t) && cf.ok === '解除する', cf);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

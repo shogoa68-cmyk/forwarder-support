@@ -21,7 +21,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
 
   const ctx = await b.newContext({ viewport: { width: 1400, height: 1000 }, locale: 'ja-JP' });
   if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
-  await ctx.addInitScript(() => {
+  const NOM = !!process.env.NOMASTER;
+  await ctx.addInitScript(NOM => {
     try { localStorage.setItem('fwd.uiMode', 'detail'); } catch (e) {}
     const cell = (sv, nm, pp, bp) => { const c = Array(34).fill(''); c[1] = 'other'; c[2] = sv; c[4] = nm; c[5] = '1'; c[6] = 'CNTR'; c[7] = '1'; c[8] = 'JPY'; c[9] = 'JPY'; c[10] = pp; c[11] = bp; return c; };
     const mk = (id, f, upd, rws, st) => ({ id, name: '案件' + id, status: st || '下書き中', customer: f['qf-customer'] || null, transport_mode: f['cond-mode'] || null, incoterms: f['cond-incoterms'] || null, pol: f['z2Pol'] || null, pod: f['z2Pod'] || null,
@@ -36,7 +37,16 @@ const http = require('http'), fs = require('fs'), path = require('path');
         mk('E', {}, '2026-11-06T00:00:00Z'),
       ],
       quote_preset_links: [], allowed_emails: [{ email: 'me@x.com', role: 'admin', member_no: 1 }], user_profiles: [], quote_comments: [],
-      master_votes: [], synonym_groups: [], master_details: [], alias_rules: [], organizations: [], teams: [], org_members: [], team_members: [],
+      master_votes: NOM ? [] : [
+        { field: 'customer', value: 'サンプル商事', voter_email: 'me@x.com' }, { field: 'customer', value: '未取引商会', voter_email: 'me@x.com' },
+        { field: 'port', value: 'YOKOHAMA', voter_email: 'me@x.com' }, { field: 'port', value: 'OSAKA', voter_email: 'me@x.com' },
+      ],
+      synonym_groups: NOM ? [] : [
+        { id: 'g1', field: 'port', canonical: 'YOKOHAMA', aliases: ['横浜'] },
+        { id: 'g2', field: 'customer', canonical: 'サンプル商事', aliases: ['株式会社サンプル商事'] },
+      ],
+      master_details: NOM ? [] : [{ field: 'port', value: 'YOKOHAMA', details: { furigana: 'よこはま', enName: 'Yokohama' } }],
+      alias_rules: [], organizations: [], teams: [], org_members: [], team_members: [],
     };
     window.__db = db;
     const qb = t => {
@@ -63,7 +73,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
       storage: { from: () => ({ upload: async () => ({ error: null }), remove: async () => ({ error: null }), createSignedUrls: async () => ({ data: [], error: null }) }) },
     };
     window.supabase = { createClient: () => client };
-  });
+  }, NOM);
   await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
   const p = await ctx.newPage();
   const errs = [];
@@ -124,7 +134,20 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('「条件をクリア」で全件に戻る', (await items()).length === 5, await items());
   await p.selectOption('#nqSort', 'cust'); await p.waitForTimeout(120);
   ok('並び順：お客様名順（お客様なしは最後）', (await items()).slice(-1)[0] === '案件E', await items());
-  ok('候補（datalist）にお客様・港が出る', await p.evaluate(() => document.querySelectorAll('#nqCustList option').length >= 3 && document.querySelectorAll('#nqPortList option').length >= 4), null);
+  const optVals = id => p.evaluate(i => [...document.querySelectorAll('#' + i + ' option')].map(o => o.value), id);
+  const cands = { cust: await optVals('nqCustList'), port: await optVals('nqPortList') };
+  if (process.env.NOMASTER) {
+    ok('マスターが空のときは案件の値で代用する（候補が空にならない）', cands.cust.includes('ABC物産') && cands.port.includes('BANGKOK'), cands);
+  } else {
+    ok('候補はマスターから（案件にだけある値は出ない・マスターにだけある値は出る）', cands.cust.includes('サンプル商事') && cands.cust.includes('未取引商会') && !cands.cust.includes('ABC物産') && cands.port.includes('OSAKA') && cands.port.includes('YOKOHAMA') && !cands.port.includes('BANGKOK'), cands);
+    ok('別名も候補に出る（横浜）・ふりがな/英語名がラベルに入る', cands.port.includes('横浜') && await p.evaluate(() => { const o = [...document.querySelectorAll('#nqPortList option')].find(x => x.value === 'YOKOHAMA'); return !!o && /よこはま/.test(o.label) && /Yokohama/.test(o.label); }), cands);
+    await setv('nqPol', '横浜');
+    ok('港の別名で絞り込める（横浜 → 案件 B）', (await items()).join() === '案件B', await items());
+    await setv('nqPol', '');
+    await setv('nqCust', '株式会社サンプル商事');
+    ok('お客様の別名で絞り込める（A・B）', (await items()).sort().join() === '案件A,案件B', await items());
+    await setv('nqCust', '');
+  }
   await p.click('.nq-back'); await p.waitForTimeout(150);
   ok('「戻る」で選択肢に戻る', await q('.nq-card[data-nq="blank"]'), null);
   await p.keyboard.press('Escape'); await p.waitForTimeout(100);

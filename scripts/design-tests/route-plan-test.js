@@ -21,33 +21,31 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   const sv = await info('bulkSubconSet'), un = await info('bulkUnitSet'), pt = await info('bulkPatternSet');
   const add = (c, pol, pod) => p.evaluate(([c, pol, pod]) => { document.getElementById('z2Carrier').value = c; document.getElementById('z2Pol').value = pol; document.getElementById('z2Pod').value = pod; window.addRouteEntry(); }, [c, pol, pod]);
   await add('ONE', 'TOKYO', 'LOS ANGELES'); await add('MAERSK', 'TOKYO', 'LOS ANGELES'); await p.waitForTimeout(300);
-  const chips = () => p.evaluate(() => [...document.querySelectorAll('#z2RouteList .z2-route-chip')].map(c => ({ plan: (c.querySelector('.z2-route-plan:not(.is-none)') || {}).textContent || '', none: !!c.querySelector('.z2-route-plan.is-none'), adopt: (c.querySelector('.z2-route-adopt') || {}).textContent || '', cls: (c.querySelector('.z2-route-planwrap') || {}).className || '' })));
+  // Design 42-3：航路はカード。採用は 1 本だけ（採用＝見積書に出す航路）
+  const chips = () => p.evaluate(() => [...document.querySelectorAll('#z2RouteList .z2-rcard')].map(c => ({ plan: (c.querySelector('.z2-rc-name') || {}).textContent || '', none: !!c.querySelector('.z2-rc-nameadd'), adopt: c.classList.contains('is-adopt') ? '採用' : c.classList.contains('is-reject') ? '不採用' : '未定' })));
   let c = await chips();
-  ok('どの航路にも「＋案」が出る（既定は案なし）', c.length === 2 && c.every(x => x.none), c);
+  ok('どの航路にも「＋ 名前」が出る（既定は案なし）・1 本目は採用・2 本目は未定', c.length === 2 && c.every(x => x.none) && c[0].adopt === '採用' && c[1].adopt === '未定', c);
   await p.evaluate(() => { window.prompt = () => 'FCL直行案'; window.editRoutePlan(0); window.prompt = () => '混載案'; window.editRoutePlan(1); }); await p.waitForTimeout(200);
   c = await chips();
-  ok('案の名前を付けられる', c[0].plan === 'FCL直行案' && c[1].plan === '混載案' && c[0].adopt === '検討中', c);
-  await p.evaluate(() => window.cycleRouteAdopt(0)); await p.waitForTimeout(150);
+  ok('案の名前を付けられる', c[0].plan === 'FCL直行案' && c[1].plan === '混載案', c);
+  await p.evaluate(() => window.adoptRoute(1)); await p.waitForTimeout(150);
   c = await chips();
-  ok('クリックで 検討中→採用', c[0].adopt === '✓ 採用' && /is-adopt/.test(c[0].cls), c);
-  await p.evaluate(() => window.cycleRouteAdopt(0)); await p.waitForTimeout(150);
-  c = await chips();
-  ok('もう一度で 不採用', /不採用/.test(c[0].adopt) && /is-reject/.test(c[0].cls), c);
-  await p.evaluate(() => window.cycleRouteAdopt(0)); await p.waitForTimeout(150);
-  ok('もう一度で 検討中に戻る', (await chips())[0].adopt === '検討中');
-  // 保存データ（z2-routes-data）に残る・✎ で書き戻して再登録しても引き継ぐ
-  await p.evaluate(() => window.cycleRouteAdopt(1));
-  const saved = await p.evaluate(() => JSON.parse(document.getElementById('z2-routes-data').value).map(r => [r.plan, r.adopt]));
-  ok('保存用のデータに案の名前・採用の印が入る', JSON.stringify(saved) === JSON.stringify([['FCL直行案', ''], ['混載案', 'adopt']]), saved);
+  ok('2 本目を採用にすると、1 本目は未定に戻る', c[1].adopt === '採用' && c[0].adopt === '未定', c);
+  await p.evaluate(() => window.rejectRoute(0)); await p.waitForTimeout(150);
+  ok('不採用にできる', (await chips())[0].adopt === '不採用');
+  await p.evaluate(() => window.unsetRoute(0)); await p.waitForTimeout(150);
+  ok('未定に戻せる', (await chips())[0].adopt === '未定');
+  const saved = await p.evaluate(() => JSON.parse(document.getElementById('z2-routes-data').value).map(r => [r.plan, r.adopt, r.enabled]));
+  ok('保存用のデータに案の名前・採用の印が入る（採用＝enabled）', JSON.stringify(saved) === JSON.stringify([['FCL直行案', '', false], ['混載案', 'adopt', true]]), saved);
   await p.evaluate(() => { window.editRouteEntry(1); window.addRouteEntry(); }); await p.waitForTimeout(200);
   const after = await p.evaluate(() => JSON.parse(document.getElementById('z2-routes-data').value).map(r => [r.plan, r.adopt]));
-  ok('✎ で編集して再登録しても案の名前・印が残る', after.some(a => a[0] === '混載案' && a[1] === 'adopt'), after);
+  ok('✎ で直して登録しても案の名前・印が残る', after.some(a => a[0] === '混載案' && a[1] === 'adopt'), after);
   await p.evaluate(() => { window.prompt = () => ''; window.editRoutePlan(0); }); await p.waitForTimeout(150);
   ok('名前を空にすると案なしに戻る', (await chips()).some(x => x.none));
   // 区間（区間ごとのモード・キャリア・ETD）
   await add('YANG MING', 'OSAKA', 'SEATTLE'); await p.waitForTimeout(200);
   const idx = await p.evaluate(() => JSON.parse(document.getElementById('z2-routes-data').value).length - 1);
-  ok('どの航路にも「＋区間」が出る', await p.evaluate(() => !!document.querySelector('#z2RouteList .z2-route-seg.is-none')));
+  ok('区間の無い航路には「＋ 区間を足す」が出る', await p.evaluate(() => !!document.querySelector('#z2RouteList .z2-rc-segadd')));
   await p.evaluate(i => window.openRouteSegs(i), idx); await p.waitForTimeout(200);
   await p.evaluate(() => { document.querySelector('.z2-seg-add').click(); document.querySelector('.z2-seg-add').click(); }); await p.waitForTimeout(100);
   ok('区間を 2 つ追加でき、1 つ目は集荷・2 つ目は海上が既定', await p.evaluate(() => [...document.querySelectorAll('.z2-seg-mode')].map(e => e.value).join()) === '集荷,海上');
@@ -55,7 +53,7 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   const segs = await p.evaluate(i => JSON.parse(document.getElementById('z2-routes-data').value)[i].segs, idx);
   ok('入力すると保存用のデータ（segs）に入る', segs.length === 2 && segs[1].carrier === 'YANG MING' && segs[1].etd === '2026-12-05' && segs[0].mode === '集荷', segs);
   await p.evaluate(() => document.querySelector('.z2-seg-x').click()); await p.waitForTimeout(200);
-  ok('閉じるとチップに「区間2｜…」の要約が出る', await p.evaluate(() => [...document.querySelectorAll('#z2RouteList .z2-route-seg')].some(b => /区間2/.test(b.textContent) && /YANG MING/.test(b.textContent))));
+  ok('閉じるとカードに区間の流れ（2 つ・業者）が出る', await p.evaluate(() => [...document.querySelectorAll('#z2RouteList .z2-rc-segs')].some(o => o.children.length === 2 && /YANG MING/.test(o.textContent))));
   await p.evaluate(i => { window.editRouteEntry(i); window.addRouteEntry(); }, idx); await p.waitForTimeout(200);
   const after2 = await p.evaluate(() => JSON.parse(document.getElementById('z2-routes-data').value).some(r => Array.isArray(r.segs) && r.segs.length === 2));
   ok('✎ で編集して再登録しても区間が残る', after2);

@@ -73,9 +73,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1500);
 
   const pick = () => p.evaluate(() => [...document.querySelectorAll('#cpCondInfo .cp-route-chk')].map(c => ({ on: c.checked, txt: c.closest('.cp-kv').textContent.trim() })));
-  const chips = () => p.evaluate(() => [...document.querySelectorAll('#z2RouteList .z2-route-chip')].map(c => ({
-    carrier: c.querySelector('.z2-route-carrier')?.textContent, leg: c.querySelector('.z2-route-leg')?.textContent,
-    ng: c.classList.contains('z2-route-chip--ng'), off: c.classList.contains('z2-route-chip--off'), icd: !!c.querySelector('.z2-route-icd'),
+  // Design 42-3：航路はカード（.z2-rcard）
+  const chips = () => p.evaluate(() => [...document.querySelectorAll('#z2RouteList .z2-rcard')].map(c => ({
+    carrier: c.querySelector('.z2-rc-car')?.textContent, leg: c.querySelector('.z2-rc-line')?.textContent,
+    ng: c.classList.contains('is-ng'), off: !c.classList.contains('is-adopt'), icd: /🚉/.test(c.textContent),
   })));
 
   // 1) 類似案件のプレビュー（いまの見積は空）
@@ -132,7 +133,11 @@ const http = require('http'), fs = require('fs'), path = require('path');
   }
 
   // 7) 編集中の自分自身のプレビューでは出さない
-  await p.evaluate(() => window.cloudLoadPreset('CUR')); await p.waitForTimeout(1200);
+  // 航路を足した（未保存）あとに開き直すと、未保存の確認が出る（2026-11〜）。ここでは「保存せずに進む」
+  await p.evaluate(() => { window.cloudLoadPreset('CUR'); }); await p.waitForTimeout(500);
+  ok('航路を追加したあとは未保存として扱い、開き直す前に確認が出る', await p.evaluate(() => document.getElementById('qpLeaveConfirm')?.classList.contains('open')), null);
+  if (await p.evaluate(() => document.getElementById('qpLeaveConfirm')?.classList.contains('open'))) await p.click('#qpLeaveConfirm .qplc-discard');
+  await p.waitForTimeout(1200);
   await p.evaluate(() => window.cloudPreviewPreset('CUR')); await p.waitForTimeout(800);
   ok('編集中の案件自身のプレビューには航路のチェック・ボタンを出さない', await p.evaluate(() => !document.querySelector('#cpCondInfo .cp-route-chk') && !document.getElementById('cpRouteCopyBtn')), null);
   ok('それでも航路の表示は従来どおり', await p.evaluate(() => /INTERASIA/.test(document.getElementById('cpCondInfo').textContent)), null);
