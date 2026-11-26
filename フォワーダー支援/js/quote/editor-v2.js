@@ -32,7 +32,10 @@
 
   function summaries() {
     const cust = val('qf-customer'), name = val('qf-case-name'), pol = val('z2Pol'), pod = val('z2Pod'), cargo = val('cond-cargo-name') || val('cargo-name') || val('cond-cargo');
-    const rows = document.querySelectorAll('#tableBody tr:not([data-virtual]):not(.tr-sub):not(.tr-remark)').length;
+    const rows = [...document.querySelectorAll('#tableBody tr:not([data-virtual]):not(.tr-sub):not(.tr-remark):not(.subtotal-row):not(.remark-row)')].filter(tr => {   // 空の 1 行（新しい見積の最初の行）は数えない
+      const v = f => { const e = tr.querySelector('[data-field="' + f + '"]'); return e ? String(e.value || '').trim() : ''; };
+      return !!(v('nm') || (parseFloat(v('pp')) || 0) || (parseFloat(v('bp')) || 0) || (parseFloat(v('mk')) || 0));
+    }).length;
     const sell = ($('tot-subtotal') && $('tot-subtotal').textContent || '').replace(/\s+/g, ' ').trim();
     return {
       1: { s: [cust, name].filter(Boolean).join(' / ') || '未入力', ok: !!(cust && val('qf-person')) },

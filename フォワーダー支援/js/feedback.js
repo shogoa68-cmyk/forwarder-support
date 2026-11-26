@@ -1004,11 +1004,14 @@
   function _hintCovers() {
     if (!_hintEl) return false;
     const r = _hintEl.getBoundingClientRect();
-    const pts = [[.1, .2], [.5, .2], [.9, .2], [.1, .8], [.5, .8], [.9, .8]];
-    return pts.some(([fx, fy]) => {
-      const x = r.left + r.width * fx, y = r.top + r.height * fy;
-      return document.elementsFromPoint(x, y).some(el => el !== _hintEl && !_hintEl.contains(el) && el.id !== 'fbQuickFab' &&
-        el.closest && el.closest('button, a, input, select, textarea, [role="button"]'));
+    // 押せる部品の四角と吹き出しの四角が少しでも重なれば「重なる」（点で調べると小さな重なりを見落とすため）
+    return [...document.querySelectorAll('button, a[href], input, select, textarea, [role="button"]')].some(el => {
+      if (el === _hintEl || _hintEl.contains(el) || el.id === 'fbQuickFab' || (el.closest && el.closest('#fbQuickFab, #fbHelpCard'))) return false;
+      if (!el.getClientRects().length) return false;
+      const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.opacity === '0') return false;
+      const b = el.getBoundingClientRect();
+      if (b.width < 2 || b.height < 2) return false;
+      return b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
     });
   }
   function fbHintShow(force) {

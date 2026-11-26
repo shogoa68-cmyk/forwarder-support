@@ -443,9 +443,16 @@
     const tab = document.getElementById('tab-quote-make');
     const railShown = !!(tab && tab.classList.contains('active') && !document.body.classList.contains('qp-dash-active') &&
       rail.getClientRects().length && window.innerWidth > 600);
-    const inRail = f.parentNode === rail;
-    if (railShown && !inRail) { f.classList.add('fb-in-rail'); rail.appendChild(f); }
-    else if (!railShown && inRail) { f.classList.remove('fb-in-rail'); document.body.appendChild(f); }
+    // スマホ幅の見積入力では、❓ を上のバー（題名の右）へ入れる（入力欄・行の ✓ に重ねない）
+    const tb = document.getElementById('saveToolbar');
+    const phoneEd = !!(tab && tab.classList.contains('active') && !document.body.classList.contains('qp-dash-active') &&
+      window.innerWidth <= 600 && tb && tb.getClientRects().length);
+    const want = railShown ? rail : (phoneEd ? tb : document.body);
+    if (f.parentNode === want) return;
+    f.classList.toggle('fb-in-rail', want === rail);
+    f.classList.toggle('fb-in-toolbar', want === tb);
+    if (want === tb) { const menu = tb.querySelector('.tb-menu-right'); tb.insertBefore(f, menu || null); }
+    else want.appendChild(f);
   }
   setInterval(_dockHelp, 700);
   window.addEventListener('resize', _dockHelp);

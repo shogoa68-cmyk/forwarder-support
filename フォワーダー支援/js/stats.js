@@ -3213,7 +3213,7 @@
     if (!rowsAll.length) {
       e.innerHTML = headH + formH + chipsH + (_terms.length
         ? '<p class="stats-empty">「' + _esc(_masterQuery.trim()) + '」に一致するマスターはありません。<br><button type="button" class="master-type-preset" onclick="statsMasterClearQuery()">検索をクリア</button>（種別の絞り込みも確認してください）</p>'
-        : '<p class="stats-empty">マスター登録はまだありません。<br>各集計の「☆ 登録」、または上の「登録」から追加できます。</p>');
+        : '<p class="stats-empty">マスター登録はまだありません。<br>上の「＋ マスターを新規登録」から追加できます。「🔧 名前の整理」の画面からも、案件で使った名前をそのまま登録できます。</p>');
       return;
     }
     const usageDesc = {

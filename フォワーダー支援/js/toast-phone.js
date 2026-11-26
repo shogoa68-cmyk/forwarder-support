@@ -10,7 +10,8 @@
   const MAX = 2, LIFE = 4000;
   function place(c) {
     const h = document.querySelector('.app > .header, body .header');
-    const b = h ? h.getBoundingClientRect().bottom : 0;
+    const nav = document.querySelector('.cat-nav');   // ヘッダーの下の上段ナビにも重ねない
+    const b = Math.max(h ? h.getBoundingClientRect().bottom : 0, nav ? nav.getBoundingClientRect().bottom : 0);
     c.style.setProperty('--toast-top', Math.max(8, Math.round(b) + 8) + 'px');
   }
   function bye(el) { if (!el || el.__bye) return; el.__bye = 1; el.classList.remove('visible'); setTimeout(() => el.remove(), 320); }
