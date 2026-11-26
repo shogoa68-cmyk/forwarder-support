@@ -600,7 +600,7 @@ function calcAirCW() {
     const volW1 = (l*w*h) / divisor;
     // CW は IATA 準拠で 0.5kg 単位に切り上げ（cargo.js / shared/calc.js と統一・docs/バグ台帳.md F）
     const cw1   = SharedCalc.airChargeableWeight(weight, volW1);
-    results.push({ l, w, h, lInput, wInput, hInput, weight, qty, volW1, cw1, cwTot: cw1*qty, tag: weight>=volW1?'W':'V', ...meta });
+    results.push({ l, w, h, lInput, wInput, hInput, weight, qty, volW1, cw1, cwTot: SharedCalc.airChargeableWeight(weight*qty, volW1*qty), tag: weight>=volW1?'W':'V', ...meta });
   }
   if (results.length === 0) { quoteShowToast('⚠️ すべての値を入力してください', 'warning'); return; }
 
@@ -624,7 +624,10 @@ function calcAirCW() {
     </div>`,
       inputLine);
   } else {
-    const totalCW  = results.reduce((s, r) => s + r.cwTot, 0);
+    // 貨物 1 件の CW は「総実重量」と「総容積重量」の大きい方（品目ごとの CW の足し算ではない）
+    const totW = results.reduce((s, r) => s + r.weight * r.qty, 0);
+    const totV = results.reduce((s, r) => s + r.volW1 * r.qty, 0);
+    const totalCW  = SharedCalc.airChargeableWeight(totW, totV);
     const totalQty = results.reduce((s, r) => s + r.qty,   0);
     const rowsHtml = results.map((r, i) => {
       const lbl = formatRowInputSummary([
@@ -635,7 +638,7 @@ function calcAirCW() {
         <div class="calc-row-label">行${i+1}　${lbl}</div>
         <div class="calc-row">
           <div class="calc-item"><div class="calc-item-label">CW (1個)</div><div class="calc-item-value">${SharedCalc.fmtCw(r.cw1)} kg <span class="calc-note">(${r.tag})</span></div></div>
-          <div class="calc-item hl"><div class="calc-item-label">CW 小計</div><div class="calc-item-value">${SharedCalc.fmtCw(r.cwTot)} kg</div></div>
+          <div class="calc-item hl"><div class="calc-item-label">CW 小計（参考）</div><div class="calc-item-value">${SharedCalc.fmtCw(r.cwTot)} kg</div></div>
         </div>
       </div>`;
     }).join('');

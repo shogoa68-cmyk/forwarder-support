@@ -135,7 +135,9 @@ window.SharedCalc = (function () {
   // 一致する必要があるため、丸めは「行ごと」が正準。Math.ceil（切り上げ）で統一。
   // 画面サマリ／プレビュー総額も必ずこの規約で集計し、4 経路の数値を一致させる。
   // （以前は経路ごとに round-of-sum / 行ごと ceil / 生の小数表示が混在し ±数円ズレた）
-  function jpyRound(v) { return Math.ceil(v || 0); }
+  // 100×161.3＝16130.000000000002 のような小数の誤差で 1 円多くならないよう、
+  // 小数 6 桁で丸めてから切り上げる。
+  function jpyRound(v) { return Math.ceil(Math.round((v || 0) * 1e6) / 1e6); }
 
   /** マークアップ率(値入率)(%) = (売上 - 原価) / 原価 × 100。原価が 0 以下なら 0 */
   function markupPct(billing, cost) {

@@ -16,6 +16,7 @@
   'use strict';
   // 粗利率のしきい値（%）。業界の目安として 5%未満＝低い／8〜12%＝標準／15%以上＝高め
   const TH = { low: 5, stdLo: 8, stdHi: 12, high: 15 };
+  window.qdgTH = TH;   // 出力前の確認ガイド（preview.js）も同じ目安を使う
   const MIN_N_BAND = 10;      // 帯ごとの実績をはっきり言う最低件数
   const MIN_N_CUST = 3;       // お客様別の実績を出す最低件数
   const WARN_N_CUST = 5;      // 歩留まりの警告を出す最低件数

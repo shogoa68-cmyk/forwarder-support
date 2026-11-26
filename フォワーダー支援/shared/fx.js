@@ -74,7 +74,8 @@ window.SharedFX = (function () {
       }
       return NaN;
     }
-    return amount * rate;
+    // 小数の誤差（100×161.3＝16130.000000000002）を落とす。あとの切り上げで 1 円多くならないように。
+    return Math.round(amount * rate * 1e6) / 1e6;
   }
 
   return { fetchRates, getCachedRates, getRate, toJPY, invalidateCache };
