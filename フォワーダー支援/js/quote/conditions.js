@@ -355,6 +355,8 @@
       const txEl = tr.querySelector('[data-field="tx"]');
       if (txEl?.checked) tr.classList.add('taxed');
       else tr.classList.remove('taxed');
+      // 課税なのに品名の「*」が欠けている旧データも、開いたときに付け直す
+      if (txEl?.checked && typeof window.syncTaxMark === 'function') window.syncTaxMark(rowId);
       // % 計算モード／売値ベースモードの復元
       const ppmodeEl = tr.querySelector('[data-field="ppmode"]');
       if (ppmodeEl?.value === 'pct' && typeof window._restorePctMode === 'function') {

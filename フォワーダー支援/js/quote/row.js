@@ -2205,6 +2205,39 @@
     calc(id);
   }
 
+  // 課税の行の「*」と見た目（tr.taxed）を、課税のチェックに合わせる（2026-11）。
+  //   以前は「*」を品名の文字として付けるだけだったため、課税にしたあと品名を打ち直す・
+  //   候補から選ぶと「*」が消え、課税のままなのに印が無くなっていた（税の計算と出力は
+  //   チェックで決まるので正しいまま）。品名を確定したとき・案件を開いたとき・行を差し込んだときに付け直す。
+  function syncTaxMark(id) {
+    const tr = document.getElementById(`row-${id}`);
+    const nm = document.getElementById(`nm-${id}`);
+    const tx = document.getElementById(`tx-${id}`);
+    if (!tr || !nm || !tx) return;
+    if (tx.checked) {
+      tr.classList.add('taxed');
+      if (!nm.value.startsWith('*')) { nm.value = '*' + nm.value; tr.dataset.taxAuto = '1'; }
+    } else {
+      tr.classList.remove('taxed');
+    }
+  }
+  function syncAllTaxMarks() {
+    document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-virtual])').forEach(tr => {
+      const id = tr.id.replace('row-', '');
+      if (document.getElementById(`tx-${id}`)) syncTaxMark(id);
+    });
+  }
+  window.syncTaxMark = syncTaxMark;
+  window.syncAllTaxMarks = syncAllTaxMarks;
+  // 品名の確定（change／欄を離れる）のあとに付け直す。ほかの change の処理（マスター名へのそろえ等）より後に。
+  ['change', 'focusout'].forEach(ev => document.addEventListener(ev, e => {
+    const el = e.target;
+    if (!el || !el.matches || !el.matches('#tableBody input[data-field="nm"]')) return;
+    const tr = el.closest('tr[id^="row-"]'); if (!tr) return;
+    const id = tr.id.replace('row-', '');
+    setTimeout(() => syncTaxMark(id), 0);
+  }, true));
+
   // ========== 計算 ==========
   // 通貨換算（from→to）。FX 未ロード時は素の値を返す
   function _convCur(amount, from, to) {

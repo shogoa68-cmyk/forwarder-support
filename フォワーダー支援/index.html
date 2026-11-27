@@ -61,6 +61,7 @@
 <link rel="stylesheet" href="css/group-header-b.css">
 <link rel="stylesheet" href="css/cost-a.css">
 <link rel="stylesheet" href="css/cat-colors.css">
+<link rel="stylesheet" href="css/tax-mark.css">
 <link rel="stylesheet" href="css/design-polish.css">
 <link rel="stylesheet" href="css/peek.css">
 <script>
@@ -4141,7 +4142,7 @@
                 <th class="hd-base hd-qty" style="width:65px;">数量·単位<small class="hd-sub hd-qpat" id="hdQtyPat" hidden></small></th>
                 <th class="hd-base hd-stk" style="width:62px;" title="上段＝支払い（仕入）通貨、下段＝請求（売値）通貨">通貨<br><small class="hd-sub"><span class="t-cost">仕</span>／<span class="t-sell">売</span></small></th>
                 <th class="hd-base hd-stk" style="width:118px;" title="上段＝支払い単価（仕入）、中＝＋乗せ幅、下段＝請求単価（売値）。CD は通貨差調整値">単価<button type="button" class="hint-i" data-hint="price" aria-label="仕・＋・売の説明" aria-haspopup="dialog">ⓘ</button><br><small class="hd-sub"><span class="t-cost">仕入</span>＋<span class="hd-mk-tag">乗せ幅</span>＝<span class="t-sell">売値</span></small></th>
-                <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。">課税<br><button type="button" class="hint-i" data-hint="tax" aria-label="課税の説明" aria-haspopup="dialog">ⓘ</button></th>
+                <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」と「課税」の印が付きます。免税（非課税）の行は OFF のままにしてください。">課税<br><button type="button" class="hint-i" data-hint="tax" aria-label="課税の説明" aria-haspopup="dialog">ⓘ</button></th>
                 <th class="hd-bill" style="width:92px;">小計<br><small class="hd-sub t-sell">売</small></th>
                 <th class="hd-profit hd-pr" style="width:80px;">利益</th>
               </tr>
@@ -4799,7 +4800,7 @@
         </span>
         <span class="actual-cost-badge" aria-hidden="true">実費</span>
       </td>
-      <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。"></td>
+      <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」と「課税」の印が付きます。免税（非課税）の行は OFF のままにしてください。"></td>
       <td class="subtotal-cell" data-field="st">—</td>
       <td class="profit-cell profit-zero pr-cell" data-field="pr">0</td>
     </template>

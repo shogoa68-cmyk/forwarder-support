@@ -21,7 +21,7 @@
     return {
       tr, id: tr.id, cat: (v(tr, 'cat') || tr.querySelector('select.w-cat')?.value || ''), sv: (v(tr, 'sv') || '').trim(), pt: (v(tr, 'pt') || '').trim(), nm: (v(tr, 'nm') || '').trim(),
       qty: v(tr, 'pq'), un: (v(tr, 'un') || '').trim(), bp: v(tr, 'bp'), ccy, st: stText(tr),
-      hidden, pending, done, out: !!tr.dataset.outRange, amount: num(stText(tr)),
+      hidden, pending, done, taxed: tr.classList.contains('taxed'), out: !!tr.dataset.outRange, amount: num(stText(tr)),
       doneText: (done && typeof window.rowDoneInfo === 'function' && window.rowDoneInfo(tr)) ? window.rowDoneInfo(tr).text : '',   // 入力完了を押した日時・ユーザー
       srcText: (!done && typeof window.rowSrcDoneInfo === 'function' && window.rowSrcDoneInfo(tr)) ? window.rowSrcDoneInfo(tr).text : '',   // 引用元の入力完了（類似案件からインポートした行）
     };
@@ -66,12 +66,13 @@
   function badgeV2(r) {
     const why = r.tr.dataset.outReason || '';
     const list = [];
+    const tax = r.taxed ? '<b class="mc2-tag is-tax" title="課税の行（消費税 10%）">課税</b>' : '';
     if (r.pending) list.push(['要調査', 'is-warn']);
     if (r.hidden) list.push(['見積書に出さない', 'is-mute']);
     if (r.out) list.push([why === 'condition' ? '条件外' : why === 'incoterms' ? '貿易条件外' : '期間外', 'is-mute']);
-    if (!list.length) return r.done ? '<b class="mc2-ok" title="入力完了' + (r.doneText ? '（' + esc(r.doneText) + '）' : '') + '">✓</b>' : '';
+    if (!list.length) return tax + (r.done ? '<b class="mc2-ok" title="入力完了' + (r.doneText ? '（' + esc(r.doneText) + '）' : '') + '">✓</b>' : '');
     const t = list.map(x => x[0]).join('・');
-    return '<b class="mc2-tag ' + list[0][1] + '" title="' + esc(t) + '">' + esc(list[0][0]) + '</b>' + (list.length > 1 ? '<b class="mc2-tag is-more" title="' + esc(t) + '">+' + (list.length - 1) + '</b>' : '') + (r.done ? '<b class="mc2-ok" title="入力完了">✓</b>' : '');
+    return tax + '<b class="mc2-tag ' + list[0][1] + '" title="' + esc(t) + '">' + esc(list[0][0]) + '</b>' + (list.length > 1 ? '<b class="mc2-tag is-more" title="' + esc(t) + '">+' + (list.length - 1) + '</b>' : '') + (r.done ? '<b class="mc2-ok" title="入力完了">✓</b>' : '');
   }
   function yenOf(r) {
     if (r.ccy === 'JPY' || !r.amount || typeof window.toJPY !== 'function') return '';

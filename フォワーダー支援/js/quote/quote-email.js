@@ -266,7 +266,8 @@
 
   // 明細行の表示名（課税マーク・発生時/参考の注記を付ける）
   function _itemLabel(it) {
-    return (it.taxed ? '*' : '') + it.name
+    // 品名の先頭の「*」は画面の課税の印。メールでは課税の有無（it.taxed）で 1 つだけ付ける（「**」にしない）
+    return (it.taxed ? '*' : '') + String(it.name || '').replace(/^\*\s?/, '')
       + (it.cond ? '（発生時のみ）' : '')
       + (it.ref  ? '（参考）' : '')
       + (it.insInv && typeof window.insInvoiceText === 'function' ? '（' + window.insInvoiceText(it.insInv, false) + '）' : '');

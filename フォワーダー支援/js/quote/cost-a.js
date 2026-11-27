@@ -123,7 +123,9 @@
     const done = tr.classList.contains('row-input-done');
     const b = q('.ca-badges');
     if (b) {
+      const taxed = tr.classList.contains('taxed');
       const html = (done ? '<span class="ca-done" title="入力完了">✓</span>' : '')
+        + (taxed ? '<span class="ca-tax" title="課税の行（消費税 10% を計算します）。外すときは［▸ 詳細］の「課税」のチェックを外します。">課税</span>' : '')
         + (st.length ? `<span class="ca-badge ${st[0][1]}">${esc(st[0][0])}</span>` : '')
         + (st.length > 1 ? `<span class="ca-badge is-more" title="${esc(st.map(x => x[0]).join('・'))}">+${st.length - 1}</span>` : '');
       if (b.__h !== html) { b.innerHTML = html; b.__h = html; }

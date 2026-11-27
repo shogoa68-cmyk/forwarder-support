@@ -226,7 +226,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     return { vis: !!L.getClientRects().length, n: hd && hd.querySelector('.mc2-n').textContent, more: !!(hd && hd.querySelector('[data-gmore]')), add: !hd.querySelector('.mc2-add,[data-add]') && lastOfGrp && lastOfGrp.classList.contains('mc2-addrow') ? lastOfGrp.textContent : null,
       addH: lastOfGrp && Math.round(lastOfGrp.getBoundingClientRect().height), hdH: Math.round(hd.getBoundingClientRect().height), sum: hd.querySelector('.mc-sv-sum').textContent,
       top: rows[0] && rows[0].querySelector('.mc2-top .mc-nm').textContent, bot: rows[0] && rows[0].querySelector('.mc2-bot').textContent, yen: rows[0] && (rows[0].querySelector('.mc2-yen') || {}).textContent,
-      tag: rows[1] && (rows[1].querySelector('.mc2-tag') || {}).textContent, hmin: Math.min(...rows.map(r => r.getBoundingClientRect().height)) };
+      tag: rows[1] && (rows[1].querySelector('.mc2-tag:not(.is-tax)') || {}).textContent, hmin: Math.min(...rows.map(r => r.getBoundingClientRect().height)) };
   });
     ok('スマホ：見出しは 1 段（名前・行数・売・［⋯］）・［＋ 明細を追加］はグループのいちばん下（44px）', mc.vis && /^\d+行$/.test(mc.n) && mc.more && mc.add === '＋ 明細を追加' && mc.addH >= 44 && mc.hdH <= 60, mc);
   ok('スマホ：見出しの金額は「売 ¥…」（JPY 換算・外貨があれば ※）・通貨別の内訳は出さない', /^売 ¥[\d,]+※$/.test(mc.sum) && !/USD/.test(mc.sum), mc.sum);

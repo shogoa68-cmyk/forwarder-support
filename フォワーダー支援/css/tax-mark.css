@@ -1,0 +1,34 @@
+/* ================================================================
+   課税の行の印（2026-11・全テーマ）
+   品名の先頭の「*」だけでは分かりにくいため、課税の行（tr.taxed）に「課税」の札を出す。
+   - 新しい画面（④ 費用の 1 段の行）：項目名の後ろの札の並び（cost-a.js syncRow の .ca-tax）
+   - 旧い画面：課税の欄（td.tax-cell）を塗り、チェックの下に「課税」
+   - スマホの一覧：行の札（mobile-cost.js の .mc2-tag.is-tax）
+   税の計算・御見積書などの出力は従来どおり「課税」のチェックで決まる（見た目だけ）。
+   ================================================================ */
+:root { --tax-fg: #b42318; --tax-bg: #fde8e7; --tax-line: #f4b4ae; }
+
+/* 新しい画面 */
+html.editor-v2 #tab-quote-make.ca-on #tableBody > tr.ca-row .ca-tax {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px;
+  font-size: 12px; font-weight: 700; white-space: nowrap; flex: none;
+  background: var(--tax-bg); color: var(--tax-fg); box-shadow: inset 0 0 0 1px var(--tax-line);
+}
+
+/* 旧い画面：課税の欄 */
+#tab-quote-make #quoteTable #tableBody > tr.taxed:not(.ca-row) > td.tax-cell {
+  background-color: var(--tax-bg) !important;
+  box-shadow: inset 0 0 0 1px var(--tax-line) !important;
+}
+#tab-quote-make #quoteTable #tableBody > tr.taxed:not(.ca-row) > td.tax-cell::after {
+  /* Industry はサブコン別の子の行の td::after を !important で消すため、こちらも !important */
+  content: '課税' !important; display: block !important; margin-top: 2px;
+  font-size: 12px; font-weight: 700; line-height: 1.2; color: var(--tax-fg); text-align: center;
+}
+
+/* スマホの一覧 */
+#tab-quote-make .mc2-tag.is-tax { background: var(--tax-bg) !important; color: var(--tax-fg) !important; box-shadow: inset 0 0 0 1px var(--tax-line); }
+
+@media print {
+  #tab-quote-make #quoteTable #tableBody > tr.taxed > td.tax-cell::after { content: none !important; display: none !important; }
+}
