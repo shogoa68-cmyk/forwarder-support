@@ -2247,6 +2247,12 @@
     return _dirtyMemo.v;
   }
   window.cloudMarkDirty = function () { _markQuoteDirty(); };   // input/change を出さない変更（航路の追加など）から呼ぶ
+  // アプリが自動で入れる値（ログイン後の見積もり番号の自動採番など）は、ユーザーの変更ではない。
+  // 変更の前に未保存の入力が無ければ、変更後の内容を「保存済みと同じ」の基準にして、未保存の確認を出さない。
+  window.cloudAutoChange = function (fn) {
+    const clean = !_quoteDirty && !_dirtyKept;
+    try { fn(); } finally { if (clean) _resetQuoteDirty(); }
+  };
   // 行の追加・削除・複製・並べ替えは input/change を出さないため、明細の行の並び（id の列）の変化で数える。
   // 案件を開いた直後・新規作成の直後（表を作り直す間）は数えない。
   var _rowSig = null, _rowSigQuietUntil = 0;
