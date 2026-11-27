@@ -1,0 +1,85 @@
+/* 見積の編集中に、ほかの画面をサイドピーク／ポップアップで開く（js/peek.js・2026-11） */
+#pkWrap {
+  --pk-pri: #2f5fb3;
+  --pk-line: #d0d5dd;
+  --pk-ink: #1d2939;
+  --pk-ink2: #475467;
+  --pk-bg: #fff;
+  --pk-head: #f8fafc;
+  position: fixed; inset: 0; z-index: 1050; pointer-events: none;
+}
+#pkWrap[hidden] { display: none; }
+#pkWrap .pk-scrim { position: absolute; inset: 0; background: rgba(16, 24, 40, .32); pointer-events: auto; }
+#pkWrap.pk-side .pk-scrim { display: none; }
+#pkWrap .pk-panel {
+  position: absolute; display: flex; flex-direction: column; pointer-events: auto;
+  background: var(--pk-bg); color: var(--pk-ink); border: 1px solid var(--pk-line);
+  box-shadow: 0 12px 40px rgba(16, 24, 40, .22); overflow: hidden;
+}
+/* サイドピーク：右から・ヘッダーと上段ナビの下から画面の下まで */
+#pkWrap.pk-side .pk-panel {
+  top: var(--pk-top, 0px); right: 0; bottom: var(--pk-bottom, 0px); width: var(--pk-w, 640px); max-width: 100vw;
+  border-right: 0; border-radius: 10px 0 0 10px;
+  box-shadow: -8px 0 28px rgba(16, 24, 40, .18);
+  animation: pkIn .16s ease-out;
+}
+/* ポップアップ：中央に大きく */
+#pkWrap.pk-center .pk-panel {
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(1200px, calc(100vw - 64px)); height: min(860px, calc(100vh - 64px));
+  border-radius: 12px;
+  animation: pkPop .16s ease-out;
+}
+@keyframes pkIn { from { transform: translateX(32px); opacity: .4; } to { transform: none; opacity: 1; } }
+@keyframes pkPop { from { transform: translate(-50%, -48%); opacity: .4; } to { transform: translate(-50%, -50%); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #pkWrap .pk-panel { animation: none !important; } }
+
+/* 幅を変える取っ手（サイドピークの左端） */
+#pkWrap .pk-resize { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; z-index: 2; }
+#pkWrap .pk-resize:hover, #pkWrap.pk-dragging .pk-resize { background: linear-gradient(90deg, rgba(47, 95, 179, .35), transparent); }
+#pkWrap.pk-center .pk-resize { display: none; }
+#pkWrap.pk-dragging { user-select: none; }
+
+#pkWrap .pk-head {
+  flex: none; display: flex; align-items: center; gap: 8px; min-height: 48px;
+  padding: 6px 12px 6px 16px; border-bottom: 1px solid var(--pk-line); background: var(--pk-head);
+}
+#pkWrap .pk-title { margin: 0; font-size: var(--text-lg, 16px); font-weight: 700; flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#pkWrap .pk-modes { display: inline-flex; border: 1px solid var(--pk-line); border-radius: 6px; overflow: hidden; flex: none; }
+#pkWrap .pk-mode { border: 0; background: #fff; color: var(--pk-ink2); font: inherit; font-size: var(--text-sm, 13px); height: 32px; padding: 0 10px; cursor: pointer; white-space: nowrap; }
+#pkWrap .pk-mode + .pk-mode { border-left: 1px solid var(--pk-line); }
+#pkWrap .pk-mode.is-on { background: var(--pk-pri); color: #fff; font-weight: 700; }
+#pkWrap .pk-btn { flex: none; height: 32px; padding: 0 10px; border: 1px solid #98a2b3; border-radius: 6px; background: #fff; color: var(--pk-ink); font: inherit; font-size: var(--text-sm, 13px); cursor: pointer; white-space: nowrap; }
+#pkWrap .pk-btn:hover, #pkWrap .pk-mode:not(.is-on):hover { background: #f2f4f7; }
+#pkWrap .pk-x { width: 32px; padding: 0; font-size: 15px; }
+#pkWrap :is(.pk-btn, .pk-mode):focus-visible { outline: 2px solid var(--pk-pri); outline-offset: 2px; }
+
+#pkWrap .pk-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 12px 16px 24px; overscroll-behavior: contain; }
+/* 窓の中の画面：幅いっぱい・上の余白は詰める */
+#pkWrap .pk-body > .tab-content.pk-in:not(#tab-stats) { display: block; }
+#pkWrap .pk-body > .tab-content.pk-in { margin: 0; padding-top: 0; max-width: none; }
+/* 押したナビのボタンには、窓で開いている印 */
+.cat-btn.pk-on { box-shadow: inset 0 -3px 0 var(--pk-pri, #2f5fb3) !important; }
+
+/* 実績を見る：サイドピーク（細い窓）では左の縦メニューをやめ、上の横並びに */
+#pkWrap.pk-side #tab-stats.pk-in:not(.sm-on) { display: block !important; }
+#pkWrap.pk-side #tab-stats.pk-in > .stats-tabs { position: static !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 4px !important; margin-bottom: 12px !important; }
+#pkWrap.pk-side #tab-stats.pk-in > .stats-tabs .stats-tab-btn { width: auto !important; white-space: nowrap !important; }
+#pkWrap.pk-side #tab-stats.pk-in .sa-group { display: none !important; }
+/* 表は窓の中で横にスクロール */
+#pkWrap .pk-body table { max-width: none; }
+#pkWrap .pk-body .stats-pane, #pkWrap .pk-body [id^="statsPane-"] { overflow-x: auto; }
+
+/* 窓を開いているあいだ：右下の「見積もりに戻る」（マスター管理などで出る）は出さない／右の引き出しの帯は重ねない */
+body.pk-open #backToQuoteFab { display: none !important; }
+body.pk-open-side .quote-right-col--rail { visibility: hidden; }
+/* ポップアップのときは ❓ も後ろへ */
+body.pk-open-center #fbQuickFab, body.pk-open-center #fbHelpCard { z-index: 1040 !important; }
+
+@media print { #pkWrap { display: none !important; } }
+
+/* 窓を開いているあいだも、上段ナビの「その他」などのメニューは窓より手前に出す（窓の中身を入れ替えられるように） */
+body.pk-open-side .cat-more-panel { z-index: 1060 !important; }
+body.pk-open .tab-ctx { z-index: 1070 !important; }
+/* メニューは上段ナビ（sticky・z-index 50）の中で重なり順が決まるため、ナビごと窓より手前にする（ナビは窓の上にあり重ならない） */
+body.pk-open-side .cat-nav { z-index: 1060 !important; }

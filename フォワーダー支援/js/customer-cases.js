@@ -106,6 +106,7 @@
         ? `<button type="button" class="cc-mi" data-cc="promote" data-id="${_esc(c.id)}">📌 取引ルールに登録<small>「次回どうするか」を、見積入力の取引ルール（要確認）に出します</small></button>`
         : `<div class="cc-mi is-off" aria-disabled="true">📌 取引ルールに登録<small>「次回どうするか」を書くと登録できます</small></div>`;
     return `<div class="cc-item cc-st-${open ? 'open' : 'done'}${menuOpen ? ' cc-menu-open' : ''}" data-id="${_esc(c.id)}" tabindex="0">` +
+      `<div class="cc-sheet-bar"><span>事例の全文</span><button type="button" class="cc-sheet-close" data-cc="sheetclose" aria-label="閉じる">✕ 閉じる</button></div>` +
       `<div class="cc-head"><span class="cc-title">${_esc(c.title)}</span>` +
       `<span class="cc-state ${open ? 'is-open' : 'is-done'}">${open ? '未解決' : '解決済み'}</span>` +
       (c.promoted_at ? '<span class="cc-promoted" title="取引ルールに登録済みです">📌 ルール登録済み</span>' : '') + `</div>` +
@@ -147,6 +148,7 @@
   }
   function _paint(el) {
     const ctx = el._cc;
+    el.classList.remove('cc-has-sheet');   // 描き直すとシートのカードは消える＝暗い背景だけ残らないように
     let h = '<div class="cc-note">' + NOTE + '</div>';
     if (!_cloud()) h += '<div class="cc-empty">ログインすると、顧客カルテを見たり登録したりできます。</div>';
     else if (_missing) h += '<div class="cc-empty">顧客カルテの保存先が未作成です。<code>docs/sql/customer-cases.sql</code> を Supabase で実行してください。</div>';
@@ -188,12 +190,14 @@
   function _handle(el, ev) {
     const b = ev.target.closest('[data-cc]');
     const ctx = el._cc;
+    // スマホ：全文のシートが開いているとき、シートの外（暗い背景）を押したら閉じる
+    if (el.classList.contains('cc-has-sheet') && !ev.target.closest('.cc-sheet-open') && !ev.target.closest('.cc-menu')) { _closeSheet(el); return; }
+    if (b && b.dataset.cc === 'sheetclose') { _closeSheet(el); return; }
     if (!b || !el.contains(b)) {
       if (ctx.menuId && !ev.target.closest('.cc-menu')) { ctx.menuId = null; _paint(el); return; }   // 外側を押した＝メニューを閉じるだけ
       // スマホ：カードを押すと全文のシート
       const card = ev.target.closest('.cc-item');
       if (card && el.contains(card) && _phone() && !card.classList.contains('cc-sheet-open')) { el.querySelectorAll('.cc-sheet-open').forEach(x => x.classList.remove('cc-sheet-open')); card.classList.add('cc-sheet-open'); el.classList.add('cc-has-sheet'); }
-      else if (ev.target.classList && ev.target.classList.contains('cc-sheet-bg')) _closeSheet(el);
       return;
     }
     const act = b.dataset.cc, id = b.dataset.id;
