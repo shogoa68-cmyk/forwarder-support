@@ -48,6 +48,16 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const d = await p.evaluate(() => { const tr = document.querySelectorAll('#tableBody tr.ca-row')[1]; const pn = tr.querySelector('.row-detail-panel'); const v = s => { const e = pn.querySelector(s); return !!e && !!e.getClientRects().length; }; return { open: tr.classList.contains('ca-open'), w: Math.round(pn.getBoundingClientRect().width), tw: Math.round(document.getElementById('tableBody').getBoundingClientRect().width), title: pn.querySelector('.ca-dtitle').textContent, note: v('[data-field="nt"]'), cat: v('select.w-cat'), tax: v('[data-field="tx"]'), bc: v('select[data-field="bc"]'), chips: [...pn.querySelectorAll('.ca-chip[data-ca-q]')].map(x => x.textContent), more: pn.querySelector('.ca-dmore').hidden }; });
   ok('行の詳細：［▸ 詳細］を押すと、行の下に全幅で開く', d.open && d.w >= d.tw - 4, d);
   ok('行の詳細：見出し「THC の詳細」・備考／カテゴリ／課税／売の通貨', d.title === 'THC の詳細' && d.note && d.cat && d.tax && d.bc, d);
+  {
+    const r = await p.evaluate(() => { const tr = document.querySelectorAll('#tableBody tr.ca-row')[1]; const sl = tr.querySelector('[data-ca-slot="tax"]'); const cb = sl.querySelector('[data-field="tx"]'); const a = sl.getBoundingClientRect(), c = cb.getBoundingClientRect(), t = sl.querySelector('span').getBoundingClientRect(); return { tag: sl.tagName, before: cb.checked, txt: [t.x + t.width / 2, t.y + t.height / 2], empty: [a.right - 4, c.y + c.height / 2], cbw: Math.round(c.width), box: [c.x + c.width / 2, c.y + c.height / 2] }; });
+    await p.mouse.click(...r.txt); await p.mouse.click(...r.empty);
+    const after1 = await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[1].querySelector('[data-field="tx"]').checked);
+    ok('課税：「課税」の文字・欄の空いた所を押しても切り替わらない', r.tag !== 'LABEL' && after1 === r.before && r.cbw <= 20, r);
+    await p.mouse.click(...r.box);
+    const after2 = await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[1].querySelector('[data-field="tx"]').checked);
+    ok('課税：チェック欄そのものを押すと切り替わる', after2 === !r.before);
+    await p.mouse.click(...r.box);
+  }
   ok('行の詳細：単価の扱い［0円で載せる］［MIN］［幅］［%］＋［さらに ▾］（閉じている）', JSON.stringify(d.chips) === JSON.stringify(['0円で載せる', 'MIN', '幅', '%']) && d.more, d.chips);
   await p.evaluate(() => document.querySelectorAll('#tableBody tr.ca-row')[1].querySelector('[data-ca="more"]').click()); await p.waitForTimeout(100);
   ok('行の詳細：［さらに］で 単価のオプション・貿易条件・表示条件・有効期間 が出る', await p.evaluate(() => { const pn = document.querySelectorAll('#tableBody tr.ca-row')[1].querySelector('.ca-dmore'); return !pn.hidden && !!pn.querySelector('.row-mode-btns') && !!pn.querySelector('.ic-group') && !!pn.querySelector('.cn-group') && !!pn.querySelector('.w-valid'); }));
