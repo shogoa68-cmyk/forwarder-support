@@ -74,7 +74,7 @@
         + '<label class="ca-f" data-ca-slot="pt"><span>パターン（任意）</span></label>'
         + '<label class="ca-f" data-ca-slot="note"><span>備考（社内用）</span></label>'
         + '<label class="ca-f" data-ca-slot="cat"><span>カテゴリ</span></label>'
-        + '<label class="ca-f ca-f-tax" data-ca-slot="tax"><span>課税</span></label>'
+        + '<div class="ca-f ca-f-tax" data-ca-slot="tax"><span>課税</span></div>'  // label にしない＝欄の空いた所・文字を押しても切り替わらない（チェック欄そのものだけ）
         + '<label class="ca-f" data-ca-slot="bc"><span>売の通貨</span></label>';
       const qk = document.createElement('div'); qk.className = 'ca-quick'; qk.dataset.caNew = '1';
       qk.innerHTML = '<span class="ca-qlbl">単価の扱い</span>' + QUICK.map(([c, l]) => `<button type="button" class="ca-chip" data-ca-q="${c}">${l}</button>`).join('')

@@ -163,7 +163,8 @@ html.editor-v2 #tab-quote-make.ca-on .ca-f .w-note-row { display: flex !importan
 html.editor-v2 #tab-quote-make.ca-on .ca-f .w-note-row > input { flex: 1 1 auto; }
 html.editor-v2 #tab-quote-make.ca-on .ca-f .stk-sell { display: flex !important; }
 html.editor-v2 #tab-quote-make.ca-on .ca-f .stk-sell > .stk-tag { display: none !important; }
-html.editor-v2 #tab-quote-make.ca-on .ca-f-tax input[type="checkbox"] { width: 18px; height: 18px; margin: 6px 0 0 !important; }
+html.editor-v2 #tab-quote-make.ca-on .ca-f-tax input[type="checkbox"] { width: 18px !important; height: 18px; margin: 6px 0 0 !important; align-self: flex-start; flex: 0 0 auto; cursor: pointer; }
+html.editor-v2 #tab-quote-make.ca-on .ca-f-tax { cursor: default; }
 html.editor-v2 #tab-quote-make.ca-on .ca-quick { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
 html.editor-v2 #tab-quote-make.ca-on .ca-qlbl { font-size: 12px; font-weight: 700; color: var(--ca-sub); margin-right: 4px; }
 html.editor-v2 #tab-quote-make.ca-on .ca-chip { min-height: 28px; padding: 0 12px; border: 1px solid #c3cad6; border-radius: 14px; background: #fff; font-size: 13px; cursor: pointer; }
