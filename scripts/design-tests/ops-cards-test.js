@@ -149,11 +149,24 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await setv('#opmModal .opm-dl-d[data-i="' + etdI + '"]', dm3); await p.waitForTimeout(600);
   o = await ops(p, 'B1');
   ok('締め切りを直すと、手で入れた期限があっても同じ日付にそろう', o.s[shipI].due === dm3, o.s[shipI].due);
-  // 以前の記録でずれているとき：札に「⚠ 期限と違う」・カードでどちらかにそろえる
-  await p.evaluate(([i, v]) => { const r = window.__db.quote_presets.find(x => x.id === 'B1'); const st = JSON.parse(r.data.fields['qf-ops']); st.s[i].due = v; r.data.fields['qf-ops'] = JSON.stringify(st); r.updated_at = new Date().toISOString(); }, [shipI, d2]);
-  await p.evaluate(() => { const c = document.querySelector('#opmModal .opm-close, #opmModal [data-opm="close"]'); c && c.click(); }); await p.waitForTimeout(200);
-  await p.evaluate(() => window.cloudListPresets && window.cloudListPresets(true)); await p.waitForTimeout(800);
-  await p.evaluate(() => window.opsOpen('B1')); await p.waitForTimeout(400);
+  // ずれた記録を開いたとき：あとから入れた（日時の新しい）ほうに自動で合わせる
+  const reopen = async (mut) => {
+    await p.evaluate(mut);
+    await p.evaluate(() => { const c = document.querySelector('#opmModal .opm-close, #opmModal [data-opm="close"]'); c && c.click(); }); await p.waitForTimeout(200);
+    await p.evaluate(() => window.cloudListPresets && window.cloudListPresets(true)); await p.waitForTimeout(800);
+    await p.evaluate(() => window.opsOpen('B1')); await p.waitForTimeout(800);
+  };
+  const mutB1 = (fn) => `(() => { const r = window.__db.quote_presets.find(x => x.id === 'B1'); const st = JSON.parse(r.data.fields['qf-ops']); (${fn})(st); r.data.fields['qf-ops'] = JSON.stringify(st); r.updated_at = new Date().toISOString(); })()`;
+  await reopen(mutB1(`st => { const x = st.s[${shipI}]; x.due = '${d2}'; x.dueAt = '2099-01-01T00:00:00Z'; }`));
+  o = await ops(p, 'B1');
+  ok('作業の期限のほうが新しければ、開いたとき締め切りをその日付に合わせる', o.s[shipI].due === d2 && o.dl.find(d => d.k === 'etd').d === d2, { due: o.s[shipI].due, etd: o.dl.find(d => d.k === 'etd').d });
+  ok('合わせたことを申し送りに残す', (await p.evaluate(() => window.__db.quote_comments.map(c => c.body))).some(t => /ずれを、あとから入れた日付に合わせました/.test(t)));
+  await reopen(mutB1(`st => { const d = st.dl.find(d => d.k === 'etd'); d.d = '${dm3}'; d.dAt = '2099-06-01T00:00:00Z'; }`));
+  o = await ops(p, 'B1');
+  ok('締め切りのほうが新しければ、作業の期限を締め切りの日付に合わせる', o.s[shipI].due === dm3 && o.dl.find(d => d.k === 'etd').d === dm3, { due: o.s[shipI].due });
+  ok('自動で合わせたあとは「期限と違う」は出ない', await p.evaluate(i => !/期限と違う/.test(document.querySelectorAll('#opmModal .opm-step')[i].textContent), shipI));
+  // 日時の記録が無い以前の記録：札に「⚠ 期限と違う」・カードでどちらかにそろえる
+  await reopen(mutB1(`st => { const x = st.s[${shipI}]; x.due = '${d2}'; delete x.dueAt; st.dl.forEach(d => delete d.dAt); }`));
   ok('ずれている作業の札に「⚠ 期限と違う」', await p.evaluate(i => /期限と違う/.test(document.querySelectorAll('#opmModal .opm-step')[i].textContent), shipI));
   await p.evaluate(i => { const b = document.querySelectorAll('#opmModal .opm-step')[i].querySelector('.opm-step-l'); b && b.click(); }, shipI); await p.waitForTimeout(300);
   ok('作業カードに日付の違いと「そろえる」ボタン 2 つ', await p.evaluate(() => document.querySelectorAll('#opmModal .opc-dlsync [data-opm="dlsync"]').length === 2));

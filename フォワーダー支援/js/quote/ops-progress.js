@@ -96,6 +96,24 @@
   const dlOf = st => (st && Array.isArray(st.dl)) ? st.dl : [];
   // 締め切りとつないだ作業の期限がずれているか（以前の記録・どちらかが空のとき）
   const dlDiff = (x, dl) => !!(x && dl && x.dk === dl.id && (x.due || '') !== (dl.d || '') && (x.due || dl.d));
+  // ずれているものは、あとから入れた（日時の新しい）ほうに合わせる。どちらも日時の記録が無い古い記録は、そのまま（カードでそろえる）
+  function dlReconcile(st) {
+    const out = [];
+    (st && st.s || []).forEach(x => {
+      const dl = x.dk ? dlOf(st).find(d => d.id === x.dk) : null;
+      if (!dl || !dlDiff(x, dl)) return;
+      const ts = x.dueAt || '', td = dl.dAt || '';
+      if (!ts && !td) return;
+      if (ts > td) { dl.d = x.due || ''; dl.dAt = ts; delete dl.cx; (st.s || []).forEach(o => { if (o !== x && o.dk === dl.id) { o.due = x.due || ''; o.dueAt = ts; } }); out.push({ l: dlLabel(st, dl), d: dl.d, from: '作業「' + x.l + '」の期限' }); }
+      else { x.due = dl.d || ''; x.dueAt = td; out.push({ l: dlLabel(st, dl), d: dl.d, from: '締め切り' }); }
+    });
+    return out;
+  }
+  function dlReconcileCur() {
+    if (!_cur || readOnly()) return;
+    const fx = dlReconcile(_cur.st); if (!fx.length) return;
+    commit('📅 業務：締め切りと作業の期限のずれを、あとから入れた日付に合わせました（' + fx.map(f => f.l + ' ' + (f.d ? md(f.d) : '日付なし') + '・' + f.from + 'から').join('／') + '）');
+  }
   // 期限を入れた作業は、締め切りの一覧にも「作業の期限」として出す（締め切りとつないだ作業は、その締め切りで出ているので除く）。保存はしない＝作業の期限そのもの
   function stepDls(st) {
     const ids = new Set(dlOf(st).map(d => d.id));
@@ -303,7 +321,7 @@
       else if (t.matches('.opc-sv')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (!x) return; const v = t.value.trim().slice(0, 80); if ((x.sv || '') === v) return; if (v) x.sv = v; else delete x.sv; _cur.gedit = ''; commit(); }
       else if (t.matches('.opc-f-in')) { const fl = Array.from(t.files || []); t.value = ''; uploadFiles(+t.dataset.i, fl); }
       else if (t.matches('.opc-wn')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (x) { x.wn = t.value.trim().slice(0, 80); commit(); } }
-      else if (t.matches('.opc-dk')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (x) { x.dk = t.value; const dl = dlOf(_cur.st).find(d => d.id === x.dk); if (dl && dl.d) x.due = dl.d; else if (dl && x.due) dl.d = x.due; commit(); } }
+      else if (t.matches('.opc-dk')) { if (readOnly()) return; const x = _cur.st.s[+t.dataset.i]; if (x) { x.dk = t.value; const dl = dlOf(_cur.st).find(d => d.id === x.dk), nw = new Date().toISOString(); if (dl && dl.d) { x.due = dl.d; x.dueAt = nw; } else if (dl && x.due) { dl.d = x.due; dl.dAt = nw; } commit(); } }
       else if (t.matches('.opm-dl-d')) dlSetDate(+t.dataset.i, t.value);
       else if (t.matches('.opm-dl-note')) { if (readOnly()) return; const x = dlOf(_cur.st)[+t.dataset.i]; if (x) { x.note = t.value.trim().slice(0, 80); commit(); } }
       else if (t.matches('.opm-dl-ok')) { if (readOnly()) return; const x = dlOf(_cur.st)[+t.dataset.i]; if (x) { x.ok = t.checked; commit(); } }
@@ -474,12 +492,12 @@
   function setDue(i, v) {
     if (readOnly()) return;
     const x = _cur.st.s[i]; if (!x) return;
-    x.due = /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
+    x.due = /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; x.dueAt = new Date().toISOString();
     // 締め切りとつないだ作業は、締め切りの日付（と、同じ締め切りにつないだほかの作業の期限）も同じにする（同期・2026-11）
     const dl = x.dk ? dlOf(_cur.st).find(d => d.id === x.dk) : null;
     if (dl && (dl.d || '') !== x.due) {
-      dl.d = x.due; delete dl.cx;
-      _cur.st.s.forEach(s => { if (s.dk === dl.id) s.due = x.due; });
+      dl.d = x.due; dl.dAt = x.dueAt; delete dl.cx;
+      _cur.st.s.forEach(s => { if (s.dk === dl.id) { s.due = x.due; s.dueAt = x.dueAt; } });
       commit(x.due ? '📅 業務：' + dlLabel(_cur.st, dl) + ' を ' + md(x.due) + ' に（作業「' + x.l + '」の期限から）' : '');
       return;
     }
@@ -658,7 +676,7 @@
       dls.map(d => '<option value="' + esc(d.id) + '"' + (x.dk === d.id ? ' selected' : '') + '>' + esc(dlLabel(st, d)) + (d.d ? '（' + md(d.d) + '）' : '') + '</option>').join('') + '</select>' +
       '<small class="opc-hint">つなぐと、締め切りの日付とこの作業の期限が同じになります（どちらを直しても、もう一方もそろいます）</small></div>';
     { const dl = x.dk ? dlOf(st).find(d => d.id === x.dk) : null;
-      if (dl && dlDiff(x, dl)) h += '<div class="opc-row opc-dlsync"><span class="opc-l"></span><span class="opc-dlsync-m">⚠ 締め切り「' + esc(stripLeg(dlLabel(st, dl))) + '」は ' + (dl.d ? md(dl.d) : '日付なし') + '、この作業の期限は ' + (x.due ? md(x.due) : '日付なし') + ' で、日付が違います。</span>' +
+      if (dl && dlDiff(x, dl)) h += '<div class="opc-row opc-dlsync"><span class="opc-l"></span><span class="opc-dlsync-m">⚠ 締め切り「' + esc(stripLeg(dlLabel(st, dl))) + '」は ' + (dl.d ? md(dl.d) : '日付なし') + '、この作業の期限は ' + (x.due ? md(x.due) : '日付なし') + ' で、日付が違います。以前の記録のため、どちらを後から入れたか分かりません。正しい日付のほうを選んでください。</span>' +
         (ro ? '' : '<button type="button" class="opm-btn" data-opm="dlsync" data-i="' + i + '" data-v="dl">締め切りの日付（' + (dl.d ? md(dl.d) : 'なし') + '）にそろえる</button><button type="button" class="opm-btn" data-opm="dlsync" data-i="' + i + '" data-v="step">作業の期限（' + (x.due ? md(x.due) : 'なし') + '）にそろえる</button>') + '</div>'; }
     h += '<div class="opc-row"><span class="opc-l">相手（サブコン）</span><input type="text" class="opc-sv" data-i="' + i + '" maxlength="80" list="opcSvList" value="' + esc(x.sv || '') + '" placeholder="例）○○運送（この作業でやりとりする会社）"' + dis + '>' +
       '<datalist id="opcSvList">' + svCandidates().map(v => '<option value="' + esc(v) + '"></option>').join('') + '</datalist>' +
@@ -819,9 +837,9 @@
   }
   function dlSetDate(i, v, via) {
     if (readOnly()) return; const x = dlOf(_cur.st)[i]; if (!x) return;
-    const old = x.d || ''; x.d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; delete x.cx;
+    const old = x.d || ''; x.d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; x.dAt = new Date().toISOString(); delete x.cx;
     // つないだ作業の期限は、締め切りの日付と同じにそろえる（同期・2026-11）
-    _cur.st.s.forEach(s => { if (s.dk === x.id) s.due = x.d; });
+    _cur.st.s.forEach(s => { if (s.dk === x.id) { s.due = x.d; s.dueAt = x.dAt; } });
     commit(x.d ? '📅 業務：' + dlLabel(_cur.st, x) + ' を ' + md(x.d) + ' に' + (via ? '（' + via + ' の日付を反映' + (old ? '・前は ' + md(old) : '') + '）' : '') : '');
   }
   function dlAdd() {
@@ -846,7 +864,7 @@
     ensureModal();
     _cur = { id, st: ensureDl(JSON.parse(JSON.stringify(stateOf(r)))) };
     onOpenCard();
-    render();
+    render(); dlReconcileCur();
     $('opmModal').hidden = false;
     document.body.classList.add('opm-open');
     const f = $('opmModal').querySelector('.opm-chk:not([disabled])') || $('opmModal').querySelector('.opm-x'); if (f) f.focus();
@@ -936,7 +954,7 @@
     ensureModal();
     _cur = { kind: 'job', jobId, shipId: shipId || '', st: ensureDl(JSON.parse(JSON.stringify(sh ? sh.st : j.data.st))) };
     onOpenCard();
-    render();
+    render(); dlReconcileCur();
     $('opmModal').hidden = false; document.body.classList.add('opm-open');
     const f = $('opmModal').querySelector('.opm-chk:not([disabled])') || $('opmModal').querySelector('.opm-x'); if (f) f.focus();
   }
