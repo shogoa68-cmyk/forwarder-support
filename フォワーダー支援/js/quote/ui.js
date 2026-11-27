@@ -1780,7 +1780,10 @@
     if (!el || el.value.trim()) return;
     if (window._myMemberNo == null) return;
     const v = generateQuoteRefValue();
-    if (v) _setRefValue(v);
+    if (!v) return;
+    // 自動の採番は「ユーザーの入力」ではない（ログイン直後に空の新規画面へ番号が入っただけで「保存していない変更があります」が出ていた）
+    if (typeof window.cloudAutoChange === 'function') window.cloudAutoChange(() => _setRefValue(v));
+    else _setRefValue(v);
   }
   window.fillQuoteRef     = fillQuoteRef;
   window.generateQuoteRefValue = generateQuoteRefValue;   // 管理者の一時機能（admin-creator-edit.js）からも使う
