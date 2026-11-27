@@ -552,3 +552,8 @@ body.opm-dragging, body.opm-dragging * { cursor: grabbing !important; user-selec
 .opc-gs .opc-empty { margin: 0; }
 .opc-gs .opc-g-in { width: 100%; box-sizing: border-box; }
 .opc-sv { flex: 1 1 220px; min-width: 0; }
+
+/* 締め切りとつないだ作業の期限のずれ（以前の記録） */
+.opm-b-dl.is-diff { outline: 1px dashed #b45309; }
+.opc-dlsync { flex-wrap: wrap; gap: 6px; }
+.opc-dlsync-m { flex: 1 1 100%; color: #9a4a06; font-size: var(--text-sm, 13px); }

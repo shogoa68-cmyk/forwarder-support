@@ -137,6 +137,31 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('予定日（ETD）でも、つないだ作業が済んでいなければ過ぎたら赤', /is-over/.test(by(dr, /^ETD/).cls), by(dr, /^ETD/));
   const cmt = await p.evaluate(() => window.__db.quote_comments.map(c => c.body));
   ok('申し送りに「📅 業務：CY カット を …に」', cmt.some(t => /📅 業務：CY カット/.test(t)), cmt);
+  // 締め切りとつないだ作業の期限は同期する（どちらを直しても、もう一方もそろう）
+  o = await ops(p, 'B1');
+  const shipI = o.s.findIndex(s => /本船出港/.test(s.l)), d2 = await iso(2), dm3 = await iso(-3);
+  ok('締め切り（ETD）を入れると、つないだ作業（本船出港）の期限も同じ', o.s[shipI].due === dm3, o.s[shipI]);
+  await setv('#opmModal .opm-step .opm-due[data-i="' + shipI + '"]', d2); await p.waitForTimeout(600);
+  o = await ops(p, 'B1');
+  ok('作業の期限を直すと、つないだ締め切り（ETD）の日付も同じになる', o.s[shipI].due === d2 && o.dl.find(d => d.k === 'etd').d === d2, { due: o.s[shipI].due, etd: o.dl.find(d => d.k === 'etd').d });
+  ok('申し送りに「… の期限から」', (await p.evaluate(() => window.__db.quote_comments.map(c => c.body))).some(t => /ETD.*作業「本船出港」の期限から/.test(t)));
+  const etdI = o.dl.findIndex(d => d.k === 'etd');
+  await setv('#opmModal .opm-dl-d[data-i="' + etdI + '"]', dm3); await p.waitForTimeout(600);
+  o = await ops(p, 'B1');
+  ok('締め切りを直すと、手で入れた期限があっても同じ日付にそろう', o.s[shipI].due === dm3, o.s[shipI].due);
+  // 以前の記録でずれているとき：札に「⚠ 期限と違う」・カードでどちらかにそろえる
+  await p.evaluate(([i, v]) => { const r = window.__db.quote_presets.find(x => x.id === 'B1'); const st = JSON.parse(r.data.fields['qf-ops']); st.s[i].due = v; r.data.fields['qf-ops'] = JSON.stringify(st); r.updated_at = new Date().toISOString(); }, [shipI, d2]);
+  await p.evaluate(() => { const c = document.querySelector('#opmModal .opm-close, #opmModal [data-opm="close"]'); c && c.click(); }); await p.waitForTimeout(200);
+  await p.evaluate(() => window.cloudListPresets && window.cloudListPresets(true)); await p.waitForTimeout(800);
+  await p.evaluate(() => window.opsOpen('B1')); await p.waitForTimeout(400);
+  ok('ずれている作業の札に「⚠ 期限と違う」', await p.evaluate(i => /期限と違う/.test(document.querySelectorAll('#opmModal .opm-step')[i].textContent), shipI));
+  await p.evaluate(i => { const b = document.querySelectorAll('#opmModal .opm-step')[i].querySelector('.opm-step-l'); b && b.click(); }, shipI); await p.waitForTimeout(300);
+  ok('作業カードに日付の違いと「そろえる」ボタン 2 つ', await p.evaluate(() => document.querySelectorAll('#opmModal .opc-dlsync [data-opm="dlsync"]').length === 2));
+  await click(p, '#opmModal .opc-dlsync [data-v="dl"]'); await p.waitForTimeout(600);
+  o = await ops(p, 'B1');
+  ok('「締め切りの日付にそろえる」で作業の期限が締め切りと同じに', o.s[shipI].due === dm3 && o.dl.find(d => d.k === 'etd').d === dm3, o.s[shipI].due);
+  ok('そろえると違いの案内は消える', await p.evaluate(() => !document.querySelector('#opmModal .opc-dlsync')));
+  await p.evaluate(i => { const b = document.querySelectorAll('#opmModal .opm-step')[i].querySelector('.opm-step-l'); b && b.click(); }, shipI); await p.waitForTimeout(200);
   // 作業を済ませると締め切りは「済み」
   const vi = o.s.indexOf(o.s.find(s => /バンニング/.test(s.l)));
   await p.evaluate(i => document.querySelector('#opmModal .opm-chk[data-i="' + i + '"]').click(), vi); await p.waitForTimeout(600);
