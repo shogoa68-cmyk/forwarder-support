@@ -644,6 +644,8 @@
   function _isUrgentTag(t) {
     return URGENT_TAGS.indexOf(String(t == null ? '' : t).normalize('NFKC').trim().toLowerCase()) >= 0;
   }
+  // 「情報待ち」（相手の返事待ち）の案件は、カード・行をグレーアウトして目立たなくする（自分が動く案件を見つけやすくする）
+  function _waitCls(r) { return (r && r.status === '情報待ち') ? ' is-waiting' : ''; }
   function _isUrgent(r) {
     return !!(r && Array.isArray(r.tags) && r.tags.some(_isUrgentTag));
   }
@@ -1347,7 +1349,7 @@
             (_cloudLinkSel.has(r.id) ? ' checked' : '') + ' title="この案件を選択して他の案件と関連付ける">'
         : '';
       return '' +
-        '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + (_cloudLinkMode ? ' cloud-card--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') +
+        '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + (_cloudLinkMode ? ' cloud-card--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + _waitCls(r) +
           (simpleDash ? _hierCls(r) : '') + '"' + (simpleDash ? _hierStyle(r) : '') + '>' +
           '<div class="cloud-card-main">' +
           '<div class="cc3-title' + (memoLine ? '' : ' is-empty') + '" title="' + escHtml(memoLine || '（案件名なし）') + '">' + escHtml(memoLine || '（案件名なし）') + '</div>' +
@@ -1535,7 +1537,7 @@
       const routePlain = [(rt0.pol || '').trim(), (rt0.pod || '').trim()].filter(Boolean).join(' → ');
       const headline = mem || routePlain || title;
       const hm = _hierListMark(r);
-      return '<div class="qpd-row qpd-row--simple' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + _hierCls(r).replace('is-sub', 'qpd-row--sub') + '"' + _hierStyle(r) + ' onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
+      return '<div class="qpd-row qpd-row--simple' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + _waitCls(r) + _hierCls(r).replace('is-sub', 'qpd-row--sub') + '"' + _hierStyle(r) + ' onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
         linkChk +
         _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
         '<span class="qpd-row-title">' + hm.pre + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + '<b class="qpd-row-headline">' + escHtml(headline) + '</b><small class="qpd-row-ref">' + escHtml(title) + '</small>' + hm.post + '</span>' +
@@ -1547,7 +1549,7 @@
       '</div>';
     }
     const hm = _hierListMark(r);
-    return '<div class="qpd-row' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + _hierCls(r).replace('is-sub', 'qpd-row--sub') + '"' + _hierStyle(r) + ' onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
+    return '<div class="qpd-row' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + _waitCls(r) + _hierCls(r).replace('is-sub', 'qpd-row--sub') + '"' + _hierStyle(r) + ' onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
       linkChk +
       _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
       '<span class="qpd-row-title">' + hm.pre + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + escHtml(title) + hm.post + '</span>' +
