@@ -249,3 +249,14 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-title.is-empty { color: #5
   border: 1px solid #c8d3e6; border-radius: 14px; background: #eef3fb; color: #24467a; font-size: 13px; font-weight: 700; cursor: pointer;
 }
 @media (max-width: 600px), (pointer: coarse) { #tab-quote-make #qpDashboard .cloud-link-badge { min-height: 44px; } }
+
+/* 「情報待ち」のカード・行はグレーアウト（2026-11）：相手の返事待ちで自分が動く段階ではないため目立たなくする。
+   マウスを乗せる／操作中（ステータスの変更・メニューを開いている間）は読みやすく戻す */
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-card.is-waiting,
+#tab-quote-make #qpDashboard #qpdListWrap .qpd-row.is-waiting {
+  opacity: .55; filter: grayscale(.85); background-color: #f1f3f5; transition: opacity .15s, filter .15s;
+}
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-card.is-waiting:hover,
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-card.is-waiting:focus-within,
+#tab-quote-make #qpDashboard #qpdListWrap .qpd-row.is-waiting:hover,
+#tab-quote-make #qpDashboard #qpdListWrap .qpd-row.is-waiting:focus-within { opacity: .95; filter: none; }

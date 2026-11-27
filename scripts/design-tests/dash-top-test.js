@@ -152,6 +152,17 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => window.qpShowDashboard()); await p.waitForTimeout(500);
   ok('「作業中の見積に戻る」は作業中でも出さない（廃止）', !(await vis('.qpd-resume')));
   ok('横にはみ出さない（最後）', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  // 情報待ちのカード・行はグレーアウト（他のステータスは普通のまま・乗せると戻る）
+  await p.evaluate(() => window.cloudFilterStatus && window.cloudFilterStatus('')); await p.waitForTimeout(300);
+  const dimInfo = () => p.evaluate(() => {
+    const cards = [...document.querySelectorAll('#qpdListWrap .cloud-card, #qpdListWrap .qpd-row')];
+    const w = cards.filter(c => c.classList.contains('is-waiting')), n = cards.filter(c => !c.classList.contains('is-waiting'));
+    return { w: w.length, n: n.length, wOp: w[0] ? +getComputedStyle(w[0]).opacity : null, nOp: n[0] ? +getComputedStyle(n[0]).opacity : null, ok: w.every(c => /情報待ち/.test(c.textContent)) };
+  });
+  const di = await dimInfo();
+  ok('情報待ちのカード（1 件）だけ is-waiting・薄く表示、他は通常の濃さ', di.w === 1 && di.ok && di.wOp < 0.7 && di.nOp === 1, di);
+  await p.hover('#qpdListWrap .is-waiting'); await p.waitForTimeout(300);
+  ok('乗せると読みやすく戻る', await p.evaluate(() => +getComputedStyle(document.querySelector('#qpdListWrap .is-waiting')).opacity > 0.9));
   ok('JS エラーなし', errs.length === 0, errs);
   console.log(fails ? 'NG' : 'OK'); await b.close(); srv.close(); process.exit(fails ? 1 : 0);
 })();
