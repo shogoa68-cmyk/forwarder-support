@@ -904,12 +904,28 @@
     use.type = 'button'; use.id = 'fbHelpUse'; use.className = 'fbhc-item'; use.setAttribute('role', 'menuitem');
     use.textContent = '🧭 この画面の使い方';
     use.addEventListener('click', () => {
-      const el = _tabHelpEl(); if (!el) return;
+      const el = _tabHelpEl();
+      if (!el) { const ch = _tabManual(); closeHelpCard(); if (ch && window.manualOpen) window.manualOpen(ch.id); return; }
       closeHelpCard();
       el.style.display = ''; el.open = true;
       setTimeout(() => window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 120, behavior: 'smooth' }), 30);
     });
     c.appendChild(use);
+    // 📘 マニュアル／🎓 AI トレーナー（js/manual.js・js/trainer.js）
+    const man = document.createElement('button');
+    man.type = 'button'; man.id = 'fbHelpManual'; man.className = 'fbhc-item'; man.setAttribute('role', 'menuitem');
+    man.textContent = '📘 マニュアルを読む';
+    man.addEventListener('click', () => {
+      closeHelpCard(); if (typeof window.manualOpen !== 'function') return;
+      const t = document.querySelector('.tab-content.active'); const ch = t && window.manualForTab ? window.manualForTab(t.id) : null;
+      window.manualOpen(ch && t.id !== 'tab-manual' ? ch.id : '');
+    });
+    c.appendChild(man);
+    const trn = document.createElement('button');
+    trn.type = 'button'; trn.id = 'fbHelpTrainer'; trn.className = 'fbhc-item'; trn.setAttribute('role', 'menuitem');
+    trn.textContent = '🎓 AI トレーナーに聞く・練習する';
+    trn.addEventListener('click', () => { closeHelpCard(); if (typeof window.trainerOpen === 'function') window.trainerOpen('ask'); });
+    c.appendChild(trn);
     const send = document.createElement('button');
     send.type = 'button'; send.id = 'fbHelpSend'; send.className = 'fbhc-item'; send.setAttribute('role', 'menuitem');
     send.textContent = '🐞 不具合・ご意見を送る';
@@ -935,9 +951,14 @@
     const t = document.querySelector('.tab-content.active');
     return t ? t.querySelector('details.tab-help') : null;
   }
+  // いまの画面を説明しているマニュアルの章（js/manual.js）。無ければ null
+  function _tabManual() {
+    const t = document.querySelector('.tab-content.active');
+    return t && t.id !== 'tab-manual' && typeof window.manualForTab === 'function' ? window.manualForTab(t.id) : null;
+  }
   function _syncHelpUse() {
     const b = $('fbHelpUse'); if (!b) return;
-    const has = !!_tabHelpEl();
+    const has = !!_tabHelpEl() || !!_tabManual();
     b.classList.toggle('is-off', !has); b.setAttribute('aria-disabled', has ? 'false' : 'true');
     b.title = has ? '' : 'この画面には使い方の説明がありません';
   }

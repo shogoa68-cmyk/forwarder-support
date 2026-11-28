@@ -1,0 +1,48 @@
+name: Manual check
+
+# 📘 マニュアルの見張り（scripts/build-manual.js）。
+#   ・原稿（docs/マニュアル）と画面用のデータ（フォワーダー支援/data/manual.js）が食い違っていたら失敗にする
+#   ・まだ説明の無い画面・見直しが要る章は、失敗にはせず「警告」と実行結果のまとめ（Summary）に出す
+#     → 見直しは /update-manual（.claude/commands/update-manual.md）で行う
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'フォワーダー支援/**'
+      - 'docs/マニュアル/**'
+      - 'scripts/build-manual.js'
+      - 'scripts/lib/manual-md.js'
+      - '.github/workflows/manual-check.yml'
+  pull_request:
+    paths:
+      - 'フォワーダー支援/**'
+      - 'docs/マニュアル/**'
+      - 'scripts/build-manual.js'
+      - 'scripts/lib/manual-md.js'
+  schedule:
+    - cron: '17 0 * * 1'   # 毎週月曜 9:17（日本時間）
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # 見直しの判定に git の履歴を使う
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 原稿の読み取りの試験
+        run: node scripts/manual-tests/manual-md-test.js
+      - name: 画面用のデータが原稿と一致しているか
+        run: node scripts/build-manual.js --verify
+      - name: 見張りの結果
+        run: |
+          set +e
+          node scripts/build-manual.js --check > manual-check.txt
+          code=$?
+          cat manual-check.txt
+          { echo '## 📘 マニュアルの見張り'; echo; echo '```'; cat manual-check.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" != "0" ]; then echo "::warning title=マニュアルの見直しが必要です::説明の無い画面・見直しが要る章があります（/update-manual で更新）"; fi
+          exit 0

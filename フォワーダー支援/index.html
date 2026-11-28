@@ -29,6 +29,7 @@
 <!-- 「かんたん表示」（Claude Design 案）。<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま。 -->
 <link rel="stylesheet" href="css/simple-mode.css">
 <link rel="stylesheet" href="css/feedback.css">
+<link rel="stylesheet" href="css/manual.css">
 <link rel="stylesheet" href="css/ai-ocr.css">
 <link rel="stylesheet" href="css/glossary-drawer.css">
 <link rel="stylesheet" href="css/announcements.css">
@@ -169,7 +170,7 @@
       </div>
     </div>
     <div class="cat-more cat-grp" id="catMore">
-      <button type="button" class="cat-btn cat-more-btn cat-btn-admin" id="catMoreBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catMorePanel" title="実績を見る・マスター管理・計算・諸チャージ・Booking/SI・書類・通関・本船・航路・サイバーポート・作業フォルダ">📂 <span class="cat-grp-name">その他</span><span class="cat-more-label"></span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
+      <button type="button" class="cat-btn cat-more-btn cat-btn-admin" id="catMoreBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catMorePanel" title="実績を見る・マスター管理・計算・諸チャージ・Booking/SI・書類・通関・本船・航路・サイバーポート・作業フォルダ・マニュアル">📂 <span class="cat-grp-name">その他</span><span class="cat-more-label"></span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
       <div class="cat-more-panel" id="catMorePanel" role="tablist" aria-label="その他のカテゴリ" hidden>
         <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-stats" data-desc="過去の見積・受注の実績（統計）" onclick="switchCategory('stats', this)">📊 実績を見る</button>
         <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-master" data-desc="お客様・サブコン・港などの登録データ" onclick="switchCategory('master', this)">🗂 マスター管理</button>
@@ -180,6 +181,7 @@
         <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-tracking" data-desc="本船の動き・航路のスケジュール" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
         <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-cptest" data-desc="サイバーポート連携（読み取りのみ）" onclick="switchCategory('cptest', this)">🛰 サイバーポート</button>
         <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-workfolder" data-desc="自分専用のファイル置き場" onclick="switchCategory('workfolder', this)">📁 作業フォルダ</button>
+        <button class="cat-btn" role="tab" aria-selected="false" aria-controls="tab-manual" data-desc="使い方の説明と、AI トレーナーの練習" onclick="switchCategory('manual', this)">📘 マニュアル</button>
       </div>
     </div>
   </div>
@@ -5067,6 +5069,11 @@
     <div class="nf-root" id="nfRoot"><div class="nf-empty">読み込み中…</div></div>
   </div><!-- /#tab-news -->
 
+  <!-- 📘 マニュアル（js/manual.js・データは data/manual.js＝scripts/build-manual.js が docs/マニュアル/*.md から作る） -->
+  <div class="tab-content" id="tab-manual">
+    <div class="man-root" id="manRoot"><p>読み込み中…</p></div>
+  </div><!-- /#tab-manual -->
+
   <!-- 📁 作業フォルダ（個人フォルダ・エクスプローラー風）。ロジックは js/workfolder.js、SQL は docs/sql/work-folders.sql -->
   <div class="tab-content" id="tab-workfolder">
     <div class="wf-root" id="wfRoot"><div class="wf-empty">読み込み中…</div></div>
@@ -5211,6 +5218,10 @@
 <script src="js/feedback.js"></script>
 <!-- 🔴 不具合の再現を記録する「見張り番」（Ctrl+Shift+L・再現手順つきの報告を作る） -->
 <script src="js/bug-recorder.js"></script>
+<!-- 📘 マニュアル と 🎓 AI トレーナー（docs/マニュアル → data/manual.js） -->
+<script src="data/manual.js"></script>
+<script src="js/manual.js"></script>
+<script src="js/trainer.js"></script>
 <script src="js/toast-phone.js"></script>
 <!-- Quiet テーマの置き場所変更（ヘッダーのボタンまとめ・見出しの絵文字）。html.theme-quiet のときだけ働く -->
 <script src="js/header-menu.js"></script>
