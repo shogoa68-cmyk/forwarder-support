@@ -260,3 +260,44 @@ html:not(.mode-simple) #qpDashboard #qpdListWrap .cc3-title.is-empty { color: #5
 #tab-quote-make #qpDashboard #qpdListWrap .cloud-card.is-waiting:focus-within,
 #tab-quote-make #qpDashboard #qpdListWrap .qpd-row.is-waiting:hover,
 #tab-quote-make #qpDashboard #qpdListWrap .qpd-row.is-waiting:focus-within { opacity: .95; filter: none; }
+
+/* 「失注」のカード・行はグレーアウト＋バッテン（2026-11）：終わった案件だと一目で分かるようにする。
+   バッテンは角から角への 2 本の赤い線（::after・押す操作は下の要素へ通す）。マウスを乗せる／操作中は文字を読みやすく戻すが、バッテンは残す */
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-card.is-lost,
+#tab-quote-make #qpDashboard #qpdListWrap .qpd-row.is-lost {
+  position: relative; opacity: .5; filter: grayscale(1); background-color: #eef0f2; transition: opacity .15s, filter .15s;
+}
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-card.is-lost::after,
+#tab-quote-make #qpDashboard #qpdListWrap .qpd-row.is-lost::after {
+  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
+  --lx: rgba(196, 43, 43, .6);
+  background:
+    linear-gradient(to top right, transparent calc(50% - 1.5px), var(--lx) calc(50% - 1.5px), var(--lx) calc(50% + 1.5px), transparent calc(50% + 1.5px)),
+    linear-gradient(to bottom right, transparent calc(50% - 1.5px), var(--lx) calc(50% - 1.5px), var(--lx) calc(50% + 1.5px), transparent calc(50% + 1.5px));
+}
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-card.is-lost:hover,
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-card.is-lost:focus-within,
+#tab-quote-make #qpDashboard #qpdListWrap .qpd-row.is-lost:hover,
+#tab-quote-make #qpDashboard #qpdListWrap .qpd-row.is-lost:focus-within { opacity: .9; filter: grayscale(.4); }
+@media print { #tab-quote-make #qpDashboard #qpdListWrap .is-lost::after { display: none; } }
+
+/* 「受注」のカード・行には王冠（👑）を被せる（2026-11）：左上の角に少し傾けてちょこんと載せ、乗せるとぴょこっと跳ねる。
+   受注のカードは薄い金色の縁取り。押す操作は下の要素へ通す。印刷では出さない */
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-card.is-won,
+#tab-quote-make #qpDashboard #qpdListWrap .qpd-row.is-won { position: relative; overflow: visible; }
+#tab-quote-make #qpDashboard #qpdListWrap .cloud-card.is-won { box-shadow: inset 0 0 0 1.5px #f3d58a; background-image: linear-gradient(135deg, #fffaf0 0, transparent 120px); }
+#tab-quote-make #qpDashboard #qpdListWrap .cc-crown {
+  position: absolute; top: -13px; left: -9px; z-index: 4; pointer-events: none;
+  font-size: 24px; line-height: 1; transform: rotate(-22deg); transform-origin: 50% 90%;
+  filter: drop-shadow(0 2px 1.5px rgba(150, 105, 0, .35));
+}
+#tab-quote-make #qpDashboard #qpdListWrap .qpd-row .cc-crown { top: -9px; left: -7px; font-size: 18px; }
+#tab-quote-make #qpDashboard #qpdListWrap .is-won:hover .cc-crown { animation: ccCrownHop .6s ease-out; }
+@keyframes ccCrownHop {
+  0% { transform: rotate(-22deg) translateY(0); }
+  35% { transform: rotate(-10deg) translateY(-6px); }
+  65% { transform: rotate(-28deg) translateY(0); }
+  100% { transform: rotate(-22deg) translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { #tab-quote-make #qpDashboard #qpdListWrap .is-won:hover .cc-crown { animation: none; } }
+@media print { #tab-quote-make #qpDashboard #qpdListWrap .cc-crown { display: none; } }

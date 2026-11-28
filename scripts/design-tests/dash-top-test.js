@@ -163,6 +163,25 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('情報待ちのカード（1 件）だけ is-waiting・薄く表示、他は通常の濃さ', di.w === 1 && di.ok && di.wOp < 0.7 && di.nOp === 1, di);
   await p.hover('#qpdListWrap .is-waiting'); await p.waitForTimeout(300);
   ok('乗せると読みやすく戻る', await p.evaluate(() => +getComputedStyle(document.querySelector('#qpdListWrap .is-waiting')).opacity > 0.9));
+  const lost = await p.evaluate(() => {
+    const ls = [...document.querySelectorAll('#qpdListWrap .is-lost')];
+    const e = ls[0]; if (!e) return { n: 0 };
+    const a = getComputedStyle(e, '::after');
+    return { n: ls.length, txt: ls.every(c => /失注/.test(c.textContent)), op: +getComputedStyle(e).opacity, bg: a.backgroundImage, pe: a.pointerEvents, pos: getComputedStyle(e).position };
+  });
+  ok('失注のカード（1 件）だけ is-lost・薄く表示＋バッテン（2 本の線・押す操作は通す）', lost.n === 1 && lost.txt && lost.op < 0.7 && /linear-gradient.*linear-gradient/.test(lost.bg) && lost.pe === 'none' && lost.pos === 'relative', lost);
+  await p.hover('#qpdListWrap .is-lost'); await p.waitForTimeout(300);
+  ok('失注も乗せると読みやすく戻り、バッテンは残る', await p.evaluate(() => { const e = document.querySelector('#qpdListWrap .is-lost'); return +getComputedStyle(e).opacity > 0.8 && /linear-gradient/.test(getComputedStyle(e, '::after').backgroundImage); }));
+  const won = await p.evaluate(() => {
+    const ws = [...document.querySelectorAll('#qpdListWrap .is-won')];
+    const cr = ws.map(c => c.querySelector(':scope > .cc-crown')).filter(Boolean);
+    const e = cr[0], r = e && e.getBoundingClientRect(), cr2 = e && e.parentElement.getBoundingClientRect();
+    const hit = e && document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { n: ws.length, crowns: cr.length, others: document.querySelectorAll('#qpdListWrap .cc-crown').length, txt: ws.every(c => /受注/.test(c.textContent)), onCorner: !!e && r.top < cr2.top && r.left < cr2.left + 10, visible: !!hit && (hit === e || e.contains(hit)), pe: e && getComputedStyle(e).pointerEvents };
+  });
+  ok('受注のカード（2 件）だけ王冠を被せる（左上の角からはみ出して見える・押す操作は通す）', won.n === 2 && won.crowns === 2 && won.others === 2 && won.txt && won.onCorner && won.pe === 'none', won);
+  await p.mouse.move(2, 890); await p.evaluate(() => document.querySelector('#qpdListWrap .is-won').scrollIntoView({ block: 'center' })); await p.waitForTimeout(400);
+  await shot('won-lost');
   ok('JS エラーなし', errs.length === 0, errs);
   console.log(fails ? 'NG' : 'OK'); await b.close(); srv.close(); process.exit(fails ? 1 : 0);
 })();
